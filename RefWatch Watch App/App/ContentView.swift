@@ -8,6 +8,8 @@
 import SwiftUI
 
 struct ContentView: View {
+    @State private var matchViewModel = MatchViewModel()
+    
     var body: some View {
         NavigationStack {
             VStack {
@@ -15,8 +17,8 @@ struct ContentView: View {
                     .font(.headline)
                     .padding()
                 
-                // Navigate to the StartMatchScreen
-                NavigationLink(destination: StartMatchScreen()) {
+                // Navigate to the StartMatchScreen with matchViewModel
+                NavigationLink(destination: StartMatchScreen(matchViewModel: matchViewModel)) {
                     CustomButton(title: "Start Match")
                 }
                 .padding(.bottom, 10)

@@ -8,64 +8,105 @@
 import SwiftUI
 
 struct StartMatchScreen: View {
+    let matchViewModel: MatchViewModel
     
     var body: some View {
-        VStack {
+        VStack(spacing: 16) {
             Text("Start a New Match")
                 .font(.headline)
                 .padding()
             
-            // "From Library" - Currently just shows "Coming up"
-            NavigationLink(destination: ComingUpView()) {
-                CustomButton(title: "From Library")
+            // Select from library
+            NavigationLink(destination: SavedMatchesView(matchViewModel: matchViewModel)) {
+                CustomButton(title: "Select Match")
             }
             .padding(.bottom, 10)
             
-            // "Create" - Navigates to a form or direct create match page
-            NavigationLink(destination: CreateMatchView()) {
-                CustomButton(title: "Create")
+            // Create new match
+            NavigationLink(destination: CreateMatchView(matchViewModel: matchViewModel)) {
+                CustomButton(title: "Create Match")
             }
         }
         .navigationTitle("Start Match")
     }
 }
 
-// A simple view that displays "Coming up"
-struct ComingUpView: View {
+// View for creating a new match with settings
+struct CreateMatchView: View {
+    @Bindable var matchViewModel: MatchViewModel
+    @Environment(\.dismiss) private var dismiss
+    
     var body: some View {
-        Text("Coming up...")
-            .font(.headline)
+        ScrollView {
+            VStack(spacing: 12) {
+                // Match settings
+                Group {
+                    Picker("Duration", selection: $matchViewModel.matchDuration) {
+                        ForEach([45, 60, 90], id: \.self) { duration in
+                            Text("\(duration) min").tag(duration)
+                        }
+                    }
+                    
+                    Picker("Periods", selection: $matchViewModel.numberOfPeriods) {
+                        ForEach(1...4, id: \.self) { periods in
+                            Text("\(periods)").tag(periods)
+                        }
+                    }
+                    
+                    Picker("Half-time", selection: $matchViewModel.halfTimeLength) {
+                        ForEach([10, 15, 20], id: \.self) { length in
+                            Text("\(length) min").tag(length)
+                        }
+                    }
+                    
+                    Toggle("Extra Time", isOn: $matchViewModel.hasExtraTime)
+                    Toggle("Penalties", isOn: $matchViewModel.hasPenalties)
+                }
+                
+                // Start match button
+                NavigationLink(destination: MatchSetupView(matchViewModel: matchViewModel)) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.title2)
+                        .foregroundColor(.green)
+                }
+                .simultaneousGesture(TapGesture().onEnded {
+                    matchViewModel.configureMatch(
+                        duration: matchViewModel.matchDuration,
+                        periods: matchViewModel.numberOfPeriods,
+                        halfTimeLength: matchViewModel.halfTimeLength,
+                        hasExtraTime: matchViewModel.hasExtraTime,
+                        hasPenalties: matchViewModel.hasPenalties
+                    )
+                })
+            }
+            .padding()
+        }
+        .navigationTitle("Match Settings")
     }
 }
 
-// A simple view that has a button to actually start the match
-struct CreateMatchView: View {
-    @ObservedObject var matchViewModel = MatchViewModel()
+// View for selecting from saved matches
+struct SavedMatchesView: View {
+    let matchViewModel: MatchViewModel
     
     var body: some View {
-        VStack {
-            Text("Create Your Match")
-                .font(.headline)
-                .padding()
-            
-            // Button that starts the match (starts the timer)
-            Button(action: {
-                matchViewModel.startMatch()
-            }) {
-                CustomButton(title: "Start Match")
+        List {
+            NavigationLink(destination: MatchSetupView(matchViewModel: matchViewModel)) {
+                VStack(alignment: .leading) {
+                    Text("Sample Match")
+                        .font(.headline)
+                    Text("HOM vs AWA")
+                        .font(.subheadline)
+                        .foregroundColor(.gray)
+                }
             }
-            
-            // Display the timer, if running, or initial state
-            Text(matchViewModel.formattedElapsedTime)
-                .font(.title2)
-                .padding()
         }
-        .navigationTitle("New Match")
+        .navigationTitle("Saved Matches")
     }
 }
 
 struct StartMatchScreen_Previews: PreviewProvider {
     static var previews: some View {
-        StartMatchScreen()
+        StartMatchScreen(matchViewModel: MatchViewModel())
     }
 }

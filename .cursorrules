@@ -5,7 +5,7 @@ Every time you choose to apply one of the rules from the rules list below, speci
 You can abbreviate the rule description to a single word or phrase.
 
 # Important rules you HAVE TO FOLLOW
-- Always add debug logs and comments for easier debugging and understanding of the code.
+- Always add comments for easier debugging and understanding of the code.
 
 # Tech Stack
 - Swift
