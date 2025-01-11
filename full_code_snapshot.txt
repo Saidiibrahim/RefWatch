@@ -1,0 +1,349 @@
+
+
+# ======= File: RefWatch Watch App/ViewModels/MatchViewModel.swift =======
+
+//
+//  MatchViewModel.swift
+//  RefereeAssistant
+//
+//  Description: ViewModel controlling the logic for a match (e.g., timer).
+//
+
+import Foundation
+import SwiftUI
+
+class MatchViewModel: ObservableObject {
+    @Published var match = Match()
+    @Published var formattedElapsedTime: String = "00:00"
+    
+    private var timer: Timer?
+    
+    func startMatch() {
+        match.startTime = Date()
+        startTimer()
+    }
+    
+    private func startTimer() {
+        // Invalidate any existing timer before creating a new one
+        timer?.invalidate()
+        
+        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
+            self.updateElapsedTime()
+        }
+    }
+    
+    private func updateElapsedTime() {
+        guard let startTime = match.startTime else { return }
+        
+        let elapsed = Date().timeIntervalSince(startTime)
+        match.duration = elapsed
+        
+        let minutes = Int(elapsed) / 60
+        let seconds = Int(elapsed) % 60
+        
+        formattedElapsedTime = String(format: "%02d:%02d", minutes, seconds)
+    }
+    
+    func stopMatch() {
+        timer?.invalidate()
+        timer = nil
+    }
+}
+
+
+# ======= File: RefWatch Watch App/ViewModels/SettingsViewModel.swift =======
+
+//
+//  SettingsViewModel.swift
+//  RefereeAssistant
+//
+//  Description: ViewModel controlling the logic for user settings.
+//
+
+import Foundation
+import SwiftUI
+
+class SettingsViewModel: ObservableObject {
+    @Published var settings = Settings()
+    
+    // This example toggles a single setting. Expand for more complex logic.
+    var exampleSetting: Bool {
+        get { settings.exampleSetting }
+        set { settings.exampleSetting = newValue }
+    }
+    
+    init() {
+        // Potentially load saved settings or defaults here
+    }
+    
+    // Example of saving settings or any other settings-based logic
+    func saveSettings() {
+        // Add your saving logic here (UserDefaults, CloudKit, etc.)
+    }
+}
+
+
+# ======= File: RefWatch Watch App/App/ContentView.swift =======
+
+//
+//  ContentView.swift
+//  RefereeAssistant
+//
+//  Description: The Welcome page with two main options: "Start Match" and "Settings".
+//
+
+import SwiftUI
+
+struct ContentView: View {
+    var body: some View {
+        NavigationStack {
+            VStack {
+                Text("Welcome to Referee Assistant")
+                    .font(.headline)
+                    .padding()
+                
+                // Navigate to the StartMatchScreen
+                NavigationLink(destination: StartMatchScreen()) {
+                    CustomButton(title: "Start Match")
+                }
+                .padding(.bottom, 10)
+                
+                // Navigate to the SettingsScreen
+                NavigationLink(destination: SettingsScreen()) {
+                    CustomButton(title: "Settings")
+                }
+            }
+            .navigationTitle("Referee")
+        }
+    }
+}
+
+struct ContentView_Previews: PreviewProvider {
+    static var previews: some View {
+        ContentView()
+    }
+}
+
+
+# ======= File: RefWatch Watch App/App/RefWatchApp.swift =======
+
+//
+//  RefWatchApp.swift
+//  RefWatch Watch App
+//
+//  Created by Ibrahim Saidi on 11/1/2025.
+//
+
+import SwiftUI
+
+@main
+struct RefWatch_Watch_AppApp: App {
+    var body: some Scene {
+        WindowGroup {
+            ContentView()
+        }
+    }
+}
+
+
+# ======= File: RefWatch Watch App/App/SettingsView.swift =======
+
+
+
+# ======= File: RefWatch Watch App/App/StartMatchView.swift =======
+
+//
+//  StartMatchView.swift
+//  RefWatch
+//
+//  Created by Ibrahim Saidi on 11/1/2025.
+//
+
+
+
+# ======= File: RefWatch Watch App/Models/Match.swift =======
+
+//
+//  Match.swift
+//  RefereeAssistant
+//
+//  Description: Data model representing a match in progress.
+//
+
+import Foundation
+
+struct Match {
+    var startTime: Date?
+    var duration: TimeInterval  // In seconds
+    
+    init() {
+        self.startTime = nil
+        self.duration = 0
+    }
+}
+
+
+
+# ======= File: RefWatch Watch App/Models/Settings.swift =======
+
+//
+//  Settings.swift
+//  RefereeAssistant
+//
+//  Description: Data model representing user settings.
+//
+
+import Foundation
+
+struct Settings {
+    var exampleSetting: Bool
+    
+    init(exampleSetting: Bool = false) {
+        self.exampleSetting = exampleSetting
+    }
+}
+
+
+# ======= File: RefWatch Watch App/Views/Screens/SettingsScreen.swift =======
+
+//
+//  SettingsScreen.swift
+//  RefereeAssistant
+//
+//  Description: Main settings page where users can configure app preferences.
+//
+
+import SwiftUI
+
+struct SettingsScreen: View {
+    @ObservedObject var settingsViewModel = SettingsViewModel()
+    
+    var body: some View {
+        VStack {
+            Text("Settings")
+                .font(.headline)
+                .padding()
+            
+            // Example of toggling some setting
+            Toggle(isOn: $settingsViewModel.exampleSetting) {
+                Text("Example Setting")
+            }
+            .padding()
+            
+            // Additional settings can be added here
+        }
+        .navigationTitle("Settings")
+    }
+}
+
+struct SettingsScreen_Previews: PreviewProvider {
+    static var previews: some View {
+        SettingsScreen()
+    }
+}
+
+
+# ======= File: RefWatch Watch App/Views/Screens/StartMatchScreen.swift =======
+
+//
+//  StartMatchScreen.swift
+//  RefereeAssistant
+//
+//  Description: Displays two options: "From Library" and "Create".
+//
+
+import SwiftUI
+
+struct StartMatchScreen: View {
+    
+    var body: some View {
+        VStack {
+            Text("Start a New Match")
+                .font(.headline)
+                .padding()
+            
+            // "From Library" - Currently just shows "Coming up"
+            NavigationLink(destination: ComingUpView()) {
+                CustomButton(title: "From Library")
+            }
+            .padding(.bottom, 10)
+            
+            // "Create" - Navigates to a form or direct create match page
+            NavigationLink(destination: CreateMatchView()) {
+                CustomButton(title: "Create")
+            }
+        }
+        .navigationTitle("Start Match")
+    }
+}
+
+// A simple view that displays "Coming up"
+struct ComingUpView: View {
+    var body: some View {
+        Text("Coming up...")
+            .font(.headline)
+    }
+}
+
+// A simple view that has a button to actually start the match
+struct CreateMatchView: View {
+    @ObservedObject var matchViewModel = MatchViewModel()
+    
+    var body: some View {
+        VStack {
+            Text("Create Your Match")
+                .font(.headline)
+                .padding()
+            
+            // Button that starts the match (starts the timer)
+            Button(action: {
+                matchViewModel.startMatch()
+            }) {
+                CustomButton(title: "Start Match")
+            }
+            
+            // Display the timer, if running, or initial state
+            Text(matchViewModel.formattedElapsedTime)
+                .font(.title2)
+                .padding()
+        }
+        .navigationTitle("New Match")
+    }
+}
+
+struct StartMatchScreen_Previews: PreviewProvider {
+    static var previews: some View {
+        StartMatchScreen()
+    }
+}
+
+
+# ======= File: RefWatch Watch App/Views/Components/CustomButton.swift =======
+
+//
+//  CustomButton.swift
+//  RefereeAssistant
+//
+//  Description: A reusable SwiftUI button style for consistent styling.
+//
+
+import SwiftUI
+
+struct CustomButton: View {
+    let title: String
+    
+    var body: some View {
+        Text(title)
+            .font(.body)
+            .foregroundColor(.white)
+            .padding()
+            .background(Color.blue)
+            .cornerRadius(8)
+    }
+}
+
+struct CustomButton_Previews: PreviewProvider {
+    static var previews: some View {
+        CustomButton(title: "Sample Button")
+    }
+}
