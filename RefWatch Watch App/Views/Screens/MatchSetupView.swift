@@ -16,8 +16,8 @@ struct MatchSetupView: View {
             TeamDetailsView(teamType: .home, matchViewModel: matchViewModel)
                 .tag(0)
             
-            // Start Match Screen (Middle)
-            StartMatchDetailsView(matchViewModel: matchViewModel)
+            // Timer View (Middle)
+            TimerView(model: matchViewModel)
                 .tag(1)
             
             // Away Team Details
@@ -25,6 +25,10 @@ struct MatchSetupView: View {
                 .tag(2)
         }
         .tabViewStyle(.page)
+        .onAppear {
+            // Start the match when this view appears
+            matchViewModel.startMatch()
+        }
     }
 }
 
@@ -53,6 +57,7 @@ struct StartMatchDetailsView: View {
             
             Spacer()
             
+            // Start match button
             NavigationLink(destination: TimerView(model: matchViewModel)) {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.title)
