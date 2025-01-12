@@ -34,52 +34,77 @@ struct StartMatchScreen: View {
 // View for creating a new match with settings
 struct CreateMatchView: View {
     @Bindable var matchViewModel: MatchViewModel
-    @Environment(\.dismiss) private var dismiss
     
     var body: some View {
-        ScrollView {
-            VStack(spacing: 12) {
-                // Match settings
-                Group {
-                    Picker("Duration", selection: $matchViewModel.matchDuration) {
-                        ForEach([45, 60, 90], id: \.self) { duration in
-                            Text("\(duration) min").tag(duration)
-                        }
-                    }
-                    
-                    Picker("Periods", selection: $matchViewModel.numberOfPeriods) {
-                        ForEach(1...4, id: \.self) { periods in
-                            Text("\(periods)").tag(periods)
-                        }
-                    }
-                    
-                    Picker("Half-time", selection: $matchViewModel.halfTimeLength) {
-                        ForEach([10, 15, 20], id: \.self) { length in
-                            Text("\(length) min").tag(length)
-                        }
-                    }
-                    
-                    Toggle("Extra Time", isOn: $matchViewModel.hasExtraTime)
-                    Toggle("Penalties", isOn: $matchViewModel.hasPenalties)
+        List {
+            // Duration
+            NavigationLink(destination: SettingPickerView(
+                title: "Duration",
+                values: [40, 45, 50],
+                selection: $matchViewModel.matchDuration,
+                formatter: { "\($0) min" }
+            )) {
+                HStack {
+                    Text("Duration")
+                    Spacer()
+                    Text("\(matchViewModel.matchDuration) min")
+                        .foregroundColor(.gray)
                 }
-                
-                // Start match button
-                NavigationLink(destination: MatchSetupView(matchViewModel: matchViewModel)) {
+            }
+            
+            // Periods
+            NavigationLink(destination: SettingPickerView(
+                title: "Periods",
+                values: [1, 2, 3, 4],
+                selection: $matchViewModel.numberOfPeriods,
+                formatter: String.init
+            )) {
+                HStack {
+                    Text("Periods")
+                    Spacer()
+                    Text("\(matchViewModel.numberOfPeriods)")
+                        .foregroundColor(.gray)
+                }
+            }
+            
+            // Half-time length
+            NavigationLink(destination: SettingPickerView(
+                title: "Half-time",
+                values: [10, 15, 20],
+                selection: $matchViewModel.halfTimeLength,
+                formatter: { "\($0) min" }
+            )) {
+                HStack {
+                    Text("HT Length")
+                    Spacer()
+                    Text("\(matchViewModel.halfTimeLength) min")
+                        .foregroundColor(.gray)
+                }
+            }
+            
+            // Toggles
+            Toggle("Extra Time", isOn: $matchViewModel.hasExtraTime)
+            Toggle("Penalties", isOn: $matchViewModel.hasPenalties)
+            
+            // Start match button
+            NavigationLink(destination: MatchSetupView(matchViewModel: matchViewModel)) {
+                HStack {
+                    Spacer()
                     Image(systemName: "checkmark.circle.fill")
                         .font(.title2)
                         .foregroundColor(.green)
+                    Spacer()
                 }
-                .simultaneousGesture(TapGesture().onEnded {
-                    matchViewModel.configureMatch(
-                        duration: matchViewModel.matchDuration,
-                        periods: matchViewModel.numberOfPeriods,
-                        halfTimeLength: matchViewModel.halfTimeLength,
-                        hasExtraTime: matchViewModel.hasExtraTime,
-                        hasPenalties: matchViewModel.hasPenalties
-                    )
-                })
             }
-            .padding()
+            .simultaneousGesture(TapGesture().onEnded {
+                matchViewModel.configureMatch(
+                    duration: matchViewModel.matchDuration,
+                    periods: matchViewModel.numberOfPeriods,
+                    halfTimeLength: matchViewModel.halfTimeLength,
+                    hasExtraTime: matchViewModel.hasExtraTime,
+                    hasPenalties: matchViewModel.hasPenalties
+                )
+            })
         }
         .navigationTitle("Match Settings")
     }
