@@ -87,7 +87,7 @@ struct CreateMatchView: View {
             Toggle("Penalties", isOn: $matchViewModel.hasPenalties)
             
             // Start match button
-            NavigationLink(destination: MatchSetupView(matchViewModel: matchViewModel)) {
+            NavigationLink(destination: MatchKickOffView(matchViewModel: matchViewModel)) {
                 HStack {
                     Spacer()
                     Image(systemName: "checkmark.circle.fill")

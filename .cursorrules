@@ -14,7 +14,7 @@ You can abbreviate the rule description to a single word or phrase.
 
 # Swift specific rules
 
-# 1. State management
+## 1. State management
 - Use appropriate property wrappers and macros:
   - Annotate view models with '@Observable', e.g., '@Observable final class MyModel'.
   - Do not use @State in the SwiftUI View for view model observation. Instead, use 'Let model: MyModel'.
@@ -23,3 +23,28 @@ You can abbreviate the rule description to a single word or phrase.
   - For value type state shared with a child view, pass the value if the child view only needs read access to the state.
   - Use 'Environment' for state that should be shared throughout the entire app, or large pieces of the app.
   - Use '@State' only for local state that is managed by the view itself.
+
+
+## 2. Code Structure
+
+- Use Swift's latest features and protocol-oriented programming
+- Prefer value types (structs) over classes
+- Use MVVM architecture with SwiftUI
+- Follow Apple's Human Interface Guidelines
+
+  
+## 3. Naming
+- camelCase for vars/funcs, PascalCase for types
+- Verbs for methods (fetchData)
+- Boolean: use is/has/should prefixes
+- Clear, descriptive names following Apple style
+
+
+## 4. Swift Best Practices
+
+- Strong type system, proper optionals
+- async/await for concurrency
+- Result type for errors
+- @Published, @StateObject for state
+- Prefer let over var
+- Protocol extensions for shared code

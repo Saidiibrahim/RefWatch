@@ -55,6 +55,9 @@ final class MatchViewModel {
     var hasExtraTime: Bool = false
     var hasPenalties: Bool = false
     
+    // Add near the top with other properties
+    private(set) var homeTeamKickingOff: Bool = false
+    
     // MARK: - Initialization
     init() {
         self.savedMatches = [
@@ -76,10 +79,15 @@ final class MatchViewModel {
     
     // MARK: - Timer Control
     func startMatch() {
-        guard let match = currentMatch else { return }
+        print("DEBUG: startMatch called") // Debug log
+        guard let match = currentMatch else {
+            print("DEBUG: No current match found") // Debug log
+            return
+        }
         isMatchInProgress = true
         isPaused = false
         periodStartTime = Date()
+        print("DEBUG: Starting timer with periodStartTime: \(periodStartTime!)") // Debug log
         startTimer()
     }
     
@@ -109,10 +117,15 @@ final class MatchViewModel {
     }
     
     private func startTimer() {
+        print("DEBUG: startTimer called") // Debug log
         timer?.invalidate()
         timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            self?.updateMatchTime()
+            DispatchQueue.main.async {
+                print("DEBUG: Timer tick on main thread") // Debug log
+                self?.updateMatchTime()
+            }
         }
+        RunLoop.current.add(timer!, forMode: .common)
     }
     
     private func startHalfTimeTimer() {
@@ -123,22 +136,31 @@ final class MatchViewModel {
     }
     
     private func updateMatchTime() {
+        print("DEBUG: updateMatchTime called") // Debug log
         guard let match = currentMatch,
-              let startTime = periodStartTime else { return }
+              let startTime = periodStartTime else {
+            print("DEBUG: Missing match or startTime") // Debug log
+            return
+        }
         
         let currentTime = Date()
         let periodElapsed = currentTime.timeIntervalSince(startTime)
         
-        // Update period time
+        print("DEBUG: Period elapsed: \(periodElapsed)") // Debug log
+        
+        // Update period time - make these assignments trigger UI updates
         let periodMinutes = Int(periodElapsed) / 60
         let periodSeconds = Int(periodElapsed) % 60
-        periodTime = String(format: "%02d:%02d", periodMinutes, periodSeconds)
+        self.periodTime = String(format: "%02d:%02d", periodMinutes, periodSeconds)
         
         // Update total match time
-        elapsedTime = (TimeInterval(currentPeriod - 1) * (match.duration / TimeInterval(match.numberOfPeriods))) + periodElapsed
-        let totalMinutes = Int(elapsedTime) / 60
-        let totalSeconds = Int(elapsedTime) % 60
-        matchTime = String(format: "%02d:%02d", totalMinutes, totalSeconds)
+        self.elapsedTime = (TimeInterval(currentPeriod - 1) * (match.duration / TimeInterval(match.numberOfPeriods))) + periodElapsed
+        let totalMinutes = Int(self.elapsedTime) / 60
+        let totalSeconds = Int(self.elapsedTime) % 60
+        self.matchTime = String(format: "%02d:%02d", totalMinutes, totalSeconds)
+        
+        // Force UI update by modifying the observable object
+        self.isMatchInProgress = true
         
         // Check if period should end
         let periodDuration = match.duration / TimeInterval(match.numberOfPeriods)
@@ -255,6 +277,7 @@ final class MatchViewModel {
         hasExtraTime: Bool,
         hasPenalties: Bool
     ) {
+        print("DEBUG: Configuring match") // Debug log
         newMatch = Match(
             duration: TimeInterval(duration),
             numberOfPeriods: periods,
@@ -263,5 +286,11 @@ final class MatchViewModel {
             hasPenalties: hasPenalties
         )
         currentMatch = newMatch
+        print("DEBUG: Match configured, currentMatch: \(String(describing: currentMatch))") // Debug log
+    }
+    
+    // Add this new method
+    func setKickingTeam(_ isHome: Bool) {
+        homeTeamKickingOff = isHome
     }
 }
