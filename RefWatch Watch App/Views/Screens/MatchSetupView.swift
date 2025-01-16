@@ -81,55 +81,57 @@ struct TeamDetailsView: View {
     let matchViewModel: MatchViewModel
     
     var body: some View {
-        VStack(spacing: 16) {
+        VStack {
             Text(teamType == .home ? "HOM" : "AWA")
                 .font(.title2)
                 .bold()
+                .padding(.bottom, 8)
             
-            // Match events buttons
-            VStack(spacing: 12) {
-                Button(action: { addEvent(.yellow) }) {
-                    EventButton(icon: "square.fill", color: .yellow, label: "Yellow")
+            // 2x2 grid layout with more spacing
+            VStack(spacing: 16) {
+                HStack(spacing: 20) {
+                    EventButtonView(
+                        icon: "square.fill",
+                        color: .yellow,
+                        label: "Yellow"
+                    ) {
+                        addEvent(.yellow)
+                    }
+                    
+                    EventButtonView(
+                        icon: "square.fill",
+                        color: .red,
+                        label: "Red"
+                    ) {
+                        addEvent(.red)
+                    }
                 }
                 
-                Button(action: { addEvent(.red) }) {
-                    EventButton(icon: "square.fill", color: .red, label: "Red")
-                }
-                
-                Button(action: { addEvent(.substitution) }) {
-                    EventButton(icon: "arrow.up.arrow.down", color: .blue, label: "Sub")
-                }
-                
-                Button(action: { addEvent(.goal) }) {
-                    EventButton(icon: "soccerball", color: .white, label: "Goal")
+                HStack(spacing: 20) {
+                    EventButtonView(
+                        icon: "arrow.up.arrow.down",
+                        color: .blue,
+                        label: "Sub"
+                    ) {
+                        addEvent(.substitution)
+                    }
+                    
+                    EventButtonView(
+                        icon: "soccerball",
+                        color: .white,
+                        label: "Goal"
+                    ) {
+                        addEvent(.goal)
+                    }
                 }
             }
+            .padding(.horizontal)
         }
         .padding()
     }
     
     private func addEvent(_ event: MatchEvent) {
         matchViewModel.addEvent(event, for: teamType == .home ? .home : .away)
-    }
-}
-
-// Reusable button style for match events
-struct EventButton: View {
-    let icon: String
-    let color: Color
-    let label: String
-    
-    var body: some View {
-        HStack {
-            Image(systemName: icon)
-                .foregroundColor(color)
-            Text(label)
-                .foregroundColor(.primary)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 8)
-        .background(Color.gray.opacity(0.2))
-        .cornerRadius(8)
     }
 }
 
