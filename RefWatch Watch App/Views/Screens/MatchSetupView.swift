@@ -80,6 +80,16 @@ struct TeamDetailsView: View {
     let teamType: TeamType
     let matchViewModel: MatchViewModel
     
+    @State private var showingCardRecipientSelection = false
+    @State private var showingTeamOfficialSelection = false
+    @State private var showingCardReasonSelection = false
+    @State private var currentCardType: MatchEvent?
+    @State private var isTeamOfficial = false
+    @State private var selectedTeamOfficial: TeamOfficialRole?
+    @State private var selectedPlayerNumber: Int?
+    @State private var showingPlayerNumberInput = false
+    @State private var selectedGoalType: GoalTypeSelectionView.GoalType?
+    
     var body: some View {
         VStack {
             Text(teamType == .home ? "HOM" : "AWA")
@@ -95,7 +105,8 @@ struct TeamDetailsView: View {
                         color: .yellow,
                         label: "Yellow"
                     ) {
-                        addEvent(.yellow)
+                        currentCardType = .yellow
+                        showingCardRecipientSelection = true
                     }
                     
                     EventButtonView(
@@ -103,7 +114,8 @@ struct TeamDetailsView: View {
                         color: .red,
                         label: "Red"
                     ) {
-                        addEvent(.red)
+                        currentCardType = .red
+                        showingCardRecipientSelection = true
                     }
                 }
                 
@@ -116,22 +128,123 @@ struct TeamDetailsView: View {
                         addEvent(.substitution)
                     }
                     
-                    EventButtonView(
-                        icon: "soccerball",
-                        color: .white,
-                        label: "Goal"
-                    ) {
-                        addEvent(.goal)
+                    NavigationLink {
+                        GoalTypeSelectionView(team: teamType) { goalType in
+                            selectedGoalType = goalType
+                            showingPlayerNumberInput = true
+                        }
+                    } label: {
+                        EventButtonView(
+                            icon: "soccerball",
+                            color: .white,
+                            label: "Goal"
+                        ) { }
                     }
                 }
             }
             .padding(.horizontal)
         }
         .padding()
+        .navigationDestination(isPresented: $showingCardRecipientSelection) {
+            if let cardType = currentCardType {
+                CardRecipientSelectionView(
+                    team: teamType,
+                    cardType: cardType,
+                    onSelectPlayer: {
+                        showingCardRecipientSelection = false
+                        showingPlayerNumberInput = true
+                    },
+                    onSelectOfficial: {
+                        isTeamOfficial = true
+                        showingCardRecipientSelection = false
+                        showingTeamOfficialSelection = true
+                    }
+                )
+            }
+        }
+        .navigationDestination(isPresented: $showingTeamOfficialSelection) {
+            TeamOfficialSelectionView(team: teamType) { role in
+                selectedTeamOfficial = role
+                showingTeamOfficialSelection = false
+                showingCardReasonSelection = true
+            }
+        }
+        .navigationDestination(isPresented: $showingCardReasonSelection) {
+            if let cardType = currentCardType {
+                CardReasonSelectionView(
+                    cardType: cardType,
+                    isTeamOfficial: isTeamOfficial
+                ) { reason in
+                    recordCard(
+                        type: cardType,
+                        reason: reason,
+                        playerNumber: selectedPlayerNumber,
+                        officialRole: selectedTeamOfficial
+                    )
+                    showingCardReasonSelection = false
+                }
+            }
+        }
+        .navigationDestination(isPresented: $showingPlayerNumberInput) {
+            if currentCardType != nil {
+                // For card flow
+                PlayerNumberInputView(
+                    team: teamType,
+                    goalType: nil,
+                    cardType: currentCardType,
+                    onComplete: { number in
+                        selectedPlayerNumber = number
+                        showingPlayerNumberInput = false
+                        showingCardReasonSelection = true
+                    }
+                )
+            } else if let goalType = selectedGoalType {
+                // For goal flow
+                PlayerNumberInputView(
+                    team: teamType,
+                    goalType: goalType,
+                    cardType: nil,
+                    onComplete: { number in
+                        recordGoal(type: goalType, playerNumber: number)
+                    }
+                )
+            }
+        }
+    }
+    
+    private func recordGoal(type: GoalTypeSelectionView.GoalType, playerNumber: Int) {
+        // Update match statistics based on goal type
+        switch type {
+        case .goal, .freeKick, .penalty:
+            matchViewModel.updateScore(isHome: teamType == .home)
+        case .ownGoal:
+            matchViewModel.updateScore(isHome: teamType == .away)
+        }
+        
+        // Add the event with additional details
+        let event = MatchEvent.goal
+        matchViewModel.addEvent(event, for: teamType == .home ? .home : .away)
     }
     
     private func addEvent(_ event: MatchEvent) {
         matchViewModel.addEvent(event, for: teamType == .home ? .home : .away)
+    }
+    
+    private func recordCard(
+        type: MatchEvent,
+        reason: String,
+        playerNumber: Int?,
+        officialRole: TeamOfficialRole?
+    ) {
+        // Add event details
+        matchViewModel.addEvent(type, for: teamType == .home ? .home : .away)
+        
+        // Reset all state
+        currentCardType = nil
+        selectedPlayerNumber = nil
+        selectedTeamOfficial = nil
+        isTeamOfficial = false
+        showingCardReasonSelection = false
     }
 }
 
