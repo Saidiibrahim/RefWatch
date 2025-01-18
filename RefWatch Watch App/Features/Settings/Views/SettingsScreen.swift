@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct SettingsScreen: View {
-    @ObservedObject var settingsViewModel = SettingsViewModel()
+    @Bindable var settingsViewModel: SettingsViewModel
     
     var body: some View {
         VStack {
@@ -17,7 +17,7 @@ struct SettingsScreen: View {
                 .padding()
             
             // Example of toggling some setting
-            Toggle(isOn: $settingsViewModel.exampleSetting) {
+            Toggle(isOn: $settingsViewModel.settings.exampleSetting) {
                 Text("Example Setting")
             }
             .padding()
@@ -30,6 +30,6 @@ struct SettingsScreen: View {
 
 struct SettingsScreen_Previews: PreviewProvider {
     static var previews: some View {
-        SettingsScreen()
+        SettingsScreen(settingsViewModel: SettingsViewModel())
     }
 }

@@ -9,6 +9,7 @@ import SwiftUI
 
 struct ContentView: View {
     @State private var matchViewModel = MatchViewModel()
+    @State private var settingsViewModel = SettingsViewModel()
     
     var body: some View {
         NavigationStack {
@@ -23,8 +24,8 @@ struct ContentView: View {
                 }
                 .padding(.bottom, 10)
                 
-                // Navigate to the SettingsScreen
-                NavigationLink(destination: SettingsScreen()) {
+                // Navigate to the SettingsScreen with settingsViewModel
+                NavigationLink(destination: SettingsScreen(settingsViewModel: settingsViewModel)) {
                     CustomButton(title: "Settings")
                 }
             }
