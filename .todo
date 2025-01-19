@@ -1,0 +1,1 @@
+[ ] When creating a match, we're skipping the MatchSetup screen (MatchSetupView.swift).

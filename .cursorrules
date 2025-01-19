@@ -1,13 +1,95 @@
 Always start with "Hey Ibby"
 
+In some cases, you will be provided with a .todo file. If you are, this means you are required to either act on the tasks in the .todo file (which should then mark the task as done) or simply have those tasks in mind when writing code.
+
 You are building a WatchOS app for football/soccer referees.
 Every time you choose to apply one of the rules from the rules list below, specify the rule(s) you are applying.
 You can abbreviate the rule description to a single word or phrase.
 
 # Important rules you HAVE TO FOLLOW
+
 - Always add comments for easier debugging and understanding of the code.
 
+# Project Structure
+
+.
+├── README.md
+├── RefWatch Watch App
+│   ├── App
+│   │   ├── ContentView.swift
+│   │   ├── README.md
+│   │   └── RefWatchApp.swift
+│   ├── Assets.xcassets
+│   │   ├── AccentColor.colorset
+│   │   │   └── Contents.json
+│   │   ├── AppIcon.appiconset
+│   │   │   └── Contents.json
+│   │   └── Contents.json
+│   ├── Core
+│   │   ├── Components
+│   │   │   ├── CustomButton.swift
+│   │   │   ├── EventButtonView.swift
+│   │   │   ├── ScoreDisplayView.swift
+│   │   │   ├── SettingPickerView.swift
+│   │   │   └── TeamOfficialSelectionView.swift
+│   │   ├── Extensions
+│   │   ├── README.md
+│   │   └── Services
+│   │       ├── MatchStateService
+│   │       │   └── MatchStateService.swift
+│   │       └── TimerService
+│   │           └── TimerService.swift
+│   ├── Features
+│   │   ├── Events
+│   │   │   ├── Models
+│   │   │   │   └── CardModels.swift
+│   │   │   ├── ViewModels
+│   │   │   └── Views
+│   │   │       ├── CardReasonSelectionView.swift
+│   │   │       ├── CardRecipientSelectionView.swift
+│   │   │       ├── GoalTypeSelectionView.swift
+│   │   │       └── PlayerNumberInputView.swift
+│   │   ├── Match
+│   │   │   ├── Models
+│   │   │   │   └── Match.swift
+│   │   │   ├── ViewModels
+│   │   │   │   └── MatchViewModel.swift
+│   │   │   └── Views
+│   │   │       ├── MatchKickOffView.swift
+│   │   │       └── StartMatchScreen.swift
+│   │   ├── MatchSetup
+│   │   │   ├── Models
+│   │   │   ├── ViewModels
+│   │   │   └── Views
+│   │   │       └── MatchSetupView.swift
+│   │   ├── README.md
+│   │   ├── Settings
+│   │   │   ├── Models
+│   │   │   │   └── Settings.swift
+│   │   │   ├── ViewModels
+│   │   │   │   └── SettingsViewModel.swift
+│   │   │   └── Views
+│   │   │       └── SettingsScreen.swift
+│   │   ├── TeamManagement
+│   │   │   ├── Models
+│   │   │   ├── ViewModels
+│   │   │   └── Views
+│   │   └── Timer
+│   │       ├── Models
+│   │       ├── ViewModels
+│   │       └── Views
+│   │           └── TimerView.swift
+│   └── Preview Content
+│       └── Preview Assets.xcassets
+│           └── Contents.json
+├── RefWatch Watch AppTests
+│   └── RefWatch_Watch_AppTests.swift
+├── RefWatch Watch AppUITests
+│   ├── RefWatch_Watch_AppUITests.swift
+│   └── RefWatch_Watch_AppUITestsLaunchTests.swift
+
 # Tech Stack
+
 - Swift
 - SwiftUI
 - WatchOS
@@ -15,6 +97,7 @@ You can abbreviate the rule description to a single word or phrase.
 # Swift specific rules
 
 ## 1. State management
+
 - Use appropriate property wrappers and macros:
   - Annotate view models with '@Observable', e.g., '@Observable final class MyModel'.
   - Do not use @State in the SwiftUI View for view model observation. Instead, use 'Let model: MyModel'.
@@ -32,13 +115,12 @@ You can abbreviate the rule description to a single word or phrase.
 - Use MVVM architecture with SwiftUI
 - Follow Apple's Human Interface Guidelines
 
-  
 ## 3. Naming
+
 - camelCase for vars/funcs, PascalCase for types
 - Verbs for methods (fetchData)
 - Boolean: use is/has/should prefixes
 - Clear, descriptive names following Apple style
-
 
 ## 4. Swift Best Practices
 

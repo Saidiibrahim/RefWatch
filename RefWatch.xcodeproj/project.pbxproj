@@ -55,9 +55,24 @@
 		964A4D8D2D32234B00D08376 /* RefWatch Watch AppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "RefWatch Watch AppUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		96C042042D3B45960087BC55 /* Exceptions for "RefWatch Watch App" folder in "RefWatch Watch App" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				App/README.md,
+				Core/README.md,
+				Features/README.md,
+			);
+			target = 964A4D702D32234A00D08376 /* RefWatch Watch App */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		964A4D752D32234A00D08376 /* RefWatch Watch App */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				96C042042D3B45960087BC55 /* Exceptions for "RefWatch Watch App" folder in "RefWatch Watch App" target */,
+			);
 			path = "RefWatch Watch App";
 			sourceTree = "<group>";
 		};

@@ -23,7 +23,7 @@ struct StartMatchScreen: View {
             .padding(.bottom, 10)
             
             // Create new match
-            NavigationLink(destination: MatchSetupView(matchViewModel: matchViewModel)) {
+            NavigationLink(destination: CreateMatchView(matchViewModel: matchViewModel)) {
                 CustomButton(title: "Create Match")
             }
         }
