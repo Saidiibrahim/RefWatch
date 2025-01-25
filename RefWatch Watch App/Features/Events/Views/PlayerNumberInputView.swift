@@ -10,7 +10,6 @@ struct PlayerNumberInputView: View {
     let onComplete: (Int) -> Void
     
     @State private var numberString = ""
-    @Environment(\.dismiss) private var dismiss
     
     // Updated grid layout - removed bottom row
     let keypadLayout = [
@@ -58,10 +57,7 @@ struct PlayerNumberInputView: View {
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 Button("OK") {
-                    if let number = Int(numberString), number > 0 {
-                        onComplete(number)
-                        dismiss()
-                    }
+                    submitNumber()
                 }
                 .disabled(numberString.isEmpty)
             }
@@ -69,9 +65,14 @@ struct PlayerNumberInputView: View {
     }
     
     private func handleKeyPress(_ key: String) {
-        // Limit to 2 digits
         if numberString.count < 2 {
             numberString += key
+        }
+    }
+    
+    private func submitNumber() {
+        if let number = Int(numberString), number > 0 {
+            onComplete(number)
         }
     }
 }

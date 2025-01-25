@@ -6,13 +6,6 @@ enum CardRecipientType: String, CaseIterable {
     case teamOfficial = "Team Official"
 }
 
-enum TeamOfficialRole: String, CaseIterable {
-    case manager = "Manager"
-    case assistantManager = "Assistant Manager"
-    case coach = "Coach"
-    case physio = "Physio"
-}
-
 enum YellowCardReason: String, CaseIterable {
     case Y1 = "Unsporting Behavior"
     case Y2 = "Dissent"

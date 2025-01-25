@@ -3,19 +3,13 @@ import SwiftUI
 struct CardRecipientSelectionView: View {
     let team: TeamDetailsView.TeamType
     let cardType: MatchEvent
-    let onSelectPlayer: () -> Void
-    let onSelectOfficial: () -> Void
+    let onComplete: (CardRecipientType) -> Void // Simplified to only handle recipient selection
     
     var body: some View {
         List {
             ForEach(CardRecipientType.allCases, id: \.self) { recipient in
                 Button(action: {
-                    switch recipient {
-                    case .player:
-                        onSelectPlayer()
-                    case .teamOfficial:
-                        onSelectOfficial()
-                    }
+                    onComplete(recipient)
                 }) {
                     Text(recipient.rawValue)
                 }

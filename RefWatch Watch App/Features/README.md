@@ -23,3 +23,74 @@ Each feature follows a consistent organization:
 - Each feature should be self-contained and independent
 - Shared functionality should be moved to the Core module
 - Features can depend on Core but should not depend on other features
+
+## Card Event Recording Feature
+
+### Overview
+
+The card event recording system implements a streamlined flow for recording yellow and red cards during a match, supporting both player and team official incidents.
+
+### Architecture
+
+#### Coordinator Pattern
+
+The feature uses a coordinator pattern to manage the complex flow of recording card events:
+
+- `CardEventCoordinator`: Manages the entire card event flow state and transitions
+  - Handles recipient selection (player/team official)
+  - Manages player number input
+  - Controls team official role selection
+  - Processes card reason selection
+  - Records final card event in match state
+
+### Key Components
+
+#### Views
+
+- `CardEventFlow`: Root view that orchestrates the entire flow using NavigationStack
+- `CardReasonSelectionView`: Displays appropriate card reasons based on recipient type
+- `TeamOfficialSelectionView`: Handles team official role selection
+- `PlayerNumberInputView`: Manages player number input
+
+#### Models
+
+- `CardRecipientType`: Defines possible card recipients (player/team official)
+- `TeamOfficialCardReason`: Enumerates reasons for team official cards
+- `YellowCardReason`/`RedCardReason`: Defines player card reasons
+
+## Implementation Notes
+
+### State Management
+
+- Uses `@Observable` for the coordinator
+- Each view receives only the data it needs
+- State transitions are handled through clear coordinator methods
+
+### Navigation
+
+- Single NavigationStack instead of multiple sheets
+- Linear, predictable flow from recipient → details → reason
+- Clear state transitions managed by coordinator
+
+### Benefits
+
+- Simplified navigation flow
+- Centralized state management
+- Clear separation of concerns
+- Easy to extend with new card types or reasons
+- Predictable user experience
+
+## Usage Example
+
+To record a card event, create a CardEventFlow instance with the required parameters:
+
+NavigationLink {
+    CardEventFlow(
+        cardType: .yellow,
+        team: teamType,
+        matchViewModel: matchViewModel,
+        setupViewModel: setupViewModel
+    )
+} label: {
+    YellowCardButton()
+}
