@@ -27,7 +27,10 @@ struct GoalTypeSelectionView: View {
     var body: some View {
         List {
             ForEach([GoalType.goal, .ownGoal, .freeKick, .penalty], id: \.self) { type in
-                Button(action: { onSelect(type) }) {
+                Button(action: { 
+                    print("DEBUG: Goal type selected: \(type.label)")
+                    onSelect(type) 
+                }) {
                     Text(type.label)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
