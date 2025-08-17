@@ -72,6 +72,7 @@ struct TeamDetailsView: View {
                     
                     NavigationLink {
                         GoalTypeSelectionView(team: teamType) { goalType in
+                            print("DEBUG: Goal type received in TeamDetailsView: \(goalType.label) for team: \(teamType)")
                             selectedGoalType = goalType
                             showingPlayerNumberInput = true
                         }
@@ -149,7 +150,10 @@ struct TeamDetailsView: View {
                     goalType: goalType,
                     cardType: nil,
                     onComplete: { number in
+                        print("DEBUG: Player number entered for goal: #\(number)")
                         recordGoal(type: goalType, playerNumber: number)
+                        showingPlayerNumberInput = false
+                        selectedGoalType = nil
                     }
                 )
             }
@@ -157,15 +161,26 @@ struct TeamDetailsView: View {
     }
     
     private func recordGoal(type: GoalTypeSelectionView.GoalType, playerNumber: Int) {
+        print("DEBUG: Recording goal - Type: \(type.label), Player: #\(playerNumber), Team: \(teamType)")
+        
         switch type {
         case .goal, .freeKick, .penalty:
+            print("DEBUG: Updating score for \(teamType == .home ? "home" : "away") team")
             matchViewModel.updateScore(isHome: teamType == .home)
         case .ownGoal:
+            print("DEBUG: Recording own goal - updating score for \(teamType == .away ? "home" : "away") team (opposite)")
             matchViewModel.updateScore(isHome: teamType == .away)
         }
         
         let event = MatchEvent.goal
-        matchViewModel.addEvent(event, for: teamType == .home ? .home : .away)
+        let eventTeam = teamType == .home ? MatchViewModel.Team.home : MatchViewModel.Team.away
+        print("DEBUG: Adding goal event to \(eventTeam) team")
+        matchViewModel.addEvent(event, for: eventTeam)
+        print("DEBUG: Goal recording completed successfully")
+        
+        // Navigate to middle screen after recording goal
+        print("DEBUG: Navigating to middle screen...")
+        setupViewModel.setSelectedTab(1)
     }
     
     private func addEvent(_ event: MatchEvent) {

@@ -84,11 +84,18 @@ final class MatchViewModel {
             print("DEBUG: No current match found") // Debug log
             return
         }
-        isMatchInProgress = true
-        isPaused = false
-        periodStartTime = Date()
-        print("DEBUG: Starting timer with periodStartTime: \(periodStartTime!)") // Debug log
-        startTimer()
+        
+        // Only start if not already in progress to prevent restarts
+        if !isMatchInProgress {
+            print("DEBUG: Starting new match")
+            isMatchInProgress = true
+            isPaused = false
+            periodStartTime = Date()
+            print("DEBUG: Starting timer with periodStartTime: \(periodStartTime!)") // Debug log
+            startTimer()
+        } else {
+            print("DEBUG: Match already in progress, not restarting")
+        }
     }
     
     func pauseMatch() {
@@ -219,13 +226,27 @@ final class MatchViewModel {
     
     // MARK: - Match Statistics
     func updateScore(isHome: Bool, increment: Bool = true) {
-        guard var match = currentMatch else { return }
+        guard var match = currentMatch else { 
+            print("DEBUG: updateScore called but no current match found")
+            return 
+        }
+        
+        let oldHomeScore = match.homeScore
+        let oldAwayScore = match.awayScore
+        
+        print("DEBUG: updateScore called - isHome: \(isHome), increment: \(increment)")
+        print("DEBUG: Score before update - Home: \(oldHomeScore), Away: \(oldAwayScore)")
+        
         if isHome {
             match.homeScore += increment ? 1 : -1
         } else {
             match.awayScore += increment ? 1 : -1
         }
+        
         currentMatch = match
+        
+        print("DEBUG: Score after update - Home: \(match.homeScore), Away: \(match.awayScore)")
+        print("DEBUG: Score successfully updated")
     }
     
     func addCard(isHome: Bool, isYellow: Bool) {
@@ -279,9 +300,9 @@ final class MatchViewModel {
     ) {
         print("DEBUG: Configuring match") // Debug log
         newMatch = Match(
-            duration: TimeInterval(duration),
+            duration: TimeInterval(duration * 60), // Convert minutes to seconds
             numberOfPeriods: periods,
-            halfTimeLength: TimeInterval(halfTimeLength),
+            halfTimeLength: TimeInterval(halfTimeLength * 60), // Convert minutes to seconds
             hasExtraTime: hasExtraTime,
             hasPenalties: hasPenalties
         )
