@@ -2,6 +2,7 @@
 // Description: Main match timing screen with swipeable layout for team events
 
 import SwiftUI
+import WatchKit
 
 struct TimerView: View {
     let model: MatchViewModel
@@ -41,36 +42,56 @@ struct TimerView: View {
                     .font(.system(size: 36, weight: .bold, design: .rounded))
                     .monospacedDigit()
                 
-                Text(model.periodTime)
+                // Countdown timer (remaining time in period)
+                Text(model.periodTimeRemaining)
                     .font(.system(size: 20, weight: .medium, design: .rounded))
                     .monospacedDigit()
                     .foregroundColor(.gray)
+                
+                // Stoppage time (when active)
+                if model.isInStoppage {
+                    Text("+\(model.formattedStoppageTime)")
+                        .font(.system(size: 16, weight: .medium, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundColor(.orange)
+                }
             }
             .padding(.vertical, 8)
+            .onTapGesture {
+                // Haptic feedback
+                WKInterfaceDevice.current().play(.click)
+                
+                if model.isPaused {
+                    model.resumeMatch()
+                } else {
+                    model.pauseMatch()
+                }
+            }
             
-            // Controls
-            if model.isMatchInProgress {
-                HStack(spacing: 20) {
-                    Button(action: {
-                        if model.isPaused {
-                            model.resumeMatch()
-                        } else {
-                            model.pauseMatch()
-                        }
-                    }) {
-                        Image(systemName: model.isPaused ? "play.circle.fill" : "pause.circle.fill")
-                            .font(.title2)
-                    }
-                    .tint(model.isPaused ? .green : .orange)
+            // Visual indicator for pause state
+            if model.isMatchInProgress && model.isPaused {
+                VStack(spacing: 8) {
+                    Text("PAUSED")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.orange)
                     
-                    if model.isPaused && !model.isHalfTime {
+                    Text("Tap to resume")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.gray)
+                    
+                    // Show period advance option during pause
+                    if !model.isHalfTime {
                         Button(action: {
                             model.startNextPeriod()
                         }) {
-                            Image(systemName: "forward.circle.fill")
-                                .font(.title2)
+                            HStack {
+                                Image(systemName: "forward.fill")
+                                Text("Next Period")
+                            }
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(.blue)
                         }
-                        .tint(.blue)
+                        .padding(.top, 4)
                     }
                 }
             }
