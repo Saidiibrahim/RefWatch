@@ -23,6 +23,7 @@ final class MatchViewModel {
     
     // Timer properties
     private var timer: Timer?
+    private var stoppageTimer: Timer?
     private var elapsedTime: TimeInterval = 0
     private var periodStartTime: Date?
     private var halfTimeStartTime: Date?
@@ -30,7 +31,14 @@ final class MatchViewModel {
     // Formatted time strings
     var matchTime: String = "00:00"
     var periodTime: String = "00:00"
+    var periodTimeRemaining: String = "45:00"
     var halfTimeRemaining: String = "00:00"
+    
+    // Stoppage time tracking
+    private var stoppageTime: TimeInterval = 0
+    private var stoppageStartTime: Date?
+    var isInStoppage: Bool = false
+    var formattedStoppageTime: String = "00:00"
     
     var formattedElapsedTime: String {
         if isMatchInProgress {
@@ -91,6 +99,17 @@ final class MatchViewModel {
             isMatchInProgress = true
             isPaused = false
             periodStartTime = Date()
+            
+            // Clean up any running timers
+            stoppageTimer?.invalidate()
+            stoppageTimer = nil
+            
+            // Reset stoppage time for new match
+            stoppageTime = 0
+            stoppageStartTime = nil
+            isInStoppage = false
+            formattedStoppageTime = "00:00"
+            
             print("DEBUG: Starting timer with periodStartTime: \(periodStartTime!)") // Debug log
             startTimer()
         } else {
@@ -102,10 +121,42 @@ final class MatchViewModel {
         isPaused = true
         timer?.invalidate()
         timer = nil
+        
+        // Start tracking stoppage time
+        if !isInStoppage {
+            stoppageStartTime = Date()
+            isInStoppage = true
+            
+            // Start stoppage timer to update display every second
+            stoppageTimer?.invalidate()
+            stoppageTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+                DispatchQueue.main.async {
+                    self?.updateStoppageTime()
+                }
+            }
+            RunLoop.current.add(stoppageTimer!, forMode: .common)
+        }
     }
     
     func resumeMatch() {
         isPaused = false
+        
+        // Stop the stoppage timer
+        stoppageTimer?.invalidate()
+        stoppageTimer = nil
+        
+        // Accumulate stoppage time and reset tracking
+        if let stopStart = stoppageStartTime {
+            stoppageTime += Date().timeIntervalSince(stopStart)
+            stoppageStartTime = nil
+            isInStoppage = false
+            
+            // Update formatted stoppage time one final time
+            let stoppageMinutes = Int(stoppageTime) / 60
+            let stoppageSeconds = Int(stoppageTime) % 60
+            self.formattedStoppageTime = String(format: "%02d:%02d", stoppageMinutes, stoppageSeconds)
+        }
+        
         startTimer()
     }
     
@@ -113,6 +164,17 @@ final class MatchViewModel {
         currentPeriod += 1
         isHalfTime = false
         periodStartTime = Date()
+        
+        // Clean up any running timers
+        stoppageTimer?.invalidate()
+        stoppageTimer = nil
+        
+        // Reset stoppage time for new period
+        stoppageTime = 0
+        stoppageStartTime = nil
+        isInStoppage = false
+        formattedStoppageTime = "00:00"
+        
         startTimer()
     }
     
@@ -142,6 +204,19 @@ final class MatchViewModel {
         }
     }
     
+    private func updateStoppageTime() {
+        guard let stopStart = stoppageStartTime else { return }
+        
+        // Calculate current stoppage duration
+        let currentStoppageTime = Date().timeIntervalSince(stopStart)
+        let totalStoppage = stoppageTime + currentStoppageTime
+        
+        // Format and update display
+        let stoppageMinutes = Int(totalStoppage) / 60
+        let stoppageSeconds = Int(totalStoppage) % 60
+        self.formattedStoppageTime = String(format: "%02d:%02d", stoppageMinutes, stoppageSeconds)
+    }
+    
     private func updateMatchTime() {
         print("DEBUG: updateMatchTime called") // Debug log
         guard let match = currentMatch,
@@ -155,16 +230,32 @@ final class MatchViewModel {
         
         print("DEBUG: Period elapsed: \(periodElapsed)") // Debug log
         
-        // Update period time - make these assignments trigger UI updates
+        // Update period time (elapsed) - make these assignments trigger UI updates
         let periodMinutes = Int(periodElapsed) / 60
         let periodSeconds = Int(periodElapsed) % 60
         self.periodTime = String(format: "%02d:%02d", periodMinutes, periodSeconds)
+        
+        // Calculate period remaining time (countdown)
+        let periodDurationSeconds = (match.duration / TimeInterval(match.numberOfPeriods))
+        let remaining = max(0, periodDurationSeconds - periodElapsed)
+        let remainingMinutes = Int(remaining) / 60
+        let remainingSeconds = Int(remaining) % 60
+        self.periodTimeRemaining = String(format: "%02d:%02d", remainingMinutes, remainingSeconds)
         
         // Update total match time
         self.elapsedTime = (TimeInterval(currentPeriod - 1) * (match.duration / TimeInterval(match.numberOfPeriods))) + periodElapsed
         let totalMinutes = Int(self.elapsedTime) / 60
         let totalSeconds = Int(self.elapsedTime) % 60
         self.matchTime = String(format: "%02d:%02d", totalMinutes, totalSeconds)
+        
+        // Update stoppage time if currently in stoppage
+        if isInStoppage, let stopStart = stoppageStartTime {
+            let currentStoppageTime = Date().timeIntervalSince(stopStart)
+            let totalStoppage = stoppageTime + currentStoppageTime
+            let stoppageMinutes = Int(totalStoppage) / 60
+            let stoppageSeconds = Int(totalStoppage) % 60
+            self.formattedStoppageTime = String(format: "%02d:%02d", stoppageMinutes, stoppageSeconds)
+        }
         
         // Force UI update by modifying the observable object
         self.isMatchInProgress = true
@@ -222,6 +313,8 @@ final class MatchViewModel {
         isMatchInProgress = false
         timer?.invalidate()
         timer = nil
+        stoppageTimer?.invalidate()
+        stoppageTimer = nil
     }
     
     // MARK: - Match Statistics
