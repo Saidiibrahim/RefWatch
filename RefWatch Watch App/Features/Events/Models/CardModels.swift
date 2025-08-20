@@ -1,7 +1,7 @@
 // Models for card-related functionality
 import Foundation
 
-enum CardRecipientType: String, CaseIterable {
+enum CardRecipientType: String, Codable, CaseIterable {
     case player = "Player"
     case teamOfficial = "Team Official"
 }

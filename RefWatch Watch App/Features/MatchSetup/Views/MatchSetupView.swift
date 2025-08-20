@@ -39,8 +39,5 @@ struct MatchSetupView: View {
             .tag(2)
         }
         .tabViewStyle(.page)
-        .onAppear {
-            viewModel.startMatch()
-        }
     }
 }

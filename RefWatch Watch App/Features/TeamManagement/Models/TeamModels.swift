@@ -3,7 +3,7 @@
 
 import Foundation
 
-enum TeamOfficialRole: String, CaseIterable {
+enum TeamOfficialRole: String, Codable, CaseIterable {
     case manager = "Manager"
     case assistantManager = "Assistant Manager"
     case coach = "Coach"
