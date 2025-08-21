@@ -26,9 +26,15 @@ struct StartMatchDetailsView: View {
             
             NavigationLink(destination: TimerView(model: matchViewModel)) {
                 Image(systemName: "checkmark.circle.fill")
-                    .font(.title)
-                    .foregroundColor(.green)
+                    .font(.system(size: 36, weight: .medium))
+                    .foregroundColor(.white)
+                    .frame(width: 60, height: 60)
+                    .background(
+                        Circle()
+                            .fill(Color.green)
+                    )
             }
+            .buttonStyle(PlainButtonStyle()) // Removes default grey background
             .simultaneousGesture(TapGesture().onEnded {
                 matchViewModel.startMatch()
             })

@@ -36,9 +36,9 @@ struct MatchOptionsView: View {
                 // Options list
                 VStack(spacing: 12) {
                     // Home option
-                    OptionRowView(
-                        icon: "house",
+                    ActionButton(
                         title: "Home",
+                        icon: "house",
                         color: .green
                     ) {
                         matchViewModel.navigateHome()
@@ -46,27 +46,27 @@ struct MatchOptionsView: View {
                     }
                     
                     // Choose colours option (placeholder for future feature)
-                    OptionRowView(
-                        icon: "paintpalette",
+                    ActionButton(
                         title: "Choose colours",
+                        icon: "paintpalette",
                         color: .orange
                     ) {
                         showingColorPicker = true
                     }
                     
                     // Reset match option
-                    OptionRowView(
-                        icon: "trash",
+                    ActionButton(
                         title: "Reset match",
+                        icon: "trash",
                         color: .blue
                     ) {
                         showingResetConfirmation = true
                     }
                     
                     // Abandon match option
-                    OptionRowView(
-                        icon: "xmark.circle",
+                    ActionButton(
                         title: "Abandon match",
+                        icon: "xmark.circle",
                         color: .red
                     ) {
                         showingAbandonConfirmation = true
@@ -103,44 +103,6 @@ struct MatchOptionsView: View {
     }
 }
 
-/// Individual option row component
-private struct OptionRowView: View {
-    let icon: String
-    let title: String
-    let color: Color
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            HStack {
-                // Title
-                Text(title)
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.primary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                
-                // Icon circle
-                ZStack {
-                    Circle()
-                        .fill(color)
-                        .frame(width: 32, height: 32)
-                    
-                    Image(systemName: icon)
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.white)
-                }
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .background(
-                RoundedRectangle(cornerRadius: 25)
-                    .fill(Color.blue)
-            )
-        }
-        .buttonStyle(.plain)
-        .padding(.horizontal, 16)
-    }
-}
 
 #Preview {
     MatchOptionsView(matchViewModel: MatchViewModel())
