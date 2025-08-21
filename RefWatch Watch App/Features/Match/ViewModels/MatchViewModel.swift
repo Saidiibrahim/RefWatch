@@ -416,7 +416,10 @@ final class MatchViewModel {
             hasPenalties: hasPenalties
         )
         currentMatch = newMatch
-        print("DEBUG: Match configured, currentMatch: \(String(describing: currentMatch))") // Debug log
+        
+        // Auto-start the match after configuration to skip confirmation step
+        waitingForMatchStart = false
+        print("DEBUG: Match configured and auto-started, currentMatch: \(String(describing: currentMatch))") // Debug log
     }
     
     // Add this new method

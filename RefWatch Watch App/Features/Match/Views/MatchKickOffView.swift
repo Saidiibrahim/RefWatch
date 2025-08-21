@@ -13,32 +13,39 @@ struct MatchKickOffView: View {
     }
     
     var body: some View {
-        VStack(spacing: 20) {
-            // Time display
+        VStack(spacing: 12) {
+            // Header with time and kick off text (right-aligned)
             HStack {
                 Spacer()
-                Text("Kick off")
-                    .font(.system(size: 16))
+                VStack(spacing: 2) {
+                    Text(formattedCurrentTime)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(.white)
+                    Text("Kick off")
+                        .font(.system(size: 16))
+                        .foregroundColor(.white)
+                }
             }
             .padding(.horizontal)
+            .padding(.top, 4)
             
-            // Team selection
-            HStack(spacing: 0) {
-                // Home team
-                TeamButton(
-                    name: matchViewModel.homeTeam,
+            // Team selection boxes (horizontal layout)
+            HStack(spacing: 12) {
+                SimpleTeamBox(
+                    teamName: "HOM",
+                    score: matchViewModel.currentMatch?.homeScore ?? 0,
                     isSelected: selectedTeam == .home,
                     action: { selectedTeam = .home }
                 )
                 
-                // Away team
-                TeamButton(
-                    name: matchViewModel.awayTeam,
+                SimpleTeamBox(
+                    teamName: "AWA", 
+                    score: matchViewModel.currentMatch?.awayScore ?? 0,
                     isSelected: selectedTeam == .away,
                     action: { selectedTeam = .away }
                 )
             }
-            .padding(.vertical)
+            .padding(.horizontal)
             
             // Duration button
             Button(action: { dismiss() }) {
@@ -46,21 +53,21 @@ struct MatchKickOffView: View {
                     .font(.system(size: 24, weight: .medium))
                     .foregroundColor(.gray)
             }
-            .padding()
+            .padding(.vertical, 8)
             
             Spacer()
             
-            // Start button
+            // Start button (simple green circle with checkmark)
             NavigationLink(
                 destination: MatchSetupView(matchViewModel: matchViewModel)
                     .navigationBarBackButtonHidden()
             ) {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 40))
-                    .foregroundColor(.green)
+                    .foregroundColor(selectedTeam != nil ? .green : .gray)
             }
+            .buttonStyle(PlainButtonStyle())
             .disabled(selectedTeam == nil)
-            .opacity(selectedTeam == nil ? 0.5 : 1)
             .simultaneousGesture(TapGesture().onEnded {
                 print("DEBUG: Navigation tap gesture triggered")
                 if let team = selectedTeam {
@@ -72,31 +79,51 @@ struct MatchKickOffView: View {
                         hasExtraTime: matchViewModel.hasExtraTime,
                         hasPenalties: matchViewModel.hasPenalties
                     )
-                    // Then set the kicking team
+                    // Set the kicking team
                     matchViewModel.setKickingTeam(team == .home)
+                    // Start the match immediately to skip confirmation step
+                    matchViewModel.startMatch()
                 }
             })
+            .padding(.bottom, 24)
         }
         .navigationBarBackButtonHidden()
     }
+    
+    // Computed property for current time
+    private var formattedCurrentTime: String {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        formatter.dateStyle = .none
+        return formatter.string(from: Date())
+    }
 }
 
-private struct TeamButton: View {
-    let name: String
+// Simple team box component matching target design
+private struct SimpleTeamBox: View {
+    let teamName: String
+    let score: Int
     let isSelected: Bool
     let action: () -> Void
     
     var body: some View {
         Button(action: action) {
-            Text(name)
-                .font(.system(size: 16, weight: .medium))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(isSelected ? Color.yellow : Color.gray.opacity(0.3))
-                )
+            VStack(spacing: 8) {
+                Text(teamName)
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundColor(.white)
+                
+                Text("\(score)")
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundColor(.white)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 80)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(isSelected ? Color.green : Color.gray.opacity(0.7))
+            )
         }
-        .padding(.horizontal, 4)
+        .buttonStyle(PlainButtonStyle())
     }
 } 
