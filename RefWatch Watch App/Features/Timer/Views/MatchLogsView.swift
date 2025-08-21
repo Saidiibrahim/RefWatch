@@ -15,29 +15,11 @@ struct MatchLogsView: View {
     var body: some View {
         NavigationStack {
             VStack {
-                // Header with close button
-                HStack {
-                    Button("Close") {
-                        dismiss()
-                    }
-                    .font(.system(size: 14))
-                    .foregroundColor(.blue)
-                    
-                    Spacer()
-                    
-                    Text("Match Log")
-                        .font(.headline)
-                        .fontWeight(.semibold)
-                    
-                    Spacer()
-                    
-                    // Invisible spacer to center title
-                    Text("Close")
-                        .font(.system(size: 14))
-                        .opacity(0)
-                }
-                .padding(.horizontal)
-                .padding(.top, 8)
+                // Clean header with centered title
+                Text("Match Log")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                    .padding(.top, 8)
                 
                 Divider()
                     .padding(.horizontal)
