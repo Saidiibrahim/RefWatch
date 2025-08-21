@@ -13,7 +13,7 @@ struct MatchKickOffView: View {
     }
     
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 8) {
             // Header with time and kick off text (right-aligned)
             HStack {
                 Spacer()
@@ -27,7 +27,6 @@ struct MatchKickOffView: View {
                 }
             }
             .padding(.horizontal)
-            .padding(.top, 4)
             
             // Team selection boxes (horizontal layout)
             HStack(spacing: 12) {
@@ -49,11 +48,12 @@ struct MatchKickOffView: View {
             
             // Duration button
             Button(action: { dismiss() }) {
-                Text("\(matchViewModel.matchDuration/2):00 ▼")
-                    .font(.system(size: 24, weight: .medium))
-                    .foregroundColor(.gray)
+                CompactButton(
+                    title: "\(matchViewModel.matchDuration/2):00 ▼",
+                    style: .secondary
+                )
             }
-            .padding(.vertical, 8)
+            .buttonStyle(PlainButtonStyle())
             
             Spacer()
             
@@ -63,10 +63,15 @@ struct MatchKickOffView: View {
                     .navigationBarBackButtonHidden()
             ) {
                 Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 40))
-                    .foregroundColor(selectedTeam != nil ? .green : .gray)
+                    .font(.system(size: 24, weight: .medium))
+                    .foregroundColor(.white)
+                    .frame(width: 50, height: 50)
+                    .background(
+                        Circle()
+                            .fill(selectedTeam != nil ? Color.green : Color.gray)
+                    )
             }
-            .buttonStyle(PlainButtonStyle())
+            .buttonStyle(PlainButtonStyle()) // Removes default grey background
             .disabled(selectedTeam == nil)
             .simultaneousGesture(TapGesture().onEnded {
                 print("DEBUG: Navigation tap gesture triggered")
@@ -85,7 +90,7 @@ struct MatchKickOffView: View {
                     matchViewModel.startMatch()
                 }
             })
-            .padding(.bottom, 24)
+            .padding(.bottom, 12)
         }
         .navigationBarBackButtonHidden()
     }

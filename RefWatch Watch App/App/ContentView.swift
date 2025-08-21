@@ -13,21 +13,31 @@ struct ContentView: View {
     
     var body: some View {
         NavigationStack {
-            VStack {
+            VStack(spacing: 20) {
                 Text("Welcome to Referee Assistant")
                     .font(.headline)
-                    .padding()
+                    .padding(.top)
                 
-                // Navigate to the StartMatchScreen with matchViewModel
-                NavigationLink(destination: StartMatchScreen(matchViewModel: matchViewModel)) {
-                    CustomButton(title: "Start Match")
+                VStack(spacing: 16) {
+                    // Navigate to the StartMatchScreen with matchViewModel
+                    NavigationLinkButton(
+                        title: "Start Match",
+                        icon: "play.circle.fill",
+                        destination: StartMatchScreen(matchViewModel: matchViewModel),
+                        backgroundColor: .green
+                    )
+                    
+                    // Navigate to the SettingsScreen with settingsViewModel
+                    NavigationLinkButton(
+                        title: "Settings",
+                        icon: "gear",
+                        destination: SettingsScreen(settingsViewModel: settingsViewModel),
+                        backgroundColor: .gray
+                    )
                 }
-                .padding(.bottom, 10)
+                .padding(.horizontal)
                 
-                // Navigate to the SettingsScreen with settingsViewModel
-                NavigationLink(destination: SettingsScreen(settingsViewModel: settingsViewModel)) {
-                    CustomButton(title: "Settings")
-                }
+                Spacer()
             }
             .navigationTitle("Referee")
         }

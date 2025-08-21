@@ -11,21 +11,31 @@ struct StartMatchScreen: View {
     let matchViewModel: MatchViewModel
     
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 20) {
             Text("Start a New Match")
                 .font(.headline)
-                .padding()
+                .padding(.top)
             
-            // Select from library
-            NavigationLink(destination: SavedMatchesView(matchViewModel: matchViewModel)) {
-                CustomButton(title: "Select Match")
+            VStack(spacing: 16) {
+                // Select from library
+                NavigationLinkButton(
+                    title: "Select Match",
+                    icon: "folder",
+                    destination: SavedMatchesView(matchViewModel: matchViewModel),
+                    backgroundColor: .blue
+                )
+                
+                // Create new match
+                NavigationLinkButton(
+                    title: "Create Match",
+                    icon: "plus.circle.fill",
+                    destination: CreateMatchView(matchViewModel: matchViewModel),
+                    backgroundColor: .green
+                )
             }
-            .padding(.bottom, 10)
+            .padding(.horizontal)
             
-            // Create new match
-            NavigationLink(destination: CreateMatchView(matchViewModel: matchViewModel)) {
-                CustomButton(title: "Create Match")
-            }
+            Spacer()
         }
         .navigationTitle("Start Match")
     }
@@ -38,73 +48,57 @@ struct CreateMatchView: View {
     var body: some View {
         List {
             // Duration
-            NavigationLink(destination: SettingPickerView(
+            NavigationLinkRow(
                 title: "Duration",
-                values: [40, 45, 50],
-                selection: $matchViewModel.matchDuration,
-                formatter: { "\($0) min" }
-            )) {
-                HStack {
-                    Text("Duration")
-                    Spacer()
-                    Text("\(matchViewModel.matchDuration) min")
-                        .foregroundColor(.gray)
-                }
-            }
+                value: "\(matchViewModel.matchDuration) min",
+                destination: SettingPickerView(
+                    title: "Duration",
+                    values: [40, 45, 50],
+                    selection: $matchViewModel.matchDuration,
+                    formatter: { "\($0) min" }
+                )
+            )
             
             // Periods
-            NavigationLink(destination: SettingPickerView(
+            NavigationLinkRow(
                 title: "Periods",
-                values: [1, 2, 3, 4],
-                selection: $matchViewModel.numberOfPeriods,
-                formatter: String.init
-            )) {
-                HStack {
-                    Text("Periods")
-                    Spacer()
-                    Text("\(matchViewModel.numberOfPeriods)")
-                        .foregroundColor(.gray)
-                }
-            }
+                value: "\(matchViewModel.numberOfPeriods)",
+                destination: SettingPickerView(
+                    title: "Periods",
+                    values: [1, 2, 3, 4],
+                    selection: $matchViewModel.numberOfPeriods,
+                    formatter: String.init
+                )
+            )
             
             // Half-time length
-            NavigationLink(destination: SettingPickerView(
-                title: "Half-time",
-                values: [10, 15, 20],
-                selection: $matchViewModel.halfTimeLength,
-                formatter: { "\($0) min" }
-            )) {
-                HStack {
-                    Text("HT Length")
-                    Spacer()
-                    Text("\(matchViewModel.halfTimeLength) min")
-                        .foregroundColor(.gray)
-                }
-            }
+            NavigationLinkRow(
+                title: "HT Length",
+                value: "\(matchViewModel.halfTimeLength) min",
+                destination: SettingPickerView(
+                    title: "Half-time",
+                    values: [10, 15, 20],
+                    selection: $matchViewModel.halfTimeLength,
+                    formatter: { "\($0) min" }
+                )
+            )
             
             // Toggles
             Toggle("Extra Time", isOn: $matchViewModel.hasExtraTime)
             Toggle("Penalties", isOn: $matchViewModel.hasPenalties)
             
-            // Start match button
-            NavigationLink(destination: MatchKickOffView(matchViewModel: matchViewModel)) {
-                HStack {
-                    Spacer()
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.title2)
-                        .foregroundColor(.green)
-                    Spacer()
-                }
-            }
-            .simultaneousGesture(TapGesture().onEnded {
-                matchViewModel.configureMatch(
-                    duration: matchViewModel.matchDuration,
-                    periods: matchViewModel.numberOfPeriods,
-                    halfTimeLength: matchViewModel.halfTimeLength,
-                    hasExtraTime: matchViewModel.hasExtraTime,
-                    hasPenalties: matchViewModel.hasPenalties
+            // Start match button - using the icon button style
+            HStack {
+                Spacer()
+                NavigationIconButton(
+                    icon: "checkmark.circle.fill",
+                    color: .green,
+                    size: 50,
+                    destination: MatchKickOffView(matchViewModel: matchViewModel)
                 )
-            })
+                Spacer()
+            }
+            .listRowBackground(Color.clear) // Remove grey background from List item
         }
         .navigationTitle("Match Settings")
     }
@@ -117,14 +111,17 @@ struct SavedMatchesView: View {
     var body: some View {
         List {
             NavigationLink(destination: MatchSetupView(matchViewModel: matchViewModel)) {
-                VStack(alignment: .leading) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text("Sample Match")
-                        .font(.headline)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(.primary)
+                    
                     Text("HOM vs AWA")
-                        .font(.subheadline)
-                        .foregroundColor(.gray)
+                        .font(.system(size: 14))
+                        .foregroundColor(.secondary)
                 }
             }
+            .buttonStyle(PlainButtonStyle()) // Remove grey background
         }
         .navigationTitle("Saved Matches")
     }
