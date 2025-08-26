@@ -79,13 +79,18 @@ struct EventButtonView: View {
         }
     }
     
-    // Determine text color for contrast
+    // Determine text color for optimal contrast across all color schemes
     private var textColor: Color {
         switch color {
         case .yellow:
-            return .black
-        default:
+            // Use adaptive color for yellow - dark text in light mode, light text in dark mode
+            return Color.primary
+        case .red, .blue, .green:
+            // Dark colors work well with white text in all modes
             return .white
+        default:
+            // For other colors, use adaptive primary color
+            return Color.primary
         }
     }
 } 

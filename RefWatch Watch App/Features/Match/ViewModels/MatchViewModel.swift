@@ -427,6 +427,12 @@ final class MatchViewModel {
         homeTeamKickingOff = isHome
     }
     
+    /// Get the team that should kick off the second half (already switched in endCurrentPeriod)
+    func getSecondHalfKickingTeam() -> MatchKickOffView.Team {
+        // Return the current homeTeamKickingOff state (already switched for second half)
+        return homeTeamKickingOff ? .home : .away
+    }
+    
     // MARK: - Match Event Recording
     
     /// Record a detailed match event with full context
