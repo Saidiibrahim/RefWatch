@@ -27,47 +27,54 @@ struct TimerView: View {
     }
     
     var body: some View {
-        VStack(spacing: 8) {
-            // Period indicator
-            HStack {
-                Text(periodLabel)
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.white)
-                Spacer()
-            }
-            .padding(.horizontal)
-            
-            // Score display
-            ScoreDisplayView(
-                homeTeam: model.homeTeam,
-                awayTeam: model.awayTeam,
-                homeScore: model.currentMatch?.homeScore ?? 0,
-                awayScore: model.currentMatch?.awayScore ?? 0
+        if model.waitingForSecondHalfStart {
+            // Show ONLY MatchKickOffView - no wrapping UI
+            MatchKickOffView(
+                matchViewModel: model,
+                isSecondHalf: true,
+                defaultSelectedTeam: model.getSecondHalfKickingTeam()
             )
-            
-            // Main content based on match state
-            if model.waitingForMatchStart {
-                waitingForMatchStartView
-            } else if model.waitingForHalfTimeStart {
-                waitingForHalfTimeView
-            } else if model.waitingForSecondHalfStart {
-                waitingForSecondHalfView
-            } else if model.isHalfTime {
-                halfTimeView
-            } else {
-                runningMatchView
+        } else {
+            VStack(spacing: 8) {
+                // Period indicator
+                HStack {
+                    Text(periodLabel)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(.white)
+                    Spacer()
+                }
+                .padding(.horizontal)
+                
+                // Score display
+                ScoreDisplayView(
+                    homeTeam: model.homeTeam,
+                    awayTeam: model.awayTeam,
+                    homeScore: model.currentMatch?.homeScore ?? 0,
+                    awayScore: model.currentMatch?.awayScore ?? 0
+                )
+                
+                // Main content based on match state
+                if model.waitingForMatchStart {
+                    waitingForMatchStartView
+                } else if model.waitingForHalfTimeStart {
+                    waitingForHalfTimeView
+                } else if model.isHalfTime {
+                    halfTimeView
+                } else {
+                    runningMatchView
+                }
             }
-        }
-        .padding(.top)
-        .onLongPressGesture(minimumDuration: 0.8) {
-            // Allow long press when match is running or during half-time
-            if model.isMatchInProgress || model.isHalfTime {
-                WKInterfaceDevice.current().play(.notification)
-                showingActionSheet = true
+            .padding(.top)
+            .onLongPressGesture(minimumDuration: 0.8) {
+                // Allow long press when match is running or during half-time
+                if model.isMatchInProgress || model.isHalfTime {
+                    WKInterfaceDevice.current().play(.notification)
+                    showingActionSheet = true
+                }
             }
-        }
-        .sheet(isPresented: $showingActionSheet) {
-            MatchActionsSheet(matchViewModel: model)
+            .sheet(isPresented: $showingActionSheet) {
+                MatchActionsSheet(matchViewModel: model)
+            }
         }
     }
     
@@ -123,42 +130,6 @@ struct TimerView: View {
         .padding(.vertical, 8)
     }
     
-    @ViewBuilder
-    private var waitingForSecondHalfView: some View {
-        VStack(spacing: 16) {
-            Text(model.matchTime)
-                .font(.system(size: 36, weight: .bold, design: .rounded))
-                .monospacedDigit()
-                .foregroundColor(.gray)
-            
-            // Team selection for kick-off
-            HStack(spacing: 0) {
-                TeamKickOffButton(
-                    name: model.homeTeam,
-                    isSelected: model.homeTeamKickingOff,
-                    action: { model.setKickingTeam(true) }
-                )
-                
-                TeamKickOffButton(
-                    name: model.awayTeam,
-                    isSelected: !model.homeTeamKickingOff,
-                    action: { model.setKickingTeam(false) }
-                )
-            }
-            .padding(.vertical, 8)
-            
-            Button(action: {
-                WKInterfaceDevice.current().play(.start)
-                model.startSecondHalfManually()
-            }) {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 40))
-                    .foregroundColor(.green)
-            }
-            .padding(.top, 8)
-        }
-        .padding(.vertical, 8)
-    }
     
     @ViewBuilder
     private var halfTimeView: some View {
@@ -239,26 +210,6 @@ struct TimerView: View {
 }
 
 // MARK: - Supporting Views
-
-private struct TeamKickOffButton: View {
-    let name: String
-    let isSelected: Bool
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            Text(name)
-                .font(.system(size: 16, weight: .medium))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(isSelected ? Color.yellow : Color.gray.opacity(0.3))
-                )
-        }
-        .padding(.horizontal, 4)
-    }
-}
 
 #Preview {
     TimerView(model: MatchViewModel())

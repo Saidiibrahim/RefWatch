@@ -5,11 +5,32 @@ import SwiftUI
 
 struct MatchKickOffView: View {
     let matchViewModel: MatchViewModel
+    let isSecondHalf: Bool
+    let defaultSelectedTeam: Team?
+    
     @State private var selectedTeam: Team?
     @Environment(\.dismiss) private var dismiss
     
     enum Team {
         case home, away
+    }
+    
+    // Convenience initializer for first half (original usage)
+    init(matchViewModel: MatchViewModel) {
+        self.matchViewModel = matchViewModel
+        self.isSecondHalf = false
+        self.defaultSelectedTeam = nil
+        // Initialize @State with nil for first half
+        self._selectedTeam = State(initialValue: nil)
+    }
+    
+    // Initializer for second half usage
+    init(matchViewModel: MatchViewModel, isSecondHalf: Bool, defaultSelectedTeam: Team) {
+        self.matchViewModel = matchViewModel
+        self.isSecondHalf = isSecondHalf
+        self.defaultSelectedTeam = defaultSelectedTeam
+        // Initialize @State with the default team for second half
+        self._selectedTeam = State(initialValue: defaultSelectedTeam)
     }
     
     var body: some View {
@@ -21,7 +42,7 @@ struct MatchKickOffView: View {
                     Text(formattedCurrentTime)
                         .font(.system(size: 16, weight: .medium))
                         .foregroundColor(.white)
-                    Text("Kick off")
+                    Text(isSecondHalf ? "Second Half" : "Kick off")
                         .font(.system(size: 16))
                         .foregroundColor(.white)
                 }
@@ -59,7 +80,7 @@ struct MatchKickOffView: View {
             
             // Start button (simple green circle with checkmark)
             NavigationLink(
-                destination: MatchSetupView(matchViewModel: matchViewModel)
+                destination: destinationView
                     .navigationBarBackButtonHidden()
             ) {
                 Image(systemName: "checkmark.circle.fill")
@@ -76,23 +97,35 @@ struct MatchKickOffView: View {
             .simultaneousGesture(TapGesture().onEnded {
                 print("DEBUG: Navigation tap gesture triggered")
                 if let team = selectedTeam {
-                    // Configure the match first
-                    matchViewModel.configureMatch(
-                        duration: matchViewModel.matchDuration,
-                        periods: matchViewModel.numberOfPeriods,
-                        halfTimeLength: matchViewModel.halfTimeLength,
-                        hasExtraTime: matchViewModel.hasExtraTime,
-                        hasPenalties: matchViewModel.hasPenalties
-                    )
-                    // Set the kicking team
-                    matchViewModel.setKickingTeam(team == .home)
-                    // Start the match immediately to skip confirmation step
-                    matchViewModel.startMatch()
+                    if isSecondHalf {
+                        // For second half, just set the kicking team and start
+                        matchViewModel.setKickingTeam(team == .home)
+                        matchViewModel.startSecondHalfManually()
+                    } else {
+                        // For first half, configure the match first
+                        matchViewModel.configureMatch(
+                            duration: matchViewModel.matchDuration,
+                            periods: matchViewModel.numberOfPeriods,
+                            halfTimeLength: matchViewModel.halfTimeLength,
+                            hasExtraTime: matchViewModel.hasExtraTime,
+                            hasPenalties: matchViewModel.hasPenalties
+                        )
+                        // Set the kicking team
+                        matchViewModel.setKickingTeam(team == .home)
+                        // Start the match immediately to skip confirmation step
+                        matchViewModel.startMatch()
+                    }
                 }
             })
             .padding(.bottom, 12)
         }
         .navigationBarBackButtonHidden()
+    }
+    
+    // Computed property for navigation destination
+    @ViewBuilder
+    private var destinationView: some View {
+        MatchSetupView(matchViewModel: matchViewModel)
     }
     
     // Computed property for current time

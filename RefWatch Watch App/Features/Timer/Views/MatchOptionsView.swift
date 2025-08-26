@@ -19,62 +19,56 @@ struct MatchOptionsView: View {
     
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                // Header
-                HStack {
-                    Button("Close") {
-                        dismiss()
-                    }
-                    .font(.system(size: 14))
-                    .foregroundColor(.blue)
+            ScrollView {
+                VStack(spacing: 0) {
+                    // Title header for consistency with other modal views
+                    Text("Match Options")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .padding(.top, 8)
+                        .padding(.bottom, 16)
                     
-                    Spacer()
+                    // Options list - using system dismiss (X button) per WatchOS best practices
+                    VStack(spacing: 12) {
+                        // Home option
+                        ActionButton(
+                            title: "Home",
+                            icon: "house",
+                            color: .green
+                        ) {
+                            matchViewModel.navigateHome()
+                            dismiss()
+                        }
+                        
+                        // Choose colours option (placeholder for future feature)
+                        ActionButton(
+                            title: "Choose colours",
+                            icon: "paintpalette",
+                            color: .orange
+                        ) {
+                            showingColorPicker = true
+                        }
+                        
+                        // Reset match option
+                        ActionButton(
+                            title: "Reset match",
+                            icon: "trash",
+                            color: .blue
+                        ) {
+                            showingResetConfirmation = true
+                        }
+                        
+                        // Abandon match option
+                        ActionButton(
+                            title: "Abandon match",
+                            icon: "xmark.circle",
+                            color: .red
+                        ) {
+                            showingAbandonConfirmation = true
+                        }
+                    }
                 }
                 .padding(.horizontal)
-                .padding(.top, 8)
-                
-                // Options list
-                VStack(spacing: 12) {
-                    // Home option
-                    ActionButton(
-                        title: "Home",
-                        icon: "house",
-                        color: .green
-                    ) {
-                        matchViewModel.navigateHome()
-                        dismiss()
-                    }
-                    
-                    // Choose colours option (placeholder for future feature)
-                    ActionButton(
-                        title: "Choose colours",
-                        icon: "paintpalette",
-                        color: .orange
-                    ) {
-                        showingColorPicker = true
-                    }
-                    
-                    // Reset match option
-                    ActionButton(
-                        title: "Reset match",
-                        icon: "trash",
-                        color: .blue
-                    ) {
-                        showingResetConfirmation = true
-                    }
-                    
-                    // Abandon match option
-                    ActionButton(
-                        title: "Abandon match",
-                        icon: "xmark.circle",
-                        color: .red
-                    ) {
-                        showingAbandonConfirmation = true
-                    }
-                }
-                .padding(.top, 20)
-                
-                Spacer()
             }
         }
         .alert("Reset Match", isPresented: $showingResetConfirmation) {
