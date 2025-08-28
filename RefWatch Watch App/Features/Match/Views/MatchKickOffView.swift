@@ -7,6 +7,7 @@ struct MatchKickOffView: View {
     let matchViewModel: MatchViewModel
     let isSecondHalf: Bool
     let defaultSelectedTeam: Team?
+    let onExitToRoot: (() -> Void)? // Forwarded to MatchSetupView
     
     @State private var selectedTeam: Team?
     @Environment(\.dismiss) private var dismiss
@@ -16,21 +17,23 @@ struct MatchKickOffView: View {
     }
     
     // Convenience initializer for first half (original usage)
-    init(matchViewModel: MatchViewModel) {
+    init(matchViewModel: MatchViewModel, onExitToRoot: (() -> Void)? = nil) {
         self.matchViewModel = matchViewModel
         self.isSecondHalf = false
         self.defaultSelectedTeam = nil
+        self.onExitToRoot = onExitToRoot
         // Initialize @State with nil for first half
         self._selectedTeam = State(initialValue: nil)
     }
     
     // Initializer for second half usage
-    init(matchViewModel: MatchViewModel, isSecondHalf: Bool, defaultSelectedTeam: Team) {
+    init(matchViewModel: MatchViewModel, isSecondHalf: Bool, defaultSelectedTeam: Team, onExitToRoot: (() -> Void)? = nil) {
         self.matchViewModel = matchViewModel
         self.isSecondHalf = isSecondHalf
         self.defaultSelectedTeam = defaultSelectedTeam
-        // Initialize @State with the default team for second half
-        self._selectedTeam = State(initialValue: defaultSelectedTeam)
+        self.onExitToRoot = onExitToRoot
+        // Initialize @State with nil - will be set in onAppear
+        self._selectedTeam = State(initialValue: nil)
     }
     
     var body: some View {
@@ -120,12 +123,26 @@ struct MatchKickOffView: View {
             .padding(.bottom, 12)
         }
         .navigationBarBackButtonHidden()
+        .onAppear {
+            // Set the default selected team for second half
+            if isSecondHalf, let defaultTeam = defaultSelectedTeam {
+                selectedTeam = defaultTeam
+            }
+        }
     }
     
     // Computed property for navigation destination
     @ViewBuilder
     private var destinationView: some View {
-        MatchSetupView(matchViewModel: matchViewModel)
+        MatchSetupView(
+            matchViewModel: matchViewModel,
+            onExitToRoot: {
+                // Pop this view, then propagate to parent to pop the previous level
+                // This ensures we unwind: MatchSetupView -> MatchKickOffView -> CreateMatchView
+                dismiss()
+                onExitToRoot?()
+            }
+        )
     }
     
     // Computed property for current time

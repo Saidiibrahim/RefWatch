@@ -1,34 +1,24 @@
 //
-//  EndHalfConfirmationView.swift
+//  EndMatchConfirmationView.swift
 //  RefWatch Watch App
 //
-//  Description: Simple confirmation dialog for ending the current half/period
+//  Description: Confirmation dialog for ending the match
 //
 
 import SwiftUI
 
-/// Simplified confirmation view for ending the current match period
-struct EndHalfConfirmationView: View {
+/// Confirmation view for ending the match and returning to home screen
+struct EndMatchConfirmationView: View {
     let matchViewModel: MatchViewModel
-    let parentDismiss: () -> Void
+    let onReturnHome: () -> Void
     @Environment(\.dismiss) private var dismiss
-    
-    // Check if we're ending the second half of a regular match
-    private var isEndingSecondHalf: Bool {
-        guard let match = matchViewModel.currentMatch else { return false }
-        return matchViewModel.currentPeriod == 2 && match.numberOfPeriods == 2
-    }
-    
-    private var confirmationText: String {
-        isEndingSecondHalf ? "Are you sure you want to 'End Match'?" : "Are you sure you want to 'End Half'?"
-    }
     
     var body: some View {
         VStack(spacing: 24) {
             Spacer()
             
-            // Dynamic confirmation question
-            Text(confirmationText)
+            // Confirmation question
+            Text("Are you sure you want to 'End Match'?")
                 .font(.system(size: 18, weight: .medium))
                 .foregroundColor(.white)
                 .multilineTextAlignment(.center)
@@ -59,18 +49,12 @@ struct EndHalfConfirmationView: View {
                 
                 // Yes button
                 Button(action: {
-                    if isEndingSecondHalf {
-                        // End the second half - this will trigger full-time display
-                        matchViewModel.endCurrentPeriod()
-                        dismiss()
-                        parentDismiss()
-                    } else {
-                        // End the first half - transition to half-time
-                        matchViewModel.endCurrentPeriod()
-                        matchViewModel.isHalfTime = true
-                        dismiss()
-                        parentDismiss()
-                    }
+                    // Dismiss confirmation sheet
+                    dismiss()
+                    // Finalize match immediately to freeze state and avoid intermediate UI
+                    matchViewModel.finalizeMatch()
+                    // Unwind navigation back to StartMatchScreen
+                    onReturnHome()
                 }) {
                     Text("Yes")
                         .font(.system(size: 18, weight: .medium))
@@ -93,10 +77,11 @@ struct EndHalfConfirmationView: View {
 
 #Preview {
     let viewModel = MatchViewModel()
-    viewModel.startMatch()
+    viewModel.configureMatch(duration: 90, periods: 2, halfTimeLength: 15, hasExtraTime: false, hasPenalties: false)
+    viewModel.isFullTime = true
     
-    return EndHalfConfirmationView(
+    return EndMatchConfirmationView(
         matchViewModel: viewModel,
-        parentDismiss: { }
+        onReturnHome: { }
     )
 }

@@ -25,6 +25,8 @@ final class MatchViewModel {
     var waitingForMatchStart: Bool = true
     var waitingForHalfTimeStart: Bool = false
     var waitingForSecondHalfStart: Bool = false
+    var isFullTime: Bool = false
+    var matchCompleted: Bool = false
     
     // Timer properties
     private var timer: Timer?
@@ -327,6 +329,7 @@ final class MatchViewModel {
     
     private func endMatch() {
         isMatchInProgress = false
+        isFullTime = true
         timer?.invalidate()
         timer = nil
         stoppageTimer?.invalidate()
@@ -429,8 +432,8 @@ final class MatchViewModel {
     
     /// Get the team that should kick off the second half (already switched in endCurrentPeriod)
     func getSecondHalfKickingTeam() -> MatchKickOffView.Team {
-        // Return the current homeTeamKickingOff state (already switched for second half)
-        return homeTeamKickingOff ? .home : .away
+        // Return the opposite team from the first half (standard football rules)
+        return homeTeamKickingOff ? .away : .home
     }
     
     // MARK: - Match Event Recording
@@ -546,8 +549,7 @@ final class MatchViewModel {
             isPaused = false
             if currentPeriod == 1 {
                 waitingForSecondHalfStart = true
-                // Switch kick-off team for second half
-                homeTeamKickingOff = !homeTeamKickingOff
+                // Keep original kick-off team - getSecondHalfKickingTeam will return opposite
             }
         } else if match.hasExtraTime && currentPeriod == match.numberOfPeriods {
             // TODO: Handle extra time waiting state
@@ -577,6 +579,8 @@ final class MatchViewModel {
         waitingForMatchStart = true
         waitingForHalfTimeStart = false
         waitingForSecondHalfStart = false
+        isFullTime = false
+        matchCompleted = false
         
         // Reset timing
         elapsedTime = 0
@@ -614,6 +618,31 @@ final class MatchViewModel {
         awayEvents.removeAll()
         
         print("DEBUG: Match reset successfully")
+    }
+    
+    /// Finalize the match and prepare for navigation back to home
+    func finalizeMatch() {
+        recordMatchEvent(.matchEnd)
+        
+        // Stop all timers first
+        timer?.invalidate()
+        timer = nil
+        stoppageTimer?.invalidate()
+        stoppageTimer = nil
+        
+        // Ensure stable terminal state so UI doesn't show intermediate screens
+        isMatchInProgress = false
+        isPaused = false
+        isHalfTime = false
+        waitingForHalfTimeStart = false
+        waitingForSecondHalfStart = false
+        isFullTime = true // Keep full-time active until navigation completes
+        
+        // Clear match and mark completed
+        matchCompleted = true
+        currentMatch = nil
+        
+        print("DEBUG: Match finalized successfully")
     }
     
     /// Abandon the match
