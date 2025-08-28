@@ -6,7 +6,9 @@ import WatchKit
 
 struct TimerView: View {
     let model: MatchViewModel
+    let onReturnHome: () -> Void // Callback to unwind navigation back to root
     @State private var showingActionSheet = false
+    @Environment(\.dismiss) private var dismiss
     
     private var periodLabel: String {
         if model.isHalfTime && !model.waitingForHalfTimeStart {
@@ -27,7 +29,10 @@ struct TimerView: View {
     }
     
     var body: some View {
-        if model.waitingForSecondHalfStart {
+        if model.isFullTime {
+            // Show full-time screen with final scores and end match option
+            FullTimeView(matchViewModel: model, onReturnHome: onReturnHome)
+        } else if model.waitingForSecondHalfStart {
             // Show ONLY MatchKickOffView - no wrapping UI
             MatchKickOffView(
                 matchViewModel: model,
@@ -54,11 +59,7 @@ struct TimerView: View {
                 )
                 
                 // Main content based on match state
-                if model.waitingForMatchStart {
-                    waitingForMatchStartView
-                } else if model.waitingForHalfTimeStart {
-                    waitingForHalfTimeView
-                } else if model.isHalfTime {
+                if model.isHalfTime {
                     halfTimeView
                 } else {
                     runningMatchView
@@ -80,70 +81,33 @@ struct TimerView: View {
     
     // MARK: - State-specific Views
     
-    @ViewBuilder
-    private var waitingForMatchStartView: some View {
-        VStack(spacing: 16) {
-            Text("00:00")
-                .font(.system(size: 36, weight: .bold, design: .rounded))
-                .monospacedDigit()
-                .foregroundColor(.gray)
-            
-            Text("Ready to start")
-                .font(.system(size: 14))
-                .foregroundColor(.gray)
-            
-            Button(action: {
-                WKInterfaceDevice.current().play(.start)
-                model.startMatch()
-            }) {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 40))
-                    .foregroundColor(.green)
-            }
-            .padding(.top, 8)
-        }
-        .padding(.vertical, 8)
-    }
-    
-    @ViewBuilder
-    private var waitingForHalfTimeView: some View {
-        VStack(spacing: 16) {
-            Text(model.matchTime)
-                .font(.system(size: 36, weight: .bold, design: .rounded))
-                .monospacedDigit()
-                .foregroundColor(.gray)
-            
-            Text("Ready for half-time")
-                .font(.system(size: 14))
-                .foregroundColor(.gray)
-            
-            Button(action: {
-                WKInterfaceDevice.current().play(.start)
-                model.startHalfTimeManually()
-            }) {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 40))
-                    .foregroundColor(.green)
-            }
-            .padding(.top, 8)
-        }
-        .padding(.vertical, 8)
-    }
-    
     
     @ViewBuilder
     private var halfTimeView: some View {
-        VStack(spacing: 4) {
-            Text(model.halfTimeElapsed)
-                .font(.system(size: 36, weight: .bold, design: .rounded))
-                .monospacedDigit()
-                .foregroundColor(.orange)
+        if model.waitingForHalfTimeStart {
+            // Show large circular button matching the screenshot
+            Spacer()
             
-            Text("Half-time break")
-                .font(.system(size: 14))
-                .foregroundColor(.gray)
+            IconButton(
+                icon: "checkmark",
+                color: Color(red: 0.78, green: 0.90, blue: 0.19), // Yellow-green color
+                size: 70,
+                action: {
+                    WKInterfaceDevice.current().play(.start)
+                    model.startHalfTimeManually()
+                }
+            )
+            .padding(.bottom, 20)
+            
+            Spacer()
+        } else {
+            // Show only the timer counting up (matching second screenshot)
+            Text(model.halfTimeElapsed)
+                .font(.system(size: 48, weight: .bold, design: .rounded))
+                .monospacedDigit()
+                .foregroundColor(.white)
+                .padding(.vertical, 40)
         }
-        .padding(.vertical, 8)
     }
     
     @ViewBuilder
@@ -207,10 +171,11 @@ struct TimerView: View {
             }
         }
     }
+    
 }
 
 // MARK: - Supporting Views
 
 #Preview {
-    TimerView(model: MatchViewModel())
+    TimerView(model: MatchViewModel(), onReturnHome: {})
 } 

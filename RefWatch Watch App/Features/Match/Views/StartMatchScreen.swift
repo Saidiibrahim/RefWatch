@@ -9,6 +9,7 @@ import SwiftUI
 
 struct StartMatchScreen: View {
     let matchViewModel: MatchViewModel
+    @Environment(\.dismiss) private var dismiss
     
     var body: some View {
         VStack(spacing: 20) {
@@ -18,20 +19,64 @@ struct StartMatchScreen: View {
             
             VStack(spacing: 16) {
                 // Select from library
-                NavigationLinkButton(
-                    title: "Select Match",
-                    icon: "folder",
-                    destination: SavedMatchesView(matchViewModel: matchViewModel),
-                    backgroundColor: .blue
-                )
+                NavigationLink(destination: SavedMatchesView(
+                    matchViewModel: matchViewModel,
+                    onExitToRoot: { 
+                        // Dismiss multiple views to get back to StartMatchScreen
+                        dismiss()
+                    }
+                )) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "folder")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundColor(.white)
+                        
+                        Text("Select Match")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundColor(.white)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .background(
+                        RoundedRectangle(cornerRadius: 25)
+                            .fill(Color.blue)
+                    )
+                }
+                .buttonStyle(PlainButtonStyle())
+                .simultaneousGesture(TapGesture().onEnded {
+                    // Reset match state before selecting a match
+                    matchViewModel.resetMatch()
+                })
                 
                 // Create new match
-                NavigationLinkButton(
-                    title: "Create Match",
-                    icon: "plus.circle.fill",
-                    destination: CreateMatchView(matchViewModel: matchViewModel),
-                    backgroundColor: .green
-                )
+                NavigationLink(destination: CreateMatchView(
+                    matchViewModel: matchViewModel,
+                    onExitToRoot: { 
+                        // Dismiss CreateMatchView to get back to StartMatchScreen
+                        dismiss()
+                    }
+                )) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundColor(.white)
+                        
+                        Text("Create Match")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundColor(.white)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .background(
+                        RoundedRectangle(cornerRadius: 25)
+                            .fill(Color.green)
+                    )
+                }
+                .buttonStyle(PlainButtonStyle())
+                .simultaneousGesture(TapGesture().onEnded {
+                    // Reset match state before creating a new match
+                    matchViewModel.resetMatch()
+                })
             }
             .padding(.horizontal)
             
@@ -44,6 +89,8 @@ struct StartMatchScreen: View {
 // View for creating a new match with settings
 struct CreateMatchView: View {
     @Bindable var matchViewModel: MatchViewModel
+    let onExitToRoot: () -> Void
+    @Environment(\.dismiss) private var dismiss
     
     var body: some View {
         List {
@@ -94,7 +141,13 @@ struct CreateMatchView: View {
                     icon: "checkmark.circle.fill",
                     color: .green,
                     size: 50,
-                    destination: MatchKickOffView(matchViewModel: matchViewModel)
+                    destination: MatchKickOffView(
+                        matchViewModel: matchViewModel,
+                        onExitToRoot: {
+                            // Pop CreateMatchView to reveal StartMatchScreen
+                            dismiss()
+                        }
+                    )
                 )
                 Spacer()
             }
@@ -107,10 +160,11 @@ struct CreateMatchView: View {
 // View for selecting from saved matches
 struct SavedMatchesView: View {
     let matchViewModel: MatchViewModel
+    let onExitToRoot: () -> Void
     
     var body: some View {
         List {
-            NavigationLink(destination: MatchSetupView(matchViewModel: matchViewModel)) {
+            NavigationLink(destination: MatchSetupView(matchViewModel: matchViewModel, onExitToRoot: onExitToRoot)) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Sample Match")
                         .font(.system(size: 16, weight: .medium))
