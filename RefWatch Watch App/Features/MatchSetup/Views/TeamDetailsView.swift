@@ -140,6 +140,8 @@ struct TeamDetailsView: View {
         case .regular, .freeKick, .penalty:
             scoringTeam = teamType == .home ? .home : .away
         case .ownGoal:
+            // Own goal: credit the OPPOSITE team of the side initiating this flow
+            // If entering from home team view, the away team scores, and vice versa.
             scoringTeam = teamType == .away ? .home : .away
         }
         matchViewModel.recordGoal(

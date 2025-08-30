@@ -170,7 +170,9 @@ final class MatchViewModel {
                     self?.updateStoppageTime()
                 }
             }
-            RunLoop.current.add(stoppageTimer!, forMode: .common)
+            if let t = stoppageTimer {
+                RunLoop.current.add(t, forMode: .common)
+            }
         }
     }
     
@@ -759,5 +761,11 @@ final class MatchViewModel {
         #if DEBUG
         print("DEBUG: Half-time ended, waiting for second half start")
         #endif
+    }
+    
+    deinit {
+        // Ensure timers are invalidated to avoid retain cycles or leaks
+        timer?.invalidate()
+        stoppageTimer?.invalidate()
     }
 }
