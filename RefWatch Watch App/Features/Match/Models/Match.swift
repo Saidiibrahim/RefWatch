@@ -12,9 +12,9 @@ struct Match: Identifiable, Codable {
     var homeTeam: String
     var awayTeam: String
     var startTime: Date?
-    var duration: TimeInterval  // In minutes
+    var duration: TimeInterval  // In seconds
     var numberOfPeriods: Int
-    var halfTimeLength: TimeInterval  // In minutes
+    var halfTimeLength: TimeInterval  // In seconds
     var hasExtraTime: Bool
     var hasPenalties: Bool
     
@@ -32,9 +32,9 @@ struct Match: Identifiable, Codable {
         id: UUID = UUID(),
         homeTeam: String = "HOM",
         awayTeam: String = "AWA",
-        duration: TimeInterval = 90,
+        duration: TimeInterval = 90 * 60,
         numberOfPeriods: Int = 2,
-        halfTimeLength: TimeInterval = 15,
+        halfTimeLength: TimeInterval = 15 * 60,
         hasExtraTime: Bool = false,
         hasPenalties: Bool = false
     ) {
@@ -59,4 +59,3 @@ struct Match: Identifiable, Codable {
         self.awaySubs = 0
     }
 }
-

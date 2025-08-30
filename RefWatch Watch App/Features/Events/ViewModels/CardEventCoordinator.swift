@@ -12,7 +12,7 @@ import Observation // Required for @Observable
     }
     
     var currentStep: Step = .recipient
-    var cardType: MatchEvent
+    var cardType: CardDetails.CardType
     var selectedTeam: TeamDetailsView.TeamType
     var selectedRecipient: CardRecipientType?
     var selectedPlayerNumber: Int?
@@ -23,7 +23,7 @@ import Observation // Required for @Observable
     private let setupViewModel: MatchSetupViewModel
     
     init(
-        cardType: MatchEvent,
+        cardType: CardDetails.CardType,
         team: TeamDetailsView.TeamType,
         matchViewModel: MatchViewModel,
         setupViewModel: MatchSetupViewModel
@@ -76,15 +76,14 @@ import Observation // Required for @Observable
         
         print("DEBUG: Recording card - Type: \(cardType), Reason: \(reason), Player: \(String(describing: selectedPlayerNumber)), Official: \(String(describing: selectedOfficialRole))")
         
-        // Map values to new comprehensive recording system
-        let cardTypeEnum: CardDetails.CardType = cardType == .yellow ? .yellow : .red
+        // Use canonical card type directly
         let recipientType: CardRecipientType = selectedRecipient ?? .player
         let team: TeamSide = selectedTeam == .home ? .home : .away
         
         // Use new comprehensive recordCard method
         matchViewModel.recordCard(
             team: team,
-            cardType: cardTypeEnum,
+            cardType: cardType,
             recipientType: recipientType,
             playerNumber: selectedPlayerNumber,
             officialRole: selectedOfficialRole,
