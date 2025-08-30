@@ -8,9 +8,11 @@ import SwiftUI
 
 struct MatchSetupView: View {
     @State private var viewModel: MatchSetupViewModel
+    let lifecycle: MatchLifecycleCoordinator
     
-    init(matchViewModel: MatchViewModel) {
+    init(matchViewModel: MatchViewModel, lifecycle: MatchLifecycleCoordinator) {
         _viewModel = State(initialValue: MatchSetupViewModel(matchViewModel: matchViewModel))
+        self.lifecycle = lifecycle
     }
     
     var body: some View {
@@ -27,7 +29,10 @@ struct MatchSetupView: View {
             .tag(0)
             
             // Timer View (Middle)
-            TimerView(model: viewModel.matchViewModel)
+            TimerView(
+                model: viewModel.matchViewModel,
+                lifecycle: lifecycle
+            )
                 .tag(1)
             
             // Away Team Details
@@ -39,8 +44,5 @@ struct MatchSetupView: View {
             .tag(2)
         }
         .tabViewStyle(.page)
-        .onAppear {
-            viewModel.startMatch()
-        }
     }
 }

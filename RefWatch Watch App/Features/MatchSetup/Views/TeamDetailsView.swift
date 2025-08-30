@@ -1,4 +1,5 @@
 import SwiftUI
+import WatchKit
 
 struct TeamDetailsView: View {
     enum TeamType {
@@ -40,9 +41,15 @@ struct TeamDetailsView: View {
                             icon: "square.fill",
                             color: .yellow,
                             label: "Yellow",
-                            action: {}
+                            isNavigationLabel: true
                         )
                     }
+                    .buttonStyle(.plain)
+                    .simultaneousGesture(
+                        TapGesture().onEnded {
+                            WKInterfaceDevice.current().play(.notification)
+                        }
+                    )
                     
                     NavigationLink {
                         CardEventFlow(
@@ -56,32 +63,59 @@ struct TeamDetailsView: View {
                             icon: "square.fill",
                             color: .red,
                             label: "Red",
-                            action: {}
+                            isNavigationLabel: true
                         )
                     }
+                    .buttonStyle(.plain)
+                    .simultaneousGesture(
+                        TapGesture().onEnded {
+                            WKInterfaceDevice.current().play(.notification)
+                        }
+                    )
                 }
                 
                 HStack(spacing: 20) {
-                    EventButtonView(
-                        icon: "arrow.up.arrow.down",
-                        color: .blue,
-                        label: "Sub"
-                    ) {
-                        addEvent(.substitution)
+                    NavigationLink {
+                        SubstitutionFlow(
+                            team: teamType,
+                            matchViewModel: matchViewModel,
+                            setupViewModel: setupViewModel
+                        )
+                    } label: {
+                        EventButtonView(
+                            icon: "arrow.up.arrow.down",
+                            color: .blue,
+                            label: "Sub",
+                            isNavigationLabel: true
+                        )
                     }
+                    .buttonStyle(.plain)
+                    .simultaneousGesture(
+                        TapGesture().onEnded {
+                            WKInterfaceDevice.current().play(.click)
+                        }
+                    )
                     
                     NavigationLink {
                         GoalTypeSelectionView(team: teamType) { goalType in
+                            print("DEBUG: Goal type received in TeamDetailsView: \(goalType.label) for team: \(teamType)")
                             selectedGoalType = goalType
                             showingPlayerNumberInput = true
                         }
                     } label: {
                         EventButtonView(
                             icon: "soccerball",
-                            color: .white,
-                            label: "Goal"
-                        ) { }
+                            color: .green,
+                            label: "Goal",
+                            isNavigationLabel: true
+                        )
                     }
+                    .buttonStyle(.plain)
+                    .simultaneousGesture(
+                        TapGesture().onEnded {
+                            WKInterfaceDevice.current().play(.click)
+                        }
+                    )
                 }
             }
             .padding(.horizontal)
@@ -149,7 +183,10 @@ struct TeamDetailsView: View {
                     goalType: goalType,
                     cardType: nil,
                     onComplete: { number in
+                        print("DEBUG: Player number entered for goal: #\(number)")
                         recordGoal(type: goalType, playerNumber: number)
+                        showingPlayerNumberInput = false
+                        selectedGoalType = nil
                     }
                 )
             }
@@ -157,15 +194,39 @@ struct TeamDetailsView: View {
     }
     
     private func recordGoal(type: GoalTypeSelectionView.GoalType, playerNumber: Int) {
+        print("DEBUG: Recording goal - Type: \(type.label), Player: #\(playerNumber), Team: \(teamType)")
+        
+        // Map goal type to new enum
+        let goalType: GoalDetails.GoalType
+        let scoringTeam: TeamSide
+        
         switch type {
-        case .goal, .freeKick, .penalty:
-            matchViewModel.updateScore(isHome: teamType == .home)
+        case .goal:
+            goalType = .regular
+            scoringTeam = teamType == .home ? .home : .away
         case .ownGoal:
-            matchViewModel.updateScore(isHome: teamType == .away)
+            goalType = .ownGoal
+            scoringTeam = teamType == .away ? .home : .away // Own goal goes to opposite team
+        case .freeKick:
+            goalType = .freeKick
+            scoringTeam = teamType == .home ? .home : .away
+        case .penalty:
+            goalType = .penalty
+            scoringTeam = teamType == .home ? .home : .away
         }
         
-        let event = MatchEvent.goal
-        matchViewModel.addEvent(event, for: teamType == .home ? .home : .away)
+        // Record goal using new comprehensive system
+        matchViewModel.recordGoal(
+            team: scoringTeam,
+            goalType: goalType,
+            playerNumber: playerNumber
+        )
+        
+        print("DEBUG: Goal recording completed successfully using new system")
+        
+        // Navigate to middle screen after recording goal
+        print("DEBUG: Navigating to middle screen...")
+        setupViewModel.setSelectedTab(1)
     }
     
     private func addEvent(_ event: MatchEvent) {
@@ -180,10 +241,19 @@ struct TeamDetailsView: View {
     ) {
         print("DEBUG: Recording card - Type: \(type), Reason: \(reason), Player: \(String(describing: playerNumber)), Official: \(String(describing: officialRole))")
         
-        matchViewModel.addEvent(type, for: teamType == .home ? .home : .away)
-        matchViewModel.addCard(
-            isHome: teamType == .home,
-            isYellow: type == .yellow
+        // Map card type and recipient type
+        let cardType: CardDetails.CardType = type == .yellow ? .yellow : .red
+        let recipientType: CardRecipientType = isTeamOfficial ? .teamOfficial : .player
+        let team: TeamSide = teamType == .home ? .home : .away
+        
+        // Record card using new comprehensive system
+        matchViewModel.recordCard(
+            team: team,
+            cardType: cardType,
+            recipientType: recipientType,
+            playerNumber: playerNumber,
+            officialRole: officialRole,
+            reason: reason
         )
         
         // Reset all states
@@ -194,7 +264,7 @@ struct TeamDetailsView: View {
         showingCardReasonSelection = false
         
         // Switch to tab 1 (middle screen) and log success
-        print("DEBUG: Successfully recorded card, navigating to middle screen...")
+        print("DEBUG: Successfully recorded card using new system, navigating to middle screen...")
         setupViewModel.setSelectedTab(1)
     }
 } 

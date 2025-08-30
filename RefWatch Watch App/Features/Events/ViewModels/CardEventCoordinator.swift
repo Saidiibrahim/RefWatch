@@ -69,15 +69,29 @@ import Observation // Required for @Observable
     }
     
     private func recordCard() {
-        print("DEBUG: Recording card - Type: \(cardType), Reason: \(selectedReason ?? ""), Player: \(String(describing: selectedPlayerNumber)), Official: \(String(describing: selectedOfficialRole))")
+        guard let reason = selectedReason else {
+            print("DEBUG: Cannot record card - missing reason")
+            return
+        }
         
-        matchViewModel.addEvent(cardType, for: selectedTeam == .home ? .home : .away)
-        matchViewModel.addCard(
-            isHome: selectedTeam == .home,
-            isYellow: cardType == .yellow
+        print("DEBUG: Recording card - Type: \(cardType), Reason: \(reason), Player: \(String(describing: selectedPlayerNumber)), Official: \(String(describing: selectedOfficialRole))")
+        
+        // Map values to new comprehensive recording system
+        let cardTypeEnum: CardDetails.CardType = cardType == .yellow ? .yellow : .red
+        let recipientType: CardRecipientType = selectedRecipient ?? .player
+        let team: TeamSide = selectedTeam == .home ? .home : .away
+        
+        // Use new comprehensive recordCard method
+        matchViewModel.recordCard(
+            team: team,
+            cardType: cardTypeEnum,
+            recipientType: recipientType,
+            playerNumber: selectedPlayerNumber,
+            officialRole: selectedOfficialRole,
+            reason: reason
         )
         
         setupViewModel.setSelectedTab(1)
-        print("DEBUG: Successfully recorded card, navigating to middle screen...")
+        print("DEBUG: Successfully recorded card using new system, navigating to middle screen...")
     }
 } 
