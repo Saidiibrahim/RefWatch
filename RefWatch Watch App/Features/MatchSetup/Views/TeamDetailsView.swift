@@ -10,15 +10,10 @@ struct TeamDetailsView: View {
     let matchViewModel: MatchViewModel
     let setupViewModel: MatchSetupViewModel
     
-    @State private var showingCardRecipientSelection = false
-    @State private var showingTeamOfficialSelection = false
-    @State private var showingCardReasonSelection = false
-    @State private var currentCardType: MatchEvent?
-    @State private var isTeamOfficial = false
     @State private var selectedTeamOfficial: TeamOfficialRole?
     @State private var selectedPlayerNumber: Int?
     @State private var showingPlayerNumberInput = false
-    @State private var selectedGoalType: GoalTypeSelectionView.GoalType?
+    @State private var selectedGoalType: GoalDetails.GoalType?
     
     var body: some View {
         VStack {
@@ -98,7 +93,7 @@ struct TeamDetailsView: View {
                     
                     NavigationLink {
                         GoalTypeSelectionView(team: teamType) { goalType in
-                            print("DEBUG: Goal type received in TeamDetailsView: \(goalType.label) for team: \(teamType)")
+                            print("DEBUG: Goal type received in TeamDetailsView: \(goalType.rawValue) for team: \(teamType)")
                             selectedGoalType = goalType
                             showingPlayerNumberInput = true
                         }
@@ -121,63 +116,8 @@ struct TeamDetailsView: View {
             .padding(.horizontal)
         }
         .padding()
-        .navigationDestination(isPresented: $showingCardRecipientSelection) {
-            if let cardType = currentCardType {
-                CardRecipientSelectionView(
-                    team: teamType,
-                    cardType: cardType,
-                    onComplete: { recipient in
-                        showingCardRecipientSelection = false
-                        if recipient == .player {
-                            showingPlayerNumberInput = true
-                        } else {
-                            isTeamOfficial = true
-                            showingTeamOfficialSelection = true
-                        }
-                    }
-                )
-            }
-        }
-        .navigationDestination(isPresented: $showingTeamOfficialSelection) {
-            TeamOfficialSelectionView(team: teamType) { role in
-                selectedTeamOfficial = role
-                showingTeamOfficialSelection = false
-                showingCardReasonSelection = true
-            }
-        }
-        .navigationDestination(isPresented: $showingCardReasonSelection) {
-            if let cardType = currentCardType {
-                NavigationStack {
-                    CardReasonSelectionView(
-                        cardType: cardType,
-                        isTeamOfficial: isTeamOfficial
-                    ) { reason in
-                        recordCard(
-                            type: cardType,
-                            reason: reason,
-                            playerNumber: selectedPlayerNumber,
-                            officialRole: selectedTeamOfficial
-                        )
-                        showingCardReasonSelection = false
-                        setupViewModel.setSelectedTab(1)
-                    }
-                }
-            }
-        }
         .navigationDestination(isPresented: $showingPlayerNumberInput) {
-            if let cardType = currentCardType {
-                PlayerNumberInputView(
-                    team: teamType,
-                    goalType: nil,
-                    cardType: cardType,
-                    onComplete: { number in
-                        selectedPlayerNumber = number
-                        showingPlayerNumberInput = false
-                        showingCardReasonSelection = true
-                        print("DEBUG: Player number selected: \(number), showing card reason selection")
-                    }
-                )
-            } else if let goalType = selectedGoalType {
+            if let goalType = selectedGoalType {
                 PlayerNumberInputView(
                     team: teamType,
                     goalType: goalType,
@@ -193,78 +133,22 @@ struct TeamDetailsView: View {
         }
     }
     
-    private func recordGoal(type: GoalTypeSelectionView.GoalType, playerNumber: Int) {
-        print("DEBUG: Recording goal - Type: \(type.label), Player: #\(playerNumber), Team: \(teamType)")
-        
-        // Map goal type to new enum
-        let goalType: GoalDetails.GoalType
+    private func recordGoal(type: GoalDetails.GoalType, playerNumber: Int) {
+        print("DEBUG: Recording goal - Type: \(type.rawValue), Player: #\(playerNumber), Team: \(teamType)")
         let scoringTeam: TeamSide
-        
         switch type {
-        case .goal:
-            goalType = .regular
+        case .regular, .freeKick, .penalty:
             scoringTeam = teamType == .home ? .home : .away
         case .ownGoal:
-            goalType = .ownGoal
-            scoringTeam = teamType == .away ? .home : .away // Own goal goes to opposite team
-        case .freeKick:
-            goalType = .freeKick
-            scoringTeam = teamType == .home ? .home : .away
-        case .penalty:
-            goalType = .penalty
-            scoringTeam = teamType == .home ? .home : .away
+            scoringTeam = teamType == .away ? .home : .away
         }
-        
-        // Record goal using new comprehensive system
         matchViewModel.recordGoal(
             team: scoringTeam,
-            goalType: goalType,
+            goalType: type,
             playerNumber: playerNumber
         )
-        
         print("DEBUG: Goal recording completed successfully using new system")
-        
-        // Navigate to middle screen after recording goal
         print("DEBUG: Navigating to middle screen...")
         setupViewModel.setSelectedTab(1)
     }
-    
-    private func addEvent(_ event: MatchEvent) {
-        matchViewModel.addEvent(event, for: teamType == .home ? .home : .away)
-    }
-    
-    private func recordCard(
-        type: MatchEvent,
-        reason: String,
-        playerNumber: Int?,
-        officialRole: TeamOfficialRole?
-    ) {
-        print("DEBUG: Recording card - Type: \(type), Reason: \(reason), Player: \(String(describing: playerNumber)), Official: \(String(describing: officialRole))")
-        
-        // Map card type and recipient type
-        let cardType: CardDetails.CardType = type == .yellow ? .yellow : .red
-        let recipientType: CardRecipientType = isTeamOfficial ? .teamOfficial : .player
-        let team: TeamSide = teamType == .home ? .home : .away
-        
-        // Record card using new comprehensive system
-        matchViewModel.recordCard(
-            team: team,
-            cardType: cardType,
-            recipientType: recipientType,
-            playerNumber: playerNumber,
-            officialRole: officialRole,
-            reason: reason
-        )
-        
-        // Reset all states
-        currentCardType = nil
-        selectedPlayerNumber = nil
-        selectedTeamOfficial = nil
-        isTeamOfficial = false
-        showingCardReasonSelection = false
-        
-        // Switch to tab 1 (middle screen) and log success
-        print("DEBUG: Successfully recorded card using new system, navigating to middle screen...")
-        setupViewModel.setSelectedTab(1)
-    }
-} 
+}

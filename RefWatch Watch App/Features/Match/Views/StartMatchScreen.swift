@@ -176,7 +176,7 @@ struct SavedMatchesView: View {
             ForEach(matchViewModel.savedMatches) { match in
                 Button {
                     matchViewModel.selectMatch(match)
-                    lifecycle.goToSetup()
+                    lifecycle.goToKickoffFirst()
                     // Pop SavedMatchesView; StartMatchScreen will auto-dismiss via onChange
                     dismiss()
                 } label: {

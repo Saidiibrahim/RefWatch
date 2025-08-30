@@ -6,7 +6,7 @@ struct CardEventFlow: View {
     @Environment(\.dismiss) private var dismiss
     
     init(
-        cardType: MatchEvent,
+        cardType: CardDetails.CardType,
         team: TeamDetailsView.TeamType,
         matchViewModel: MatchViewModel,
         setupViewModel: MatchSetupViewModel
