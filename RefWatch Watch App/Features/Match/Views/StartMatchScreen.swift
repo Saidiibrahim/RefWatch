@@ -9,6 +9,7 @@ import SwiftUI
 
 struct StartMatchScreen: View {
     let matchViewModel: MatchViewModel
+    let lifecycle: MatchLifecycleCoordinator
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
@@ -21,10 +22,7 @@ struct StartMatchScreen: View {
                 // Select from library
                 NavigationLink(destination: SavedMatchesView(
                     matchViewModel: matchViewModel,
-                    onExitToRoot: { 
-                        // Dismiss multiple views to get back to StartMatchScreen
-                        dismiss()
-                    }
+                    lifecycle: lifecycle
                 )) {
                     HStack(spacing: 12) {
                         Image(systemName: "folder")
@@ -51,10 +49,7 @@ struct StartMatchScreen: View {
                 // Create new match
                 NavigationLink(destination: CreateMatchView(
                     matchViewModel: matchViewModel,
-                    onExitToRoot: { 
-                        // Dismiss CreateMatchView to get back to StartMatchScreen
-                        dismiss()
-                    }
+                    lifecycle: lifecycle
                 )) {
                     HStack(spacing: 12) {
                         Image(systemName: "plus.circle.fill")
@@ -83,13 +78,19 @@ struct StartMatchScreen: View {
             Spacer()
         }
         .navigationTitle("Start Match")
+        // When the lifecycle leaves idle, close this screen to reveal root routing
+        .onChange(of: lifecycle.state) { newValue in
+            if newValue != .idle {
+                dismiss()
+            }
+        }
     }
 }
 
 // View for creating a new match with settings
 struct CreateMatchView: View {
     @Bindable var matchViewModel: MatchViewModel
-    let onExitToRoot: () -> Void
+    let lifecycle: MatchLifecycleCoordinator
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
@@ -134,21 +135,28 @@ struct CreateMatchView: View {
             Toggle("Extra Time", isOn: $matchViewModel.hasExtraTime)
             Toggle("Penalties", isOn: $matchViewModel.hasPenalties)
             
-            // Start match button - using the icon button style
+            // Start match button - jump into lifecycle kickoff state
             HStack {
                 Spacer()
-                NavigationIconButton(
+                IconButton(
                     icon: "checkmark.circle.fill",
                     color: .green,
-                    size: 50,
-                    destination: MatchKickOffView(
-                        matchViewModel: matchViewModel,
-                        onExitToRoot: {
-                            // Pop CreateMatchView to reveal StartMatchScreen
-                            dismiss()
-                        }
+                    size: 50
+                ) {
+                    // Configure new match from current settings
+                    matchViewModel.configureMatch(
+                        duration: matchViewModel.matchDuration,
+                        periods: matchViewModel.numberOfPeriods,
+                        halfTimeLength: matchViewModel.halfTimeLength,
+                        hasExtraTime: matchViewModel.hasExtraTime,
+                        hasPenalties: matchViewModel.hasPenalties
                     )
-                )
+                    // Enter kickoff-first state; ContentView will swap screen
+                    lifecycle.goToKickoffFirst()
+                    // Pop CreateMatchView; StartMatchScreen will auto-dismiss via onChange
+                    dismiss()
+                }
+                .accessibilityIdentifier("startMatchButton")
                 Spacer()
             }
             .listRowBackground(Color.clear) // Remove grey background from List item
@@ -160,22 +168,30 @@ struct CreateMatchView: View {
 // View for selecting from saved matches
 struct SavedMatchesView: View {
     let matchViewModel: MatchViewModel
-    let onExitToRoot: () -> Void
+    let lifecycle: MatchLifecycleCoordinator
+    @Environment(\.dismiss) private var dismiss
     
     var body: some View {
         List {
-            NavigationLink(destination: MatchSetupView(matchViewModel: matchViewModel, onExitToRoot: onExitToRoot)) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Sample Match")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.primary)
-                    
-                    Text("HOM vs AWA")
-                        .font(.system(size: 14))
-                        .foregroundColor(.secondary)
+            ForEach(matchViewModel.savedMatches) { match in
+                Button {
+                    matchViewModel.selectMatch(match)
+                    lifecycle.goToSetup()
+                    // Pop SavedMatchesView; StartMatchScreen will auto-dismiss via onChange
+                    dismiss()
+                } label: {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("\(match.homeTeam) vs \(match.awayTeam)")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(.primary)
+                        
+                        Text("Duration: \(Int(match.duration/60)) min • Periods: \(match.numberOfPeriods)")
+                            .font(.system(size: 14))
+                            .foregroundColor(.secondary)
+                    }
                 }
+                .buttonStyle(PlainButtonStyle())
             }
-            .buttonStyle(PlainButtonStyle()) // Remove grey background
         }
         .navigationTitle("Saved Matches")
     }
@@ -183,6 +199,6 @@ struct SavedMatchesView: View {
 
 struct StartMatchScreen_Previews: PreviewProvider {
     static var previews: some View {
-        StartMatchScreen(matchViewModel: MatchViewModel())
+        StartMatchScreen(matchViewModel: MatchViewModel(), lifecycle: MatchLifecycleCoordinator())
     }
 }

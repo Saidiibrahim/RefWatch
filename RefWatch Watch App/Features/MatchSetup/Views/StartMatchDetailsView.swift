@@ -2,7 +2,7 @@ import SwiftUI
 
 struct StartMatchDetailsView: View {
     let matchViewModel: MatchViewModel
-    let onExitToRoot: () -> Void
+    let lifecycle: MatchLifecycleCoordinator
     
     var body: some View {
         VStack(spacing: 16) {
@@ -25,7 +25,10 @@ struct StartMatchDetailsView: View {
             
             Spacer()
             
-            NavigationLink(destination: TimerView(model: matchViewModel, onReturnHome: onExitToRoot)) {
+            Button {
+                matchViewModel.startMatch()
+                lifecycle.goToSetup()
+            } label: {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 36, weight: .medium))
                     .foregroundColor(.white)
@@ -36,9 +39,6 @@ struct StartMatchDetailsView: View {
                     )
             }
             .buttonStyle(PlainButtonStyle()) // Removes default grey background
-            .simultaneousGesture(TapGesture().onEnded {
-                matchViewModel.startMatch()
-            })
         }
         .padding()
     }

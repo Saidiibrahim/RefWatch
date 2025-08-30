@@ -8,13 +8,11 @@ import SwiftUI
 
 struct MatchSetupView: View {
     @State private var viewModel: MatchSetupViewModel
-    @Environment(\.dismiss) private var dismiss // Dismiss this pushed view back to StartMatchScreen
-    @Environment(\.presentationMode) var presentationMode
-    let onExitToRoot: () -> Void // Callback to pop to ContentView
+    let lifecycle: MatchLifecycleCoordinator
     
-    init(matchViewModel: MatchViewModel, onExitToRoot: @escaping () -> Void) {
+    init(matchViewModel: MatchViewModel, lifecycle: MatchLifecycleCoordinator) {
         _viewModel = State(initialValue: MatchSetupViewModel(matchViewModel: matchViewModel))
-        self.onExitToRoot = onExitToRoot
+        self.lifecycle = lifecycle
     }
     
     var body: some View {
@@ -33,11 +31,7 @@ struct MatchSetupView: View {
             // Timer View (Middle)
             TimerView(
                 model: viewModel.matchViewModel,
-                onReturnHome: {
-                    // Navigate back to StartMatchScreen
-                    presentationMode.wrappedValue.dismiss()
-                    onExitToRoot()
-                }
+                lifecycle: lifecycle
             )
                 .tag(1)
             

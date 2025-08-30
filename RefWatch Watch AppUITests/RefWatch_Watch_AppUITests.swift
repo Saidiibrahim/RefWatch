@@ -41,3 +41,65 @@ final class RefWatch_Watch_AppUITests: XCTestCase {
         }
     }
 }
+
+// MARK: - End-to-end lifecycle UI test
+extension RefWatch_Watch_AppUITests {
+    @MainActor
+    func testCreate_Kickoff_Run_EndMatch_Idle() throws {
+        let app = XCUIApplication()
+        app.launch()
+
+        // Go to Start Match
+        if app.buttons["Start Match"].exists {
+            app.buttons["Start Match"].tap()
+        } else if app.staticTexts["Start Match"].exists {
+            app.staticTexts["Start Match"].tap()
+        }
+
+        // Open Create Match
+        if app.buttons["Create Match"].exists { app.buttons["Create Match"].tap() }
+        else { app.staticTexts["Create Match"].tap() }
+
+        // Start Match from settings
+        XCTAssertTrue(app.buttons["startMatchButton"].waitForExistence(timeout: 3))
+        app.buttons["startMatchButton"].tap()
+
+        // Kickoff: select home and confirm
+        XCTAssertTrue(app.buttons["homeTeamButton"].waitForExistence(timeout: 3))
+        app.buttons["homeTeamButton"].tap()
+        app.buttons["kickoffConfirmButton"].tap()
+
+        // Long-press timer area to open actions
+        let timer = app.otherElements["timerArea"]
+        XCTAssertTrue(timer.waitForExistence(timeout: 3))
+        timer.press(forDuration: 1.0)
+
+        // End first half
+        if app.buttons["End Half"].exists { app.buttons["End Half"].tap() }
+        else { app.staticTexts["End Half"].tap() }
+        if app.buttons["Yes"].waitForExistence(timeout: 2) { app.buttons["Yes"].tap() }
+
+        // Immediately end half-time
+        XCTAssertTrue(timer.waitForExistence(timeout: 3))
+        timer.press(forDuration: 1.0)
+        if app.buttons["End Half-Time"].exists { app.buttons["End Half-Time"].tap() }
+
+        // Second half kickoff auto-selects team; confirm
+        XCTAssertTrue(app.buttons["kickoffConfirmButton"].waitForExistence(timeout: 3))
+        app.buttons["kickoffConfirmButton"].tap()
+
+        // End second half
+        XCTAssertTrue(timer.waitForExistence(timeout: 3))
+        timer.press(forDuration: 1.0)
+        if app.buttons["End Half"].exists { app.buttons["End Half"].tap() }
+        if app.buttons["Yes"].waitForExistence(timeout: 2) { app.buttons["Yes"].tap() }
+
+        // Full time: end match and return home
+        XCTAssertTrue(app.buttons["endMatchButton"].waitForExistence(timeout: 3))
+        app.buttons["endMatchButton"].tap()
+        if app.buttons["Yes"].waitForExistence(timeout: 2) { app.buttons["Yes"].tap() }
+
+        // Validate we're back to idle
+        XCTAssertTrue(app.staticTexts["Start Match"].waitForExistence(timeout: 3))
+    }
+}
