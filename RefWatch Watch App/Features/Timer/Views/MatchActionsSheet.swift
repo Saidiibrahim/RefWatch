@@ -10,6 +10,7 @@ import SwiftUI
 /// Sheet view presenting three action options for referees during a match
 struct MatchActionsSheet: View {
     let matchViewModel: MatchViewModel
+    var lifecycle: MatchLifecycleCoordinator? = nil
     @Environment(\.dismiss) private var dismiss
     
     // State for controlling navigation destinations
@@ -46,11 +47,11 @@ struct MatchActionsSheet: View {
                 
                 // End Half Button (conditional based on match state)
                 if matchViewModel.isHalfTime {
-                    // During half-time: Show "End Half-Time" option
+                    // During half-time: Show "End Half" option with consistent styling
                     ActionButton(
-                        title: "End Half-Time",
-                        icon: "forward.fill",
-                        color: .orange
+                        title: "End Half",
+                        icon: "checkmark.circle",
+                        color: .green
                     ) {
                         matchViewModel.endHalfTimeManually()
                         dismiss()
@@ -74,7 +75,7 @@ struct MatchActionsSheet: View {
             MatchLogsView(matchViewModel: matchViewModel)
         }
         .sheet(isPresented: $showingOptions) {
-            MatchOptionsView(matchViewModel: matchViewModel)
+            MatchOptionsView(matchViewModel: matchViewModel, lifecycle: lifecycle)
         }
         .sheet(isPresented: $showingEndHalfConfirmation) {
             EndHalfConfirmationView(

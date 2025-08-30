@@ -49,11 +49,9 @@ struct EndMatchConfirmationView: View {
                 
                 // Yes button
                 Button(action: {
-                    // Dismiss confirmation sheet
+                    // Dismiss confirmation, finalize and route home via coordinator
                     dismiss()
-                    // Finalize match immediately to freeze state and avoid intermediate UI
                     matchViewModel.finalizeMatch()
-                    // Unwind navigation back to StartMatchScreen
                     onReturnHome()
                 }) {
                     Text("Yes")

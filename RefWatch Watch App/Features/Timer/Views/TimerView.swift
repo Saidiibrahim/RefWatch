@@ -6,7 +6,7 @@ import WatchKit
 
 struct TimerView: View {
     let model: MatchViewModel
-    let onReturnHome: () -> Void // Callback to unwind navigation back to root
+    let lifecycle: MatchLifecycleCoordinator
     @State private var showingActionSheet = false
     @Environment(\.dismiss) private var dismiss
     
@@ -29,18 +29,7 @@ struct TimerView: View {
     }
     
     var body: some View {
-        if model.isFullTime {
-            // Show full-time screen with final scores and end match option
-            FullTimeView(matchViewModel: model, onReturnHome: onReturnHome)
-        } else if model.waitingForSecondHalfStart {
-            // Show ONLY MatchKickOffView - no wrapping UI
-            MatchKickOffView(
-                matchViewModel: model,
-                isSecondHalf: true,
-                defaultSelectedTeam: model.getSecondHalfKickingTeam()
-            )
-        } else {
-            VStack(spacing: 8) {
+        VStack(spacing: 8) {
                 // Period indicator
                 HStack {
                     Text(periodLabel)
@@ -64,18 +53,25 @@ struct TimerView: View {
                 } else {
                     runningMatchView
                 }
+        }
+        .accessibilityIdentifier("timerArea")
+        .padding(.top)
+        .onLongPressGesture(minimumDuration: 0.8) {
+            // Allow long press when match is running or during half-time
+            if model.isMatchInProgress || model.isHalfTime {
+                WKInterfaceDevice.current().play(.notification)
+                showingActionSheet = true
             }
-            .padding(.top)
-            .onLongPressGesture(minimumDuration: 0.8) {
-                // Allow long press when match is running or during half-time
-                if model.isMatchInProgress || model.isHalfTime {
-                    WKInterfaceDevice.current().play(.notification)
-                    showingActionSheet = true
-                }
-            }
-            .sheet(isPresented: $showingActionSheet) {
-                MatchActionsSheet(matchViewModel: model)
-            }
+        }
+        .sheet(isPresented: $showingActionSheet) {
+            MatchActionsSheet(matchViewModel: model, lifecycle: lifecycle)
+        }
+        // Lifecycle routing hooks
+        .onChange(of: model.isFullTime) { isFT in
+            if isFT { lifecycle.goToFinished() }
+        }
+        .onChange(of: model.waitingForSecondHalfStart) { waiting in
+            if waiting { lifecycle.goToKickoffSecond() }
         }
     }
     
@@ -177,5 +173,5 @@ struct TimerView: View {
 // MARK: - Supporting Views
 
 #Preview {
-    TimerView(model: MatchViewModel(), onReturnHome: {})
+    TimerView(model: MatchViewModel(), lifecycle: MatchLifecycleCoordinator())
 } 

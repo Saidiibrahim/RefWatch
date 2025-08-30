@@ -41,26 +41,29 @@ struct FullTimeView: View {
             .padding(.horizontal)
             
             Spacer()
-            
-            // End Match Button
+        }
+        .background(Color.black)
+        // Compact button pinned above the bottom safe area
+        .safeAreaInset(edge: .bottom) {
             Button(action: {
                 showingEndMatchConfirmation = true
             }) {
                 Text("End Match")
-                    .font(.system(size: 18, weight: .medium))
+                    .font(.system(size: 13, weight: .semibold))
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
+                    .frame(height: 36)
                     .background(
-                        RoundedRectangle(cornerRadius: 30)
+                        RoundedRectangle(cornerRadius: 12)
                             .fill(Color.green)
                     )
             }
             .buttonStyle(.plain)
-            .padding(.horizontal)
-            .padding(.bottom, 45)
+            .accessibilityIdentifier("endMatchButton")
+            .padding(.horizontal, 12)
+            .padding(.top, 8)
+            .padding(.bottom, 28) // lift above page indicator / rounded corners
         }
-        .background(Color.black)
         .sheet(isPresented: $showingEndMatchConfirmation) {
             EndMatchConfirmationView(
                 matchViewModel: matchViewModel,

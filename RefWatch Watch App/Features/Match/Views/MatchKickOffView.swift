@@ -7,31 +7,30 @@ struct MatchKickOffView: View {
     let matchViewModel: MatchViewModel
     let isSecondHalf: Bool
     let defaultSelectedTeam: Team?
-    let onExitToRoot: (() -> Void)? // Forwarded to MatchSetupView
+    let lifecycle: MatchLifecycleCoordinator
     
     @State private var selectedTeam: Team?
-    @Environment(\.dismiss) private var dismiss
     
     enum Team {
         case home, away
     }
     
     // Convenience initializer for first half (original usage)
-    init(matchViewModel: MatchViewModel, onExitToRoot: (() -> Void)? = nil) {
+    init(matchViewModel: MatchViewModel, lifecycle: MatchLifecycleCoordinator) {
         self.matchViewModel = matchViewModel
         self.isSecondHalf = false
         self.defaultSelectedTeam = nil
-        self.onExitToRoot = onExitToRoot
+        self.lifecycle = lifecycle
         // Initialize @State with nil for first half
         self._selectedTeam = State(initialValue: nil)
     }
     
     // Initializer for second half usage
-    init(matchViewModel: MatchViewModel, isSecondHalf: Bool, defaultSelectedTeam: Team, onExitToRoot: (() -> Void)? = nil) {
+    init(matchViewModel: MatchViewModel, isSecondHalf: Bool, defaultSelectedTeam: Team, lifecycle: MatchLifecycleCoordinator) {
         self.matchViewModel = matchViewModel
         self.isSecondHalf = isSecondHalf
         self.defaultSelectedTeam = defaultSelectedTeam
-        self.onExitToRoot = onExitToRoot
+        self.lifecycle = lifecycle
         // Initialize @State with nil - will be set in onAppear
         self._selectedTeam = State(initialValue: nil)
     }
@@ -58,20 +57,22 @@ struct MatchKickOffView: View {
                     teamName: "HOM",
                     score: matchViewModel.currentMatch?.homeScore ?? 0,
                     isSelected: selectedTeam == .home,
-                    action: { selectedTeam = .home }
+                    action: { selectedTeam = .home },
+                    accessibilityIdentifier: "homeTeamButton"
                 )
                 
                 SimpleTeamBox(
                     teamName: "AWA", 
                     score: matchViewModel.currentMatch?.awayScore ?? 0,
                     isSelected: selectedTeam == .away,
-                    action: { selectedTeam = .away }
+                    action: { selectedTeam = .away },
+                    accessibilityIdentifier: "awayTeamButton"
                 )
             }
             .padding(.horizontal)
             
             // Duration button
-            Button(action: { dismiss() }) {
+            Button(action: { }) {
                 CompactButton(
                     title: "\(matchViewModel.matchDuration/2):00 ▼",
                     style: .secondary
@@ -82,10 +83,19 @@ struct MatchKickOffView: View {
             Spacer()
             
             // Start button (simple green circle with checkmark)
-            NavigationLink(
-                destination: destinationView
-                    .navigationBarBackButtonHidden()
-            ) {
+            Button {
+                guard let team = selectedTeam else { return }
+                if isSecondHalf {
+                    matchViewModel.setKickingTeam(team == .home)
+                    matchViewModel.startSecondHalfManually()
+                    lifecycle.goToSetup()
+                } else {
+                    // First half: match already configured in CreateMatchView
+                    matchViewModel.setKickingTeam(team == .home)
+                    matchViewModel.startMatch()
+                    lifecycle.goToSetup()
+                }
+            } label: {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 24, weight: .medium))
                     .foregroundColor(.white)
@@ -95,31 +105,9 @@ struct MatchKickOffView: View {
                             .fill(selectedTeam != nil ? Color.green : Color.gray)
                     )
             }
-            .buttonStyle(PlainButtonStyle()) // Removes default grey background
+            .buttonStyle(PlainButtonStyle())
             .disabled(selectedTeam == nil)
-            .simultaneousGesture(TapGesture().onEnded {
-                print("DEBUG: Navigation tap gesture triggered")
-                if let team = selectedTeam {
-                    if isSecondHalf {
-                        // For second half, just set the kicking team and start
-                        matchViewModel.setKickingTeam(team == .home)
-                        matchViewModel.startSecondHalfManually()
-                    } else {
-                        // For first half, configure the match first
-                        matchViewModel.configureMatch(
-                            duration: matchViewModel.matchDuration,
-                            periods: matchViewModel.numberOfPeriods,
-                            halfTimeLength: matchViewModel.halfTimeLength,
-                            hasExtraTime: matchViewModel.hasExtraTime,
-                            hasPenalties: matchViewModel.hasPenalties
-                        )
-                        // Set the kicking team
-                        matchViewModel.setKickingTeam(team == .home)
-                        // Start the match immediately to skip confirmation step
-                        matchViewModel.startMatch()
-                    }
-                }
-            })
+            .accessibilityIdentifier("kickoffConfirmButton")
             .padding(.bottom, 12)
         }
         .navigationBarBackButtonHidden()
@@ -129,20 +117,6 @@ struct MatchKickOffView: View {
                 selectedTeam = defaultTeam
             }
         }
-    }
-    
-    // Computed property for navigation destination
-    @ViewBuilder
-    private var destinationView: some View {
-        MatchSetupView(
-            matchViewModel: matchViewModel,
-            onExitToRoot: {
-                // Pop this view, then propagate to parent to pop the previous level
-                // This ensures we unwind: MatchSetupView -> MatchKickOffView -> CreateMatchView
-                dismiss()
-                onExitToRoot?()
-            }
-        )
     }
     
     // Computed property for current time
@@ -160,6 +134,7 @@ private struct SimpleTeamBox: View {
     let score: Int
     let isSelected: Bool
     let action: () -> Void
+    let accessibilityIdentifier: String?
     
     var body: some View {
         Button(action: action) {
@@ -180,5 +155,6 @@ private struct SimpleTeamBox: View {
             )
         }
         .buttonStyle(PlainButtonStyle())
+        .accessibilityIdentifier(accessibilityIdentifier ?? "teamBox_\(teamName)")
     }
 } 

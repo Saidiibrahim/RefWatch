@@ -10,6 +10,7 @@ import SwiftUI
 /// Options menu providing various match management actions
 struct MatchOptionsView: View {
     let matchViewModel: MatchViewModel
+    var lifecycle: MatchLifecycleCoordinator? = nil
     @Environment(\.dismiss) private var dismiss
     
     // State for controlling alert presentations
@@ -37,6 +38,7 @@ struct MatchOptionsView: View {
                             color: .green
                         ) {
                             matchViewModel.navigateHome()
+                            lifecycle?.resetToStart()
                             dismiss()
                         }
                         
@@ -75,6 +77,7 @@ struct MatchOptionsView: View {
             Button("Cancel", role: .cancel) { }
             Button("Reset", role: .destructive) {
                 matchViewModel.resetMatch()
+                lifecycle?.resetToStart()
                 dismiss()
             }
         } message: {

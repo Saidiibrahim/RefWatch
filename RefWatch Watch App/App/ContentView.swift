@@ -10,36 +10,67 @@ import SwiftUI
 struct ContentView: View {
     @State private var matchViewModel = MatchViewModel()
     @State private var settingsViewModel = SettingsViewModel()
+    @State private var lifecycle = MatchLifecycleCoordinator()
     
     var body: some View {
         NavigationStack {
-            VStack(spacing: 20) {
-                Text("Welcome to Referee Assistant")
-                    .font(.headline)
-                    .padding(.top)
-                
-                VStack(spacing: 16) {
-                    // Navigate to the StartMatchScreen with matchViewModel
-                    NavigationLinkButton(
-                        title: "Start Match",
-                        icon: "play.circle.fill",
-                        destination: StartMatchScreen(matchViewModel: matchViewModel),
-                        backgroundColor: .green
+            Group {
+                switch lifecycle.state {
+                case .idle:
+                    VStack(spacing: 20) {
+                        Text("Welcome to Referee Assistant")
+                            .font(.headline)
+                            .padding(.top)
+                        
+                        VStack(spacing: 16) {
+                            // Start Match flow
+                            NavigationLinkButton(
+                                title: "Start Match",
+                                icon: "play.circle.fill",
+                                destination: StartMatchScreen(matchViewModel: matchViewModel, lifecycle: lifecycle),
+                                backgroundColor: .green
+                            )
+                            
+                            // App settings
+                            NavigationLinkButton(
+                                title: "Settings",
+                                icon: "gear",
+                                destination: SettingsScreen(settingsViewModel: settingsViewModel),
+                                backgroundColor: .gray
+                            )
+                        }
+                        .padding(.horizontal)
+                        
+                        Spacer()
+                    }
+                case .kickoffFirstHalf:
+                    MatchKickOffView(
+                        matchViewModel: matchViewModel,
+                        lifecycle: lifecycle
                     )
-                    
-                    // Navigate to the SettingsScreen with settingsViewModel
-                    NavigationLinkButton(
-                        title: "Settings",
-                        icon: "gear",
-                        destination: SettingsScreen(settingsViewModel: settingsViewModel),
-                        backgroundColor: .gray
+                case .setup:
+                    MatchSetupView(
+                        matchViewModel: matchViewModel,
+                        lifecycle: lifecycle
+                    )
+                case .kickoffSecondHalf:
+                    MatchKickOffView(
+                        matchViewModel: matchViewModel,
+                        isSecondHalf: true,
+                        defaultSelectedTeam: matchViewModel.getSecondHalfKickingTeam(),
+                        lifecycle: lifecycle
+                    )
+                case .finished:
+                    FullTimeView(
+                        matchViewModel: matchViewModel,
+                        onReturnHome: {
+                            // Reset state and return to start
+                            matchViewModel.resetMatch()
+                            lifecycle.resetToStart()
+                        }
                     )
                 }
-                .padding(.horizontal)
-                
-                Spacer()
             }
-            .navigationTitle("Referee")
         }
     }
 }
