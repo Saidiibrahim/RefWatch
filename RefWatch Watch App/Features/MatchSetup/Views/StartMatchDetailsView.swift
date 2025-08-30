@@ -2,6 +2,7 @@ import SwiftUI
 
 struct StartMatchDetailsView: View {
     let matchViewModel: MatchViewModel
+    let lifecycle: MatchLifecycleCoordinator
     
     var body: some View {
         VStack(spacing: 16) {
@@ -24,14 +25,20 @@ struct StartMatchDetailsView: View {
             
             Spacer()
             
-            NavigationLink(destination: TimerView(model: matchViewModel)) {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.title)
-                    .foregroundColor(.green)
-            }
-            .simultaneousGesture(TapGesture().onEnded {
+            Button {
                 matchViewModel.startMatch()
-            })
+                lifecycle.goToSetup()
+            } label: {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 36, weight: .medium))
+                    .foregroundColor(.white)
+                    .frame(width: 60, height: 60)
+                    .background(
+                        Circle()
+                            .fill(Color.green)
+                    )
+            }
+            .buttonStyle(PlainButtonStyle()) // Removes default grey background
         }
         .padding()
     }

@@ -2,83 +2,176 @@
 // Description: Main match timing screen with swipeable layout for team events
 
 import SwiftUI
+import WatchKit
 
 struct TimerView: View {
     let model: MatchViewModel
+    let lifecycle: MatchLifecycleCoordinator
+    @State private var showingActionSheet = false
+    @Environment(\.dismiss) private var dismiss
     
     private var periodLabel: String {
-        switch model.currentPeriod {
-        case 1: return "First Half"
-        case 2: return "Second Half"
-        case 3: return "Extra Time 1"
-        case 4: return "Extra Time 2"
-        default: return "Penalties"
+        if model.isHalfTime && !model.waitingForHalfTimeStart {
+            return "Half Time"
+        } else if model.waitingForHalfTimeStart {
+            return "Half Time"
+        } else if model.waitingForSecondHalfStart {
+            return "Second Half"
+        } else {
+            switch model.currentPeriod {
+            case 1: return "First Half"
+            case 2: return "Second Half"
+            case 3: return "Extra Time 1"
+            case 4: return "Extra Time 2"
+            default: return "Penalties"
+            }
         }
     }
     
     var body: some View {
         VStack(spacing: 8) {
-            // Period indicator
-            HStack {
-                Text(periodLabel)
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.white)
-                Spacer()
-            }
-            .padding(.horizontal)
-            
-            // Score display
-            ScoreDisplayView(
-                homeTeam: model.homeTeam,
-                awayTeam: model.awayTeam,
-                homeScore: model.currentMatch?.homeScore ?? 0,
-                awayScore: model.currentMatch?.awayScore ?? 0
-            )
-            
-            // Main time display
-            VStack(spacing: 4) {
-                Text(model.matchTime)
-                    .font(.system(size: 36, weight: .bold, design: .rounded))
-                    .monospacedDigit()
+                // Period indicator
+                HStack {
+                    Text(periodLabel)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(.white)
+                    Spacer()
+                }
+                .padding(.horizontal)
                 
-                Text(model.periodTime)
-                    .font(.system(size: 20, weight: .medium, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundColor(.gray)
+                // Score display
+                ScoreDisplayView(
+                    homeTeam: model.homeTeam,
+                    awayTeam: model.awayTeam,
+                    homeScore: model.currentMatch?.homeScore ?? 0,
+                    awayScore: model.currentMatch?.awayScore ?? 0
+                )
+                
+                // Main content based on match state
+                if model.isHalfTime {
+                    halfTimeView
+                } else {
+                    runningMatchView
+                }
+        }
+        .accessibilityIdentifier("timerArea")
+        .padding(.top)
+        .onLongPressGesture(minimumDuration: 0.8) {
+            // Allow long press when match is running or during half-time
+            if model.isMatchInProgress || model.isHalfTime {
+                WKInterfaceDevice.current().play(.notification)
+                showingActionSheet = true
             }
-            .padding(.vertical, 8)
+        }
+        .sheet(isPresented: $showingActionSheet) {
+            MatchActionsSheet(matchViewModel: model, lifecycle: lifecycle)
+        }
+        // Lifecycle routing hooks
+        .onChange(of: model.isFullTime) { isFT in
+            if isFT { lifecycle.goToFinished() }
+        }
+        .onChange(of: model.waitingForSecondHalfStart) { waiting in
+            if waiting { lifecycle.goToKickoffSecond() }
+        }
+    }
+    
+    // MARK: - State-specific Views
+    
+    
+    @ViewBuilder
+    private var halfTimeView: some View {
+        if model.waitingForHalfTimeStart {
+            // Show large circular button matching the screenshot
+            Spacer()
             
-            // Controls
-            if model.isMatchInProgress {
-                HStack(spacing: 20) {
+            IconButton(
+                icon: "checkmark",
+                color: Color(red: 0.78, green: 0.90, blue: 0.19), // Yellow-green color
+                size: 70,
+                action: {
+                    WKInterfaceDevice.current().play(.start)
+                    model.startHalfTimeManually()
+                }
+            )
+            .padding(.bottom, 20)
+            
+            Spacer()
+        } else {
+            // Show only the timer counting up (matching second screenshot)
+            Text(model.halfTimeElapsed)
+                .font(.system(size: 48, weight: .bold, design: .rounded))
+                .monospacedDigit()
+                .foregroundColor(.white)
+                .padding(.vertical, 40)
+        }
+    }
+    
+    @ViewBuilder
+    private var runningMatchView: some View {
+        VStack(spacing: 4) {
+            Text(model.matchTime)
+                .font(.system(size: 36, weight: .bold, design: .rounded))
+                .monospacedDigit()
+            
+            // Countdown timer (remaining time in period)
+            Text(model.periodTimeRemaining)
+                .font(.system(size: 20, weight: .medium, design: .rounded))
+                .monospacedDigit()
+                .foregroundColor(.gray)
+            
+            // Stoppage time (when active)
+            if model.isInStoppage {
+                Text("+\(model.formattedStoppageTime)")
+                    .font(.system(size: 16, weight: .medium, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundColor(.orange)
+            }
+        }
+        .padding(.vertical, 8)
+        .onTapGesture {
+            // Haptic feedback
+            WKInterfaceDevice.current().play(.click)
+            
+            if model.isPaused {
+                model.resumeMatch()
+            } else {
+                model.pauseMatch()
+            }
+        }
+        
+        // Visual indicator for pause state
+        if model.isMatchInProgress && model.isPaused {
+            VStack(spacing: 8) {
+                Text("PAUSED")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.orange)
+                
+                Text("Tap to resume")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.gray)
+                
+                // Show period advance option during pause
+                if !model.isHalfTime {
                     Button(action: {
-                        if model.isPaused {
-                            model.resumeMatch()
-                        } else {
-                            model.pauseMatch()
-                        }
+                        model.startNextPeriod()
                     }) {
-                        Image(systemName: model.isPaused ? "play.circle.fill" : "pause.circle.fill")
-                            .font(.title2)
-                    }
-                    .tint(model.isPaused ? .green : .orange)
-                    
-                    if model.isPaused && !model.isHalfTime {
-                        Button(action: {
-                            model.startNextPeriod()
-                        }) {
-                            Image(systemName: "forward.circle.fill")
-                                .font(.title2)
+                        HStack {
+                            Image(systemName: "forward.fill")
+                            Text("Next Period")
                         }
-                        .tint(.blue)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.blue)
                     }
+                    .padding(.top, 4)
                 }
             }
         }
-        .padding(.top)
     }
+    
 }
 
+// MARK: - Supporting Views
+
 #Preview {
-    TimerView(model: MatchViewModel())
+    TimerView(model: MatchViewModel(), lifecycle: MatchLifecycleCoordinator())
 } 
