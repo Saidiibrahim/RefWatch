@@ -68,5 +68,21 @@ struct MatchViewModel_EventsAndStoppageTests {
         #expect(vm.currentMatch?.awayScore == 1)
     }
 
-    // Stoppage accumulation test will be added in a follow-up commit
+    @Test func test_stoppage_accumulates_across_pauses() async throws {
+        let vm = MatchViewModel()
+        vm.configureMatch(duration: 45, periods: 2, halfTimeLength: 15, hasExtraTime: false, hasPenalties: false)
+
+        vm.startMatch()
+        vm.pauseMatch()
+        try await Task.sleep(nanoseconds: 1_200_000_000) // ~1.2s
+        vm.resumeMatch()
+        let first = parseMMSS(vm.formattedStoppageTime)
+        #expect(first >= 1)
+
+        vm.pauseMatch()
+        try await Task.sleep(nanoseconds: 1_100_000_000) // ~1.1s
+        vm.resumeMatch()
+        let second = parseMMSS(vm.formattedStoppageTime)
+        #expect(second >= 2)
+    }
 }
