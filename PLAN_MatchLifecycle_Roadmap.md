@@ -73,6 +73,33 @@ Build & Test commands
 
 ---
 
+## Current Status (PR v2) ✅
+
+Branch and PR
+- Branch: `test/defensive-guards-and-swift-tests-v2`
+- PR: https://github.com/Saidiibrahim/RefWatch/pull/5
+ - Status: Completed ✅ (review passed)
+
+Delivered in v2
+- Tests (Swift Testing):
+  - Duration conversions minutes→seconds and reset label derived from per‑period configuration.
+  - Second‑half kickoff alternation (opposite team).
+  - Event ordering at kickoff (`.kickOff` then `.periodStart(1)`), regular vs own‑goal mapping, and stoppage accumulation across pauses.
+- Defensive Hardening:
+  - Guard `RunLoop.current.add` for timers; remove force‑unwraps in debug prints.
+  - Safe period math: `max(1, numberOfPeriods)` denominator; `max(0, …)` clamps for remaining/derived time.
+  - No per‑tick logging in release; timer updates on main thread and scheduled in `.common`.
+
+Manual QA done for v2 (high level)
+- New tests pass locally on a watchOS simulator.
+- Defensive guards prevent nil‑timer crashes and divide‑by‑zero in per‑period computations.
+
+Key files changed/added (v2)
+- Guards: `RefWatch Watch App/Features/Match/ViewModels/MatchViewModel.swift`, `RefWatch Watch App/Features/Match/Views/MatchKickOffView.swift`
+- Tests: `RefWatch Watch AppTests/MatchViewModel_TimeConversionTests.swift`, `RefWatch Watch AppTests/MatchViewModel_KickoffAlternationTests.swift`, `RefWatch Watch AppTests/MatchViewModel_EventsAndStoppageTests.swift`
+
+---
+
 ## Gaps and Improvements (Backlog)
 
 Functional
@@ -103,7 +130,7 @@ PR v1 (Completed) ✅ — Standardize, Consolidate, Polish
 - Goals: Fix time unit bugs, consolidate event model, improve watch performance, and polish kickoff/full‑time.
 - Status: Implemented and updated with follow‑up fixes.
 
-PR v2 — Tests + Defensive Hardening
+PR v2 (Completed) ✅ — Tests + Defensive Hardening
 - Goals:
   - Add Swift Testing for duration conversions (create/saved), second‑half kickoff alternation, regular vs own‑goal scoring, stoppage accumulation across pauses, and event ordering.
   - Add defensive guards for timers and period math (e.g., `numberOfPeriods >= 1`, clamp negatives with `max(0, ...)`).
