@@ -144,7 +144,38 @@ PR v2 (Completed) ✅ — Tests + Defensive Hardening
   - `RefWatch Watch AppTests/*` (new tests)
   - `RefWatch Watch App/Features/Match/ViewModels/MatchViewModel.swift` (small guards only)
 
-PR v3 — Extract TimerManager (SRP)
+---
+
+## Current Status (PR v3) ✅
+
+Branch and PR
+- Branch: `refactor/extract-timer-manager-v3`
+- PR: https://github.com/Saidiibrahim/RefWatch/pull/6
+ - Status: Completed ✅ (review passed)
+
+Delivered in v3
+- TimerManager Service:
+  - Added `RefWatch Watch App/Core/Services/TimerManager/TimerManager.swift` (@Observable) managing:
+    - Period tick (match elapsed, period elapsed, period countdown).
+    - Stoppage accumulation across pauses with formatted `+mm:ss`.
+    - Half-time elapsed tracking with haptic at configured threshold.
+  - Defensive patterns: invalidate-before-recreate, `.common` run loop, main-thread dispatch, weak captures, idempotent `stopAll()`.
+- MatchViewModel Integration:
+  - Delegates timer/stoppage/halftime responsibilities to `TimerManager` while preserving public API and behavior.
+  - Removed unused legacy start-time assignments and updated debug log.
+- Tests:
+  - Added `RefWatch Watch AppTests/TimerManagerTests.swift` (per-period label calc, safety/idempotency cases).
+  - Added `RefWatch Watch AppTests/TestTimeHelpers.swift` (mm:ss parsing helper).
+- Review Follow-ups:
+  - Guard comment explaining single period timer; note about potential repeated halftime haptic (behavior unchanged by design).
+
+Manual QA done for v3 (targeted)
+- Smooth period transitions and unchanged event ordering at kickoff.
+- Pause/resume displays accumulating `+mm:ss`; resets per period.
+- Half-time elapsed updates; haptic at configured length.
+- No regressions across timer UI states.
+
+PR v3 (Completed) ✅ — Extract TimerManager (SRP)
 - Goals:
   - Move timer responsibilities out of `MatchViewModel` into a focused `TimerManager` (@Observable) that manages:
     - Match running timer (elapsed, countdown per period).
