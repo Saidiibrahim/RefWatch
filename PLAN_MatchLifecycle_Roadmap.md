@@ -5,11 +5,12 @@ This document captures the shared plan to modernize the match flow for professio
 
 ---
 
-## Current Status (PR v1)
+## Current Status (PR v1) ✅
 
 Branch and PR
 - Branch: `chore/standardize-time-and-clean-events`
 - PR: https://github.com/Saidiibrahim/RefWatch/pull/4
+ - Status: Completed ✅ (review passed)
 
 Delivered in v1
 - Time Units (seconds):
@@ -98,7 +99,7 @@ Docs
 
 ## Multi‑PR Roadmap
 
-PR v1 (Completed) — Standardize, Consolidate, Polish
+PR v1 (Completed) ✅ — Standardize, Consolidate, Polish
 - Goals: Fix time unit bugs, consolidate event model, improve watch performance, and polish kickoff/full‑time.
 - Status: Implemented and updated with follow‑up fixes.
 
@@ -209,4 +210,3 @@ Manual QA Checklist (baseline)
 - Merge PR v1 once checks pass and smoke tests look good (squash recommended). Then proceed with PR v2 (tests + defensive hardening) as the immediate next step.
 - Keep lifecycle coordinator as the source of navigation truth as new states (ET/penalties) are added.
 - Reintroduce a focused `TimerManager` in PR v3 to keep `MatchViewModel` lean and testable.
-
