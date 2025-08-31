@@ -130,9 +130,11 @@ struct MatchKickOffView: View {
     // Per-period duration label derived from current match when available
     private var perPeriodDurationLabel: String {
         if let m = matchViewModel.currentMatch {
-            let per = m.duration / TimeInterval(m.numberOfPeriods)
-            let mm = Int(per) / 60
-            let ss = Int(per) % 60
+            let periods = max(1, m.numberOfPeriods)
+            let per = m.duration / TimeInterval(periods)
+            let perClamped = max(0, per)
+            let mm = Int(perClamped) / 60
+            let ss = Int(perClamped) % 60
             return String(format: "%02d:%02d ▼", mm, ss)
         } else {
             return "\(matchViewModel.matchDuration/2):00 ▼"
