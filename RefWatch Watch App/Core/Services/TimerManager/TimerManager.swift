@@ -135,7 +135,8 @@ final class TimerManager {
                 onTick(label)
             }
             if elapsed >= match.halfTimeLength {
-                // Haptic notification when halftime duration reached
+                // Haptic when halftime length reached. This may fire repeatedly each tick;
+                // consider gating to a single notification per halftime in a follow-up.
                 WKInterfaceDevice.current().play(.notification)
             }
         }
@@ -165,6 +166,7 @@ final class TimerManager {
     // MARK: - Private Helpers
 
     private func startPeriodTimer() {
+        // Prevent multiple period timers; maintain exactly one active per period
         guard periodTimer == nil else { return }
         periodTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             self?.handlePeriodTick()

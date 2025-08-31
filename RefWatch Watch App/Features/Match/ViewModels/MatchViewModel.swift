@@ -37,8 +37,7 @@ final class MatchViewModel {
     private var timer: Timer? // no longer used
     private var stoppageTimer: Timer? // no longer used
     private var elapsedTime: TimeInterval = 0 // maintained for formattedElapsedTime
-    private var periodStartTime: Date? // no longer used
-    private var halfTimeStartTime: Date? // maintained for manual flows
+    // Removed legacy start time fields (managed internally by TimerManager)
     
     // Formatted time strings
     var matchTime: String = "00:00"
@@ -119,7 +118,6 @@ final class MatchViewModel {
             isMatchInProgress = true
             isPaused = false
             waitingForMatchStart = false
-            periodStartTime = Date()
             // Mark match as started
             if var m = currentMatch {
                 m.startTime = Date()
@@ -146,7 +144,7 @@ final class MatchViewModel {
             recordMatchEvent(.periodStart(currentPeriod))
             
             #if DEBUG
-            print("DEBUG: Starting timer with periodStartTime: \(String(describing: periodStartTime))")
+            print("DEBUG: Starting timer via TimerManager")
             #endif
             if let match = currentMatch {
                 timerManager.startPeriod(
@@ -196,7 +194,6 @@ final class MatchViewModel {
     func startNextPeriod() {
         currentPeriod += 1
         isHalfTime = false
-        periodStartTime = Date()
         
         // Reset stoppage time for new period
         timerManager.resetForNewPeriod()
@@ -231,7 +228,6 @@ final class MatchViewModel {
     func startHalfTime() {
         guard let match = currentMatch else { return }
         isHalfTime = true
-        halfTimeStartTime = Date()
         timerManager.startHalfTime(match: match) { [weak self] elapsed in
             self?.halfTimeElapsed = elapsed
         }
@@ -522,8 +518,6 @@ final class MatchViewModel {
         
         // Reset timing
         elapsedTime = 0
-        periodStartTime = nil
-        halfTimeStartTime = nil
         stoppageTime = 0
         stoppageStartTime = nil
         isInStoppage = false
@@ -620,7 +614,6 @@ final class MatchViewModel {
         
         waitingForHalfTimeStart = false
         isHalfTime = true
-        halfTimeStartTime = Date()
         
         recordMatchEvent(.halfTime)
         if let match = currentMatch {
@@ -643,7 +636,6 @@ final class MatchViewModel {
         currentPeriod = 2
         isMatchInProgress = true
         isPaused = false
-        periodStartTime = Date()
         
         // Reset stoppage time for new period
         timerManager.resetForNewPeriod()
