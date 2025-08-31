@@ -122,9 +122,11 @@ final class MatchViewModel {
             }
             // Initialize remaining time display from configured period
             if let match = currentMatch {
-                let per = (match.duration / TimeInterval(match.numberOfPeriods))
-                let m = Int(per) / 60
-                let s = Int(per) % 60
+                let periods = max(1, match.numberOfPeriods)
+                let per = (match.duration / TimeInterval(periods))
+                let perClamped = max(0, per)
+                let m = Int(perClamped) / 60
+                let s = Int(perClamped) % 60
                 self.periodTimeRemaining = String(format: "%02d:%02d", m, s)
             }
             
@@ -143,7 +145,7 @@ final class MatchViewModel {
             recordMatchEvent(.periodStart(currentPeriod))
             
             #if DEBUG
-            print("DEBUG: Starting timer with periodStartTime: \(periodStartTime!)")
+            print("DEBUG: Starting timer with periodStartTime: \(String(describing: periodStartTime))")
             #endif
             startTimer()
         } else {
@@ -236,7 +238,9 @@ final class MatchViewModel {
                 self?.updateMatchTime()
             }
         }
-        RunLoop.current.add(timer!, forMode: .common)
+        if let t = timer {
+            RunLoop.current.add(t, forMode: .common)
+        }
     }
     
     private func startHalfTimeTimer() {
@@ -285,14 +289,16 @@ final class MatchViewModel {
         self.periodTime = String(format: "%02d:%02d", periodMinutes, periodSeconds)
         
         // Calculate period remaining time (countdown)
-        let periodDurationSeconds = (match.duration / TimeInterval(match.numberOfPeriods))
+        let periods = max(1, match.numberOfPeriods)
+        let periodDurationSeconds = (match.duration / TimeInterval(periods))
         let remaining = max(0, periodDurationSeconds - periodElapsed)
         let remainingMinutes = Int(remaining) / 60
         let remainingSeconds = Int(remaining) % 60
         self.periodTimeRemaining = String(format: "%02d:%02d", remainingMinutes, remainingSeconds)
         
         // Update total match time
-        self.elapsedTime = (TimeInterval(currentPeriod - 1) * (match.duration / TimeInterval(match.numberOfPeriods))) + periodElapsed
+        let perDuration = match.duration / TimeInterval(periods)
+        self.elapsedTime = (TimeInterval(currentPeriod - 1) * perDuration) + periodElapsed
         let totalMinutes = Int(self.elapsedTime) / 60
         let totalSeconds = Int(self.elapsedTime) % 60
         self.matchTime = String(format: "%02d:%02d", totalMinutes, totalSeconds)
@@ -310,7 +316,7 @@ final class MatchViewModel {
         self.isMatchInProgress = true
         
         // Check if period should end
-        let periodDuration = match.duration / TimeInterval(match.numberOfPeriods)
+        let periodDuration = match.duration / TimeInterval(periods)
         if periodElapsed >= periodDuration {
             endPeriod()
         }
@@ -625,9 +631,11 @@ final class MatchViewModel {
         periodTime = "00:00"
         // Compute per-period remaining from current match or fall back to 45:00
         if let m = currentMatch {
-            let per = (m.duration / TimeInterval(m.numberOfPeriods))
-            let mm = Int(per) / 60
-            let ss = Int(per) % 60
+            let periods = max(1, m.numberOfPeriods)
+            let per = (m.duration / TimeInterval(periods))
+            let perClamped = max(0, per)
+            let mm = Int(perClamped) / 60
+            let ss = Int(perClamped) % 60
             periodTimeRemaining = String(format: "%02d:%02d", mm, ss)
         } else {
             periodTimeRemaining = "45:00"

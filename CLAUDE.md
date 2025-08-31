@@ -59,10 +59,10 @@ RefWatch Watch App/
 - Views use `let model: MyModel` for observation (not @State)
 - State management follows modern SwiftUI patterns
 
-**Service Layer:**
-- `MatchStateService`: Manages match state transitions and periods
-- `TimerService`: Handles all timing-related functionality
-- Services are injected into ViewModels, not used directly in Views
+**Service/Coordinator Layer:**
+- `MatchLifecycleCoordinator`: Controls high-level lifecycle routing (idle → setup → kickoff → running → halftime → second-half kickoff → finished).
+- Timer responsibilities currently live in `MatchViewModel`; a focused `TimerManager` service will be extracted in PR v3 for SRP and testability.
+- Coordinators encapsulate multi-step flows (e.g., `CardEventCoordinator`). Prefer coordinators over scattering navigation logic across views.
 
 **Coordinator Pattern:**
 - Used for complex flows like card event recording
@@ -104,10 +104,10 @@ According to project rules, always add comments for debugging and understanding.
 ## Key Features Implementation
 
 ### Match Timer System
-- `MatchViewModel` handles timing logic
-- `TimerService` provides timer functionality
-- Supports multiple periods, half-time, and extra time
-- Real-time updates with proper state management
+- `MatchViewModel` currently handles timing. PR v3 will extract a dedicated `TimerManager` for single-responsibility and easier testing.
+- Timers schedule in `.common` mode; UI updates occur on the main thread; no per‑tick logging in release builds.
+- Defensive guards: invalidate timers before recreating; guard `RunLoop.current.add` with `if let`; clamp period math to avoid divide‑by‑zero and negatives.
+- Supports multiple periods and half‑time; extra time and penalties are planned in later PRs.
 
 ### Card Event Recording
 Uses a sophisticated coordinator pattern:
@@ -146,3 +146,26 @@ Uses a sophisticated coordinator pattern:
 - Build settings include automatic code signing
 - SwiftUI previews are enabled for development
 - Follow the established coordinator pattern for complex multi-step flows
+
+## Defensive Coding & Testing Patterns
+
+- Time Units: store durations in seconds (`TimeInterval`) in models; convert minutes at view‑model boundaries (e.g., `configureMatch`).
+- Period Math: always use `max(1, numberOfPeriods)` when dividing by periods; clamp remaining/derived time with `max(0, …)`.
+- Timers:
+  - Invalidate existing timers before creating new ones.
+  - Schedule in `.common` run loop mode and perform UI updates on the main thread.
+  - Guard `RunLoop.current.add` by unwrapping timers (`if let`).
+  - In `deinit`, invalidate timers to prevent leaks and retain cycles.
+- Optionals & Logging:
+  - Avoid force‑unwraps, including in debug logs; prefer `if let` or `String(describing:)`.
+  - Wrap debug logging within `#if DEBUG`; avoid per‑tick logging for performance.
+- Event Recording:
+  - On match start, record `.kickOff` followed by `.periodStart(1)`; use `MatchEventRecord` as the logging source of truth.
+  - Own‑goal: UI maps to the opposite `TeamSide`; the ViewModel respects the team parameter. Keep flows consistent with this contract.
+- Swift Testing (Xcode 16+):
+  - Use `@Test`, `#expect`, and `#require` (unwrap before comparing) from the `Testing` framework.
+  - Compare like types (e.g., `TimeInterval(50 * 60)` rather than `50 * 60`).
+  - For time‑based assertions, parse `mm:ss` and assert with tolerance (e.g., `>=` for accumulated stoppage).
+  - Naming: files `MatchViewModel_<Topic>Tests.swift`; methods `test_<Action>_when<Context>_does<Outcome>()`.
+- Simulator Tips:
+  - When using `xcodebuild`, specify a concrete watch device and OS to avoid destination ambiguity (e.g., `Apple Watch Series 10 (46mm)`, OS 11.5).
