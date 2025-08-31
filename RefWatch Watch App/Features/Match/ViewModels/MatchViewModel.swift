@@ -8,6 +8,9 @@
 import Foundation
 import SwiftUI
 import Observation
+// Timer responsibilities delegated to TimerManager (SRP)
+
+// MARK: - TimerManager Integration
 
 @Observable
 final class MatchViewModel {
@@ -28,12 +31,13 @@ final class MatchViewModel {
     var isFullTime: Bool = false
     var matchCompleted: Bool = false
     
-    // Timer properties
-    private var timer: Timer?
-    private var stoppageTimer: Timer?
-    private var elapsedTime: TimeInterval = 0
-    private var periodStartTime: Date?
-    private var halfTimeStartTime: Date?
+    // Timer properties (delegated)
+    private let timerManager = TimerManager()
+    // Legacy fields retained for API compatibility/unused paths
+    private var timer: Timer? // no longer used
+    private var stoppageTimer: Timer? // no longer used
+    private var elapsedTime: TimeInterval = 0 // maintained for formattedElapsedTime
+    // Removed legacy start time fields (managed internally by TimerManager)
     
     // Formatted time strings
     var matchTime: String = "00:00"
@@ -43,8 +47,8 @@ final class MatchViewModel {
     var halfTimeElapsed: String = "00:00"
     
     // Stoppage time tracking
-    private var stoppageTime: TimeInterval = 0
-    private var stoppageStartTime: Date?
+    private var stoppageTime: TimeInterval = 0 // managed by TimerManager; retained for reset compatibility
+    private var stoppageStartTime: Date? // no longer used
     var isInStoppage: Bool = false
     var formattedStoppageTime: String = "00:00"
     
@@ -114,7 +118,6 @@ final class MatchViewModel {
             isMatchInProgress = true
             isPaused = false
             waitingForMatchStart = false
-            periodStartTime = Date()
             // Mark match as started
             if var m = currentMatch {
                 m.startTime = Date()
@@ -122,12 +125,7 @@ final class MatchViewModel {
             }
             // Initialize remaining time display from configured period
             if let match = currentMatch {
-                let periods = max(1, match.numberOfPeriods)
-                let per = (match.duration / TimeInterval(periods))
-                let perClamped = max(0, per)
-                let m = Int(perClamped) / 60
-                let s = Int(perClamped) % 60
-                self.periodTimeRemaining = String(format: "%02d:%02d", m, s)
+                self.periodTimeRemaining = timerManager.configureInitialPeriodLabel(match: match, currentPeriod: currentPeriod)
             }
             
             // Clean up any running timers
@@ -135,6 +133,7 @@ final class MatchViewModel {
             stoppageTimer = nil
             
             // Reset stoppage time for new match
+            timerManager.resetForNewPeriod()
             stoppageTime = 0
             stoppageStartTime = nil
             isInStoppage = false
@@ -145,9 +144,25 @@ final class MatchViewModel {
             recordMatchEvent(.periodStart(currentPeriod))
             
             #if DEBUG
-            print("DEBUG: Starting timer with periodStartTime: \(String(describing: periodStartTime))")
+            print("DEBUG: Starting timer via TimerManager")
             #endif
-            startTimer()
+            if let match = currentMatch {
+                timerManager.startPeriod(
+                    match: match,
+                    currentPeriod: currentPeriod,
+                    onTick: { [weak self] snap in
+                        guard let self = self else { return }
+                        self.matchTime = snap.matchTime
+                        self.periodTime = snap.periodTime
+                        self.periodTimeRemaining = snap.periodTimeRemaining
+                        self.formattedStoppageTime = snap.formattedStoppageTime
+                        self.isInStoppage = snap.isInStoppage
+                    },
+                    onPeriodEnd: { [weak self] in
+                        self?.endPeriod()
+                    }
+                )
+            }
         } else {
             #if DEBUG
             print("DEBUG: Match already in progress, not restarting")
@@ -157,59 +172,31 @@ final class MatchViewModel {
     
     func pauseMatch() {
         isPaused = true
-        timer?.invalidate()
-        timer = nil
-        
-        // Start tracking stoppage time
-        if !isInStoppage {
-            stoppageStartTime = Date()
-            isInStoppage = true
-            
-            // Start stoppage timer to update display every second
-            stoppageTimer?.invalidate()
-            stoppageTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-                DispatchQueue.main.async {
-                    self?.updateStoppageTime()
-                }
-            }
-            if let t = stoppageTimer {
-                RunLoop.current.add(t, forMode: .common)
-            }
+        timerManager.pause { [weak self] snap in
+            guard let self = self else { return }
+            self.formattedStoppageTime = snap.formattedStoppageTime
+            self.isInStoppage = snap.isInStoppage
         }
     }
     
     func resumeMatch() {
         isPaused = false
-        
-        // Stop the stoppage timer
-        stoppageTimer?.invalidate()
-        stoppageTimer = nil
-        
-        // Accumulate stoppage time and reset tracking
-        if let stopStart = stoppageStartTime {
-            stoppageTime += Date().timeIntervalSince(stopStart)
-            stoppageStartTime = nil
-            isInStoppage = false
-            
-            // Update formatted stoppage time one final time
-            let stoppageMinutes = Int(stoppageTime) / 60
-            let stoppageSeconds = Int(stoppageTime) % 60
-            self.formattedStoppageTime = String(format: "%02d:%02d", stoppageMinutes, stoppageSeconds)
+        timerManager.resume { [weak self] snap in
+            guard let self = self else { return }
+            self.matchTime = snap.matchTime
+            self.periodTime = snap.periodTime
+            self.periodTimeRemaining = snap.periodTimeRemaining
+            self.formattedStoppageTime = snap.formattedStoppageTime
+            self.isInStoppage = snap.isInStoppage
         }
-        
-        startTimer()
     }
     
     func startNextPeriod() {
         currentPeriod += 1
         isHalfTime = false
-        periodStartTime = Date()
-        
-        // Clean up any running timers
-        stoppageTimer?.invalidate()
-        stoppageTimer = nil
         
         // Reset stoppage time for new period
+        timerManager.resetForNewPeriod()
         stoppageTime = 0
         stoppageStartTime = nil
         isInStoppage = false
@@ -218,129 +205,43 @@ final class MatchViewModel {
         // Record period start event
         recordMatchEvent(.periodStart(currentPeriod))
         
-        startTimer()
+        if let match = currentMatch {
+            self.periodTimeRemaining = timerManager.configureInitialPeriodLabel(match: match, currentPeriod: currentPeriod)
+            timerManager.startPeriod(
+                match: match,
+                currentPeriod: currentPeriod,
+                onTick: { [weak self] snap in
+                    guard let self = self else { return }
+                    self.matchTime = snap.matchTime
+                    self.periodTime = snap.periodTime
+                    self.periodTimeRemaining = snap.periodTimeRemaining
+                    self.formattedStoppageTime = snap.formattedStoppageTime
+                    self.isInStoppage = snap.isInStoppage
+                },
+                onPeriodEnd: { [weak self] in
+                    self?.endPeriod()
+                }
+            )
+        }
     }
     
     func startHalfTime() {
         guard let match = currentMatch else { return }
         isHalfTime = true
-        halfTimeStartTime = Date()
-        startHalfTimeTimer()
-    }
-    
-    private func startTimer() {
-        #if DEBUG
-        print("DEBUG: startTimer called")
-        #endif
-        timer?.invalidate()
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            DispatchQueue.main.async {
-                self?.updateMatchTime()
-            }
-        }
-        if let t = timer {
-            RunLoop.current.add(t, forMode: .common)
+        timerManager.startHalfTime(match: match) { [weak self] elapsed in
+            self?.halfTimeElapsed = elapsed
         }
     }
     
-    private func startHalfTimeTimer() {
-        timer?.invalidate()
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            DispatchQueue.main.async {
-                self?.updateHalfTimeRemaining()
-            }
-        }
-        if let t = timer {
-            RunLoop.current.add(t, forMode: .common)
-        }
-    }
+    private func startTimer() { /* Timer handled by TimerManager */ }
     
-    private func updateStoppageTime() {
-        guard let stopStart = stoppageStartTime else { return }
-        
-        // Calculate current stoppage duration
-        let currentStoppageTime = Date().timeIntervalSince(stopStart)
-        let totalStoppage = stoppageTime + currentStoppageTime
-        
-        // Format and update display
-        let stoppageMinutes = Int(totalStoppage) / 60
-        let stoppageSeconds = Int(totalStoppage) % 60
-        self.formattedStoppageTime = String(format: "%02d:%02d", stoppageMinutes, stoppageSeconds)
-    }
+    private func startHalfTimeTimer() { /* Half-time handled by TimerManager */ }
     
-    private func updateMatchTime() {
-        // Per-tick logging removed for performance on watchOS
-        guard let match = currentMatch,
-              let startTime = periodStartTime else {
-            #if DEBUG
-            print("DEBUG: Missing match or startTime")
-            #endif
-            return
-        }
-        
-        let currentTime = Date()
-        let periodElapsed = currentTime.timeIntervalSince(startTime)
-        
-        // Intentionally not logging per-tick elapsed time
-        
-        // Update period time (elapsed) - make these assignments trigger UI updates
-        let periodMinutes = Int(periodElapsed) / 60
-        let periodSeconds = Int(periodElapsed) % 60
-        self.periodTime = String(format: "%02d:%02d", periodMinutes, periodSeconds)
-        
-        // Calculate period remaining time (countdown)
-        let periods = max(1, match.numberOfPeriods)
-        let periodDurationSeconds = (match.duration / TimeInterval(periods))
-        let remaining = max(0, periodDurationSeconds - periodElapsed)
-        let remainingMinutes = Int(remaining) / 60
-        let remainingSeconds = Int(remaining) % 60
-        self.periodTimeRemaining = String(format: "%02d:%02d", remainingMinutes, remainingSeconds)
-        
-        // Update total match time
-        let perDuration = match.duration / TimeInterval(periods)
-        self.elapsedTime = (TimeInterval(currentPeriod - 1) * perDuration) + periodElapsed
-        let totalMinutes = Int(self.elapsedTime) / 60
-        let totalSeconds = Int(self.elapsedTime) % 60
-        self.matchTime = String(format: "%02d:%02d", totalMinutes, totalSeconds)
-        
-        // Update stoppage time if currently in stoppage
-        if isInStoppage, let stopStart = stoppageStartTime {
-            let currentStoppageTime = Date().timeIntervalSince(stopStart)
-            let totalStoppage = stoppageTime + currentStoppageTime
-            let stoppageMinutes = Int(totalStoppage) / 60
-            let stoppageSeconds = Int(totalStoppage) % 60
-            self.formattedStoppageTime = String(format: "%02d:%02d", stoppageMinutes, stoppageSeconds)
-        }
-        
-        // Force UI update by modifying the observable object
-        self.isMatchInProgress = true
-        
-        // Check if period should end
-        let periodDuration = match.duration / TimeInterval(periods)
-        if periodElapsed >= periodDuration {
-            endPeriod()
-        }
-    }
+    private func updateStoppageTime() { /* Managed by TimerManager */ }
     
-    private func updateHalfTimeRemaining() {
-        guard let match = currentMatch,
-              let startTime = halfTimeStartTime else { return }
-        
-        let currentTime = Date()
-        let elapsed = currentTime.timeIntervalSince(startTime)
-        
-        // Format elapsed time (counting UP from 0:00)
-        let minutes = Int(elapsed) / 60
-        let seconds = Int(elapsed) % 60
-        halfTimeElapsed = String(format: "%02d:%02d", minutes, seconds)
-        
-        // Check if half-time duration reached (halfTimeLength is already in seconds)
-        if elapsed >= match.halfTimeLength {
-            // Haptic feedback when half-time duration reached
-            WKInterfaceDevice.current().play(.notification)
-            // Don't auto-end, let referee control manually
-        }
-    }
+    private func updateMatchTime() { /* Managed by TimerManager */ }
+    
+    private func updateHalfTimeRemaining() { /* Managed by TimerManager */ }
     
     private func endPeriod() {
         pauseMatch()
@@ -366,9 +267,8 @@ final class MatchViewModel {
     private func endMatch() {
         isMatchInProgress = false
         isFullTime = true
-        timer?.invalidate()
+        timerManager.stopAll()
         timer = nil
-        stoppageTimer?.invalidate()
         stoppageTimer = nil
     }
     
@@ -568,9 +468,8 @@ final class MatchViewModel {
         guard let match = currentMatch else { return }
         
         // Stop the match timer
-        timer?.invalidate()
+        timerManager.stopAll()
         timer = nil
-        stoppageTimer?.invalidate()
         stoppageTimer = nil
         
         // Set appropriate waiting state
@@ -600,9 +499,8 @@ final class MatchViewModel {
     /// Reset the match to initial state
     func resetMatch() {
         // Stop all timers
-        timer?.invalidate()
+        timerManager.stopAll()
         timer = nil
-        stoppageTimer?.invalidate()
         stoppageTimer = nil
         
         // Reset match state
@@ -620,8 +518,6 @@ final class MatchViewModel {
         
         // Reset timing
         elapsedTime = 0
-        periodStartTime = nil
-        halfTimeStartTime = nil
         stoppageTime = 0
         stoppageStartTime = nil
         isInStoppage = false
@@ -671,9 +567,8 @@ final class MatchViewModel {
         recordMatchEvent(.matchEnd)
         
         // Stop all timers first
-        timer?.invalidate()
+        timerManager.stopAll()
         timer = nil
-        stoppageTimer?.invalidate()
         stoppageTimer = nil
         
         // Ensure stable terminal state so UI doesn't show intermediate screens
@@ -719,10 +614,13 @@ final class MatchViewModel {
         
         waitingForHalfTimeStart = false
         isHalfTime = true
-        halfTimeStartTime = Date()
         
         recordMatchEvent(.halfTime)
-        startHalfTimeTimer()
+        if let match = currentMatch {
+            timerManager.startHalfTime(match: match) { [weak self] elapsed in
+                self?.halfTimeElapsed = elapsed
+            }
+        }
         
         #if DEBUG
         print("DEBUG: Half-time started manually")
@@ -738,9 +636,9 @@ final class MatchViewModel {
         currentPeriod = 2
         isMatchInProgress = true
         isPaused = false
-        periodStartTime = Date()
         
         // Reset stoppage time for new period
+        timerManager.resetForNewPeriod()
         stoppageTime = 0
         stoppageStartTime = nil
         isInStoppage = false
@@ -748,7 +646,24 @@ final class MatchViewModel {
         
         // Record period start
         recordMatchEvent(.periodStart(currentPeriod))
-        startTimer()
+        if let match = currentMatch {
+            self.periodTimeRemaining = timerManager.configureInitialPeriodLabel(match: match, currentPeriod: currentPeriod)
+            timerManager.startPeriod(
+                match: match,
+                currentPeriod: currentPeriod,
+                onTick: { [weak self] snap in
+                    guard let self = self else { return }
+                    self.matchTime = snap.matchTime
+                    self.periodTime = snap.periodTime
+                    self.periodTimeRemaining = snap.periodTimeRemaining
+                    self.formattedStoppageTime = snap.formattedStoppageTime
+                    self.isInStoppage = snap.isInStoppage
+                },
+                onPeriodEnd: { [weak self] in
+                    self?.endPeriod()
+                }
+            )
+        }
         
         #if DEBUG
         print("DEBUG: Second half started manually")
@@ -757,7 +672,7 @@ final class MatchViewModel {
     
     /// End half-time and prepare for second half
     func endHalfTimeManually() {
-        timer?.invalidate()
+        timerManager.stopHalfTime()
         timer = nil
         isHalfTime = false
         halfTimeRemaining = "00:00"
@@ -773,6 +688,7 @@ final class MatchViewModel {
     
     deinit {
         // Ensure timers are invalidated to avoid retain cycles or leaks
+        timerManager.stopAll()
         timer?.invalidate()
         stoppageTimer?.invalidate()
     }
