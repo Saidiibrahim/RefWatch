@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct CardReasonSelectionView: View {
-    let cardType: MatchEvent
+    let cardType: CardDetails.CardType
     let isTeamOfficial: Bool
     let onSelect: (String) -> Void
     
@@ -14,8 +14,6 @@ struct CardReasonSelectionView: View {
                         return String(describing: reason).hasPrefix("YT")
                     case .red:
                         return String(describing: reason).hasPrefix("RT")
-                    default:
-                        return false
                     }
                 }
                 
@@ -61,12 +59,10 @@ struct CardReasonSelectionView: View {
                         return String(describing: reason).hasPrefix("YT")
                     case .red:
                         return String(describing: reason).hasPrefix("RT")
-                    default:
-                        return false
                     }
                 }
                 print("DEBUG: Filtered team official reasons: \(filtered.map { $0.rawValue })")
             }
         }
     }
-} 
+}

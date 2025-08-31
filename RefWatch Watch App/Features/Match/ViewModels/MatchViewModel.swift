@@ -38,7 +38,7 @@ final class MatchViewModel {
     // Formatted time strings
     var matchTime: String = "00:00"
     var periodTime: String = "00:00"
-    var periodTimeRemaining: String = "45:00"
+    var periodTimeRemaining: String = "00:00"
     var halfTimeRemaining: String = "00:00"
     var halfTimeElapsed: String = "00:00"
     
@@ -60,9 +60,7 @@ final class MatchViewModel {
     var homeTeam: String = "HOM"
     var awayTeam: String = "AWA"
     
-    // Match events storage
-    private var homeEvents: [MatchEvent] = []
-    private var awayEvents: [MatchEvent] = []
+    // Legacy per-team event storage removed in favor of unified matchEvents
     
     // Comprehensive match event tracking
     private(set) var matchEvents: [MatchEventRecord] = []
@@ -98,19 +96,37 @@ final class MatchViewModel {
     
     // MARK: - Timer Control
     func startMatch() {
-        print("DEBUG: startMatch called") // Debug log
+        #if DEBUG
+        print("DEBUG: startMatch called")
+        #endif
         guard let match = currentMatch else {
-            print("DEBUG: No current match found") // Debug log
+            #if DEBUG
+            print("DEBUG: No current match found")
+            #endif
             return
         }
         
         // Only start if not already in progress to prevent restarts
         if !isMatchInProgress {
+            #if DEBUG
             print("DEBUG: Starting new match")
+            #endif
             isMatchInProgress = true
             isPaused = false
             waitingForMatchStart = false
             periodStartTime = Date()
+            // Mark match as started
+            if var m = currentMatch {
+                m.startTime = Date()
+                currentMatch = m
+            }
+            // Initialize remaining time display from configured period
+            if let match = currentMatch {
+                let per = (match.duration / TimeInterval(match.numberOfPeriods))
+                let m = Int(per) / 60
+                let s = Int(per) % 60
+                self.periodTimeRemaining = String(format: "%02d:%02d", m, s)
+            }
             
             // Clean up any running timers
             stoppageTimer?.invalidate()
@@ -126,10 +142,14 @@ final class MatchViewModel {
             recordMatchEvent(.kickOff)
             recordMatchEvent(.periodStart(currentPeriod))
             
-            print("DEBUG: Starting timer with periodStartTime: \(periodStartTime!)") // Debug log
+            #if DEBUG
+            print("DEBUG: Starting timer with periodStartTime: \(periodStartTime!)")
+            #endif
             startTimer()
         } else {
+            #if DEBUG
             print("DEBUG: Match already in progress, not restarting")
+            #endif
         }
     }
     
@@ -150,7 +170,9 @@ final class MatchViewModel {
                     self?.updateStoppageTime()
                 }
             }
-            RunLoop.current.add(stoppageTimer!, forMode: .common)
+            if let t = stoppageTimer {
+                RunLoop.current.add(t, forMode: .common)
+            }
         }
     }
     
@@ -205,11 +227,12 @@ final class MatchViewModel {
     }
     
     private func startTimer() {
-        print("DEBUG: startTimer called") // Debug log
+        #if DEBUG
+        print("DEBUG: startTimer called")
+        #endif
         timer?.invalidate()
         timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             DispatchQueue.main.async {
-                print("DEBUG: Timer tick on main thread") // Debug log
                 self?.updateMatchTime()
             }
         }
@@ -219,7 +242,12 @@ final class MatchViewModel {
     private func startHalfTimeTimer() {
         timer?.invalidate()
         timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            self?.updateHalfTimeRemaining()
+            DispatchQueue.main.async {
+                self?.updateHalfTimeRemaining()
+            }
+        }
+        if let t = timer {
+            RunLoop.current.add(t, forMode: .common)
         }
     }
     
@@ -237,17 +265,19 @@ final class MatchViewModel {
     }
     
     private func updateMatchTime() {
-        print("DEBUG: updateMatchTime called") // Debug log
+        // Per-tick logging removed for performance on watchOS
         guard let match = currentMatch,
               let startTime = periodStartTime else {
-            print("DEBUG: Missing match or startTime") // Debug log
+            #if DEBUG
+            print("DEBUG: Missing match or startTime")
+            #endif
             return
         }
         
         let currentTime = Date()
         let periodElapsed = currentTime.timeIntervalSince(startTime)
         
-        print("DEBUG: Period elapsed: \(periodElapsed)") // Debug log
+        // Intentionally not logging per-tick elapsed time
         
         // Update period time (elapsed) - make these assignments trigger UI updates
         let periodMinutes = Int(periodElapsed) / 60
@@ -339,15 +369,19 @@ final class MatchViewModel {
     // MARK: - Match Statistics
     func updateScore(isHome: Bool, increment: Bool = true) {
         guard var match = currentMatch else { 
+            #if DEBUG
             print("DEBUG: updateScore called but no current match found")
+            #endif
             return 
         }
         
         let oldHomeScore = match.homeScore
         let oldAwayScore = match.awayScore
         
+        #if DEBUG
         print("DEBUG: updateScore called - isHome: \(isHome), increment: \(increment)")
         print("DEBUG: Score before update - Home: \(oldHomeScore), Away: \(oldAwayScore)")
+        #endif
         
         if isHome {
             match.homeScore += increment ? 1 : -1
@@ -357,8 +391,10 @@ final class MatchViewModel {
         
         currentMatch = match
         
+        #if DEBUG
         print("DEBUG: Score after update - Home: \(match.homeScore), Away: \(match.awayScore)")
         print("DEBUG: Score successfully updated")
+        #endif
     }
     
     func addCard(isHome: Bool, isYellow: Bool) {
@@ -388,19 +424,7 @@ final class MatchViewModel {
         }
         currentMatch = match
     }
-    
-    func addEvent(_ event: MatchEvent, for team: Team) {
-        switch team {
-        case .home:
-            homeEvents.append(event)
-        case .away:
-            awayEvents.append(event)
-        }
-    }
-    
-    enum Team {
-        case home, away
-    }
+
     
     // Add this method
     func configureMatch(
@@ -410,7 +434,9 @@ final class MatchViewModel {
         hasExtraTime: Bool,
         hasPenalties: Bool
     ) {
-        print("DEBUG: Configuring match") // Debug log
+        #if DEBUG
+        print("DEBUG: Configuring match")
+        #endif
         newMatch = Match(
             duration: TimeInterval(duration * 60), // Convert minutes to seconds
             numberOfPeriods: periods,
@@ -422,7 +448,9 @@ final class MatchViewModel {
         
         // Auto-start the match after configuration to skip confirmation step
         waitingForMatchStart = false
-        print("DEBUG: Match configured and auto-started, currentMatch: \(String(describing: currentMatch))") // Debug log
+        #if DEBUG
+        print("DEBUG: Match configured and auto-started, currentMatch: \(String(describing: currentMatch))")
+        #endif
     }
     
     // Add this new method
@@ -448,11 +476,13 @@ final class MatchViewModel {
             details: details
         )
         matchEvents.append(event)
+        #if DEBUG
         if let team = team {
             print("DEBUG: Recorded event - \(event.eventType.displayName) for \(team.rawValue) at \(matchTime)")
         } else {
             print("DEBUG: Recorded event - \(event.eventType.displayName) (general) at \(matchTime)")
         }
+        #endif
     }
     
     /// Record a goal event
@@ -593,7 +623,15 @@ final class MatchViewModel {
         // Reset display values
         matchTime = "00:00"
         periodTime = "00:00"
-        periodTimeRemaining = "45:00"
+        // Compute per-period remaining from current match or fall back to 45:00
+        if let m = currentMatch {
+            let per = (m.duration / TimeInterval(m.numberOfPeriods))
+            let mm = Int(per) / 60
+            let ss = Int(per) % 60
+            periodTimeRemaining = String(format: "%02d:%02d", mm, ss)
+        } else {
+            periodTimeRemaining = "45:00"
+        }
         halfTimeRemaining = "00:00"
         halfTimeElapsed = "00:00"
         formattedStoppageTime = "00:00"
@@ -614,10 +652,10 @@ final class MatchViewModel {
         
         // Clear events
         matchEvents.removeAll()
-        homeEvents.removeAll()
-        awayEvents.removeAll()
         
+        #if DEBUG
         print("DEBUG: Match reset successfully")
+        #endif
     }
     
     /// Finalize the match and prepare for navigation back to home
@@ -642,21 +680,27 @@ final class MatchViewModel {
         matchCompleted = true
         currentMatch = nil
         
+        #if DEBUG
         print("DEBUG: Match finalized successfully")
+        #endif
     }
     
     /// Abandon the match
     func abandonMatch() {
         recordMatchEvent(.matchEnd)
         endMatch()
+        #if DEBUG
         print("DEBUG: Match abandoned")
+        #endif
     }
     
     /// Navigate home (reset to no current match)
     func navigateHome() {
         resetMatch()
         currentMatch = nil
+        #if DEBUG
         print("DEBUG: Navigated home")
+        #endif
     }
     
     // MARK: - Manual Period Transitions
@@ -672,7 +716,9 @@ final class MatchViewModel {
         recordMatchEvent(.halfTime)
         startHalfTimeTimer()
         
+        #if DEBUG
         print("DEBUG: Half-time started manually")
+        #endif
     }
     
     /// Start second half manually
@@ -696,7 +742,9 @@ final class MatchViewModel {
         recordMatchEvent(.periodStart(currentPeriod))
         startTimer()
         
+        #if DEBUG
         print("DEBUG: Second half started manually")
+        #endif
     }
     
     /// End half-time and prepare for second half
@@ -710,6 +758,14 @@ final class MatchViewModel {
         // Switch to waiting for second half
         waitingForSecondHalfStart = true
         
+        #if DEBUG
         print("DEBUG: Half-time ended, waiting for second half start")
+        #endif
+    }
+    
+    deinit {
+        // Ensure timers are invalidated to avoid retain cycles or leaks
+        timer?.invalidate()
+        stoppageTimer?.invalidate()
     }
 }

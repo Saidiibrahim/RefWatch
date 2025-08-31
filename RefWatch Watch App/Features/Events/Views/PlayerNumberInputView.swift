@@ -5,8 +5,8 @@ import SwiftUI
 
 struct PlayerNumberInputView: View {
     let team: TeamDetailsView.TeamType
-    let goalType: GoalTypeSelectionView.GoalType?
-    let cardType: MatchEvent?
+    let goalType: GoalDetails.GoalType?
+    let cardType: CardDetails.CardType?
     let onComplete: (Int) -> Void
     
     @State private var numberString = ""

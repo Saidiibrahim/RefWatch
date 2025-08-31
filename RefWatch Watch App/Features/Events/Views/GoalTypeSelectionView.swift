@@ -5,33 +5,28 @@ import SwiftUI
 
 struct GoalTypeSelectionView: View {
     let team: TeamDetailsView.TeamType
-    let onSelect: (GoalType) -> Void
+    let onSelect: (GoalDetails.GoalType) -> Void
     @Environment(\.dismiss) private var dismiss
     
-    enum GoalType {
-        case goal
-        case ownGoal
-        case freeKick
-        case penalty
-        
-        var label: String {
-            switch self {
-            case .goal: return "Goal"
-            case .ownGoal: return "Own goal"
-            case .freeKick: return "Free Kick"
-            case .penalty: return "Penalty"
-            }
+    private let allTypes: [GoalDetails.GoalType] = [.regular, .ownGoal, .freeKick, .penalty]
+    
+    private func label(for type: GoalDetails.GoalType) -> String {
+        switch type {
+        case .regular: return "Goal"
+        case .ownGoal: return "Own goal"
+        case .freeKick: return "Free Kick"
+        case .penalty: return "Penalty"
         }
     }
     
     var body: some View {
         List {
-            ForEach([GoalType.goal, .ownGoal, .freeKick, .penalty], id: \.self) { type in
+            ForEach(allTypes, id: \.self) { type in
                 Button(action: { 
-                    print("DEBUG: Goal type selected: \(type.label)")
+                    print("DEBUG: Goal type selected: \(label(for: type))")
                     onSelect(type) 
                 }) {
-                    Text(type.label)
+                    Text(label(for: type))
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
