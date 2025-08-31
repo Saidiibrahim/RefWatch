@@ -29,12 +29,12 @@ struct FullTimeView: View {
             // Team score boxes
             HStack(spacing: 16) {
                 TeamScoreBox(
-                    teamName: "HOM",
+                    teamName: matchViewModel.currentMatch?.homeTeam ?? "HOM",
                     score: matchViewModel.currentMatch?.homeScore ?? 0
                 )
                 
                 TeamScoreBox(
-                    teamName: "AWA",
+                    teamName: matchViewModel.currentMatch?.awayTeam ?? "AWA",
                     score: matchViewModel.currentMatch?.awayScore ?? 0
                 )
             }

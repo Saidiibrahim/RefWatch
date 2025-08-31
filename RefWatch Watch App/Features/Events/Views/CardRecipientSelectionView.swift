@@ -2,7 +2,7 @@ import SwiftUI
 
 struct CardRecipientSelectionView: View {
     let team: TeamDetailsView.TeamType
-    let cardType: MatchEvent
+    let cardType: CardDetails.CardType
     let onComplete: (CardRecipientType) -> Void // Simplified to only handle recipient selection
     
     var body: some View {

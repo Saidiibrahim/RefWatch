@@ -54,7 +54,7 @@ struct MatchKickOffView: View {
             // Team selection boxes (horizontal layout)
             HStack(spacing: 12) {
                 SimpleTeamBox(
-                    teamName: "HOM",
+                    teamName: matchViewModel.currentMatch?.homeTeam ?? "HOM",
                     score: matchViewModel.currentMatch?.homeScore ?? 0,
                     isSelected: selectedTeam == .home,
                     action: { selectedTeam = .home },
@@ -62,7 +62,7 @@ struct MatchKickOffView: View {
                 )
                 
                 SimpleTeamBox(
-                    teamName: "AWA", 
+                    teamName: matchViewModel.currentMatch?.awayTeam ?? "AWA", 
                     score: matchViewModel.currentMatch?.awayScore ?? 0,
                     isSelected: selectedTeam == .away,
                     action: { selectedTeam = .away },
@@ -74,7 +74,7 @@ struct MatchKickOffView: View {
             // Duration button
             Button(action: { }) {
                 CompactButton(
-                    title: "\(matchViewModel.matchDuration/2):00 ▼",
+                    title: perPeriodDurationLabel,
                     style: .secondary
                 )
             }
@@ -125,6 +125,18 @@ struct MatchKickOffView: View {
         formatter.timeStyle = .short
         formatter.dateStyle = .none
         return formatter.string(from: Date())
+    }
+
+    // Per-period duration label derived from current match when available
+    private var perPeriodDurationLabel: String {
+        if let m = matchViewModel.currentMatch {
+            let per = m.duration / TimeInterval(m.numberOfPeriods)
+            let mm = Int(per) / 60
+            let ss = Int(per) % 60
+            return String(format: "%02d:%02d ▼", mm, ss)
+        } else {
+            return "\(matchViewModel.matchDuration/2):00 ▼"
+        }
     }
 }
 
