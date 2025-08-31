@@ -19,10 +19,10 @@ struct MatchViewModel_TimeConversionTests {
             hasPenalties: false
         )
 
-        #expect(vm.currentMatch != nil)
-        #expect(vm.currentMatch?.duration == 50 * 60)
-        #expect(vm.currentMatch?.halfTimeLength == 15 * 60)
-        #expect(vm.currentMatch?.numberOfPeriods == 2)
+        let match = try #require(vm.currentMatch)
+        #expect(match.duration == TimeInterval(50 * 60))
+        #expect(match.halfTimeLength == TimeInterval(15 * 60))
+        #expect(match.numberOfPeriods == 2)
     }
 
     @Test func test_resetMatch_uses_per_period_for_remaining_label() async throws {
