@@ -59,18 +59,14 @@ struct EndHalfConfirmationView: View {
                 
                 // Yes button
                 Button(action: {
-                    if isEndingSecondHalf {
-                        // End the second half - this will trigger full-time display
-                        matchViewModel.endCurrentPeriod()
-                        dismiss()
-                        parentDismiss()
-                    } else {
-                        // End the first half - transition to half-time
-                        matchViewModel.endCurrentPeriod()
+                    // First half → half-time; otherwise, delegate to VM routing (ET, penalties, full-time)
+                    let isFirstHalf = matchViewModel.currentPeriod == 1
+                    matchViewModel.endCurrentPeriod()
+                    if isFirstHalf {
                         matchViewModel.isHalfTime = true
-                        dismiss()
-                        parentDismiss()
                     }
+                    dismiss()
+                    parentDismiss()
                 }) {
                     Text("Yes")
                         .font(.system(size: 18, weight: .medium))
