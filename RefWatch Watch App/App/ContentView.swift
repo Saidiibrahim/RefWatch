@@ -38,6 +38,14 @@ struct ContentView: View {
                                 destination: SettingsScreen(settingsViewModel: settingsViewModel),
                                 backgroundColor: .gray
                             )
+
+                            // Optional: History browser for completed matches
+                            NavigationLinkButton(
+                                title: "History",
+                                icon: "clock.arrow.circlepath",
+                                destination: MatchHistoryView(matchViewModel: matchViewModel),
+                                backgroundColor: .blue
+                            )
                         }
                         .padding(.horizontal)
                         
