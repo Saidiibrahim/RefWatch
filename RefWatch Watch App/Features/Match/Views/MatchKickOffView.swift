@@ -7,6 +7,7 @@ struct MatchKickOffView: View {
     let matchViewModel: MatchViewModel
     let isSecondHalf: Bool
     let defaultSelectedTeam: Team?
+    let etPhase: Int? // 1 or 2 for Extra Time phases; nil for regulation
     let lifecycle: MatchLifecycleCoordinator
     
     @State private var selectedTeam: Team?
@@ -20,6 +21,7 @@ struct MatchKickOffView: View {
         self.matchViewModel = matchViewModel
         self.isSecondHalf = false
         self.defaultSelectedTeam = nil
+        self.etPhase = nil
         self.lifecycle = lifecycle
         // Initialize @State with nil for first half
         self._selectedTeam = State(initialValue: nil)
@@ -30,8 +32,29 @@ struct MatchKickOffView: View {
         self.matchViewModel = matchViewModel
         self.isSecondHalf = isSecondHalf
         self.defaultSelectedTeam = defaultSelectedTeam
+        self.etPhase = nil
         self.lifecycle = lifecycle
         // Initialize @State with nil - will be set in onAppear
+        self._selectedTeam = State(initialValue: nil)
+    }
+
+    // Initializer for Extra Time kickoff (phase 1 or 2)
+    init(matchViewModel: MatchViewModel, extraTimePhase: Int, lifecycle: MatchLifecycleCoordinator) {
+        self.matchViewModel = matchViewModel
+        self.isSecondHalf = false
+        self.defaultSelectedTeam = nil
+        self.etPhase = extraTimePhase
+        self.lifecycle = lifecycle
+        self._selectedTeam = State(initialValue: nil)
+    }
+
+    // Initializer for Extra Time second half with default team
+    init(matchViewModel: MatchViewModel, extraTimePhase: Int, defaultSelectedTeam: Team, lifecycle: MatchLifecycleCoordinator) {
+        self.matchViewModel = matchViewModel
+        self.isSecondHalf = false
+        self.defaultSelectedTeam = defaultSelectedTeam
+        self.etPhase = extraTimePhase
+        self.lifecycle = lifecycle
         self._selectedTeam = State(initialValue: nil)
     }
     
@@ -44,7 +67,7 @@ struct MatchKickOffView: View {
                     Text(formattedCurrentTime)
                         .font(.system(size: 16, weight: .medium))
                         .foregroundColor(.white)
-                    Text(isSecondHalf ? "Second Half" : "Kick off")
+                    Text(etPhase == 1 ? "Extra Time 1" : etPhase == 2 ? "Extra Time 2" : (isSecondHalf ? "Second Half" : "Kick off"))
                         .font(.system(size: 16))
                         .foregroundColor(.white)
                 }
@@ -85,7 +108,16 @@ struct MatchKickOffView: View {
             // Start button (simple green circle with checkmark)
             Button {
                 guard let team = selectedTeam else { return }
-                if isSecondHalf {
+                if let phase = etPhase {
+                    if phase == 1 {
+                        matchViewModel.setKickingTeamET1(team == .home)
+                        matchViewModel.startExtraTimeFirstHalfManually()
+                        lifecycle.goToSetup()
+                    } else {
+                        matchViewModel.startExtraTimeSecondHalfManually()
+                        lifecycle.goToSetup()
+                    }
+                } else if isSecondHalf {
                     matchViewModel.setKickingTeam(team == .home)
                     matchViewModel.startSecondHalfManually()
                     lifecycle.goToSetup()
@@ -116,6 +148,10 @@ struct MatchKickOffView: View {
             if isSecondHalf, let defaultTeam = defaultSelectedTeam {
                 selectedTeam = defaultTeam
             }
+            // Set default for ET second half if provided
+            if let phase = etPhase, phase == 2, let defaultTeam = defaultSelectedTeam {
+                selectedTeam = defaultTeam
+            }
         }
     }
     
@@ -130,12 +166,20 @@ struct MatchKickOffView: View {
     // Per-period duration label derived from current match when available
     private var perPeriodDurationLabel: String {
         if let m = matchViewModel.currentMatch {
-            let periods = max(1, m.numberOfPeriods)
-            let per = m.duration / TimeInterval(periods)
-            let perClamped = max(0, per)
-            let mm = Int(perClamped) / 60
-            let ss = Int(perClamped) % 60
-            return String(format: "%02d:%02d ▼", mm, ss)
+            // Use ET half length when in Extra Time kickoff
+            if let _ = etPhase {
+                let et = max(0, Int(m.extraTimeHalfLength))
+                let mm = et / 60
+                let ss = et % 60
+                return String(format: "%02d:%02d ▼", mm, ss)
+            } else {
+                let periods = max(1, m.numberOfPeriods)
+                let per = m.duration / TimeInterval(periods)
+                let perClamped = max(0, per)
+                let mm = Int(perClamped) / 60
+                let ss = Int(perClamped) % 60
+                return String(format: "%02d:%02d ▼", mm, ss)
+            }
         } else {
             return "\(matchViewModel.matchDuration/2):00 ▼"
         }
