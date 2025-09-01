@@ -134,6 +134,34 @@ struct CreateMatchView: View {
             // Toggles
             Toggle("Extra Time", isOn: $matchViewModel.hasExtraTime)
             Toggle("Penalties", isOn: $matchViewModel.hasPenalties)
+
+            // Extra Time Half Length (only when ET is enabled)
+            if matchViewModel.hasExtraTime {
+                NavigationLinkRow(
+                    title: "ET Half Length",
+                    value: "\(matchViewModel.extraTimeHalfLengthMinutes) min",
+                    destination: SettingPickerView(
+                        title: "ET Half Length",
+                        values: [5, 10, 15, 20, 30],
+                        selection: $matchViewModel.extraTimeHalfLengthMinutes,
+                        formatter: { "\($0) min" }
+                    )
+                )
+            }
+
+            // Penalty Initial Rounds (only when penalties are enabled)
+            if matchViewModel.hasPenalties {
+                NavigationLinkRow(
+                    title: "Shootout Rounds",
+                    value: "\(matchViewModel.penaltyInitialRounds)",
+                    destination: SettingPickerView(
+                        title: "Shootout Rounds",
+                        values: [3, 5, 7, 10],
+                        selection: $matchViewModel.penaltyInitialRounds,
+                        formatter: { String($0) }
+                    )
+                )
+            }
             
             // Start match button - jump into lifecycle kickoff state
             HStack {

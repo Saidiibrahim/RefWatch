@@ -8,6 +8,7 @@
 import Foundation
 import SwiftUI
 import Observation
+import WatchKit
 // Timer responsibilities delegated to TimerManager (SRP)
 
 // MARK: - TimerManager Integration
@@ -28,6 +29,9 @@ final class MatchViewModel {
     var waitingForMatchStart: Bool = true
     var waitingForHalfTimeStart: Bool = false
     var waitingForSecondHalfStart: Bool = false
+    var waitingForET1Start: Bool = false
+    var waitingForET2Start: Bool = false
+    var waitingForPenaltiesStart: Bool = false
     var isFullTime: Bool = false
     var matchCompleted: Bool = false
     
@@ -75,10 +79,36 @@ final class MatchViewModel {
     var halfTimeLength: Int = 15
     var hasExtraTime: Bool = false
     var hasPenalties: Bool = false
+    // Configurable extras
+    var extraTimeHalfLengthMinutes: Int = 15
+    var penaltyInitialRounds: Int = 5
     
     // Add near the top with other properties
     private(set) var homeTeamKickingOff: Bool = false
+    private(set) var homeTeamKickingOffET1: Bool? = nil
+
+    // Penalties managed by PenaltyManager (SRP)
+    private let penaltyManager = PenaltyManager()
     
+    // Computed bridges to maintain current UI/View API
+    var penaltyShootoutActive: Bool { penaltyManager.isActive }
+    var homePenaltiesScored: Int { penaltyManager.homeScored }
+    var homePenaltiesTaken: Int { penaltyManager.homeTaken }
+    var awayPenaltiesScored: Int { penaltyManager.awayScored }
+    var awayPenaltiesTaken: Int { penaltyManager.awayTaken }
+    var homePenaltyResults: [PenaltyAttemptDetails.Result] { penaltyManager.homeResults }
+    var awayPenaltyResults: [PenaltyAttemptDetails.Result] { penaltyManager.awayResults }
+    var penaltyRoundsVisible: Int { penaltyManager.roundsVisible }
+    var nextPenaltyTeam: TeamSide { penaltyManager.nextTeam }
+    var penaltyFirstKicker: TeamSide { penaltyManager.firstKicker }
+    var isPenaltyShootoutDecided: Bool { penaltyManager.isDecided }
+    var penaltyWinner: TeamSide? { penaltyManager.winner }
+    var hasChosenPenaltyFirstKicker: Bool {
+        get { penaltyManager.hasChosenFirstKicker }
+        set { penaltyManager.markHasChosenFirstKicker(newValue) }
+    }
+    var isSuddenDeathActive: Bool { penaltyManager.isSuddenDeathActive }
+
     // MARK: - Initialization
     init() {
         self.savedMatches = [
@@ -253,8 +283,22 @@ final class MatchViewModel {
                 startHalfTime()
             }
         } else if match.hasExtraTime && currentPeriod == match.numberOfPeriods {
-            // Handle extra time if needed
-            currentPeriod += 1
+            // Regulation finished and extra time is enabled -> go to ET1 kickoff
+            isMatchInProgress = false
+            isPaused = false
+            waitingForET1Start = true
+        } else if match.hasExtraTime && currentPeriod == match.numberOfPeriods + 1 {
+            // ET1 finished -> go to ET2 kickoff
+            isMatchInProgress = false
+            isPaused = false
+            waitingForET2Start = true
+        } else if currentPeriod == match.numberOfPeriods + 2 {
+            // ET2 finished
+            if match.hasPenalties {
+                waitingForPenaltiesStart = true
+            } else {
+                endMatch()
+            }
         } else {
             endMatch()
         }
@@ -347,8 +391,10 @@ final class MatchViewModel {
             duration: TimeInterval(duration * 60), // Convert minutes to seconds
             numberOfPeriods: periods,
             halfTimeLength: TimeInterval(halfTimeLength * 60), // Convert minutes to seconds
+            extraTimeHalfLength: TimeInterval(extraTimeHalfLengthMinutes * 60),
             hasExtraTime: hasExtraTime,
-            hasPenalties: hasPenalties
+            hasPenalties: hasPenalties,
+            penaltyInitialRounds: penaltyInitialRounds
         )
         currentMatch = newMatch
         
@@ -368,6 +414,19 @@ final class MatchViewModel {
     func getSecondHalfKickingTeam() -> MatchKickOffView.Team {
         // Return the opposite team from the first half (standard football rules)
         return homeTeamKickingOff ? .away : .home
+    }
+    
+    // Extra Time kickoff helpers
+    func setKickingTeamET1(_ isHome: Bool) {
+        homeTeamKickingOffET1 = isHome
+    }
+    
+    func getETSecondHalfKickingTeam() -> MatchKickOffView.Team {
+        if let et1 = homeTeamKickingOffET1 {
+            return et1 ? .away : .home
+        }
+        // Fallback to regular alternation if ET1 kicker not set
+        return getSecondHalfKickingTeam()
     }
     
     // MARK: - Match Event Recording
@@ -458,6 +517,49 @@ final class MatchViewModel {
         // For match events that don't have a specific team
         recordEvent(eventType, team: nil, details: .general)
     }
+
+    // MARK: - Penalties Flow
+
+    func beginPenaltiesIfNeeded() {
+        guard !penaltyManager.isActive else { return }
+        waitingForPenaltiesStart = false
+        isMatchInProgress = false
+        isPaused = false
+        timerManager.stopAll()
+        timer = nil
+        stoppageTimer = nil
+        // Set penalties period index (5 for standard: 1,2,3,4 then penalties)
+        if let match = currentMatch {
+            currentPeriod = max(1, match.numberOfPeriods) + (match.hasExtraTime ? 2 : 0) + 1
+        } else {
+            currentPeriod = 5
+        }
+        // Configure manager with match rules and wire callbacks
+        if let match = currentMatch { penaltyManager.setInitialRounds(match.penaltyInitialRounds) }
+        wirePenaltyCallbacks()
+        penaltyManager.begin()
+    }
+
+    func recordPenaltyAttempt(team: TeamSide, result: PenaltyAttemptDetails.Result, playerNumber: Int? = nil) {
+        penaltyManager.recordAttempt(team: team, result: result, playerNumber: playerNumber)
+    }
+
+    func endPenaltiesAndProceed() {
+        if penaltyManager.isActive { penaltyManager.end() }
+        waitingForPenaltiesStart = false
+        isMatchInProgress = false
+        isPaused = false
+        timerManager.stopAll()
+        timer = nil
+        stoppageTimer = nil
+        isFullTime = true
+    }
+
+    // MARK: - Penalties Helpers (UI)
+
+    func setPenaltyFirstKicker(_ team: TeamSide) {
+        penaltyManager.setFirstKicker(team)
+    }
     
     // MARK: - Match Management Actions
     
@@ -479,7 +581,7 @@ final class MatchViewModel {
             isPaused = false
             waitingForHalfTimeStart = true
         } else if currentPeriod < match.numberOfPeriods {
-            // More regular periods to go - wait for next period
+            // More regulation periods to go - wait for next period
             isMatchInProgress = false
             isPaused = false
             if currentPeriod == 1 {
@@ -487,9 +589,22 @@ final class MatchViewModel {
                 // Keep original kick-off team - getSecondHalfKickingTeam will return opposite
             }
         } else if match.hasExtraTime && currentPeriod == match.numberOfPeriods {
-            // TODO: Handle extra time waiting state
-            currentPeriod += 1
-            startNextPeriod()
+            // Regulation finished and extra time is enabled → route to ET1 kickoff
+            isMatchInProgress = false
+            isPaused = false
+            waitingForET1Start = true
+        } else if match.hasExtraTime && currentPeriod == match.numberOfPeriods + 1 {
+            // ET1 finished → route to ET2 kickoff
+            isMatchInProgress = false
+            isPaused = false
+            waitingForET2Start = true
+        } else if currentPeriod == match.numberOfPeriods + 2 {
+            // ET2 finished
+            if match.hasPenalties {
+                waitingForPenaltiesStart = true
+            } else {
+                endMatch()
+            }
         } else {
             // Match is over
             endMatch()
@@ -513,6 +628,9 @@ final class MatchViewModel {
         waitingForMatchStart = true
         waitingForHalfTimeStart = false
         waitingForSecondHalfStart = false
+        waitingForET1Start = false
+        waitingForET2Start = false
+        waitingForPenaltiesStart = false
         isFullTime = false
         matchCompleted = false
         
@@ -556,6 +674,11 @@ final class MatchViewModel {
         
         // Clear events
         matchEvents.removeAll()
+
+        // Reset ET kickoff selection
+        homeTeamKickingOffET1 = nil
+        // Reset penalty manager state
+        penaltyManager.end()
         
         #if DEBUG
         print("DEBUG: Match reset successfully")
@@ -604,6 +727,16 @@ final class MatchViewModel {
         #if DEBUG
         print("DEBUG: Navigated home")
         #endif
+    }
+
+    // MARK: - Penalty Manager Wiring
+    private func wirePenaltyCallbacks() {
+        penaltyManager.onStart = { [weak self] in self?.recordMatchEvent(.penaltiesStart) }
+        penaltyManager.onAttempt = { [weak self] team, details in
+            self?.recordEvent(.penaltyAttempt(details), team: team, details: .penalty(details))
+        }
+        penaltyManager.onDecided = { _ in /* UI observes via bridges */ }
+        penaltyManager.onEnd = { [weak self] in self?.recordMatchEvent(.penaltiesEnd) }
     }
     
     // MARK: - Manual Period Transitions
@@ -667,6 +800,88 @@ final class MatchViewModel {
         
         #if DEBUG
         print("DEBUG: Second half started manually")
+        #endif
+    }
+    
+    /// Start Extra Time first half manually
+    func startExtraTimeFirstHalfManually() {
+        guard waitingForET1Start, let match = currentMatch else { return }
+
+        waitingForET1Start = false
+        isHalfTime = false
+        currentPeriod = max(1, match.numberOfPeriods) + 1 // ET1
+        isMatchInProgress = true
+        isPaused = false
+
+        // Reset stoppage time for new period
+        timerManager.resetForNewPeriod()
+        stoppageTime = 0
+        stoppageStartTime = nil
+        isInStoppage = false
+        formattedStoppageTime = "00:00"
+
+        // Record ET1 start
+        recordMatchEvent(.periodStart(currentPeriod))
+        self.periodTimeRemaining = timerManager.configureInitialPeriodLabel(match: match, currentPeriod: currentPeriod)
+        timerManager.startPeriod(
+            match: match,
+            currentPeriod: currentPeriod,
+            onTick: { [weak self] snap in
+                guard let self = self else { return }
+                self.matchTime = snap.matchTime
+                self.periodTime = snap.periodTime
+                self.periodTimeRemaining = snap.periodTimeRemaining
+                self.formattedStoppageTime = snap.formattedStoppageTime
+                self.isInStoppage = snap.isInStoppage
+            },
+            onPeriodEnd: { [weak self] in
+                self?.endPeriod()
+            }
+        )
+
+        #if DEBUG
+        print("DEBUG: Extra Time 1 started manually")
+        #endif
+    }
+
+    /// Start Extra Time second half manually
+    func startExtraTimeSecondHalfManually() {
+        guard waitingForET2Start, let match = currentMatch else { return }
+
+        waitingForET2Start = false
+        isHalfTime = false
+        currentPeriod = max(1, match.numberOfPeriods) + 2 // ET2
+        isMatchInProgress = true
+        isPaused = false
+
+        // Reset stoppage time for new period
+        timerManager.resetForNewPeriod()
+        stoppageTime = 0
+        stoppageStartTime = nil
+        isInStoppage = false
+        formattedStoppageTime = "00:00"
+
+        // Record ET2 start
+        recordMatchEvent(.periodStart(currentPeriod))
+        self.periodTimeRemaining = timerManager.configureInitialPeriodLabel(match: match, currentPeriod: currentPeriod)
+        timerManager.startPeriod(
+            match: match,
+            currentPeriod: currentPeriod,
+            onTick: { [weak self] snap in
+                guard let self = self else { return }
+                self.matchTime = snap.matchTime
+                self.periodTime = snap.periodTime
+                self.periodTimeRemaining = snap.periodTimeRemaining
+                self.formattedStoppageTime = snap.formattedStoppageTime
+                self.isInStoppage = snap.isInStoppage
+            },
+            onPeriodEnd: { [weak self] in
+                self?.endPeriod()
+            }
+        )
+
+        #if DEBUG
+        print("DEBUG: Extra Time 2 started manually")
         #endif
     }
     

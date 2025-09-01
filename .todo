@@ -1,1 +1,271 @@
-[ ] When creating a match, we're skipping the MatchSetup screen (MatchSetupView.swift).
+## RefWatch Timer Faces (Watch Timers) Abstraction Plan
+
+### TL;DR Summary
+- **Goal**: Abstract the in-match timer UI into switchable "Timer Faces" (watch faces) and allow gating by subscription tier (Free vs Pro), while extracting ticking/time logic into a dedicated `TimerManager` for SRP and testability.
+- **Scope**: Extract timing from `MatchViewModel` → `TimerManager`, introduce a face registry and type-erased face factory, add a face picker in Settings, and gate faces by `SubscriptionTier` (free/pro). Keep lifecycle/navigation flows intact.
+- **Non‑Goals (for now)**: Implement Extra Time & Penalties face variants, persistence of completed matches, complex theming/complications.
+- **Safety**: Default to a "Classic" face which visually matches today’s UI; existing flows stay unchanged (including Full Time → End Match navigation).
+- **Deliverables**: New `TimerManager`, face registry/types, face container/host, Classic/Stopclock/Minimal faces, Settings picker, tests, and documentation.
+
+---
+
+## 1) Objectives and Success Criteria
+- **Objectives**
+  - Extract timer responsibilities from `MatchViewModel` into `Core/Services/TimerManager/TimerManager.swift`.
+  - Introduce a **Timer Face system**: a registry of descriptors and a type‑erased factory producing SwiftUI views.
+  - Enable **subscription tier gating**: Free users get the Classic face; Pro users get all faces.
+  - Keep **routing and lifecycle** unchanged and stable (e.g., FullTime → End Match should return home without surfacing intermediate screens per prior note).
+- **Success Criteria**
+  - No visual regression when "Classic" is selected (default).
+  - PR builds and tests pass; manual QA checklist satisfied.
+  - Timer code is slimmer in `MatchViewModel`; `TimerManager` is unit‑tested.
+  - Face selection persists and gates correctly by tier.
+
+---
+
+## 2) Current State (as of PR v2)
+- Timer logic (tick scheduling, formatting, stoppage, half‑time): `RefWatch Watch App/Features/Match/ViewModels/MatchViewModel.swift`.
+- Timer UI (watch face) is baked into `RefWatch Watch App/Features/Timer/Views/TimerView.swift` (`runningMatchView`).
+- Lifecycle & actions: e.g., `MatchActionsSheet`, `EndHalfConfirmationView`, `FullTimeView`.
+- Tests cover duration conversions, kickoff alternation, events & stoppage.
+
+Observations
+- ViewModel mixes concerns (timing + lifecycle + events).
+- The watch face is not replaceable/selectable.
+
+---
+
+## 3) Architecture Overview (Target)
+### 3.1 TimerManager (Service)
+- `@Observable final class TimerManager` in `Core/Services/TimerManager/TimerManager.swift`.
+- Responsibilities
+  - Drive ticking for: in‑play (per period), stoppage, and half‑time.
+  - Expose formatted labels: `matchElapsedLabel`, `periodRemainingLabel`, `stoppageLabel`, `halfTimeElapsedLabel`.
+  - Expose state: `phase` (e.g., `.preKick`, `.inPlay(period)`, `.halfTime`, `.finished`), `isPaused`, `isInStoppage`.
+  - Schedule timers on `.common` run loop mode; main‑thread updates; no per‑tick logging.
+  - Defensive guards (nil timers, non‑negative durations, period math clamps).
+
+### 3.2 Timer Faces (Views)
+- Timer Faces are SwiftUI views that render the timer area based on a **type‑erased descriptor**.
+- A **registry** provides available faces and handles tier gating.
+- A **context** object gives faces read‑only access to `TimerManager`, `MatchViewModel` (for labels/team names when needed), lifecycle actions, and shared interactions (pause/resume, show actions sheet).
+
+### 3.3 Container/Host
+- `TimerView` becomes a container that renders common chrome (period label, score) and hosts the selected face using a `FaceHostView`.
+- `FaceHostView` reads `selectedTimerFaceId` and `subscriptionTier` from settings/AppStorage and renders the selected face via the descriptor factory.
+
+### 3.4 Subscription Gating
+- `SubscriptionTier` enum (`free`, `pro`).
+- Registry filters faces by tier; Settings picker shows locks for unavailable faces with an upgrade prompt.
+
+---
+
+## 4) Detailed Design
+### 4.1 Files & Locations
+- `Core/Services/TimerManager/TimerManager.swift` (new) — service for timekeeping.
+- `Core/TimerFaces/TimerFaceTypes.swift` (new) — `SubscriptionTier`, `TimerPhase`, `TimerFaceContext`, `TimerFaceDescriptor`.
+- `Core/TimerFaces/TimerFaceRegistry.swift` (new) — registry APIs.
+- `Features/Timer/Views/FaceHostView.swift` (new) — resolves and renders the selected face.
+- `Features/Timer/Faces/ClassicTimerFaceView.swift` (new) — Classic (Free, default).
+- `Features/Timer/Faces/StopclockProFaceView.swift` (new) — Pro example face.
+- `Features/Timer/Faces/MinimalProFaceView.swift` (new) — Pro example face.
+- `Features/Settings/Views/TimerFacePickerView.swift` (new) — user selects a face; shows locks.
+- Modified: `Features/Timer/Views/TimerView.swift` (render host instead of hard‑wired face), `Features/Match/ViewModels/MatchViewModel.swift` (delegate to `TimerManager`).
+
+### 4.2 TimerManager API (high‑level)
+- `configure(durationSeconds:numberOfPeriods:halfTimeSeconds:)`
+- `startPeriod(currentPeriod:)`, `startHalfTime()`, `finishMatch()`
+- `togglePause()`, `pause()`, `resume()`
+- Published/observable properties for labels and state noted above
+- `deinit` invalidates timers (avoid leaks)
+
+Notes
+- Keep comments near scheduling/guards for debugging clarity.
+- Use `@Observable` and keep updates on main thread.
+
+### 4.3 Timer Face Types
+- `SubscriptionTier: free, pro` (Codable for persistence if needed).
+- `TimerPhase` mirrors manager’s phase (basic: preKick, inPlay(period), halfTime, finished).
+- `TimerFaceContext`
+  - `manager: TimerManager` (read‑only use in faces)
+  - `matchViewModel: MatchViewModel` (for team names/score when needed)
+  - `lifecycle: MatchLifecycleCoordinator` (for navigation hooks)
+  - actions: `togglePause`, `showActions`
+- `TimerFaceDescriptor`
+  - `id: String`, `displayName: String`, `tier: SubscriptionTier`
+  - `makeView: (TimerFaceContext) -> AnyView` (type‑erased factory)
+
+### 4.4 Registry
+- `TimerFaceRegistry.all() -> [TimerFaceDescriptor]`
+- `TimerFaceRegistry.availableFaces(for tier: SubscriptionTier) -> [TimerFaceDescriptor]`
+- Built‑ins:
+  - `classic` (Free, default) — mirrors current `runningMatchView` UI.
+  - `stopclock-pro` (Pro) — larger central countdown, play/pause button, elapsed/stoppage row.
+  - `minimal-pro` (Pro) — large single countdown with subtle +stoppage.
+
+### 4.5 TimerView Container Changes
+- Extract existing header (period label + `ScoreDisplayView`) as shared chrome.
+- Replace inline `runningMatchView` with `<FaceHostView context: ...>`.
+- Keep gestures and sheets (long‑press → `MatchActionsSheet`) in the container to ensure consistent UX policies across faces.
+
+### 4.6 Settings & Persistence
+- Settings model: add `selectedTimerFaceId: String` (default `"classic"`) and `subscriptionTier: SubscriptionTier` (default `.free`).
+- Use `@AppStorage` keys in `FaceHostView` for immediate re-render.
+- `TimerFacePickerView`
+  - Lists faces from registry with tier badges/locks.
+  - Selecting a locked (Pro) face prompts an upgrade path (can be stubbed initially).
+
+### 4.7 State Management Rules (Conformance)
+- `TimerManager` annotated with `@Observable`.
+- `TimerView` uses `let model: MatchViewModel` (not `@State` for VM observation); faces read via context.
+- Reference type state shared with children is passed via constructors; keep local state in views limited to view concerns.
+
+---
+
+## 5) Migration Plan (No Visual Regression)
+1) Introduce `TimerManager` and wire into `MatchViewModel` without changing visual output.
+2) Implement `ClassicTimerFaceView` identical to current `runningMatchView` and make it default.
+3) Replace inline face in `TimerView` with `FaceHostView` rendering Classic by default.
+4) Add Pro faces and Settings picker; gate by tier (default Free).
+5) Keep all navigation flows and end‑of‑match transitions behaviorally identical.
+
+---
+
+## 6) Testing Strategy
+### Unit (Swift Testing)
+- `TimerManagerTests`
+  - start/pause/resume behavior; stoppage accumulation across pauses
+  - period remaining math for different durations (40/45/50 mins)
+  - halftime elapsed ticking and haptic threshold
+  - finishMatch stops timers and flips phase
+- `TimerFaceRegistryTests`
+  - tier filtering; default face resolution when selected id is missing
+
+### UI
+- Snapshot or preview sanity for faces with seeded `TimerManager` state.
+- UITests: gesture interactions remain consistent (tap → pause/resume via container; long‑press → actions sheet).
+
+### Manual QA Checklist (incremental)
+- Classic face looks identical to today; pause/resume/stoppage/halftime behave the same.
+- Face picker persists; Pro faces gated as expected.
+- End of second half → Full Time → End Match → returns to home screens as before.
+
+---
+
+## 7) Performance & Reliability
+- Timers updated on main thread; scheduled on `.common` run loop mode.
+- No per‑tick logs in release.
+- Defensive guards for nil timers and period math clamps.
+- Faces render formatted strings rather than computing on every tick.
+
+---
+
+## 8) Accessibility & UX
+- Maintain large controls and readable monospaced digits.
+- Provide consistent long‑press areas via the container.
+- Use color with care (e.g., stoppage in orange) and ensure contrast on all watch sizes.
+
+---
+
+## 9) Subscription & Gating Details
+- `SubscriptionTier` default = `.free`; stored via `@AppStorage("subscriptionTier")` initially.
+- `TimerFaceRegistry.availableFaces(for: tier)` enforces gating.
+- Locked items in picker indicate Pro with a lock icon and upgrade CTA.
+
+---
+
+## 10) Risks & Mitigations
+- **State duplication (VM vs Manager)** → Single‑source: time in `TimerManager`, lifecycle/events in `MatchViewModel`.
+- **Routing regressions** → Keep container hooks unchanged; verify Full Time → End flow.
+- **Complexity growth for ET/Penalties** → `TimerManager.phase` is extensible for later PRs.
+
+---
+
+## 11) Open Questions (Parked)
+- Should faces customize the header (period label/score), or keep header universal?
+- Do we want a per‑team color theme option per face?
+- Analytics for face usage to guide design iterations?
+
+---
+
+## 12) PR Breakdown & Acceptance Criteria
+### PR v3 — Extract TimerManager (SRP)
+- Implement `TimerManager`; delegate timing from `MatchViewModel`.
+- Keep Classic UI inline (no visual change yet).
+- Tests: `TimerManager` core behaviors.
+- AC: App behavior unchanged; tests green.
+
+### PR v3.1 — Face Types & Classic Host
+- Add `TimerFaceTypes`, `TimerFaceRegistry`, `FaceHostView`.
+- Implement `ClassicTimerFaceView` that mirrors current face.
+- Modify `TimerView` to host Classic via registry (default).
+- AC: No visual change; face swap architecture in place.
+
+### PR v3.2 — Pro Faces + Picker
+- Add `StopclockProFaceView`, `MinimalProFaceView`.
+- Add `TimerFacePickerView` under Settings; persist selection.
+- AC: Users can switch faces; Pro faces visible but locked for Free.
+
+### PR v3.3 — Subscription Gating
+- Implement `SubscriptionTier` storage and registry gating.
+- Lock UI and upgrade prompt (stub acceptable initially).
+- AC: Free = Classic only; Pro = all faces.
+
+### PR v3.4 — Polish & Docs
+- Accessibility, previews, docs update, code comments.
+- AC: Clean docs; contributors can extend faces easily.
+
+---
+
+## 13) Developer Notes
+- Follow MVVM; one primary type per file.
+- Use `@Observable` for stateful services and VMs.
+- Pass reference state via constructors; keep `@State` local to views only.
+- Add clarifying comments near non‑obvious logic (timer scheduling, guards, lifecycle edges) to aid debugging.
+
+---
+
+## 14) File Skeletons (for quick scaffolding)
+// Core/Services/TimerManager/TimerManager.swift
+//  - @Observable final class TimerManager { configure/start/pause/resume/finish; labels; phase }
+
+// Core/TimerFaces/TimerFaceTypes.swift
+//  - enum SubscriptionTier { free, pro }
+//  - enum TimerPhase { preKick, inPlay(Int), halfTime, finished }
+//  - struct TimerFaceContext { manager, matchViewModel, lifecycle, actions }
+//  - struct TimerFaceDescriptor { id, displayName, tier, makeView }
+
+// Core/TimerFaces/TimerFaceRegistry.swift
+//  - static func all() -> [TimerFaceDescriptor]
+//  - static func availableFaces(for:) -> [TimerFaceDescriptor]
+
+// Features/Timer/Views/FaceHostView.swift
+//  - Reads selected face id & tier via @AppStorage; renders descriptor.makeView(context)
+
+// Features/Timer/Faces/ClassicTimerFaceView.swift
+//  - Replicate existing runningMatchView visuals (match, remaining, +stoppage)
+
+// Features/Timer/Faces/StopclockProFaceView.swift
+//  - Large countdown, play/pause button, elapsed & stoppage row
+
+// Features/Timer/Faces/MinimalProFaceView.swift
+//  - Minimalist countdown with optional +stoppage indicator
+
+// Features/Settings/Views/TimerFacePickerView.swift
+//  - List faces; show lock for Pro; persist selection
+
+---
+
+## 15) Verification Checklist (per PR)
+- Build succeeds on watchOS simulator (Series 9 45mm target).
+- All tests green; new tests added for new modules.
+- Manual QA:
+  - Kickoff duration label correct for 40/45/50 minute setups.
+  - Pause/resume works; stoppage accumulates and displays `+mm:ss`.
+  - Half‑time elapsed updates even while interacting/scrolling.
+  - Second‑half kickoff defaults to opposite team; confirm starts period.
+  - Regular/own‑goal updates correct scores and logs.
+  - Long‑press → End Half/Match; Full‑time view shows correct details.
+  - Face picker persists; gating behaves by tier.
+
+

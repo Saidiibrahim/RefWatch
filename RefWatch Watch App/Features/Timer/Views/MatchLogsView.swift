@@ -152,6 +152,12 @@ private struct MatchEventRowView: View {
             return "stop.circle"
         case .matchEnd:
             return "stop.circle.fill"
+        case .penaltiesStart:
+            return "flag"
+        case .penaltyAttempt(let details):
+            return details.result == .scored ? "checkmark.circle" : "xmark.circle"
+        case .penaltiesEnd:
+            return "flag.checkered"
         }
     }
     
@@ -170,6 +176,12 @@ private struct MatchEventRowView: View {
             return .orange
         case .periodEnd, .matchEnd:
             return .red
+        case .penaltiesStart:
+            return .orange
+        case .penaltyAttempt(let details):
+            return details.result == .scored ? .green : .red
+        case .penaltiesEnd:
+            return .green
         }
     }
 }

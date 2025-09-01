@@ -73,6 +73,15 @@ struct TimerView: View {
         .onChange(of: model.waitingForSecondHalfStart) { waiting in
             if waiting { lifecycle.goToKickoffSecond() }
         }
+        .onChange(of: model.waitingForET1Start) { waiting in
+            if waiting { lifecycle.goToKickoffETFirst() }
+        }
+        .onChange(of: model.waitingForET2Start) { waiting in
+            if waiting { lifecycle.goToKickoffETSecond() }
+        }
+        .onChange(of: model.waitingForPenaltiesStart) { waiting in
+            if waiting { lifecycle.goToPenalties() }
+        }
     }
     
     // MARK: - State-specific Views
