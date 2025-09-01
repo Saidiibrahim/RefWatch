@@ -189,242 +189,33 @@ PR v3 (Completed) ✅ — Extract TimerManager (SRP)
   - Behavior unchanged in the app; code is slimmer and easier to test.
   - Unit tests for `TimerManager` cover tick/pause/resume/stoppage.
 
-PR v4 — Extra Time + Penalties
-- Goals:
-  - Lifecycle states for ET halves and penalties (`kickoffET1`, `kickoffET2`, `penalties`).
-  - Kickoff screens for ET; penalty shootout flow with attempts and tallies.
-- Deliverables:
-  - Coordinator routes + views for ET/penalties.
-  - Events for ET start/end and penalty attempts.
-- Acceptance Criteria:
-  - Configurations with `hasExtraTime`/`hasPenalties` present correct screens and state transitions.
-  - Tests for transitions and event recording.
+## Current Status (PR v4) ✅
 
-PR v4.1 — Extract PenaltyManager (SRP)
-- Goals:
-  - Move all penalty shootout logic out of `MatchViewModel` into a focused `PenaltyManager` service while keeping public behavior and UI unchanged.
-  - Improve testability (unit tests on manager) and maintainability (SRP akin to `TimerManager`).
-- Deliverables:
-  - `RefWatch Watch App/Core/Services/PenaltyManager/PenaltyManager.swift` (@Observable)
-  - `MatchViewModel` integration with bridging properties/methods (non-breaking), event sink wiring.
-  - New unit tests: `RefWatch Watch AppTests/PenaltyManagerTests.swift`.
-- Acceptance Criteria:
-  - No regressions in UI or flow: `PenaltyShootoutView` and routing behave the same.
-  - All existing ET + penalties integration tests remain green.
-  - New unit tests cover early decision, sudden death, round numbering, first-kicker, and next-team logic.
+Branch and PR
+- Branch: `feature/extra-time-penalties-v4`
+- PR: https://github.com/Saidiibrahim/RefWatch/pull/7
+ - Status: Completed ✅ (review passed)
 
-API Specification (PenaltyManager)
-```swift
-import Foundation
-import Observation
-import WatchKit
+Delivered in v4
+- Lifecycle & Routing:
+  - Added lifecycle states for Extra Time halves and Penalties; coordinator + ContentView route to ET1/ET2 kickoff and Penalty Shootout.
+- UI:
+  - Extended `MatchKickOffView` for ET1/ET2 with correct default second‑half kickers.
+  - Added `PenaltyShootoutView` with per‑round dots, active team highlight, first‑kicker prompt, and “End Shootout” gating; fixed `.sheet` chaining.
+  - `MatchLogsView` shows penalty attempts with round numbers and team context.
+- Model & Services:
+  - `Match`: added `extraTimeHalfLength` and `penaltyInitialRounds` (configurable).
+  - `TimerManager`: supports ET per‑period durations and correct total elapsed accumulation across periods.
+  - `PenaltyManager`: new @Observable service managing attempts, tallies, early decision, sudden death, first‑kicker, and decision haptic; integrated via VM bridging and event callbacks.
+- ViewModel:
+  - VM delegates penalty logic to `PenaltyManager`; exposes bridged properties used by UI; period routing unchanged; begin/end penalties record events.
+- Configurability:
+  - Match setup adds controls for ET half length (minutes) and shootout initial rounds; values flow into `Match`/VM and `PenaltyManager`.
+- Tests:
+  - `ExtraTimeAndPenaltiesTests.swift` covers ET transitions, tallies, early‑win detection, sudden death, round tracking, first‑kicker behavior, ET2 total elapsed accumulation, and configurable shootout rounds.
 
-@Observable
-final class PenaltyManager {
-    // MARK: - Configuration
-    let initialRounds: Int // default 5
-
-    // MARK: - Lifecycle
-    private(set) var isActive: Bool = false
-    private(set) var isDecided: Bool = false
-    private(set) var winner: TeamSide? = nil
-
-    // MARK: - First Kicker
-    private(set) var firstKicker: TeamSide = .home
-    private(set) var hasChosenFirstKicker: Bool = false
-
-    // MARK: - Tallies and Results
-    private(set) var homeTaken: Int = 0
-    private(set) var homeScored: Int = 0
-    private(set) var homeResults: [PenaltyAttemptDetails.Result] = []
-
-    private(set) var awayTaken: Int = 0
-    private(set) var awayScored: Int = 0
-    private(set) var awayResults: [PenaltyAttemptDetails.Result] = []
-
-    // MARK: - Callbacks (wired by VM)
-    var onStart: (() -> Void)?
-    var onAttempt: ((TeamSide, PenaltyAttemptDetails) -> Void)?
-    var onDecided: ((TeamSide) -> Void)?
-    var onEnd: (() -> Void)?
-
-    // MARK: - Init
-    init(initialRounds: Int = 5) {
-        self.initialRounds = max(1, initialRounds)
-    }
-
-    // MARK: - Computed
-    var roundsVisible: Int {
-        max(initialRounds, max(homeResults.count, awayResults.count))
-    }
-
-    var nextTeam: TeamSide {
-        if homeTaken == awayTaken { return firstKicker }
-        return homeTaken < awayTaken ? .home : .away
-    }
-
-    var isSuddenDeathActive: Bool {
-        homeTaken >= initialRounds && awayTaken >= initialRounds
-    }
-
-    // MARK: - Commands
-    func begin() {
-        guard !isActive else { return }
-        resetInternal()
-        isActive = true
-        onStart?()
-    }
-
-    func setFirstKicker(_ team: TeamSide) {
-        firstKicker = team
-        hasChosenFirstKicker = true
-    }
-
-    func recordAttempt(team: TeamSide, result: PenaltyAttemptDetails.Result, playerNumber: Int? = nil) {
-        guard isActive else { return }
-        // Round number is 1-based per-team attempt count
-        let round = (team == .home ? homeTaken : awayTaken) + 1
-        let details = PenaltyAttemptDetails(result: result, playerNumber: playerNumber, round: round)
-        onAttempt?(team, details)
-
-        if team == .home {
-            homeTaken += 1
-            if result == .scored { homeScored += 1 }
-            homeResults.append(result)
-        } else {
-            awayTaken += 1
-            if result == .scored { awayScored += 1 }
-            awayResults.append(result)
-        }
-
-        computeDecisionIfNeeded()
-    }
-
-    func end() {
-        guard isActive else { return }
-        onEnd?()
-        isActive = false
-    }
-
-    // MARK: - Internal
-    private var didPlayDecisionHaptic: Bool = false
-
-    private func resetInternal() {
-        isDecided = false
-        winner = nil
-        didPlayDecisionHaptic = false
-        hasChosenFirstKicker = false
-        firstKicker = .home
-        homeTaken = 0; homeScored = 0; homeResults.removeAll()
-        awayTaken = 0; awayScored = 0; awayResults.removeAll()
-    }
-
-    private func computeDecisionIfNeeded() {
-        // Early decision before completing initial rounds
-        let homeRem = max(0, initialRounds - homeTaken)
-        let awayRem = max(0, initialRounds - awayTaken)
-
-        if homeTaken <= initialRounds || awayTaken <= initialRounds {
-            if homeScored > awayScored + awayRem { decide(.home); return }
-            if awayScored > homeScored + homeRem { decide(.away); return }
-        }
-
-        // Sudden death: after both reached initialRounds and attempts are equal
-        if homeTaken >= initialRounds && awayTaken >= initialRounds && homeTaken == awayTaken {
-            if homeScored != awayScored { decide(homeScored > awayScored ? .home : .away); return }
-        }
-
-        isDecided = false
-        winner = nil
-    }
-
-    private func decide(_ team: TeamSide) {
-        isDecided = true
-        winner = team
-        if !didPlayDecisionHaptic {
-            WKInterfaceDevice.current().play(.success)
-            didPlayDecisionHaptic = true
-        }
-        onDecided?(team)
-    }
-}
-```
-
-VM Bridging Signatures (non-breaking)
-```swift
-// MatchViewModel.swift
-private let penaltyManager = PenaltyManager()
-
-// Hook up events (e.g., in init or when entering penalties)
-private func wirePenaltyCallbacks() {
-    penaltyManager.onStart = { [weak self] in self?.recordMatchEvent(.penaltiesStart) }
-    penaltyManager.onAttempt = { [weak self] team, details in
-        self?.recordEvent(.penaltyAttempt(details), team: team, details: .penalty(details))
-    }
-    penaltyManager.onDecided = { [weak self] _ in /* no-op; UI reads isDecided */ }
-    penaltyManager.onEnd = { [weak self] in self?.recordMatchEvent(.penaltiesEnd) }
-}
-
-// Bridged properties (preserve existing VM API used by UI)
-var penaltyShootoutActive: Bool { penaltyManager.isActive }
-var homePenaltiesScored: Int { penaltyManager.homeScored }
-var homePenaltiesTaken: Int { penaltyManager.homeTaken }
-var awayPenaltiesScored: Int { penaltyManager.awayScored }
-var awayPenaltiesTaken: Int { penaltyManager.awayTaken }
-var homePenaltyResults: [PenaltyAttemptDetails.Result] { penaltyManager.homeResults }
-var awayPenaltyResults: [PenaltyAttemptDetails.Result] { penaltyManager.awayResults }
-var penaltyRoundsVisible: Int { penaltyManager.roundsVisible }
-var nextPenaltyTeam: TeamSide { penaltyManager.nextTeam }
-var penaltyFirstKicker: TeamSide { penaltyManager.firstKicker }
-var hasChosenPenaltyFirstKicker: Bool {
-    get { penaltyManager.hasChosenFirstKicker }
-    set { /* optional: ignore set; call setPenaltyFirstKicker instead */ }
-}
-var isPenaltyShootoutDecided: Bool { penaltyManager.isDecided }
-var penaltyWinner: TeamSide? { penaltyManager.winner }
-var isSuddenDeathActive: Bool { penaltyManager.isSuddenDeathActive }
-
-// Bridged commands (replace VM internals with delegation)
-func beginPenaltiesIfNeeded() {
-    guard !penaltyManager.isActive else { return }
-    // stop timers and set currentPeriod for penalties here
-    wirePenaltyCallbacks()
-    penaltyManager.begin()
-}
-
-func setPenaltyFirstKicker(_ team: TeamSide) {
-    penaltyManager.setFirstKicker(team)
-}
-
-func recordPenaltyAttempt(team: TeamSide, result: PenaltyAttemptDetails.Result, playerNumber: Int? = nil) {
-    penaltyManager.recordAttempt(team: team, result: result, playerNumber: playerNumber)
-}
-
-func endPenaltiesAndProceed() {
-    if penaltyManager.isActive { penaltyManager.end() }
-    // then drive routing: isFullTime = true, etc.
-}
-```
-
-Migration Steps
-- Step 1: Add `PenaltyManager` with full logic and callbacks; no VM/UI changes yet.
-- Step 2: Wire callbacks in VM; introduce bridging properties/methods (keep old fields temporarily if needed).
-- Step 3: Replace VM penalty methods to delegate to manager.
-- Step 4: Remove duplicated VM penalty state after UI compiles against bridged API.
-- Step 5: Add `PenaltyManagerTests.swift`; keep existing integration tests (`ExtraTimeAndPenaltiesTests.swift`) green.
-
-Testing Plan
-- Unit tests (new):
-  - Early decision detection across sequences and round positions.
-  - Sudden death: decision only when attempts equal and scores differ.
-  - Round numbering per team; first-kicker impact on `nextTeam`.
-  - Haptic gating flag changes (no actual vibration in tests).
-- Integration tests (existing):
-  - ET → Penalties transitions, event recording, total elapsed unaffected.
-
-Notes
-- Manager owns decision haptic (mirrors `TimerManager` owning halftime haptic), but VM owns routing/period index.
-- Future configurability: `initialRounds` and `extraTimeHalfLength` can be surfaced via Match Setup/Settings in a later PR.
+Manual QA done for v4 (targeted)
+- Verified regulation → ET1 → ET2 → penalties routing, first‑kicker prompt flow, active‑team highlighting, and end gating; no regressions observed.
 
 PR v5 — In‑Match Productivity
 - Goals:
