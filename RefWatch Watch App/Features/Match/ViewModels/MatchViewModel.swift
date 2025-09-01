@@ -79,26 +79,34 @@ final class MatchViewModel {
     var halfTimeLength: Int = 15
     var hasExtraTime: Bool = false
     var hasPenalties: Bool = false
+    // Configurable extras
+    var extraTimeHalfLengthMinutes: Int = 15
+    var penaltyInitialRounds: Int = 5
     
     // Add near the top with other properties
     private(set) var homeTeamKickingOff: Bool = false
     private(set) var homeTeamKickingOffET1: Bool? = nil
 
-    // Penalties state
-    var penaltyShootoutActive: Bool = false
-    var homePenaltiesScored: Int = 0
-    var homePenaltiesTaken: Int = 0
-    var awayPenaltiesScored: Int = 0
-    var awayPenaltiesTaken: Int = 0
-    // Per-attempt results for UI (first 5 are regulation shootout rounds; beyond are sudden death)
-    var homePenaltyResults: [PenaltyAttemptDetails.Result] = []
-    var awayPenaltyResults: [PenaltyAttemptDetails.Result] = []
-    private let shootoutInitialRounds: Int = 5
-    private(set) var penaltyFirstKicker: TeamSide = .home
-    private(set) var isPenaltyShootoutDecided: Bool = false
-    private(set) var penaltyWinner: TeamSide? = nil
-    var hasChosenPenaltyFirstKicker: Bool = false
-    private var didPlayPenaltyDecisionHaptic: Bool = false
+    // Penalties managed by PenaltyManager (SRP)
+    private let penaltyManager = PenaltyManager()
+    
+    // Computed bridges to maintain current UI/View API
+    var penaltyShootoutActive: Bool { penaltyManager.isActive }
+    var homePenaltiesScored: Int { penaltyManager.homeScored }
+    var homePenaltiesTaken: Int { penaltyManager.homeTaken }
+    var awayPenaltiesScored: Int { penaltyManager.awayScored }
+    var awayPenaltiesTaken: Int { penaltyManager.awayTaken }
+    var homePenaltyResults: [PenaltyAttemptDetails.Result] { penaltyManager.homeResults }
+    var awayPenaltyResults: [PenaltyAttemptDetails.Result] { penaltyManager.awayResults }
+    var penaltyRoundsVisible: Int { penaltyManager.roundsVisible }
+    var nextPenaltyTeam: TeamSide { penaltyManager.nextTeam }
+    var penaltyFirstKicker: TeamSide { penaltyManager.firstKicker }
+    var isPenaltyShootoutDecided: Bool { penaltyManager.isDecided }
+    var penaltyWinner: TeamSide? { penaltyManager.winner }
+    var hasChosenPenaltyFirstKicker: Bool {
+        get { penaltyManager.hasChosenFirstKicker }
+        set { penaltyManager.markHasChosenFirstKicker(newValue) }
+    }
 
     // MARK: - Initialization
     init() {
@@ -382,8 +390,10 @@ final class MatchViewModel {
             duration: TimeInterval(duration * 60), // Convert minutes to seconds
             numberOfPeriods: periods,
             halfTimeLength: TimeInterval(halfTimeLength * 60), // Convert minutes to seconds
+            extraTimeHalfLength: TimeInterval(extraTimeHalfLengthMinutes * 60),
             hasExtraTime: hasExtraTime,
-            hasPenalties: hasPenalties
+            hasPenalties: hasPenalties,
+            penaltyInitialRounds: penaltyInitialRounds
         )
         currentMatch = newMatch
         
@@ -510,8 +520,7 @@ final class MatchViewModel {
     // MARK: - Penalties Flow
 
     func beginPenaltiesIfNeeded() {
-        guard !penaltyShootoutActive else { return }
-        penaltyShootoutActive = true
+        guard !penaltyManager.isActive else { return }
         waitingForPenaltiesStart = false
         isMatchInProgress = false
         isPaused = false
@@ -524,115 +533,31 @@ final class MatchViewModel {
         } else {
             currentPeriod = 5
         }
-        // Reset shootout state
-        isPenaltyShootoutDecided = false
-        penaltyWinner = nil
-        didPlayPenaltyDecisionHaptic = false
-        homePenaltiesScored = 0
-        homePenaltiesTaken = 0
-        awayPenaltiesScored = 0
-        awayPenaltiesTaken = 0
-        homePenaltyResults.removeAll()
-        awayPenaltyResults.removeAll()
-        hasChosenPenaltyFirstKicker = false
-        recordMatchEvent(.penaltiesStart)
+        // Configure manager with match rules and wire callbacks
+        if let match = currentMatch { penaltyManager.setInitialRounds(match.penaltyInitialRounds) }
+        wirePenaltyCallbacks()
+        penaltyManager.begin()
     }
 
     func recordPenaltyAttempt(team: TeamSide, result: PenaltyAttemptDetails.Result, playerNumber: Int? = nil) {
-        // Round number is the 1-based index of this team's attempt
-        let round = (team == .home ? homePenaltiesTaken : awayPenaltiesTaken) + 1
-        let details = PenaltyAttemptDetails(result: result, playerNumber: playerNumber, round: round)
-        recordEvent(.penaltyAttempt(details), team: team, details: .penalty(details))
-        if team == .home {
-            homePenaltiesTaken += 1
-            if result == .scored { homePenaltiesScored += 1 }
-            homePenaltyResults.append(result)
-        } else {
-            awayPenaltiesTaken += 1
-            if result == .scored { awayPenaltiesScored += 1 }
-            awayPenaltyResults.append(result)
-        }
-        updatePenaltyDecisionState()
+        penaltyManager.recordAttempt(team: team, result: result, playerNumber: playerNumber)
     }
 
     func endPenaltiesAndProceed() {
-        if penaltyShootoutActive {
-            recordMatchEvent(.penaltiesEnd)
-        }
-        penaltyShootoutActive = false
+        if penaltyManager.isActive { penaltyManager.end() }
         waitingForPenaltiesStart = false
         isMatchInProgress = false
         isPaused = false
         timerManager.stopAll()
         timer = nil
         stoppageTimer = nil
-        // Signal full time; UI will route to full time screen
         isFullTime = true
     }
 
     // MARK: - Penalties Helpers (UI)
 
-    var penaltyRoundsVisible: Int {
-        max(shootoutInitialRounds, max(homePenaltyResults.count, awayPenaltyResults.count))
-    }
-
-    var nextPenaltyTeam: TeamSide {
-        if homePenaltiesTaken == awayPenaltiesTaken {
-            return penaltyFirstKicker
-        }
-        return homePenaltiesTaken < awayPenaltiesTaken ? .home : .away
-    }
-
     func setPenaltyFirstKicker(_ team: TeamSide) {
-        penaltyFirstKicker = team
-    }
-
-    private func updatePenaltyDecisionState() {
-        // Early decision in initial rounds (before both have taken 5)
-        let rounds = shootoutInitialRounds
-        let homeRem = max(0, rounds - homePenaltiesTaken)
-        let awayRem = max(0, rounds - awayPenaltiesTaken)
-
-        if homePenaltiesTaken <= rounds || awayPenaltiesTaken <= rounds {
-            if homePenaltiesScored > awayPenaltiesScored + awayRem {
-                isPenaltyShootoutDecided = true
-                penaltyWinner = .home
-                if !didPlayPenaltyDecisionHaptic {
-                    WKInterfaceDevice.current().play(.success)
-                    didPlayPenaltyDecisionHaptic = true
-                }
-                return
-            }
-            if awayPenaltiesScored > homePenaltiesScored + homeRem {
-                isPenaltyShootoutDecided = true
-                penaltyWinner = .away
-                if !didPlayPenaltyDecisionHaptic {
-                    WKInterfaceDevice.current().play(.success)
-                    didPlayPenaltyDecisionHaptic = true
-                }
-                return
-            }
-        }
-
-        // Sudden death: after both reached 5 and attempts are equal, higher score wins
-        if homePenaltiesTaken >= rounds && awayPenaltiesTaken >= rounds && homePenaltiesTaken == awayPenaltiesTaken {
-            if homePenaltiesScored != awayPenaltiesScored {
-                isPenaltyShootoutDecided = true
-                penaltyWinner = homePenaltiesScored > awayPenaltiesScored ? .home : .away
-                if !didPlayPenaltyDecisionHaptic {
-                    WKInterfaceDevice.current().play(.success)
-                    didPlayPenaltyDecisionHaptic = true
-                }
-                return
-            }
-        }
-
-        isPenaltyShootoutDecided = false
-        penaltyWinner = nil
-    }
-
-    var isSuddenDeathActive: Bool {
-        homePenaltiesTaken >= shootoutInitialRounds && awayPenaltiesTaken >= shootoutInitialRounds
+        penaltyManager.setFirstKicker(team)
     }
     
     // MARK: - Match Management Actions
@@ -751,6 +676,8 @@ final class MatchViewModel {
 
         // Reset ET kickoff selection
         homeTeamKickingOffET1 = nil
+        // Reset penalty manager state
+        penaltyManager.end()
         
         #if DEBUG
         print("DEBUG: Match reset successfully")
@@ -799,6 +726,16 @@ final class MatchViewModel {
         #if DEBUG
         print("DEBUG: Navigated home")
         #endif
+    }
+
+    // MARK: - Penalty Manager Wiring
+    private func wirePenaltyCallbacks() {
+        penaltyManager.onStart = { [weak self] in self?.recordMatchEvent(.penaltiesStart) }
+        penaltyManager.onAttempt = { [weak self] team, details in
+            self?.recordEvent(.penaltyAttempt(details), team: team, details: .penalty(details))
+        }
+        penaltyManager.onDecided = { _ in /* UI observes via bridges */ }
+        penaltyManager.onEnd = { [weak self] in self?.recordMatchEvent(.penaltiesEnd) }
     }
     
     // MARK: - Manual Period Transitions
