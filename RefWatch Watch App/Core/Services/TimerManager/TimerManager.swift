@@ -42,6 +42,7 @@ final class TimerManager {
 
     private var stoppageAccumulated: TimeInterval = 0
     private var lastSnapshot: Snapshot = .zero()
+    private var didFireHalftimeHaptic: Bool = false
 
     // Persist current context so pause/resume can compute correctly
     private var activeMatch: Match?
@@ -53,9 +54,9 @@ final class TimerManager {
 
     // MARK: - Public API
 
-    /// Returns the per-period label (MM:SS) derived from the match configuration.
+    /// Returns the per-period label (MM:SS) derived from the match configuration and period.
     func configureInitialPeriodLabel(match: Match, currentPeriod: Int) -> String {
-        let per = perPeriodDurationSeconds(for: match)
+        let per = perPeriodDurationSeconds(for: match, currentPeriod: currentPeriod)
         return formatMMSS(per)
     }
 
@@ -126,6 +127,7 @@ final class TimerManager {
     func startHalfTime(match: Match, onTick: @escaping (String) -> Void) {
         stopHalftimeTimer()
         self.halfTimeStartTime = Date()
+        self.didFireHalftimeHaptic = false
 
         halftimeTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             guard let self = self, let start = self.halfTimeStartTime else { return }
@@ -134,10 +136,9 @@ final class TimerManager {
             DispatchQueue.main.async {
                 onTick(label)
             }
-            if elapsed >= match.halfTimeLength {
-                // Haptic when halftime length reached. This may fire repeatedly each tick;
-                // consider gating to a single notification per halftime in a follow-up.
+            if elapsed >= match.halfTimeLength && !self.didFireHalftimeHaptic {
                 WKInterfaceDevice.current().play(.notification)
+                self.didFireHalftimeHaptic = true
             }
         }
         if let t = halftimeTimer { RunLoop.current.add(t, forMode: .common) }
@@ -147,6 +148,7 @@ final class TimerManager {
     func stopHalfTime() {
         stopHalftimeTimer()
         halfTimeStartTime = nil
+        didFireHalftimeHaptic = false
     }
 
     /// Stops all timers and clears callbacks. Safe to call multiple times.
@@ -154,6 +156,7 @@ final class TimerManager {
         stopPeriodTimer()
         stopStoppageTimer()
         stopHalftimeTimer()
+        didFireHalftimeHaptic = false
         onTick = nil
         onPeriodEnd = nil
         activeMatch = nil
@@ -179,10 +182,17 @@ final class TimerManager {
 
         let now = Date()
         let periodElapsed = now.timeIntervalSince(start)
-        let perDuration = perPeriodDurationSeconds(for: match)
+        let perDuration = perPeriodDurationSeconds(for: match, currentPeriod: activePeriod)
 
         let remaining = max(0, perDuration - periodElapsed)
-        let totalMatchElapsed = TimeInterval(max(0, activePeriod - 1)) * perDuration + periodElapsed
+        // Sum durations of all prior periods to get the correct accumulated match time
+        var priorDurations: TimeInterval = 0
+        if activePeriod > 1 {
+            for i in 1..<(activePeriod) {
+                priorDurations += perPeriodDurationSeconds(for: match, currentPeriod: i)
+            }
+        }
+        let totalMatchElapsed = priorDurations + periodElapsed
 
         var snapshot = lastSnapshot
         snapshot.periodTime = formatMMSS(periodElapsed)
@@ -240,10 +250,22 @@ final class TimerManager {
         halftimeTimer = nil
     }
 
-    private func perPeriodDurationSeconds(for match: Match) -> TimeInterval {
-        let periods = max(1, match.numberOfPeriods)
-        let per = match.duration / TimeInterval(periods)
-        return max(0, per)
+    private func perPeriodDurationSeconds(for match: Match, currentPeriod: Int) -> TimeInterval {
+        // Regular time periods
+        let regularPeriods = max(1, match.numberOfPeriods)
+        if currentPeriod <= regularPeriods {
+            let per = match.duration / TimeInterval(regularPeriods)
+            return max(0, per)
+        }
+
+        // Extra time halves (support up to 2 ET periods beyond regulation)
+        let etIndex = currentPeriod - regularPeriods
+        if etIndex == 1 || etIndex == 2 {
+            return max(0, match.extraTimeHalfLength)
+        }
+
+        // Fallback: treat as zero-duration (e.g., penalties don't use period timer)
+        return 0
     }
 
     private func formatMMSS(_ interval: TimeInterval) -> String {
