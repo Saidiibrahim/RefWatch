@@ -107,6 +107,7 @@ final class MatchViewModel {
         get { penaltyManager.hasChosenFirstKicker }
         set { penaltyManager.markHasChosenFirstKicker(newValue) }
     }
+    var isSuddenDeathActive: Bool { penaltyManager.isSuddenDeathActive }
 
     // MARK: - Initialization
     init() {
