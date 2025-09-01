@@ -60,6 +60,24 @@ struct ContentView: View {
                         defaultSelectedTeam: matchViewModel.getSecondHalfKickingTeam(),
                         lifecycle: lifecycle
                     )
+                case .kickoffExtraTimeFirstHalf:
+                    MatchKickOffView(
+                        matchViewModel: matchViewModel,
+                        extraTimePhase: 1,
+                        lifecycle: lifecycle
+                    )
+                case .kickoffExtraTimeSecondHalf:
+                    MatchKickOffView(
+                        matchViewModel: matchViewModel,
+                        extraTimePhase: 2,
+                        defaultSelectedTeam: matchViewModel.getETSecondHalfKickingTeam(),
+                        lifecycle: lifecycle
+                    )
+                case .penalties:
+                    PenaltyShootoutView(
+                        matchViewModel: matchViewModel,
+                        lifecycle: lifecycle
+                    )
                 case .finished:
                     FullTimeView(
                         matchViewModel: matchViewModel,
