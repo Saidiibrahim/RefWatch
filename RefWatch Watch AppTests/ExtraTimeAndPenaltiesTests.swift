@@ -229,4 +229,20 @@ struct ExtraTimeAndPenaltiesTests {
         }
         #expect(vm.isSuddenDeathActive == true)
     }
+
+    @Test
+    func test_penalty_initial_rounds_configurable() async throws {
+        let vm = MatchViewModel()
+        // Configure a match with 3 initial rounds for shootout
+        vm.penaltyInitialRounds = 3
+        vm.configureMatch(duration: 45, periods: 2, halfTimeLength: 15, hasExtraTime: true, hasPenalties: true)
+        vm.beginPenaltiesIfNeeded()
+
+        for _ in 0..<3 {
+            vm.recordPenaltyAttempt(team: .home, result: .scored)
+            vm.recordPenaltyAttempt(team: .away, result: .scored)
+        }
+        // After 3 each, sudden death should be active
+        #expect(vm.isSuddenDeathActive == true)
+    }
 }
