@@ -109,13 +109,7 @@ struct PenaltyShootoutView: View {
             .padding(.top, 8)
             .padding(.bottom, 28)
         }
-    }
-
-    private var formattedCurrentTime: String {
-        let formatter = DateFormatter()
-        formatter.timeStyle = .short
-        return formatter.string(from: Date())
-    }
+        // First-kicker prompt
         .sheet(isPresented: $showingFirstKickerPrompt) {
             FirstKickerPickerView(
                 homeTeam: matchViewModel.currentMatch?.homeTeam ?? "Home",
@@ -132,6 +126,13 @@ struct PenaltyShootoutView: View {
                 }
             )
         }
+    }
+
+    private var formattedCurrentTime: String {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        return formatter.string(from: Date())
+    }
 }
 
 private struct PenaltyTeamPanel: View {
