@@ -16,6 +16,9 @@ final class MatchLifecycleCoordinator {
         case setup                // Show MatchSetupView (with Timer in middle)
         case kickoffFirstHalf     // Show MatchKickOffView (first half)
         case kickoffSecondHalf    // Show MatchKickOffView (second half)
+        case kickoffExtraTimeFirstHalf // Show MatchKickOffView (ET first half)
+        case kickoffExtraTimeSecondHalf // Show MatchKickOffView (ET second half)
+        case penalties           // Show PenaltyShootoutView
         case finished             // Show FullTimeView
     }
 
@@ -25,6 +28,8 @@ final class MatchLifecycleCoordinator {
     func goToSetup() { state = .setup }
     func goToKickoffFirst() { state = .kickoffFirstHalf }
     func goToKickoffSecond() { state = .kickoffSecondHalf }
+    func goToKickoffETFirst() { state = .kickoffExtraTimeFirstHalf }
+    func goToKickoffETSecond() { state = .kickoffExtraTimeSecondHalf }
+    func goToPenalties() { state = .penalties }
     func goToFinished() { state = .finished }
 }
-

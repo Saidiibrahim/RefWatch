@@ -189,16 +189,33 @@ PR v3 (Completed) ✅ — Extract TimerManager (SRP)
   - Behavior unchanged in the app; code is slimmer and easier to test.
   - Unit tests for `TimerManager` cover tick/pause/resume/stoppage.
 
-PR v4 — Extra Time + Penalties
-- Goals:
-  - Lifecycle states for ET halves and penalties (`kickoffET1`, `kickoffET2`, `penalties`).
-  - Kickoff screens for ET; penalty shootout flow with attempts and tallies.
-- Deliverables:
-  - Coordinator routes + views for ET/penalties.
-  - Events for ET start/end and penalty attempts.
-- Acceptance Criteria:
-  - Configurations with `hasExtraTime`/`hasPenalties` present correct screens and state transitions.
-  - Tests for transitions and event recording.
+## Current Status (PR v4) ✅
+
+Branch and PR
+- Branch: `feature/extra-time-penalties-v4`
+- PR: https://github.com/Saidiibrahim/RefWatch/pull/7
+ - Status: Completed ✅ (review passed)
+
+Delivered in v4
+- Lifecycle & Routing:
+  - Added lifecycle states for Extra Time halves and Penalties; coordinator + ContentView route to ET1/ET2 kickoff and Penalty Shootout.
+- UI:
+  - Extended `MatchKickOffView` for ET1/ET2 with correct default second‑half kickers.
+  - Added `PenaltyShootoutView` with per‑round dots, active team highlight, first‑kicker prompt, and “End Shootout” gating; fixed `.sheet` chaining.
+  - `MatchLogsView` shows penalty attempts with round numbers and team context.
+- Model & Services:
+  - `Match`: added `extraTimeHalfLength` and `penaltyInitialRounds` (configurable).
+  - `TimerManager`: supports ET per‑period durations and correct total elapsed accumulation across periods.
+  - `PenaltyManager`: new @Observable service managing attempts, tallies, early decision, sudden death, first‑kicker, and decision haptic; integrated via VM bridging and event callbacks.
+- ViewModel:
+  - VM delegates penalty logic to `PenaltyManager`; exposes bridged properties used by UI; period routing unchanged; begin/end penalties record events.
+- Configurability:
+  - Match setup adds controls for ET half length (minutes) and shootout initial rounds; values flow into `Match`/VM and `PenaltyManager`.
+- Tests:
+  - `ExtraTimeAndPenaltiesTests.swift` covers ET transitions, tallies, early‑win detection, sudden death, round tracking, first‑kicker behavior, ET2 total elapsed accumulation, and configurable shootout rounds.
+
+Manual QA done for v4 (targeted)
+- Verified regulation → ET1 → ET2 → penalties routing, first‑kicker prompt flow, active‑team highlighting, and end gating; no regressions observed.
 
 PR v5 — In‑Match Productivity
 - Goals:

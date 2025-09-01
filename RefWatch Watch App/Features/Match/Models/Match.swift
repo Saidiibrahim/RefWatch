@@ -15,8 +15,10 @@ struct Match: Identifiable, Codable {
     var duration: TimeInterval  // In seconds
     var numberOfPeriods: Int
     var halfTimeLength: TimeInterval  // In seconds
+    var extraTimeHalfLength: TimeInterval // In seconds (per ET half)
     var hasExtraTime: Bool
     var hasPenalties: Bool
+    var penaltyInitialRounds: Int
     
     // Match statistics
     var homeScore: Int
@@ -35,8 +37,10 @@ struct Match: Identifiable, Codable {
         duration: TimeInterval = 90 * 60,
         numberOfPeriods: Int = 2,
         halfTimeLength: TimeInterval = 15 * 60,
+        extraTimeHalfLength: TimeInterval = 15 * 60,
         hasExtraTime: Bool = false,
-        hasPenalties: Bool = false
+        hasPenalties: Bool = false,
+        penaltyInitialRounds: Int = 5
     ) {
         self.id = id
         self.homeTeam = homeTeam
@@ -45,8 +49,10 @@ struct Match: Identifiable, Codable {
         self.duration = duration
         self.numberOfPeriods = numberOfPeriods
         self.halfTimeLength = halfTimeLength
+        self.extraTimeHalfLength = extraTimeHalfLength
         self.hasExtraTime = hasExtraTime
         self.hasPenalties = hasPenalties
+        self.penaltyInitialRounds = max(1, penaltyInitialRounds)
         
         // Initialize statistics
         self.homeScore = 0
