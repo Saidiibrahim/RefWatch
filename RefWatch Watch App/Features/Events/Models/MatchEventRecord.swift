@@ -46,6 +46,9 @@ enum MatchEventType: Codable {
     case halfTime
     case periodEnd(Int)
     case matchEnd
+    case penaltiesStart
+    case penaltyAttempt(PenaltyAttemptDetails)
+    case penaltiesEnd
     
     var displayName: String {
         switch self {
@@ -57,6 +60,10 @@ enum MatchEventType: Codable {
         case .halfTime: return "Half Time"
         case .periodEnd(let period): return "Period \(period) End"
         case .matchEnd: return "Match End"
+        case .penaltiesStart: return "Penalties Start"
+        case .penaltyAttempt(let details):
+            return details.result == .scored ? "Penalty Scored" : "Penalty Missed"
+        case .penaltiesEnd: return "Penalties End"
         }
     }
 }
@@ -73,6 +80,7 @@ enum EventDetails: Codable {
     case card(CardDetails)
     case substitution(SubstitutionDetails)
     case general // For events like kick off, period changes
+    case penalty(PenaltyAttemptDetails) // For individual penalty attempts
 }
 
 /// Goal event details
@@ -112,6 +120,17 @@ struct SubstitutionDetails: Codable {
     let playerInName: String?
 }
 
+/// Penalty attempt event details
+struct PenaltyAttemptDetails: Codable, Equatable {
+    enum Result: String, Codable, CaseIterable {
+        case scored
+        case missed
+    }
+    let result: Result
+    let playerNumber: Int?
+    let round: Int
+}
+
 // CardRecipientType and TeamOfficialRole are defined in their respective model files
 
 // MARK: - Display Extensions
@@ -141,6 +160,12 @@ extension MatchEventRecord {
             }
             return "Substitution"
             
+        case .penaltyAttempt(let details):
+            let base = details.result == .scored ? "Penalty Scored" : "Penalty Missed"
+            if let num = details.playerNumber {
+                return "\(base) - R\(details.round) #\(num)"
+            }
+            return "\(base) - R\(details.round)"
         default:
             return eventType.displayName
         }
@@ -158,6 +183,7 @@ extension MatchEventRecord {
         case 2: return "2nd Half"
         case 3: return "Extra Time 1"
         case 4: return "Extra Time 2"
+        case 5: return "Penalties"
         default: return "Period \(period)"
         }
     }
