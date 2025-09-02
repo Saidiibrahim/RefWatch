@@ -12,7 +12,6 @@ struct PenaltyShootoutView: View {
     let matchViewModel: MatchViewModel
     let lifecycle: MatchLifecycleCoordinator
     @Environment(\.dismiss) private var dismiss
-    @State private var showingFirstKickerPrompt: Bool = false
 
     var body: some View {
         VStack(spacing: 12) {
@@ -51,6 +50,7 @@ struct PenaltyShootoutView: View {
             // Tallies
             HStack(spacing: 12) {
                 PenaltyTeamPanel(
+                    side: .home,
                     title: matchViewModel.currentMatch?.homeTeam ?? "HOM",
                     scored: matchViewModel.homePenaltiesScored,
                     taken: matchViewModel.homePenaltiesTaken,
@@ -63,6 +63,7 @@ struct PenaltyShootoutView: View {
                 )
 
                 PenaltyTeamPanel(
+                    side: .away,
                     title: matchViewModel.currentMatch?.awayTeam ?? "AWA",
                     scored: matchViewModel.awayPenaltiesScored,
                     taken: matchViewModel.awayPenaltiesTaken,
@@ -79,18 +80,20 @@ struct PenaltyShootoutView: View {
             Spacer()
         }
         .onAppear {
-            // Ensure we mark penalties started once
+            // Ensure we mark penalties started once (idempotent)
             matchViewModel.beginPenaltiesIfNeeded()
-            // Prompt for first kicker selection if not chosen yet
-            if !matchViewModel.hasChosenPenaltyFirstKicker {
-                showingFirstKickerPrompt = true
-            }
         }
         // Bottom action
         .safeAreaInset(edge: .bottom) {
             Button(action: {
                 WKInterfaceDevice.current().play(.success)
+                #if DEBUG
+                print("DEBUG: PenaltyShootoutView: End Shootout tapped (decided=\(matchViewModel.isPenaltyShootoutDecided))")
+                #endif
                 matchViewModel.endPenaltiesAndProceed()
+                #if DEBUG
+                print("DEBUG: PenaltyShootoutView: endPenaltiesAndProceed -> isFullTime=\(matchViewModel.isFullTime)")
+                #endif
                 lifecycle.goToFinished()
             }) {
                 Text("End Shootout")
@@ -104,28 +107,13 @@ struct PenaltyShootoutView: View {
                     )
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("endShootoutButton")
             .disabled(!matchViewModel.isPenaltyShootoutDecided)
             .padding(.horizontal, 12)
             .padding(.top, 8)
             .padding(.bottom, 28)
         }
-        // First-kicker prompt
-        .sheet(isPresented: $showingFirstKickerPrompt) {
-            FirstKickerPickerView(
-                homeTeam: matchViewModel.currentMatch?.homeTeam ?? "Home",
-                awayTeam: matchViewModel.currentMatch?.awayTeam ?? "Away",
-                onSelect: { team in
-                    matchViewModel.setPenaltyFirstKicker(team)
-                    matchViewModel.hasChosenPenaltyFirstKicker = true
-                    showingFirstKickerPrompt = false
-                },
-                onCancel: {
-                    // Keep default (Home) if canceled
-                    matchViewModel.hasChosenPenaltyFirstKicker = true
-                    showingFirstKickerPrompt = false
-                }
-            )
-        }
+        // First-kicker prompt handled at ContentView level before routing
     }
 
     private var formattedCurrentTime: String {
@@ -136,6 +124,7 @@ struct PenaltyShootoutView: View {
 }
 
 private struct PenaltyTeamPanel: View {
+    let side: TeamSide
     let title: String
     let scored: Int
     let taken: Int
@@ -182,6 +171,7 @@ private struct PenaltyTeamPanel: View {
                         .background(Circle().fill(Color.green))
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier(side == .home ? "homeScorePenaltyBtn" : "awayScorePenaltyBtn")
                 .disabled(!isActive || isDisabled)
 
                 Button(action: onMiss) {
@@ -191,6 +181,7 @@ private struct PenaltyTeamPanel: View {
                         .background(Circle().fill(Color.red))
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier(side == .home ? "homeMissPenaltyBtn" : "awayMissPenaltyBtn")
                 .disabled(!isActive || isDisabled)
             }
         }
