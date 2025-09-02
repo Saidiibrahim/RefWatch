@@ -12,7 +12,6 @@ struct PenaltyShootoutView: View {
     let matchViewModel: MatchViewModel
     let lifecycle: MatchLifecycleCoordinator
     @Environment(\.dismiss) private var dismiss
-    @State private var showingFirstKickerPrompt: Bool = false
 
     var body: some View {
         VStack(spacing: 12) {
@@ -27,7 +26,7 @@ struct PenaltyShootoutView: View {
             }
 
             if matchViewModel.isPenaltyShootoutDecided, let winner = matchViewModel.penaltyWinner {
-                Text("\(winner == .home ? (matchViewModel.currentMatch?.homeTeam ?? "Home") : (matchViewModel.currentMatch?.awayTeam ?? "Away")) win")
+                Text("\(winner == .home ? matchViewModel.homeTeamDisplayName : matchViewModel.awayTeamDisplayName) win")
                     .font(.system(size: 14, weight: .semibold))
                     .padding(8)
                     .foregroundColor(.black)
@@ -51,7 +50,8 @@ struct PenaltyShootoutView: View {
             // Tallies
             HStack(spacing: 12) {
                 PenaltyTeamPanel(
-                    title: matchViewModel.currentMatch?.homeTeam ?? "HOM",
+                    side: .home,
+                    title: matchViewModel.homeTeamDisplayName,
                     scored: matchViewModel.homePenaltiesScored,
                     taken: matchViewModel.homePenaltiesTaken,
                     rounds: matchViewModel.penaltyRoundsVisible,
@@ -63,7 +63,8 @@ struct PenaltyShootoutView: View {
                 )
 
                 PenaltyTeamPanel(
-                    title: matchViewModel.currentMatch?.awayTeam ?? "AWA",
+                    side: .away,
+                    title: matchViewModel.awayTeamDisplayName,
                     scored: matchViewModel.awayPenaltiesScored,
                     taken: matchViewModel.awayPenaltiesTaken,
                     rounds: matchViewModel.penaltyRoundsVisible,
@@ -79,18 +80,20 @@ struct PenaltyShootoutView: View {
             Spacer()
         }
         .onAppear {
-            // Ensure we mark penalties started once
+            // Ensure we mark penalties started once (idempotent)
             matchViewModel.beginPenaltiesIfNeeded()
-            // Prompt for first kicker selection if not chosen yet
-            if !matchViewModel.hasChosenPenaltyFirstKicker {
-                showingFirstKickerPrompt = true
-            }
         }
         // Bottom action
         .safeAreaInset(edge: .bottom) {
             Button(action: {
                 WKInterfaceDevice.current().play(.success)
+                #if DEBUG
+                print("DEBUG: PenaltyShootoutView: End Shootout tapped (decided=\(matchViewModel.isPenaltyShootoutDecided))")
+                #endif
                 matchViewModel.endPenaltiesAndProceed()
+                #if DEBUG
+                print("DEBUG: PenaltyShootoutView: endPenaltiesAndProceed -> isFullTime=\(matchViewModel.isFullTime)")
+                #endif
                 lifecycle.goToFinished()
             }) {
                 Text("End Shootout")
@@ -104,38 +107,22 @@ struct PenaltyShootoutView: View {
                     )
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("endShootoutButton")
             .disabled(!matchViewModel.isPenaltyShootoutDecided)
             .padding(.horizontal, 12)
             .padding(.top, 8)
             .padding(.bottom, 28)
         }
-        // First-kicker prompt
-        .sheet(isPresented: $showingFirstKickerPrompt) {
-            FirstKickerPickerView(
-                homeTeam: matchViewModel.currentMatch?.homeTeam ?? "Home",
-                awayTeam: matchViewModel.currentMatch?.awayTeam ?? "Away",
-                onSelect: { team in
-                    matchViewModel.setPenaltyFirstKicker(team)
-                    matchViewModel.hasChosenPenaltyFirstKicker = true
-                    showingFirstKickerPrompt = false
-                },
-                onCancel: {
-                    // Keep default (Home) if canceled
-                    matchViewModel.hasChosenPenaltyFirstKicker = true
-                    showingFirstKickerPrompt = false
-                }
-            )
-        }
+        // First-kicker prompt handled at ContentView level before routing
     }
 
     private var formattedCurrentTime: String {
-        let formatter = DateFormatter()
-        formatter.timeStyle = .short
-        return formatter.string(from: Date())
+        DateFormatter.watchShortTime.string(from: Date())
     }
 }
 
 private struct PenaltyTeamPanel: View {
+    let side: TeamSide
     let title: String
     let scored: Int
     let taken: Int
@@ -182,6 +169,7 @@ private struct PenaltyTeamPanel: View {
                         .background(Circle().fill(Color.green))
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier(side == .home ? "homeScorePenaltyBtn" : "awayScorePenaltyBtn")
                 .disabled(!isActive || isDisabled)
 
                 Button(action: onMiss) {
@@ -191,6 +179,7 @@ private struct PenaltyTeamPanel: View {
                         .background(Circle().fill(Color.red))
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier(side == .home ? "homeMissPenaltyBtn" : "awayMissPenaltyBtn")
                 .disabled(!isActive || isDisabled)
             }
         }
@@ -207,50 +196,7 @@ private struct PenaltyTeamPanel: View {
     }
 }
 
-private struct FirstKickerPickerView: View {
-    let homeTeam: String
-    let awayTeam: String
-    let onSelect: (TeamSide) -> Void
-    let onCancel: () -> Void
-
-    var body: some View {
-        VStack(spacing: 16) {
-            Text("Who kicks first?")
-                .font(.headline)
-                .padding(.top, 8)
-
-            HStack(spacing: 12) {
-                Button(action: { onSelect(.home) }) {
-                    Text(homeTeam)
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 44)
-                        .background(RoundedRectangle(cornerRadius: 10).fill(Color.blue))
-                }
-                .buttonStyle(.plain)
-
-                Button(action: { onSelect(.away) }) {
-                    Text(awayTeam)
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 44)
-                        .background(RoundedRectangle(cornerRadius: 10).fill(Color.red))
-                }
-                .buttonStyle(.plain)
-            }
-
-            Button("Cancel", action: onCancel)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundColor(.white)
-                .padding(.vertical, 8)
-
-            Spacer()
-        }
-        .padding(.horizontal)
-    }
-}
+// FirstKickerPickerView removed; replaced by dedicated PenaltyFirstKickerView screen
 
 #Preview {
     PenaltyShootoutView(matchViewModel: MatchViewModel(), lifecycle: MatchLifecycleCoordinator())

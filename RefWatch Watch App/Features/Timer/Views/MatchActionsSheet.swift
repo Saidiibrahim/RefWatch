@@ -77,10 +77,25 @@ struct MatchActionsSheet: View {
         .sheet(isPresented: $showingOptions) {
             MatchOptionsView(matchViewModel: matchViewModel, lifecycle: lifecycle)
         }
-        .sheet(isPresented: $showingEndHalfConfirmation) {
-            EndHalfConfirmationView(
-                matchViewModel: matchViewModel,
-                parentDismiss: { dismiss() }
+        .confirmationDialog(
+            "",
+            isPresented: $showingEndHalfConfirmation,
+            titleVisibility: .hidden
+        ) {
+            Button("Yes") {
+                let isFirstHalf = matchViewModel.currentPeriod == 1
+                matchViewModel.endCurrentPeriod()
+                if isFirstHalf {
+                    matchViewModel.isHalfTime = true
+                }
+                dismiss()
+            }
+            Button("No", role: .cancel) { }
+        } message: {
+            Text(
+                (matchViewModel.currentMatch != nil && matchViewModel.currentPeriod == 2 && (matchViewModel.currentMatch?.numberOfPeriods ?? 2) == 2)
+                ? "Are you sure you want to 'End Match'?"
+                : "Are you sure you want to 'End Half'?"
             )
         }
     }

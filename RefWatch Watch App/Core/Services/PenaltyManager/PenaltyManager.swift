@@ -11,7 +11,7 @@ import Observation
 import WatchKit
 
 @Observable
-final class PenaltyManager {
+final class PenaltyManager: PenaltyManaging {
     // MARK: - Configuration
     private(set) var initialRounds: Int // typically 5; configurable
 
@@ -146,4 +146,3 @@ final class PenaltyManager {
         onDecided?(team)
     }
 }
-

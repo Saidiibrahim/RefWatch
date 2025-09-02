@@ -9,7 +9,7 @@ import SwiftUI
 
 struct FullTimeView: View {
     let matchViewModel: MatchViewModel
-    let onReturnHome: () -> Void
+    let lifecycle: MatchLifecycleCoordinator
     @State private var showingEndMatchConfirmation = false
     
     var body: some View {
@@ -29,12 +29,12 @@ struct FullTimeView: View {
             // Team score boxes
             HStack(spacing: 16) {
                 TeamScoreBox(
-                    teamName: matchViewModel.currentMatch?.homeTeam ?? "HOM",
+                    teamName: matchViewModel.homeTeamDisplayName,
                     score: matchViewModel.currentMatch?.homeScore ?? 0
                 )
                 
                 TeamScoreBox(
-                    teamName: matchViewModel.currentMatch?.awayTeam ?? "AWA",
+                    teamName: matchViewModel.awayTeamDisplayName,
                     score: matchViewModel.currentMatch?.awayScore ?? 0
                 )
             }
@@ -46,6 +46,9 @@ struct FullTimeView: View {
         // Compact button pinned above the bottom safe area
         .safeAreaInset(edge: .bottom) {
             Button(action: {
+                #if DEBUG
+                print("DEBUG: FullTimeView: End Match tapped – presenting confirmation")
+                #endif
                 showingEndMatchConfirmation = true
             }) {
                 Text("End Match")
@@ -64,20 +67,55 @@ struct FullTimeView: View {
             .padding(.top, 8)
             .padding(.bottom, 28) // lift above page indicator / rounded corners
         }
-        .sheet(isPresented: $showingEndMatchConfirmation) {
-            EndMatchConfirmationView(
-                matchViewModel: matchViewModel,
-                onReturnHome: onReturnHome
-            )
+        .confirmationDialog(
+            "",
+            isPresented: $showingEndMatchConfirmation,
+            titleVisibility: .hidden
+        ) {
+            Button("Yes") {
+                #if DEBUG
+                print("DEBUG: FullTimeView: ConfirmationDialog Yes tapped – begin finalize")
+                #endif
+                matchViewModel.finalizeMatch()
+                DispatchQueue.main.async {
+                    lifecycle.resetToStart()
+                    matchViewModel.resetMatch()
+                }
+            }
+            .accessibilityIdentifier("endMatchConfirmYes")
+            Button("No", role: .cancel) {
+                #if DEBUG
+                print("DEBUG: FullTimeView: ConfirmationDialog No tapped – cancelling")
+                #endif
+            }
+            .accessibilityIdentifier("endMatchConfirmNo")
+        } message: {
+            Text("Are you sure you want to 'End Match'?")
+        }
+        .onChange(of: showingEndMatchConfirmation) { isShowing, _ in
+            #if DEBUG
+            print("DEBUG: FullTimeView.onChange showingEndMatchConfirmation=\(isShowing)")
+            #endif
+        }
+        .onChange(of: matchViewModel.matchCompleted) { completed, _ in
+            #if DEBUG
+            print("DEBUG: FullTimeView.onChange matchCompleted=\(completed) state=\(lifecycle.state)")
+            #endif
+            if completed && lifecycle.state != .idle {
+                lifecycle.resetToStart()
+                matchViewModel.resetMatch()
+            }
+        }
+        .onAppear {
+            #if DEBUG
+            print("DEBUG: FullTimeView appeared")
+            #endif
         }
     }
     
     // Computed property for current time
     private var formattedCurrentTime: String {
-        let formatter = DateFormatter()
-        formatter.timeStyle = .short
-        formatter.dateStyle = .none
-        return formatter.string(from: Date())
+        DateFormatter.watchShortTime.string(from: Date())
     }
 }
 
@@ -113,5 +151,5 @@ private struct TeamScoreBox: View {
     viewModel.updateScore(isHome: false, increment: true)
     viewModel.isFullTime = true
     
-    return FullTimeView(matchViewModel: viewModel, onReturnHome: { })
+    return FullTimeView(matchViewModel: viewModel, lifecycle: MatchLifecycleCoordinator())
 }
