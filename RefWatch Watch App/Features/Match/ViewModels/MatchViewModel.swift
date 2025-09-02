@@ -18,6 +18,7 @@ final class MatchViewModel {
     // MARK: - Properties
     private(set) var currentMatch: Match?
     private(set) var savedMatches: [Match]
+    private let history: MatchHistoryStoring
     
     var newMatch: Match
     var isMatchInProgress: Bool = false
@@ -90,6 +91,9 @@ final class MatchViewModel {
     // Penalties managed by PenaltyManager (SRP)
     private let penaltyManager = PenaltyManager()
     
+    // Persistence error feedback surfaced to UI (optional alert)
+    var lastPersistenceError: String? = nil
+    
     // Computed bridges to maintain current UI/View API
     var penaltyShootoutActive: Bool { penaltyManager.isActive }
     var homePenaltiesScored: Int { penaltyManager.homeScored }
@@ -110,7 +114,8 @@ final class MatchViewModel {
     var isSuddenDeathActive: Bool { penaltyManager.isSuddenDeathActive }
 
     // MARK: - Initialization
-    init() {
+    init(history: MatchHistoryStoring = MatchHistoryService()) {
+        self.history = history
         self.savedMatches = [
             Match(homeTeam: "Leeds United", awayTeam: "Newcastle United")
         ]
@@ -688,6 +693,21 @@ final class MatchViewModel {
     /// Finalize the match and prepare for navigation back to home
     func finalizeMatch() {
         recordMatchEvent(.matchEnd)
+        // Snapshot and persist before clearing any state
+        if let match = currentMatch {
+            let snapshot = CompletedMatch(
+                match: match,
+                events: matchEvents
+            )
+            // Best-effort save; avoid crashing in finalize path
+            do { try history.save(snapshot) } catch {
+                #if DEBUG
+                print("DEBUG: Failed to persist completed match: \(error)")
+                #endif
+                lastPersistenceError = error.localizedDescription
+                WKInterfaceDevice.current().play(.failure)
+            }
+        }
         
         // Stop all timers first
         timerManager.stopAll()
@@ -727,6 +747,24 @@ final class MatchViewModel {
         #if DEBUG
         print("DEBUG: Navigated home")
         #endif
+    }
+
+    // MARK: - History Bridges (Optional UI)
+    func loadCompletedMatches() -> [CompletedMatch] {
+        (try? history.loadAll()) ?? []
+    }
+
+    /// Latest N completed matches (default 50), ordered by most recent first
+    func loadRecentCompletedMatches(limit: Int = 50) -> [CompletedMatch] {
+        history.loadRecent(limit)
+    }
+
+    func deleteCompletedMatch(id: UUID) {
+        do { try history.delete(id: id) } catch {
+            #if DEBUG
+            print("DEBUG: Failed to delete completed match: \(error)")
+            #endif
+        }
     }
 
     // MARK: - Penalty Manager Wiring
