@@ -686,7 +686,7 @@ final class MatchViewModel {
         penaltyManager.end()
         
         #if DEBUG
-        print("DEBUG: Match reset successfully")
+        print("DEBUG: Match reset successfully (isFullTime=\(isFullTime), matchCompleted=\(matchCompleted), currentPeriod=\(currentPeriod))")
         #endif
     }
     
@@ -727,7 +727,7 @@ final class MatchViewModel {
         currentMatch = nil
         
         #if DEBUG
-        print("DEBUG: Match finalized successfully")
+        print("DEBUG: Match finalized successfully (isFullTime=\(isFullTime), matchCompleted=\(matchCompleted))")
         #endif
     }
     

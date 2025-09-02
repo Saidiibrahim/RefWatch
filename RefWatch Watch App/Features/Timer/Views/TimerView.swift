@@ -8,6 +8,7 @@ struct TimerView: View {
     let model: MatchViewModel
     let lifecycle: MatchLifecycleCoordinator
     @State private var showingActionSheet = false
+    @State private var pendingRouteToChooseFirstKicker = false
     @Environment(\.dismiss) private var dismiss
     
     private var periodLabel: String {
@@ -63,12 +64,26 @@ struct TimerView: View {
                 showingActionSheet = true
             }
         }
-        .sheet(isPresented: $showingActionSheet) {
+        .sheet(isPresented: $showingActionSheet, onDismiss: {
+            #if DEBUG
+            print("DEBUG: TimerView.sheet onDismiss showingActionSheet=false, pendingRouteToChooseFirstKicker=\(pendingRouteToChooseFirstKicker), waitingForPenaltiesStart=\(model.waitingForPenaltiesStart)")
+            #endif
+            if pendingRouteToChooseFirstKicker || model.waitingForPenaltiesStart {
+                pendingRouteToChooseFirstKicker = false
+                lifecycle.goToChoosePenaltyFirstKicker()
+            }
+        }) {
             MatchActionsSheet(matchViewModel: model, lifecycle: lifecycle)
         }
         // Lifecycle routing hooks
         .onChange(of: model.isFullTime) { isFT in
-            if isFT { lifecycle.goToFinished() }
+            #if DEBUG
+            print("DEBUG: TimerView.onChange isFullTime=\(isFT) state=\(lifecycle.state) matchCompleted=\(model.matchCompleted)")
+            #endif
+            // Guard against re-entering finished after finalize/reset
+            if isFT && !model.matchCompleted && lifecycle.state != .idle {
+                lifecycle.goToFinished()
+            }
         }
         .onChange(of: model.waitingForSecondHalfStart) { waiting in
             if waiting { lifecycle.goToKickoffSecond() }
@@ -80,7 +95,16 @@ struct TimerView: View {
             if waiting { lifecycle.goToKickoffETSecond() }
         }
         .onChange(of: model.waitingForPenaltiesStart) { waiting in
-            if waiting { lifecycle.goToPenalties() }
+            #if DEBUG
+            print("DEBUG: TimerView.onChange waitingForPenaltiesStart=\(waiting) sheetShown=\(showingActionSheet)")
+            #endif
+            if waiting {
+                if showingActionSheet {
+                    pendingRouteToChooseFirstKicker = true
+                } else {
+                    lifecycle.goToChoosePenaltyFirstKicker()
+                }
+            }
         }
     }
     
