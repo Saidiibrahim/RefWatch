@@ -18,18 +18,83 @@ final class MatchLifecycleCoordinator {
         case kickoffSecondHalf    // Show MatchKickOffView (second half)
         case kickoffExtraTimeFirstHalf // Show MatchKickOffView (ET first half)
         case kickoffExtraTimeSecondHalf // Show MatchKickOffView (ET second half)
+        case choosePenaltyFirstKicker // Show PenaltyFirstKickerView
         case penalties           // Show PenaltyShootoutView
         case finished             // Show FullTimeView
     }
 
     private(set) var state: State = .idle
 
-    func resetToStart() { state = .idle }
-    func goToSetup() { state = .setup }
-    func goToKickoffFirst() { state = .kickoffFirstHalf }
-    func goToKickoffSecond() { state = .kickoffSecondHalf }
-    func goToKickoffETFirst() { state = .kickoffExtraTimeFirstHalf }
-    func goToKickoffETSecond() { state = .kickoffExtraTimeSecondHalf }
-    func goToPenalties() { state = .penalties }
-    func goToFinished() { state = .finished }
+    func resetToStart() {
+        let old = state
+        guard old != .idle else { return }
+        state = .idle
+        #if DEBUG
+        print("DEBUG: Lifecycle transition: \(old) → \(state) [resetToStart]")
+        #endif
+    }
+    func goToSetup() {
+        let old = state
+        guard old != .setup else { return }
+        state = .setup
+        #if DEBUG
+        print("DEBUG: Lifecycle transition: \(old) → \(state) [goToSetup]")
+        #endif
+    }
+    func goToKickoffFirst() {
+        let old = state
+        guard old != .kickoffFirstHalf else { return }
+        state = .kickoffFirstHalf
+        #if DEBUG
+        print("DEBUG: Lifecycle transition: \(old) → \(state) [goToKickoffFirst]")
+        #endif
+    }
+    func goToKickoffSecond() {
+        let old = state
+        guard old != .kickoffSecondHalf else { return }
+        state = .kickoffSecondHalf
+        #if DEBUG
+        print("DEBUG: Lifecycle transition: \(old) → \(state) [goToKickoffSecond]")
+        #endif
+    }
+    func goToKickoffETFirst() {
+        let old = state
+        guard old != .kickoffExtraTimeFirstHalf else { return }
+        state = .kickoffExtraTimeFirstHalf
+        #if DEBUG
+        print("DEBUG: Lifecycle transition: \(old) → \(state) [goToKickoffETFirst]")
+        #endif
+    }
+    func goToKickoffETSecond() {
+        let old = state
+        guard old != .kickoffExtraTimeSecondHalf else { return }
+        state = .kickoffExtraTimeSecondHalf
+        #if DEBUG
+        print("DEBUG: Lifecycle transition: \(old) → \(state) [goToKickoffETSecond]")
+        #endif
+    }
+    func goToChoosePenaltyFirstKicker() {
+        let old = state
+        guard old != .choosePenaltyFirstKicker else { return }
+        state = .choosePenaltyFirstKicker
+        #if DEBUG
+        print("DEBUG: Lifecycle transition: \(old) → \(state) [goToChoosePenaltyFirstKicker]")
+        #endif
+    }
+    func goToPenalties() {
+        let old = state
+        guard old != .penalties else { return }
+        state = .penalties
+        #if DEBUG
+        print("DEBUG: Lifecycle transition: \(old) → \(state) [goToPenalties]")
+        #endif
+    }
+    func goToFinished() {
+        let old = state
+        guard old != .finished else { return }
+        state = .finished
+        #if DEBUG
+        print("DEBUG: Lifecycle transition: \(old) → \(state) [goToFinished]")
+        #endif
+    }
 }

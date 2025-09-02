@@ -190,8 +190,6 @@ extension MatchEventRecord {
     
     /// Formatted actual time for display in logs
     var formattedActualTime: String {
-        let formatter = DateFormatter()
-        formatter.timeStyle = .short
-        return formatter.string(from: actualTime)
+        DateFormatter.watchShortTime.string(from: actualTime)
     }
 }

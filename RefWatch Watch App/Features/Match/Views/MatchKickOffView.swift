@@ -77,7 +77,7 @@ struct MatchKickOffView: View {
             // Team selection boxes (horizontal layout)
             HStack(spacing: 12) {
                 SimpleTeamBox(
-                    teamName: matchViewModel.currentMatch?.homeTeam ?? "HOM",
+                    teamName: matchViewModel.homeTeamDisplayName,
                     score: matchViewModel.currentMatch?.homeScore ?? 0,
                     isSelected: selectedTeam == .home,
                     action: { selectedTeam = .home },
@@ -85,7 +85,7 @@ struct MatchKickOffView: View {
                 )
                 
                 SimpleTeamBox(
-                    teamName: matchViewModel.currentMatch?.awayTeam ?? "AWA", 
+                    teamName: matchViewModel.awayTeamDisplayName, 
                     score: matchViewModel.currentMatch?.awayScore ?? 0,
                     isSelected: selectedTeam == .away,
                     action: { selectedTeam = .away },
@@ -157,10 +157,7 @@ struct MatchKickOffView: View {
     
     // Computed property for current time
     private var formattedCurrentTime: String {
-        let formatter = DateFormatter()
-        formatter.timeStyle = .short
-        formatter.dateStyle = .none
-        return formatter.string(from: Date())
+        DateFormatter.watchShortTime.string(from: Date())
     }
 
     // Per-period duration label derived from current match when available

@@ -82,6 +82,11 @@ struct ContentView: View {
                         defaultSelectedTeam: matchViewModel.getETSecondHalfKickingTeam(),
                         lifecycle: lifecycle
                     )
+                case .choosePenaltyFirstKicker:
+                    PenaltyFirstKickerView(
+                        matchViewModel: matchViewModel,
+                        lifecycle: lifecycle
+                    )
                 case .penalties:
                     PenaltyShootoutView(
                         matchViewModel: matchViewModel,
@@ -90,14 +95,25 @@ struct ContentView: View {
                 case .finished:
                     FullTimeView(
                         matchViewModel: matchViewModel,
-                        onReturnHome: {
-                            // Reset state and return to start
-                            matchViewModel.resetMatch()
-                            lifecycle.resetToStart()
-                        }
+                        lifecycle: lifecycle
                     )
                 }
             }
+        }
+        .onChange(of: matchViewModel.matchCompleted) { completed, _ in
+            #if DEBUG
+            print("DEBUG: ContentView.onChange matchCompleted=\(completed) state=\(lifecycle.state)")
+            #endif
+            // Defensive fallback to guarantee return to idle after finalize
+            if completed && lifecycle.state != .idle {
+                lifecycle.resetToStart()
+                matchViewModel.resetMatch()
+            }
+        }
+        .onChange(of: lifecycle.state) { newState in
+            #if DEBUG
+            print("DEBUG: ContentView.onChange lifecycle.state=\(newState)")
+            #endif
         }
         .onChange(of: matchViewModel.lastPersistenceError) { newValue, _ in
             if newValue != nil { showPersistenceError = true }

@@ -88,8 +88,8 @@ final class MatchViewModel {
     private(set) var homeTeamKickingOff: Bool = false
     private(set) var homeTeamKickingOffET1: Bool? = nil
 
-    // Penalties managed by PenaltyManager (SRP)
-    private let penaltyManager = PenaltyManager()
+    // Penalties managed by PenaltyManager (SRP); injected for testing
+    private let penaltyManager: PenaltyManaging
     
     // Persistence error feedback surfaced to UI (optional alert)
     var lastPersistenceError: String? = nil
@@ -113,9 +113,14 @@ final class MatchViewModel {
     }
     var isSuddenDeathActive: Bool { penaltyManager.isSuddenDeathActive }
 
+    // Display helpers for team names with sensible fallbacks
+    var homeTeamDisplayName: String { currentMatch?.homeTeam ?? homeTeam }
+    var awayTeamDisplayName: String { currentMatch?.awayTeam ?? awayTeam }
+
     // MARK: - Initialization
-    init(history: MatchHistoryStoring = MatchHistoryService()) {
+    init(history: MatchHistoryStoring = MatchHistoryService(), penaltyManager: PenaltyManaging = PenaltyManager()) {
         self.history = history
+        self.penaltyManager = penaltyManager
         self.savedMatches = [
             Match(homeTeam: "Leeds United", awayTeam: "Newcastle United")
         ]
@@ -565,6 +570,17 @@ final class MatchViewModel {
     func setPenaltyFirstKicker(_ team: TeamSide) {
         penaltyManager.setFirstKicker(team)
     }
+
+    /// Begin penalties and set a first kicker in one coordinated step.
+    /// Returns true when penalties are active and the first kicker is set.
+    /// Safe to call multiple times (idempotent begin).
+    @discardableResult
+    func startPenalties(withFirstKicker team: TeamSide) -> Bool {
+        beginPenaltiesIfNeeded()
+        guard penaltyManager.isActive else { return false }
+        penaltyManager.setFirstKicker(team)
+        return true
+    }
     
     // MARK: - Match Management Actions
     
@@ -686,7 +702,7 @@ final class MatchViewModel {
         penaltyManager.end()
         
         #if DEBUG
-        print("DEBUG: Match reset successfully")
+        print("DEBUG: Match reset successfully (isFullTime=\(isFullTime), matchCompleted=\(matchCompleted), currentPeriod=\(currentPeriod))")
         #endif
     }
     
@@ -727,7 +743,7 @@ final class MatchViewModel {
         currentMatch = nil
         
         #if DEBUG
-        print("DEBUG: Match finalized successfully")
+        print("DEBUG: Match finalized successfully (isFullTime=\(isFullTime), matchCompleted=\(matchCompleted))")
         #endif
     }
     
