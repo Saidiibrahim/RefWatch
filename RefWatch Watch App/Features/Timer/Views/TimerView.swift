@@ -68,11 +68,12 @@ struct TimerView: View {
             #if DEBUG
             print("DEBUG: TimerView.sheet onDismiss showingActionSheet=false, pendingRouteToChooseFirstKicker=\(pendingRouteToChooseFirstKicker), waitingForPenaltiesStart=\(model.waitingForPenaltiesStart)")
             #endif
-            // When penalties should start while the actions sheet is/was visible,
-            // defer navigation until after the sheet dismisses to avoid watchOS
-            // modal presentation races (PUICAlertSheetController overlap).
-            // `pendingRouteToChooseFirstKicker` is set while the sheet is open;
-            // on dismissal we clear the flag and route exactly once.
+            // Modal presentation race prevention for watchOS:
+            // When penalties should start while the actions sheet is visible, defer
+            // navigation until after the sheet dismisses to avoid PUICAlertSheetController
+            // overlap and the "already presenting" crash on watchOS.
+            // We set `pendingRouteToChooseFirstKicker` while the sheet is open; on
+            // dismissal we clear the flag and route exactly once.
             if pendingRouteToChooseFirstKicker || model.waitingForPenaltiesStart {
                 pendingRouteToChooseFirstKicker = false
                 lifecycle.goToChoosePenaltyFirstKicker()

@@ -77,7 +77,7 @@ struct MatchKickOffView: View {
             // Team selection boxes (horizontal layout)
             HStack(spacing: 12) {
                 SimpleTeamBox(
-                    teamName: matchViewModel.currentMatch?.homeTeam ?? "HOM",
+                    teamName: matchViewModel.homeTeamDisplayName,
                     score: matchViewModel.currentMatch?.homeScore ?? 0,
                     isSelected: selectedTeam == .home,
                     action: { selectedTeam = .home },
@@ -85,7 +85,7 @@ struct MatchKickOffView: View {
                 )
                 
                 SimpleTeamBox(
-                    teamName: matchViewModel.currentMatch?.awayTeam ?? "AWA", 
+                    teamName: matchViewModel.awayTeamDisplayName, 
                     score: matchViewModel.currentMatch?.awayScore ?? 0,
                     isSelected: selectedTeam == .away,
                     action: { selectedTeam = .away },
