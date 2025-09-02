@@ -11,6 +11,7 @@ struct ContentView: View {
     @State private var matchViewModel = MatchViewModel()
     @State private var settingsViewModel = SettingsViewModel()
     @State private var lifecycle = MatchLifecycleCoordinator()
+    @State private var showPersistenceError = false
     
     var body: some View {
         NavigationStack {
@@ -37,6 +38,14 @@ struct ContentView: View {
                                 icon: "gear",
                                 destination: SettingsScreen(settingsViewModel: settingsViewModel),
                                 backgroundColor: .gray
+                            )
+
+                            // Optional: History browser for completed matches
+                            NavigationLinkButton(
+                                title: "History",
+                                icon: "clock.arrow.circlepath",
+                                destination: MatchHistoryView(matchViewModel: matchViewModel),
+                                backgroundColor: .blue
                             )
                         }
                         .padding(.horizontal)
@@ -89,6 +98,14 @@ struct ContentView: View {
                     )
                 }
             }
+        }
+        .onChange(of: matchViewModel.lastPersistenceError) { newValue, _ in
+            if newValue != nil { showPersistenceError = true }
+        }
+        .alert("Save Failed", isPresented: $showPersistenceError) {
+            Button("OK") { matchViewModel.lastPersistenceError = nil }
+        } message: {
+            Text(matchViewModel.lastPersistenceError ?? "An unknown error occurred while saving.")
         }
     }
 }

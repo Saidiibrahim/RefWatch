@@ -217,6 +217,21 @@ Delivered in v4
 Manual QA done for v4 (targeted)
 - Verified regulation → ET1 → ET2 → penalties routing, first‑kicker prompt flow, active‑team highlighting, and end gating; no regressions observed.
 
+## Current Status (PR v6) ✅
+
+Branch and PR
+- Branch: `feature/v6-persist-completed-matches`
+- PR: https://github.com/Saidiibrahim/RefWatch/pull/8
+ - Status: Completed ✅ (review passed)
+
+Delivered in v6
+- Persistence snapshot: Added `CompletedMatch` model and `MatchHistoryService` (JSON, atomic writes, ISO8601 dates, in‑memory cache).
+- VM integration: `finalizeMatch()` snapshots + persists before clearing state; graceful failure handling.
+- History UI: Optional browser with details view (sorted recent‑first, delete support).
+- Security & safety: File protection and backup exclusion applied after writes; documents guard with temp fallback in DEBUG; service made thread‑safe with concurrent queue + barrier.
+- Performance: Avoids main‑thread I/O; cached date formatter; History auto‑refresh on activation; recent‑only loading via VM bridge.
+- Tests: Service round‑trip, delete, concurrency + ordering, VM persistence and error surfacing.
+
 PR v5 — In‑Match Productivity
 - Goals:
   - Add “Undo last event” (revert score/card/sub counters and remove the record).
@@ -235,6 +250,33 @@ PR v6 — Persistence
   - Codable persistence layer; optional “Match History” view on watch.
 - Acceptance Criteria:
   - Completed matches retrievable; events accurate; no data loss after finalize.
+ - Notes (post‑review adjustments):
+   - `MatchHistoryService` uses a concurrent queue with barrier for thread‑safe cache + disk writes.
+   - I/O executed on service queue (keeps main thread responsive).
+   - File protection (`.completeUntilFirstUserAuthentication`) and backup exclusion applied after atomic writes.
+   - `Documents` dir guarded; temp fallback in DEBUG if unavailable.
+   - History list uses cached `DateFormatter` and refreshes on app activation.
+  - Finalize surfaces non‑blocking persistence errors via small alert + haptic.
+
+PR v6.1 — Data Security, Export, and History UX
+- Goals:
+  - Strengthen data handling and add quality‑of‑life tools around history.
+  - Specifically: tighten file protection, monitor storage, export data, and add basic search/filter.
+- Deliverables:
+  - Security: Confirm and document optimal protection level for watchOS container (keep `.completeUntilFirstUserAuthentication` for usability; evaluate `.complete` feasibility, fallback if needed). Add a small integrity check when loading (schema version + JSON decode sanity log in DEBUG).
+  - Storage monitoring: Service API to report on‑disk size and item count; lightweight warning threshold (e.g., 10MB) surfaced in History header for DEBUG builds.
+  - Export: Service method to export all snapshots to a single JSON (or zipped JSON if size > 1MB) under `Documents/Exports/` and mark it excluded from backups; basic UI action to trigger export with a completion toast on watch.
+  - Search/Filter: In‑memory filter on team names and date range for recent items; small UI on History to select team substring and quick date presets (Today/7d/30d/All).
+- Acceptance Criteria:
+  - Security: File remains protected; no regressions in load/save flows; integrity check logs appear in DEBUG.
+  - Storage: Size and count reported; warning appears in DEBUG when threshold exceeded.
+  - Export: Export file created successfully and visible via Files app when running a paired device; excluded from backups; success/failure feedback shown.
+  - Search/Filter: Filtering works on team names and date presets without noticeable lag on a list of 500 items.
+- Suggested Files:
+  - `Core/Services/MatchHistory/MatchHistoryService.swift` (size reporting, export, optional integrity logging)
+  - `Features/Match/ViewModels/MatchViewModel.swift` (bridges for export + filtering)
+  - `Features/Match/Views/MatchHistoryView.swift` (search/filter controls in a compact watch‑friendly UI; export trigger in overflow menu)
+  - `RefWatch Watch AppTests/*` (export success test using temp dir; size reporting tests)
 
 PR v7 — Docs + Cleanup
 - Goals:
