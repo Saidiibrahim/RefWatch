@@ -26,7 +26,7 @@ struct PenaltyShootoutView: View {
             }
 
             if matchViewModel.isPenaltyShootoutDecided, let winner = matchViewModel.penaltyWinner {
-                Text("\(winner == .home ? (matchViewModel.currentMatch?.homeTeam ?? "Home") : (matchViewModel.currentMatch?.awayTeam ?? "Away")) win")
+                Text("\(winner == .home ? matchViewModel.homeTeamDisplayName : matchViewModel.awayTeamDisplayName) win")
                     .font(.system(size: 14, weight: .semibold))
                     .padding(8)
                     .foregroundColor(.black)
@@ -51,7 +51,7 @@ struct PenaltyShootoutView: View {
             HStack(spacing: 12) {
                 PenaltyTeamPanel(
                     side: .home,
-                    title: matchViewModel.currentMatch?.homeTeam ?? "HOM",
+                    title: matchViewModel.homeTeamDisplayName,
                     scored: matchViewModel.homePenaltiesScored,
                     taken: matchViewModel.homePenaltiesTaken,
                     rounds: matchViewModel.penaltyRoundsVisible,
@@ -64,7 +64,7 @@ struct PenaltyShootoutView: View {
 
                 PenaltyTeamPanel(
                     side: .away,
-                    title: matchViewModel.currentMatch?.awayTeam ?? "AWA",
+                    title: matchViewModel.awayTeamDisplayName,
                     scored: matchViewModel.awayPenaltiesScored,
                     taken: matchViewModel.awayPenaltiesTaken,
                     rounds: matchViewModel.penaltyRoundsVisible,
@@ -117,9 +117,7 @@ struct PenaltyShootoutView: View {
     }
 
     private var formattedCurrentTime: String {
-        let formatter = DateFormatter()
-        formatter.timeStyle = .short
-        return formatter.string(from: Date())
+        DateFormatter.watchShortTime.string(from: Date())
     }
 }
 
@@ -198,50 +196,7 @@ private struct PenaltyTeamPanel: View {
     }
 }
 
-private struct FirstKickerPickerView: View {
-    let homeTeam: String
-    let awayTeam: String
-    let onSelect: (TeamSide) -> Void
-    let onCancel: () -> Void
-
-    var body: some View {
-        VStack(spacing: 16) {
-            Text("Who kicks first?")
-                .font(.headline)
-                .padding(.top, 8)
-
-            HStack(spacing: 12) {
-                Button(action: { onSelect(.home) }) {
-                    Text(homeTeam)
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 44)
-                        .background(RoundedRectangle(cornerRadius: 10).fill(Color.blue))
-                }
-                .buttonStyle(.plain)
-
-                Button(action: { onSelect(.away) }) {
-                    Text(awayTeam)
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 44)
-                        .background(RoundedRectangle(cornerRadius: 10).fill(Color.red))
-                }
-                .buttonStyle(.plain)
-            }
-
-            Button("Cancel", action: onCancel)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundColor(.white)
-                .padding(.vertical, 8)
-
-            Spacer()
-        }
-        .padding(.horizontal)
-    }
-}
+// FirstKickerPickerView removed; replaced by dedicated PenaltyFirstKickerView screen
 
 #Preview {
     PenaltyShootoutView(matchViewModel: MatchViewModel(), lifecycle: MatchLifecycleCoordinator())

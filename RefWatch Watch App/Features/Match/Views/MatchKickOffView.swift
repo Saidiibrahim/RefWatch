@@ -157,10 +157,7 @@ struct MatchKickOffView: View {
     
     // Computed property for current time
     private var formattedCurrentTime: String {
-        let formatter = DateFormatter()
-        formatter.timeStyle = .short
-        formatter.dateStyle = .none
-        return formatter.string(from: Date())
+        DateFormatter.watchShortTime.string(from: Date())
     }
 
     // Per-period duration label derived from current match when available

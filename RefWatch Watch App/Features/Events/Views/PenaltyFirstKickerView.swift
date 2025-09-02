@@ -11,6 +11,7 @@ import WatchKit
 struct PenaltyFirstKickerView: View {
     let matchViewModel: MatchViewModel
     let lifecycle: MatchLifecycleCoordinator
+    @State private var isRouting = false
 
     var body: some View {
         VStack(spacing: 16) {
@@ -26,8 +27,8 @@ struct PenaltyFirstKickerView: View {
 
             // Buttons
             HStack(spacing: 12) {
-                firstKickerButton(title: matchViewModel.currentMatch?.homeTeam ?? "HOM", side: .home, color: .blue)
-                firstKickerButton(title: matchViewModel.currentMatch?.awayTeam ?? "AWA", side: .away, color: .red)
+                firstKickerButton(title: matchViewModel.homeTeamDisplayName, side: .home, color: .blue)
+                firstKickerButton(title: matchViewModel.awayTeamDisplayName, side: .away, color: .red)
             }
             .padding(.horizontal)
 
@@ -39,10 +40,22 @@ struct PenaltyFirstKickerView: View {
 
     private func firstKickerButton(title: String, side: TeamSide, color: Color) -> some View {
         Button(action: {
+            // Haptic feedback and simple tap guard to avoid double navigation
             WKInterfaceDevice.current().play(.click)
-            matchViewModel.beginPenaltiesIfNeeded()
-            matchViewModel.setPenaltyFirstKicker(side)
-            lifecycle.goToPenalties()
+            guard !isRouting else { return }
+            isRouting = true
+
+            // Use a single coordinated call to avoid partial state updates.
+            // This ensures penalties are active before setting the first kicker
+            // and we only navigate if setup succeeded.
+            let ok = matchViewModel.startPenalties(withFirstKicker: side)
+            if ok {
+                lifecycle.goToPenalties()
+            } else {
+                // If coordination failed (defensive), reset guard and notify via haptic
+                isRouting = false
+                WKInterfaceDevice.current().play(.failure)
+            }
         }) {
             Text(title)
                 .font(.system(size: 16, weight: .semibold))
@@ -52,17 +65,15 @@ struct PenaltyFirstKickerView: View {
                 .background(RoundedRectangle(cornerRadius: 10).fill(color))
         }
         .buttonStyle(.plain)
+        .disabled(isRouting)
         .accessibilityIdentifier(side == .home ? "firstKickerHomeBtn" : "firstKickerAwayBtn")
     }
 
     private var formattedCurrentTime: String {
-        let formatter = DateFormatter()
-        formatter.timeStyle = .short
-        return formatter.string(from: Date())
+        DateFormatter.watchShortTime.string(from: Date())
     }
 }
 
 #Preview {
     PenaltyFirstKickerView(matchViewModel: MatchViewModel(), lifecycle: MatchLifecycleCoordinator())
 }
-
