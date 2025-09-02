@@ -81,6 +81,33 @@ final class MatchHistoryService: MatchHistoryStoring {
         let data = try encoder.encode(items)
         // Atomic write
         try data.write(to: fileURL, options: .atomic)
+        // Re-apply file protection and backup exclusion after atomic replace
+        applyProtectionAndExclusion()
+    }
+
+    /// Applies data protection and excludes file from backup. Best-effort; logs in DEBUG on failure.
+    private func applyProtectionAndExclusion() {
+        // Set file protection: accessible after first unlock following boot
+        do {
+            try FileManager.default.setAttributes(
+                [FileAttributeKey.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication],
+                ofItemAtPath: fileURL.path
+            )
+        } catch {
+            #if DEBUG
+            print("DEBUG: Failed to set file protection on completed_matches.json: \(error)")
+            #endif
+        }
+
+        // Exclude from backups (on-device only)
+        do {
+            var values = URLResourceValues()
+            values.isExcludedFromBackup = true
+            try fileURL.setResourceValues(values)
+        } catch {
+            #if DEBUG
+            print("DEBUG: Failed to exclude completed_matches.json from backup: \(error)")
+            #endif
+        }
     }
 }
-
