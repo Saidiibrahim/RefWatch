@@ -88,8 +88,8 @@ final class MatchViewModel {
     private(set) var homeTeamKickingOff: Bool = false
     private(set) var homeTeamKickingOffET1: Bool? = nil
 
-    // Penalties managed by PenaltyManager (SRP)
-    private let penaltyManager = PenaltyManager()
+    // Penalties managed by PenaltyManager (SRP); injected for testing
+    private let penaltyManager: PenaltyManaging
     
     // Persistence error feedback surfaced to UI (optional alert)
     var lastPersistenceError: String? = nil
@@ -118,8 +118,9 @@ final class MatchViewModel {
     var awayTeamDisplayName: String { currentMatch?.awayTeam ?? awayTeam }
 
     // MARK: - Initialization
-    init(history: MatchHistoryStoring = MatchHistoryService()) {
+    init(history: MatchHistoryStoring = MatchHistoryService(), penaltyManager: PenaltyManaging = PenaltyManager()) {
         self.history = history
+        self.penaltyManager = penaltyManager
         self.savedMatches = [
             Match(homeTeam: "Leeds United", awayTeam: "Newcastle United")
         ]

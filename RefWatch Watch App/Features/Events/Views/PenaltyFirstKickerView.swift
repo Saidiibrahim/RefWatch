@@ -45,9 +45,11 @@ struct PenaltyFirstKickerView: View {
             guard !isRouting else { return }
             isRouting = true
 
-            // Use a single coordinated call to avoid partial state updates.
-            // This ensures penalties are active before setting the first kicker
-            // and we only navigate if setup succeeded.
+            // Coordinated penalty setup to prevent partial state corruption:
+            // - startPenalties(withFirstKicker:) atomically begins the shootout and sets first kicker
+            // - Only navigate if setup succeeds (returns true)
+            // - On failure, we provide failure haptic feedback and keep the user on this screen
+            // This replaces the previous multi-step beginPenaltiesIfNeeded() + setPenaltyFirstKicker() approach.
             let ok = matchViewModel.startPenalties(withFirstKicker: side)
             if ok {
                 lifecycle.goToPenalties()
