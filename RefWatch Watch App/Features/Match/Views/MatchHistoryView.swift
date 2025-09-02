@@ -10,6 +10,7 @@ import SwiftUI
 struct MatchHistoryView: View {
     let matchViewModel: MatchViewModel
     @State private var items: [CompletedMatch] = []
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         List {
@@ -49,10 +50,13 @@ struct MatchHistoryView: View {
         .listStyle(.carousel)
         .navigationTitle("History")
         .onAppear(perform: reload)
+        .onChange(of: scenePhase) { phase, _ in
+            if phase == .active { reload() }
+        }
     }
 
     private func reload() {
-        items = matchViewModel.loadCompletedMatches()
+        items = matchViewModel.loadRecentCompletedMatches()
     }
 
     private func delete(at offsets: IndexSet) {
@@ -63,11 +67,15 @@ struct MatchHistoryView: View {
         reload()
     }
 
-    private func format(date: Date) -> String {
+    private static let dateFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateStyle = .short
         f.timeStyle = .short
-        return f.string(from: date)
+        return f
+    }()
+
+    private func format(date: Date) -> String {
+        Self.dateFormatter.string(from: date)
     }
 }
 
@@ -168,4 +176,3 @@ struct MatchHistoryDetailView: View {
     let vm = MatchViewModel()
     return NavigationStack { MatchHistoryView(matchViewModel: vm) }
 }
-

@@ -16,18 +16,37 @@ protocol MatchHistoryStoring {
     func wipeAll() throws
 }
 
+// Convenience pagination helper without breaking existing protocol call sites
+extension MatchHistoryStoring {
+    func loadRecent(_ limit: Int = 50) -> [CompletedMatch] {
+        let all = (try? loadAll()) ?? []
+        return Array(all.prefix(limit))
+    }
+}
+
 // MARK: - Service
 final class MatchHistoryService: MatchHistoryStoring {
     private let fileURL: URL
     private var cache: [CompletedMatch] = []
+    private let queue = DispatchQueue(label: "MatchHistoryService", attributes: .concurrent)
 
     // Inject base directory for tests; defaults to Documents directory in app container
     init(baseDirectory: URL? = nil) {
         if let base = baseDirectory {
             self.fileURL = base.appendingPathComponent("completed_matches.json")
         } else {
-            let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-            self.fileURL = docs.appendingPathComponent("completed_matches.json")
+            // Guard documents directory discovery to avoid force-unwrap crashes
+            if let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
+                self.fileURL = docs.appendingPathComponent("completed_matches.json")
+            } else {
+                // Fall back to a temp-based appData folder (best-effort)
+                let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("appData", isDirectory: true)
+                try? FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
+                self.fileURL = tmp.appendingPathComponent("completed_matches.json")
+                #if DEBUG
+                print("DEBUG: Documents directory not found. Falling back to temporary appData directory for persistence.")
+                #endif
+            }
         }
         // Best-effort initial load; ignore errors and start empty
         if let loaded = try? loadFromDisk() {
@@ -39,27 +58,35 @@ final class MatchHistoryService: MatchHistoryStoring {
 
     // MARK: - Public API
     func loadAll() throws -> [CompletedMatch] {
-        // Ensure cache is synced with disk (best-effort)
-        if let latest = try? loadFromDisk() { cache = latest }
-        return cache.sorted(by: { $0.completedAt > $1.completedAt })
+        try queue.sync {
+            // Ensure cache is synced with disk (best-effort)
+            if let latest = try? loadFromDisk() { cache = latest }
+            return cache.sorted(by: { $0.completedAt > $1.completedAt })
+        }
     }
 
     func save(_ match: CompletedMatch) throws {
-        // Refresh cache from disk then append and write atomically
-        if let latest = try? loadFromDisk() { cache = latest }
-        cache.append(match)
-        try saveToDisk(cache)
+        try queue.sync(flags: .barrier) {
+            // Refresh cache from disk then append and write atomically
+            if let latest = try? loadFromDisk() { cache = latest }
+            cache.append(match)
+            try saveToDisk(cache)
+        }
     }
 
     func delete(id: UUID) throws {
-        if let latest = try? loadFromDisk() { cache = latest }
-        cache.removeAll { $0.id == id }
-        try saveToDisk(cache)
+        try queue.sync(flags: .barrier) {
+            if let latest = try? loadFromDisk() { cache = latest }
+            cache.removeAll { $0.id == id }
+            try saveToDisk(cache)
+        }
     }
 
     func wipeAll() throws {
-        cache = []
-        try saveToDisk(cache)
+        try queue.sync(flags: .barrier) {
+            cache = []
+            try saveToDisk(cache)
+        }
     }
 
     // MARK: - Disk Helpers
@@ -103,7 +130,8 @@ final class MatchHistoryService: MatchHistoryStoring {
         do {
             var values = URLResourceValues()
             values.isExcludedFromBackup = true
-            try fileURL.setResourceValues(values)
+            var url = fileURL // setResourceValues mutates
+            try url.setResourceValues(values)
         } catch {
             #if DEBUG
             print("DEBUG: Failed to exclude completed_matches.json from backup: \(error)")

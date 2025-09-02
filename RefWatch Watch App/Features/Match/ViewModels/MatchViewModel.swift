@@ -91,6 +91,9 @@ final class MatchViewModel {
     // Penalties managed by PenaltyManager (SRP)
     private let penaltyManager = PenaltyManager()
     
+    // Persistence error feedback surfaced to UI (optional alert)
+    var lastPersistenceError: String? = nil
+    
     // Computed bridges to maintain current UI/View API
     var penaltyShootoutActive: Bool { penaltyManager.isActive }
     var homePenaltiesScored: Int { penaltyManager.homeScored }
@@ -701,6 +704,8 @@ final class MatchViewModel {
                 #if DEBUG
                 print("DEBUG: Failed to persist completed match: \(error)")
                 #endif
+                lastPersistenceError = error.localizedDescription
+                WKInterfaceDevice.current().play(.failure)
             }
         }
         
@@ -747,6 +752,11 @@ final class MatchViewModel {
     // MARK: - History Bridges (Optional UI)
     func loadCompletedMatches() -> [CompletedMatch] {
         (try? history.loadAll()) ?? []
+    }
+
+    /// Latest N completed matches (default 50), ordered by most recent first
+    func loadRecentCompletedMatches(limit: Int = 50) -> [CompletedMatch] {
+        history.loadRecent(limit)
     }
 
     func deleteCompletedMatch(id: UUID) {

@@ -44,5 +44,25 @@ struct MatchViewModel_PersistenceTests {
         // VM should clear current match
         #expect(vm.currentMatch == nil)
     }
-}
 
+    private final class FailingMatchHistoryService: MatchHistoryStoring {
+        func loadAll() throws -> [CompletedMatch] { [] }
+        func save(_ match: CompletedMatch) throws { throw NSError(domain: "test", code: -1) }
+        func delete(id: UUID) throws { }
+        func wipeAll() throws { }
+    }
+
+    @Test
+    func test_finalizeMatch_surfaces_error_on_save_failure() async throws {
+        let vm = MatchViewModel(history: FailingMatchHistoryService())
+
+        vm.configureMatch(duration: 90, periods: 2, halfTimeLength: 15, hasExtraTime: false, hasPenalties: false)
+        vm.createMatch()
+
+        vm.finalizeMatch()
+
+        // Error should be surfaced but finalize still clears state
+        #expect(vm.lastPersistenceError != nil)
+        #expect(vm.currentMatch == nil)
+    }
+}
