@@ -27,6 +27,7 @@ final class MatchLifecycleCoordinator {
 
     func resetToStart() {
         let old = state
+        guard old != .idle else { return }
         state = .idle
         #if DEBUG
         print("DEBUG: Lifecycle transition: \(old) → \(state) [resetToStart]")
@@ -34,6 +35,7 @@ final class MatchLifecycleCoordinator {
     }
     func goToSetup() {
         let old = state
+        guard old != .setup else { return }
         state = .setup
         #if DEBUG
         print("DEBUG: Lifecycle transition: \(old) → \(state) [goToSetup]")
@@ -41,6 +43,7 @@ final class MatchLifecycleCoordinator {
     }
     func goToKickoffFirst() {
         let old = state
+        guard old != .kickoffFirstHalf else { return }
         state = .kickoffFirstHalf
         #if DEBUG
         print("DEBUG: Lifecycle transition: \(old) → \(state) [goToKickoffFirst]")
@@ -48,6 +51,7 @@ final class MatchLifecycleCoordinator {
     }
     func goToKickoffSecond() {
         let old = state
+        guard old != .kickoffSecondHalf else { return }
         state = .kickoffSecondHalf
         #if DEBUG
         print("DEBUG: Lifecycle transition: \(old) → \(state) [goToKickoffSecond]")
@@ -55,6 +59,7 @@ final class MatchLifecycleCoordinator {
     }
     func goToKickoffETFirst() {
         let old = state
+        guard old != .kickoffExtraTimeFirstHalf else { return }
         state = .kickoffExtraTimeFirstHalf
         #if DEBUG
         print("DEBUG: Lifecycle transition: \(old) → \(state) [goToKickoffETFirst]")
@@ -62,6 +67,7 @@ final class MatchLifecycleCoordinator {
     }
     func goToKickoffETSecond() {
         let old = state
+        guard old != .kickoffExtraTimeSecondHalf else { return }
         state = .kickoffExtraTimeSecondHalf
         #if DEBUG
         print("DEBUG: Lifecycle transition: \(old) → \(state) [goToKickoffETSecond]")
@@ -69,6 +75,7 @@ final class MatchLifecycleCoordinator {
     }
     func goToChoosePenaltyFirstKicker() {
         let old = state
+        guard old != .choosePenaltyFirstKicker else { return }
         state = .choosePenaltyFirstKicker
         #if DEBUG
         print("DEBUG: Lifecycle transition: \(old) → \(state) [goToChoosePenaltyFirstKicker]")
@@ -76,6 +83,7 @@ final class MatchLifecycleCoordinator {
     }
     func goToPenalties() {
         let old = state
+        guard old != .penalties else { return }
         state = .penalties
         #if DEBUG
         print("DEBUG: Lifecycle transition: \(old) → \(state) [goToPenalties]")
@@ -83,6 +91,7 @@ final class MatchLifecycleCoordinator {
     }
     func goToFinished() {
         let old = state
+        guard old != .finished else { return }
         state = .finished
         #if DEBUG
         print("DEBUG: Lifecycle transition: \(old) → \(state) [goToFinished]")

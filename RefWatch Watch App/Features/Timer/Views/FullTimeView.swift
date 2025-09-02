@@ -29,12 +29,12 @@ struct FullTimeView: View {
             // Team score boxes
             HStack(spacing: 16) {
                 TeamScoreBox(
-                    teamName: matchViewModel.currentMatch?.homeTeam ?? "HOM",
+                    teamName: matchViewModel.homeTeamDisplayName,
                     score: matchViewModel.currentMatch?.homeScore ?? 0
                 )
                 
                 TeamScoreBox(
-                    teamName: matchViewModel.currentMatch?.awayTeam ?? "AWA",
+                    teamName: matchViewModel.awayTeamDisplayName,
                     score: matchViewModel.currentMatch?.awayScore ?? 0
                 )
             }
@@ -115,10 +115,7 @@ struct FullTimeView: View {
     
     // Computed property for current time
     private var formattedCurrentTime: String {
-        let formatter = DateFormatter()
-        formatter.timeStyle = .short
-        formatter.dateStyle = .none
-        return formatter.string(from: Date())
+        DateFormatter.watchShortTime.string(from: Date())
     }
 }
 
