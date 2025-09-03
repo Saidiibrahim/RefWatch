@@ -24,15 +24,15 @@ final class LiveSessionModel: ObservableObject {
 
     func simulateStart(home: String = "HOM", away: String = "AWA") {
         isActive = true
-        periodLabel = "First Half"
-        matchTime = "23:12"; periodTimeRemaining = "21:48"; stoppage = "01:20"
-        score = .init(home: 1, away: 0)
         homeTeam = home; awayTeam = away
-        events = [
-            .init(icon: "soccerball", color: .green, title: "Goal — \(home) #9", subtitle: "Right-footed shot (open play)", time: "12:40"),
-            .init(icon: "square.fill", color: .yellow, title: "Yellow Card — \(away) #6", subtitle: "Unsporting behaviour", time: "18:12"),
-            .init(icon: "arrow.up.arrow.down", color: .blue, title: "Substitution — \(away)", subtitle: "#10 → #17", time: "22:01")
-        ]
+        #if DEBUG
+        applySampleData(home: home, away: away)
+        #else
+        periodLabel = "First Half"
+        matchTime = "00:10"; periodTimeRemaining = "44:50"; stoppage = "00:00"
+        score = .init(home: 0, away: 0)
+        events = []
+        #endif
     }
 
     func end() {
@@ -44,3 +44,17 @@ final class LiveSessionModel: ObservableObject {
     }
 }
 
+#if DEBUG
+private extension LiveSessionModel {
+    func applySampleData(home: String, away: String) {
+        periodLabel = "First Half"
+        matchTime = "23:12"; periodTimeRemaining = "21:48"; stoppage = "01:20"
+        score = .init(home: 1, away: 0)
+        events = [
+            .init(icon: "soccerball", color: .green, title: "Goal — \(home) #9", subtitle: "Right-footed shot (open play)", time: "12:40"),
+            .init(icon: "square.fill", color: .yellow, title: "Yellow Card — \(away) #6", subtitle: "Unsporting behaviour", time: "18:12"),
+            .init(icon: "arrow.up.arrow.down", color: .blue, title: "Substitution — \(away)", subtitle: "#10 → #17", time: "22:01")
+        ]
+    }
+}
+#endif

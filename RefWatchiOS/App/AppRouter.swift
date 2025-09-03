@@ -9,7 +9,15 @@ import SwiftUI
 import Combine
 
 final class AppRouter: ObservableObject {
-    // 0: Matches, 1: Live, 2: Trends, 3: Library, 4: Settings
-    @Published var selectedTab: Int = 0
-}
+    enum Tab: Int, CaseIterable, Hashable {
+        case matches, live, trends, library, settings
+    }
 
+    @Published var selectedTab: Tab = .matches
+
+    // Centralized navigation helpers to avoid scattering tab logic in views
+    func openLive(home: String, away: String, session: LiveSessionModel) {
+        session.simulateStart(home: home, away: away)
+        selectedTab = .live
+    }
+}

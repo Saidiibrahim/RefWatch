@@ -86,6 +86,8 @@
 		9AF0AAA11D0000000000000E /* RefWatch Watch App/Core/Protocols/HapticsProviding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RefWatch Watch App/Core/Protocols/HapticsProviding.swift"; sourceTree = "<group>"; };
 		9AF0AAA11D0000000000000F /* RefWatch Watch App/Core/Protocols/PersistenceProviding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RefWatch Watch App/Core/Protocols/PersistenceProviding.swift"; sourceTree = "<group>"; };
 		9AF0AAA11D00000000000010 /* RefWatch Watch App/Core/Protocols/ConnectivitySyncProviding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RefWatch Watch App/Core/Protocols/ConnectivitySyncProviding.swift"; sourceTree = "<group>"; };
+		96B8129E2E67CDA500B23EC0 /* RefWatchiOSTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RefWatchiOSTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		96B812AE2E67CDA500B23EC0 /* RefWatchiOSUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RefWatchiOSUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -124,6 +126,16 @@
 			path = RefWatchiOS;
 			sourceTree = "<group>";
 		};
+		96B812902E67CDA500B23EC0 /* RefWatchiOSTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = RefWatchiOSTests;
+			sourceTree = "<group>";
+		};
+		96B812A02E67CDA500B23EC0 /* RefWatchiOSUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = RefWatchiOSUITests;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -155,6 +167,20 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+        96B8129B2E67CDA500B23EC0 /* Frameworks */ = {
+            isa = PBXFrameworksBuildPhase;
+            buildActionMask = 2147483647;
+            files = (
+            );
+            runOnlyForDeploymentPostprocessing = 0;
+        };
+        96B812AB2E67CDA500B23EC0 /* Frameworks */ = {
+            isa = PBXFrameworksBuildPhase;
+            buildActionMask = 2147483647;
+            files = (
+            );
+            runOnlyForDeploymentPostprocessing = 0;
+        };
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -165,6 +191,8 @@
 				964A4D862D32234B00D08376 /* RefWatch Watch AppTests */,
 				964A4D902D32234B00D08376 /* RefWatch Watch AppUITests */,
 				96B8126F2E67CDA400B23EC0 /* RefWatchiOS */,
+				96B812902E67CDA500B23EC0 /* RefWatchiOSTests */,
+				96B812A02E67CDA500B23EC0 /* RefWatchiOSUITests */,
 				9AF0AAA01D00000000000001 /* Shared */,
 				964A4D6C2D32234A00D08376 /* Products */,
 			);
@@ -178,6 +206,8 @@
 				964A4D832D32234B00D08376 /* RefWatch Watch AppTests.xctest */,
 				964A4D8D2D32234B00D08376 /* RefWatch Watch AppUITests.xctest */,
 				96B8126E2E67CDA400B23EC0 /* RefWatchiOS.app */,
+				96B8129E2E67CDA500B23EC0 /* RefWatchiOSTests.xctest */,
+				96B812AE2E67CDA500B23EC0 /* RefWatchiOSUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -317,6 +347,48 @@
 			productReference = 96B8126E2E67CDA400B23EC0 /* RefWatchiOS.app */;
 			productType = "com.apple.product-type.application";
 		};
+        96B8129D2E67CDA500B23EC0 /* RefWatchiOSTests */ = {
+            isa = PBXNativeTarget;
+            buildConfigurationList = 96B812A32E67CDA500B23EC0 /* Build configuration list for PBXNativeTarget "RefWatchiOSTests" */;
+            buildPhases = (
+                96B8129A2E67CDA500B23EC0 /* Sources */,
+                96B8129B2E67CDA500B23EC0 /* Frameworks */,
+                96B8129C2E67CDA500B23EC0 /* Resources */,
+            );
+            buildRules = (
+            );
+            dependencies = (
+                96B812A12E67CDA500B23EC0 /* PBXTargetDependency */,
+            );
+            fileSystemSynchronizedGroups = (
+                96B812902E67CDA500B23EC0 /* RefWatchiOSTests */,
+            );
+            name = RefWatchiOSTests;
+            productName = RefWatchiOSTests;
+            productReference = 96B8129E2E67CDA500B23EC0 /* RefWatchiOSTests.xctest */;
+            productType = "com.apple.product-type.bundle.unit-test";
+        };
+        96B812AD2E67CDA500B23EC0 /* RefWatchiOSUITests */ = {
+            isa = PBXNativeTarget;
+            buildConfigurationList = 96B812B12E67CDA500B23EC0 /* Build configuration list for PBXNativeTarget "RefWatchiOSUITests" */;
+            buildPhases = (
+                96B812AA2E67CDA500B23EC0 /* Sources */,
+                96B812AB2E67CDA500B23EC0 /* Frameworks */,
+                96B812AC2E67CDA500B23EC0 /* Resources */,
+            );
+            buildRules = (
+            );
+            dependencies = (
+                96B812AF2E67CDA500B23EC0 /* PBXTargetDependency */,
+            );
+            fileSystemSynchronizedGroups = (
+                96B812A02E67CDA500B23EC0 /* RefWatchiOSUITests */,
+            );
+            name = RefWatchiOSUITests;
+            productName = RefWatchiOSUITests;
+            productReference = 96B812AE2E67CDA500B23EC0 /* RefWatchiOSUITests.xctest */;
+            productType = "com.apple.product-type.bundle.ui-testing";
+        };
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -344,6 +416,14 @@
 					96B8126D2E67CDA400B23EC0 = {
 						CreatedOnToolsVersion = 26.0;
 					};
+					96B8129D2E67CDA500B23EC0 = {
+						CreatedOnToolsVersion = 26.0;
+						TestTargetID = 96B8126D2E67CDA400B23EC0;
+					};
+					96B812AD2E67CDA500B23EC0 = {
+						CreatedOnToolsVersion = 26.0;
+						TestTargetID = 96B8126D2E67CDA400B23EC0;
+					};
 				};
 			};
 			buildConfigurationList = 964A4D682D32234A00D08376 /* Build configuration list for PBXProject "RefWatch" */;
@@ -365,6 +445,8 @@
 				964A4D822D32234B00D08376 /* RefWatch Watch AppTests */,
 				964A4D8C2D32234B00D08376 /* RefWatch Watch AppUITests */,
 				96B8126D2E67CDA400B23EC0 /* RefWatchiOS */,
+                96B8129D2E67CDA500B23EC0 /* RefWatchiOSTests */,
+                96B812AD2E67CDA500B23EC0 /* RefWatchiOSUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -405,6 +487,20 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+        96B8129C2E67CDA500B23EC0 /* Resources */ = {
+            isa = PBXResourcesBuildPhase;
+            buildActionMask = 2147483647;
+            files = (
+            );
+            runOnlyForDeploymentPostprocessing = 0;
+        };
+        96B812AC2E67CDA500B23EC0 /* Resources */ = {
+            isa = PBXResourcesBuildPhase;
+            buildActionMask = 2147483647;
+            files = (
+            );
+            runOnlyForDeploymentPostprocessing = 0;
+        };
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -452,6 +548,20 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+        96B8129A2E67CDA500B23EC0 /* Sources */ = {
+            isa = PBXSourcesBuildPhase;
+            buildActionMask = 2147483647;
+            files = (
+            );
+            runOnlyForDeploymentPostprocessing = 0;
+        };
+        96B812AA2E67CDA500B23EC0 /* Sources */ = {
+            isa = PBXSourcesBuildPhase;
+            buildActionMask = 2147483647;
+            files = (
+            );
+            runOnlyForDeploymentPostprocessing = 0;
+        };
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -470,6 +580,16 @@
 			target = 964A4D702D32234A00D08376 /* RefWatch Watch App */;
 			targetProxy = 964A4D8E2D32234B00D08376 /* PBXContainerItemProxy */;
 		};
+        96B812A12E67CDA500B23EC0 /* PBXTargetDependency */ = {
+            isa = PBXTargetDependency;
+            target = 96B8126D2E67CDA400B23EC0 /* RefWatchiOS */;
+            targetProxy = 96B812A22E67CDA500B23EC0 /* PBXContainerItemProxy */;
+        };
+        96B812AF2E67CDA500B23EC0 /* PBXTargetDependency */ = {
+            isa = PBXTargetDependency;
+            target = 96B8126D2E67CDA400B23EC0 /* RefWatchiOS */;
+            targetProxy = 96B812B02E67CDA500B23EC0 /* PBXContainerItemProxy */;
+        };
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
@@ -828,6 +948,82 @@
 			};
 			name = Release;
 		};
+        96B812A42E67CDA500B23EC0 /* Debug */ = {
+            isa = XCBuildConfiguration;
+            buildSettings = {
+                CODE_SIGN_STYLE = Automatic;
+                CURRENT_PROJECT_VERSION = 1;
+                DEVELOPMENT_TEAM = 6NV7X5BLU7;
+                GENERATE_INFOPLIST_FILE = YES;
+                IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+                MARKETING_VERSION = 1.0;
+                PRODUCT_BUNDLE_IDENTIFIER = com.IbrahimSaidi.RefWatchiOSTests;
+                PRODUCT_NAME = "$(TARGET_NAME)";
+                SDKROOT = iphoneos;
+                SWIFT_EMIT_LOC_STRINGS = NO;
+                SWIFT_VERSION = 5.0;
+                TARGETED_DEVICE_FAMILY = "1,2";
+            };
+            name = Debug;
+        };
+        96B812A52E67CDA500B23EC0 /* Release */ = {
+            isa = XCBuildConfiguration;
+            buildSettings = {
+                CODE_SIGN_STYLE = Automatic;
+                CURRENT_PROJECT_VERSION = 1;
+                DEVELOPMENT_TEAM = 6NV7X5BLU7;
+                GENERATE_INFOPLIST_FILE = YES;
+                IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+                MARKETING_VERSION = 1.0;
+                PRODUCT_BUNDLE_IDENTIFIER = com.IbrahimSaidi.RefWatchiOSTests;
+                PRODUCT_NAME = "$(TARGET_NAME)";
+                SDKROOT = iphoneos;
+                SWIFT_EMIT_LOC_STRINGS = NO;
+                SWIFT_VERSION = 5.0;
+                TARGETED_DEVICE_FAMILY = "1,2";
+                VALIDATE_PRODUCT = YES;
+            };
+            name = Release;
+        };
+        96B812B22E67CDA500B23EC0 /* Debug */ = {
+            isa = XCBuildConfiguration;
+            buildSettings = {
+                CODE_SIGN_STYLE = Automatic;
+                CURRENT_PROJECT_VERSION = 1;
+                DEVELOPMENT_TEAM = 6NV7X5BLU7;
+                GENERATE_INFOPLIST_FILE = YES;
+                IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+                MARKETING_VERSION = 1.0;
+                PRODUCT_BUNDLE_IDENTIFIER = com.IbrahimSaidi.RefWatchiOSUITests;
+                PRODUCT_NAME = "$(TARGET_NAME)";
+                SDKROOT = iphoneos;
+                SWIFT_EMIT_LOC_STRINGS = NO;
+                SWIFT_VERSION = 5.0;
+                TARGETED_DEVICE_FAMILY = "1,2";
+                TEST_TARGET_NAME = RefWatchiOS;
+            };
+            name = Debug;
+        };
+        96B812B32E67CDA500B23EC0 /* Release */ = {
+            isa = XCBuildConfiguration;
+            buildSettings = {
+                CODE_SIGN_STYLE = Automatic;
+                CURRENT_PROJECT_VERSION = 1;
+                DEVELOPMENT_TEAM = 6NV7X5BLU7;
+                GENERATE_INFOPLIST_FILE = YES;
+                IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+                MARKETING_VERSION = 1.0;
+                PRODUCT_BUNDLE_IDENTIFIER = com.IbrahimSaidi.RefWatchiOSUITests;
+                PRODUCT_NAME = "$(TARGET_NAME)";
+                SDKROOT = iphoneos;
+                SWIFT_EMIT_LOC_STRINGS = NO;
+                SWIFT_VERSION = 5.0;
+                TARGETED_DEVICE_FAMILY = "1,2";
+                TEST_TARGET_NAME = RefWatchiOS;
+                VALIDATE_PRODUCT = YES;
+            };
+            name = Release;
+        };
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -885,6 +1081,24 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+        96B812A32E67CDA500B23EC0 /* Build configuration list for PBXNativeTarget "RefWatchiOSTests" */ = {
+            isa = XCConfigurationList;
+            buildConfigurations = (
+                96B812A42E67CDA500B23EC0 /* Debug */,
+                96B812A52E67CDA500B23EC0 /* Release */,
+            );
+            defaultConfigurationIsVisible = 0;
+            defaultConfigurationName = Release;
+        };
+        96B812B12E67CDA500B23EC0 /* Build configuration list for PBXNativeTarget "RefWatchiOSUITests" */ = {
+            isa = XCConfigurationList;
+            buildConfigurations = (
+                96B812B22E67CDA500B23EC0 /* Debug */,
+                96B812B32E67CDA500B23EC0 /* Release */,
+            );
+            defaultConfigurationIsVisible = 0;
+            defaultConfigurationName = Release;
+        };
 /* End XCConfigurationList section */
 	};
 	rootObject = 964A4D652D32234A00D08376 /* Project object */;

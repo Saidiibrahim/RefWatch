@@ -10,6 +10,7 @@ import SwiftUI
 struct LiveTabView: View {
     @EnvironmentObject private var router: AppRouter
     @EnvironmentObject private var session: LiveSessionModel
+    @State private var errorMessage: String?
 
     var body: some View {
         NavigationStack {
@@ -28,7 +29,21 @@ struct LiveTabView: View {
                     } label: { Text(session.isActive ? "End" : "Simulate") }
                 }
             }
+            .overlay(alignment: .top) {
+                if let banner = connectivityBannerText {
+                    Text(banner)
+                        .font(.footnote)
+                        .padding(8)
+                        .frame(maxWidth: .infinity)
+                        .background(Color.yellow.opacity(0.2))
+                        .foregroundStyle(.secondary)
+                        .accessibilityLabel("Connectivity status: \(banner)")
+                }
+            }
         }
+        .alert("Error", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+            Button("OK", role: .cancel) { errorMessage = nil }
+        } message: { Text(errorMessage ?? "") }
     }
 
     @ViewBuilder
@@ -103,7 +118,17 @@ struct LiveTabView: View {
 
 #Preview {
     LiveTabView()
-        .environmentObject(AppRouter())
-        .environmentObject(LiveSessionModel())
+        .environmentObject(AppRouter.preview(selected: .live))
+        .environmentObject(LiveSessionModel.preview())
 }
 
+// MARK: - Connectivity helpers (simple, read-only)
+private extension LiveTabView {
+    var connectivityBannerText: String? {
+        let c = ConnectivityClient.shared
+        guard c.isSupported else { return "WatchConnectivity not supported on this device" }
+        guard c.isPaired else { return "Apple Watch not paired" }
+        guard c.isWatchAppInstalled else { return "Watch app not installed" }
+        return c.isReachable ? nil : "Apple Watch not reachable"
+    }
+}
