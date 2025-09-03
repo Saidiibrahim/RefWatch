@@ -1,18 +1,31 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-- `RefWatch Watch App/App`: App entry (`RefWatchApp.swift`, `ContentView.swift`).
-- `RefWatch Watch App/Core`: Reusable UI components and services (e.g., `TimerService`, `MatchStateService`).
-- `RefWatch Watch App/Features`: Feature-first MVVM folders (`MatchSetup`, `Match`, `Events`, `Timer`, `Settings`, `TeamManagement`) with `Views/Models/ViewModels`.
-- `RefWatch Watch App/Assets.xcassets` and `Preview Content`: Visual assets and SwiftUI previews.
-- Tests: `RefWatch Watch AppTests` (unit) and `RefWatch Watch AppUITests` (UI).
+- watchOS (primary)
+  - `RefWatch Watch App/App`: App entry (`RefWatchApp.swift`, `ContentView.swift`).
+  - `RefWatch Watch App/Core`: Reusable components and services (`TimerManager`, `MatchHistoryService`, `PenaltyManager`, protocols, platform adapters like `WatchHaptics`).
+  - `RefWatch Watch App/Features`: Feature-first MVVM folders (`MatchSetup`, `Match`, `Events`, `Timer`, `Settings`, `TeamManagement`) with `Views/Models/ViewModels`.
+  - `RefWatch Watch App/Assets.xcassets`, `Preview Content`.
+  - Tests: `RefWatch Watch AppTests` (unit) and `RefWatch Watch AppUITests` (UI).
+
+- iOS (complementary)
+  - `RefWatchiOS/App`: App entry (`RefWatchiOSApp.swift`, `MainTabView.swift`, `AppRouter.swift`).
+  - `RefWatchiOS/Core`: `DesignSystem/` (Theme), `Platform/` (iOS adapters such as `IOSHaptics`, `ConnectivityClient`).
+  - `RefWatchiOS/Features`: Feature-first MVVM folders (`Matches`, `Live`, `Library`, `Trends`, `Settings`).
+  - `RefWatchiOS/Assets.xcassets`.
+
+- Shared (via Target Membership)
+  - Domain models under `RefWatch Watch App/Features/**/Models`.
+  - Services under `RefWatch Watch App/Core/Services`.
+  - Protocols under `RefWatch Watch App/Core/Protocols`.
 
 ## Build, Test, and Development Commands
-- Open in Xcode: `open RefWatch.xcodeproj` (or double-click the project).
-- Build (CLI): `xcodebuild -project RefWatch.xcodeproj -scheme "RefWatch Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)' build`.
-- Test (CLI): `xcodebuild test -project RefWatch.xcodeproj -scheme "RefWatch Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)'`.
-- Run locally: Select the "RefWatch Watch App" scheme in Xcode and an Apple Watch simulator, then Run.
-- Share the scheme for CLI/CI: Product → Scheme → Manage Schemes… → check "Shared".
+- Open in Xcode: `open RefWatch.xcodeproj` (or double‑click the project).
+- Build (watchOS, CLI): `xcodebuild -project RefWatch.xcodeproj -scheme "RefWatch Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)' build`.
+- Build (iOS, CLI): `xcodebuild -project RefWatch.xcodeproj -scheme "RefWatch iOS App" -destination 'platform=iOS Simulator,name=iPhone 15' build`.
+- Test (watchOS, CLI): `xcodebuild test -project RefWatch.xcodeproj -scheme "RefWatch Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)'`.
+- Run locally: Select scheme → choose simulator → ⌘R.
+- Share schemes for CLI/CI: Product → Scheme → Manage Schemes… → check "Shared".
 
 ## Coding Style & Naming Conventions
 - Swift + SwiftUI, MVVM. Use 2-space indentation and keep files focused.
@@ -23,10 +36,10 @@
 
 ## Testing Guidelines
 - Framework: XCTest (unit and UI).
-- Location: unit tests in `RefWatch Watch AppTests`, UI tests in `RefWatch Watch AppUITests`.
-- Naming: `test<Action>_when<Context>_does<Outcome>()` (clear, behavior-driven).
+- Location: unit tests in `RefWatch Watch AppTests`, UI tests in `RefWatch Watch AppUITests` (iOS tests may be added later).
+- Naming: `test<Action>_when<Context>_does<Outcome>()` (clear, behavior‑driven).
 - Focus: prioritize ViewModel and service tests; cover key flows with UI tests.
-- Run: same `xcodebuild test` command as above or via Xcode.
+- Run: use the test commands above or Xcode.
 
 ## Commit & Pull Request Guidelines
 - Commits: imperative, concise, single-purpose (e.g., "Improve timer pause logic", "Fix: goal recording flow").
@@ -34,6 +47,7 @@
 - Pre-submit: ensure the app builds, tests pass, and the changed flows run on a watch simulator.
 
 ## Security & Configuration Tips
-- Do not commit secrets or personal `xcuserdata`. Share Xcode schemes so others can build/test.
+- Do not commit secrets or personal `xcuserdata`.
+- Share Xcode schemes so others can build/test (both watchOS and iOS).
+- Avoid importing `WatchKit` in iOS or shared sources; use adapters (`HapticsProviding`, etc.) and `#if os(watchOS)` for watch‑only code.
 - Repo includes Claude Code workflows; PRs may receive automated review comments.
-

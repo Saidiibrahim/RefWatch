@@ -8,6 +8,22 @@
 
 /* Begin PBXBuildFile section */
 		964A4D722D32234A00D08376 /* RefWatch Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 964A4D712D32234A00D08376 /* RefWatch Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		9AF0AAB21D00000000000001 /* RefWatch Watch App/Core/Services/TimerManager/TimerManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AF0AAA11D00000000000001 /* RefWatch Watch App/Core/Services/TimerManager/TimerManager.swift */; };
+		9AF0AAB21D00000000000002 /* RefWatch Watch App/Core/Services/MatchHistory/MatchHistoryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AF0AAA11D00000000000002 /* RefWatch Watch App/Core/Services/MatchHistory/MatchHistoryService.swift */; };
+		9AF0AAB21D00000000000003 /* RefWatch Watch App/Core/Services/PenaltyManager/PenaltyManaging.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AF0AAA11D00000000000003 /* RefWatch Watch App/Core/Services/PenaltyManager/PenaltyManaging.swift */; };
+		9AF0AAB21D00000000000004 /* RefWatch Watch App/Core/Services/PenaltyManager/PenaltyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AF0AAA11D00000000000004 /* RefWatch Watch App/Core/Services/PenaltyManager/PenaltyManager.swift */; };
+		9AF0AAB21D00000000000005 /* RefWatch Watch App/Features/Match/Models/Match.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AF0AAA11D00000000000005 /* RefWatch Watch App/Features/Match/Models/Match.swift */; };
+		9AF0AAB21D00000000000006 /* RefWatch Watch App/Features/Match/Models/CompletedMatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AF0AAA11D00000000000006 /* RefWatch Watch App/Features/Match/Models/CompletedMatch.swift */; };
+		9AF0AAB21D00000000000007 /* RefWatch Watch App/Features/Events/Models/MatchEventRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AF0AAA11D00000000000007 /* RefWatch Watch App/Features/Events/Models/MatchEventRecord.swift */; };
+		9AF0AAB21D00000000000008 /* RefWatch Watch App/Features/Events/Models/CardModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AF0AAA11D00000000000008 /* RefWatch Watch App/Features/Events/Models/CardModels.swift */; };
+		9AF0AAB21D00000000000009 /* RefWatch Watch App/Features/Settings/Models/Settings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AF0AAA11D00000000000009 /* RefWatch Watch App/Features/Settings/Models/Settings.swift */; };
+		9AF0AAB21D0000000000000A /* RefWatch Watch App/Features/MatchSetup/Models/MatchSetupModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AF0AAA11D0000000000000A /* RefWatch Watch App/Features/MatchSetup/Models/MatchSetupModels.swift */; };
+		9AF0AAB21D0000000000000B /* RefWatch Watch App/Features/TeamManagement/Models/TeamModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AF0AAA11D0000000000000B /* RefWatch Watch App/Features/TeamManagement/Models/TeamModels.swift */; };
+		9AF0AAB21D0000000000000C /* RefWatch Watch App/Core/Extensions/DateFormatter+Common.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AF0AAA11D0000000000000C /* RefWatch Watch App/Core/Extensions/DateFormatter+Common.swift */; };
+		9AF0AAB21D0000000000000D /* RefWatch Watch App/Features/Match/ViewModels/MatchViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AF0AAA11D0000000000000D /* RefWatch Watch App/Features/Match/ViewModels/MatchViewModel.swift */; };
+		9AF0AAB21D0000000000000E /* RefWatch Watch App/Core/Protocols/HapticsProviding.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AF0AAA11D0000000000000E /* RefWatch Watch App/Core/Protocols/HapticsProviding.swift */; };
+		9AF0AAB21D0000000000000F /* RefWatch Watch App/Core/Protocols/PersistenceProviding.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AF0AAA11D0000000000000F /* RefWatch Watch App/Core/Protocols/PersistenceProviding.swift */; };
+		9AF0AAB21D00000000000010 /* RefWatch Watch App/Core/Protocols/ConnectivitySyncProviding.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AF0AAA11D00000000000010 /* RefWatch Watch App/Core/Protocols/ConnectivitySyncProviding.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -54,6 +70,22 @@
 		964A4D832D32234B00D08376 /* RefWatch Watch AppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "RefWatch Watch AppTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		964A4D8D2D32234B00D08376 /* RefWatch Watch AppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "RefWatch Watch AppUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		96B8126E2E67CDA400B23EC0 /* RefWatchiOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = RefWatchiOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		9AF0AAA11D00000000000001 /* RefWatch Watch App/Core/Services/TimerManager/TimerManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RefWatch Watch App/Core/Services/TimerManager/TimerManager.swift"; sourceTree = "<group>"; };
+		9AF0AAA11D00000000000002 /* RefWatch Watch App/Core/Services/MatchHistory/MatchHistoryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RefWatch Watch App/Core/Services/MatchHistory/MatchHistoryService.swift"; sourceTree = "<group>"; };
+		9AF0AAA11D00000000000003 /* RefWatch Watch App/Core/Services/PenaltyManager/PenaltyManaging.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RefWatch Watch App/Core/Services/PenaltyManager/PenaltyManaging.swift"; sourceTree = "<group>"; };
+		9AF0AAA11D00000000000004 /* RefWatch Watch App/Core/Services/PenaltyManager/PenaltyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RefWatch Watch App/Core/Services/PenaltyManager/PenaltyManager.swift"; sourceTree = "<group>"; };
+		9AF0AAA11D00000000000005 /* RefWatch Watch App/Features/Match/Models/Match.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RefWatch Watch App/Features/Match/Models/Match.swift"; sourceTree = "<group>"; };
+		9AF0AAA11D00000000000006 /* RefWatch Watch App/Features/Match/Models/CompletedMatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RefWatch Watch App/Features/Match/Models/CompletedMatch.swift"; sourceTree = "<group>"; };
+		9AF0AAA11D00000000000007 /* RefWatch Watch App/Features/Events/Models/MatchEventRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RefWatch Watch App/Features/Events/Models/MatchEventRecord.swift"; sourceTree = "<group>"; };
+		9AF0AAA11D00000000000008 /* RefWatch Watch App/Features/Events/Models/CardModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RefWatch Watch App/Features/Events/Models/CardModels.swift"; sourceTree = "<group>"; };
+		9AF0AAA11D00000000000009 /* RefWatch Watch App/Features/Settings/Models/Settings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RefWatch Watch App/Features/Settings/Models/Settings.swift"; sourceTree = "<group>"; };
+		9AF0AAA11D0000000000000A /* RefWatch Watch App/Features/MatchSetup/Models/MatchSetupModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RefWatch Watch App/Features/MatchSetup/Models/MatchSetupModels.swift"; sourceTree = "<group>"; };
+		9AF0AAA11D0000000000000B /* RefWatch Watch App/Features/TeamManagement/Models/TeamModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RefWatch Watch App/Features/TeamManagement/Models/TeamModels.swift"; sourceTree = "<group>"; };
+		9AF0AAA11D0000000000000C /* RefWatch Watch App/Core/Extensions/DateFormatter+Common.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RefWatch Watch App/Core/Extensions/DateFormatter+Common.swift"; sourceTree = "<group>"; };
+		9AF0AAA11D0000000000000D /* RefWatch Watch App/Features/Match/ViewModels/MatchViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RefWatch Watch App/Features/Match/ViewModels/MatchViewModel.swift"; sourceTree = "<group>"; };
+		9AF0AAA11D0000000000000E /* RefWatch Watch App/Core/Protocols/HapticsProviding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RefWatch Watch App/Core/Protocols/HapticsProviding.swift"; sourceTree = "<group>"; };
+		9AF0AAA11D0000000000000F /* RefWatch Watch App/Core/Protocols/PersistenceProviding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RefWatch Watch App/Core/Protocols/PersistenceProviding.swift"; sourceTree = "<group>"; };
+		9AF0AAA11D00000000000010 /* RefWatch Watch App/Core/Protocols/ConnectivitySyncProviding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RefWatch Watch App/Core/Protocols/ConnectivitySyncProviding.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -133,6 +165,7 @@
 				964A4D862D32234B00D08376 /* RefWatch Watch AppTests */,
 				964A4D902D32234B00D08376 /* RefWatch Watch AppUITests */,
 				96B8126F2E67CDA400B23EC0 /* RefWatchiOS */,
+				9AF0AAA01D00000000000001 /* Shared */,
 				964A4D6C2D32234A00D08376 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -147,6 +180,29 @@
 				96B8126E2E67CDA400B23EC0 /* RefWatchiOS.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		9AF0AAA01D00000000000001 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				9AF0AAA11D00000000000005 /* RefWatch Watch App/Features/Match/Models/Match.swift */,
+				9AF0AAA11D00000000000006 /* RefWatch Watch App/Features/Match/Models/CompletedMatch.swift */,
+				9AF0AAA11D00000000000007 /* RefWatch Watch App/Features/Events/Models/MatchEventRecord.swift */,
+				9AF0AAA11D00000000000008 /* RefWatch Watch App/Features/Events/Models/CardModels.swift */,
+				9AF0AAA11D00000000000009 /* RefWatch Watch App/Features/Settings/Models/Settings.swift */,
+				9AF0AAA11D0000000000000A /* RefWatch Watch App/Features/MatchSetup/Models/MatchSetupModels.swift */,
+				9AF0AAA11D0000000000000B /* RefWatch Watch App/Features/TeamManagement/Models/TeamModels.swift */,
+				9AF0AAA11D00000000000001 /* RefWatch Watch App/Core/Services/TimerManager/TimerManager.swift */,
+				9AF0AAA11D00000000000002 /* RefWatch Watch App/Core/Services/MatchHistory/MatchHistoryService.swift */,
+				9AF0AAA11D00000000000003 /* RefWatch Watch App/Core/Services/PenaltyManager/PenaltyManaging.swift */,
+				9AF0AAA11D00000000000004 /* RefWatch Watch App/Core/Services/PenaltyManager/PenaltyManager.swift */,
+				9AF0AAA11D0000000000000C /* RefWatch Watch App/Core/Extensions/DateFormatter+Common.swift */,
+				9AF0AAA11D0000000000000E /* RefWatch Watch App/Core/Protocols/HapticsProviding.swift */,
+				9AF0AAA11D0000000000000F /* RefWatch Watch App/Core/Protocols/PersistenceProviding.swift */,
+				9AF0AAA11D00000000000010 /* RefWatch Watch App/Core/Protocols/ConnectivitySyncProviding.swift */,
+				9AF0AAA11D0000000000000D /* RefWatch Watch App/Features/Match/ViewModels/MatchViewModel.swift */,
+			);
+			name = Shared;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -377,6 +433,22 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				9AF0AAB21D00000000000005 /* RefWatch Watch App/Features/Match/Models/Match.swift in Sources */,
+				9AF0AAB21D00000000000006 /* RefWatch Watch App/Features/Match/Models/CompletedMatch.swift in Sources */,
+				9AF0AAB21D00000000000007 /* RefWatch Watch App/Features/Events/Models/MatchEventRecord.swift in Sources */,
+				9AF0AAB21D00000000000008 /* RefWatch Watch App/Features/Events/Models/CardModels.swift in Sources */,
+				9AF0AAB21D00000000000009 /* RefWatch Watch App/Features/Settings/Models/Settings.swift in Sources */,
+				9AF0AAB21D0000000000000A /* RefWatch Watch App/Features/MatchSetup/Models/MatchSetupModels.swift in Sources */,
+				9AF0AAB21D0000000000000B /* RefWatch Watch App/Features/TeamManagement/Models/TeamModels.swift in Sources */,
+				9AF0AAB21D00000000000001 /* RefWatch Watch App/Core/Services/TimerManager/TimerManager.swift in Sources */,
+				9AF0AAB21D00000000000002 /* RefWatch Watch App/Core/Services/MatchHistory/MatchHistoryService.swift in Sources */,
+				9AF0AAB21D00000000000003 /* RefWatch Watch App/Core/Services/PenaltyManager/PenaltyManaging.swift in Sources */,
+				9AF0AAB21D00000000000004 /* RefWatch Watch App/Core/Services/PenaltyManager/PenaltyManager.swift in Sources */,
+				9AF0AAB21D0000000000000C /* RefWatch Watch App/Core/Extensions/DateFormatter+Common.swift in Sources */,
+				9AF0AAB21D0000000000000E /* RefWatch Watch App/Core/Protocols/HapticsProviding.swift in Sources */,
+				9AF0AAB21D0000000000000F /* RefWatch Watch App/Core/Protocols/PersistenceProviding.swift in Sources */,
+				9AF0AAB21D00000000000010 /* RefWatch Watch App/Core/Protocols/ConnectivitySyncProviding.swift in Sources */,
+				9AF0AAB21D0000000000000D /* RefWatch Watch App/Features/Match/ViewModels/MatchViewModel.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

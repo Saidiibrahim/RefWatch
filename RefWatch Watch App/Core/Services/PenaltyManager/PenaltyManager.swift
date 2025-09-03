@@ -8,7 +8,9 @@
 
 import Foundation
 import Observation
+#if os(watchOS)
 import WatchKit
+#endif
 
 @Observable
 final class PenaltyManager: PenaltyManaging {
@@ -140,7 +142,9 @@ final class PenaltyManager: PenaltyManaging {
         isDecided = true
         winner = team
         if !didPlayDecisionHaptic {
+            #if os(watchOS)
             WKInterfaceDevice.current().play(.success)
+            #endif
             didPlayDecisionHaptic = true
         }
         onDecided?(team)

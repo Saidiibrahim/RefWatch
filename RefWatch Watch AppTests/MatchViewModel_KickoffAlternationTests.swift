@@ -12,10 +12,9 @@ struct MatchViewModel_KickoffAlternationTests {
         let vm = MatchViewModel()
 
         vm.setKickingTeam(true) // home kicked off first half
-        #expect(vm.getSecondHalfKickingTeam() == MatchKickOffView.Team.away)
+        #expect(vm.getSecondHalfKickingTeam() == .away)
 
         vm.setKickingTeam(false) // away kicked off first half
-        #expect(vm.getSecondHalfKickingTeam() == MatchKickOffView.Team.home)
+        #expect(vm.getSecondHalfKickingTeam() == .home)
     }
 }
-

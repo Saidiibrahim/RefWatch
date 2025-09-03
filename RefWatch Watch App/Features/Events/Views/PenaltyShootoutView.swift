@@ -199,5 +199,5 @@ private struct PenaltyTeamPanel: View {
 // FirstKickerPickerView removed; replaced by dedicated PenaltyFirstKickerView screen
 
 #Preview {
-    PenaltyShootoutView(matchViewModel: MatchViewModel(), lifecycle: MatchLifecycleCoordinator())
+    PenaltyShootoutView(matchViewModel: MatchViewModel(haptics: WatchHaptics()), lifecycle: MatchLifecycleCoordinator())
 }

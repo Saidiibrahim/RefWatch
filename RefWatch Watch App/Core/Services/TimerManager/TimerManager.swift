@@ -8,7 +8,9 @@
 
 import Foundation
 import Observation
+#if os(watchOS)
 import WatchKit
+#endif
 
 @Observable
 final class TimerManager {
@@ -137,7 +139,9 @@ final class TimerManager {
                 onTick(label)
             }
             if elapsed >= match.halfTimeLength && !self.didFireHalftimeHaptic {
+                #if os(watchOS)
                 WKInterfaceDevice.current().play(.notification)
+                #endif
                 self.didFireHalftimeHaptic = true
             }
         }
