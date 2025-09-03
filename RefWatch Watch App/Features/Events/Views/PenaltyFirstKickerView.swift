@@ -77,5 +77,5 @@ struct PenaltyFirstKickerView: View {
 }
 
 #Preview {
-    PenaltyFirstKickerView(matchViewModel: MatchViewModel(), lifecycle: MatchLifecycleCoordinator())
+    PenaltyFirstKickerView(matchViewModel: MatchViewModel(haptics: WatchHaptics()), lifecycle: MatchLifecycleCoordinator())
 }

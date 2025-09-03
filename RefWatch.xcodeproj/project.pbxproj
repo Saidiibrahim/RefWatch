@@ -8,6 +8,22 @@
 
 /* Begin PBXBuildFile section */
 		964A4D722D32234A00D08376 /* RefWatch Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 964A4D712D32234A00D08376 /* RefWatch Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		9AF0AAB21D00000000000001 /* RefWatch Watch App/Core/Services/TimerManager/TimerManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AF0AAA11D00000000000001 /* RefWatch Watch App/Core/Services/TimerManager/TimerManager.swift */; };
+		9AF0AAB21D00000000000002 /* RefWatch Watch App/Core/Services/MatchHistory/MatchHistoryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AF0AAA11D00000000000002 /* RefWatch Watch App/Core/Services/MatchHistory/MatchHistoryService.swift */; };
+		9AF0AAB21D00000000000003 /* RefWatch Watch App/Core/Services/PenaltyManager/PenaltyManaging.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AF0AAA11D00000000000003 /* RefWatch Watch App/Core/Services/PenaltyManager/PenaltyManaging.swift */; };
+		9AF0AAB21D00000000000004 /* RefWatch Watch App/Core/Services/PenaltyManager/PenaltyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AF0AAA11D00000000000004 /* RefWatch Watch App/Core/Services/PenaltyManager/PenaltyManager.swift */; };
+		9AF0AAB21D00000000000005 /* RefWatch Watch App/Features/Match/Models/Match.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AF0AAA11D00000000000005 /* RefWatch Watch App/Features/Match/Models/Match.swift */; };
+		9AF0AAB21D00000000000006 /* RefWatch Watch App/Features/Match/Models/CompletedMatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AF0AAA11D00000000000006 /* RefWatch Watch App/Features/Match/Models/CompletedMatch.swift */; };
+		9AF0AAB21D00000000000007 /* RefWatch Watch App/Features/Events/Models/MatchEventRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AF0AAA11D00000000000007 /* RefWatch Watch App/Features/Events/Models/MatchEventRecord.swift */; };
+		9AF0AAB21D00000000000008 /* RefWatch Watch App/Features/Events/Models/CardModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AF0AAA11D00000000000008 /* RefWatch Watch App/Features/Events/Models/CardModels.swift */; };
+		9AF0AAB21D00000000000009 /* RefWatch Watch App/Features/Settings/Models/Settings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AF0AAA11D00000000000009 /* RefWatch Watch App/Features/Settings/Models/Settings.swift */; };
+		9AF0AAB21D0000000000000A /* RefWatch Watch App/Features/MatchSetup/Models/MatchSetupModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AF0AAA11D0000000000000A /* RefWatch Watch App/Features/MatchSetup/Models/MatchSetupModels.swift */; };
+		9AF0AAB21D0000000000000B /* RefWatch Watch App/Features/TeamManagement/Models/TeamModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AF0AAA11D0000000000000B /* RefWatch Watch App/Features/TeamManagement/Models/TeamModels.swift */; };
+		9AF0AAB21D0000000000000C /* RefWatch Watch App/Core/Extensions/DateFormatter+Common.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AF0AAA11D0000000000000C /* RefWatch Watch App/Core/Extensions/DateFormatter+Common.swift */; };
+		9AF0AAB21D0000000000000D /* RefWatch Watch App/Features/Match/ViewModels/MatchViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AF0AAA11D0000000000000D /* RefWatch Watch App/Features/Match/ViewModels/MatchViewModel.swift */; };
+		9AF0AAB21D0000000000000E /* RefWatch Watch App/Core/Protocols/HapticsProviding.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AF0AAA11D0000000000000E /* RefWatch Watch App/Core/Protocols/HapticsProviding.swift */; };
+		9AF0AAB21D0000000000000F /* RefWatch Watch App/Core/Protocols/PersistenceProviding.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AF0AAA11D0000000000000F /* RefWatch Watch App/Core/Protocols/PersistenceProviding.swift */; };
+		9AF0AAB21D00000000000010 /* RefWatch Watch App/Core/Protocols/ConnectivitySyncProviding.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AF0AAA11D00000000000010 /* RefWatch Watch App/Core/Protocols/ConnectivitySyncProviding.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -53,6 +69,25 @@
 		964A4D712D32234A00D08376 /* RefWatch Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "RefWatch Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		964A4D832D32234B00D08376 /* RefWatch Watch AppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "RefWatch Watch AppTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		964A4D8D2D32234B00D08376 /* RefWatch Watch AppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "RefWatch Watch AppUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		96B8126E2E67CDA400B23EC0 /* RefWatchiOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = RefWatchiOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		9AF0AAA11D00000000000001 /* RefWatch Watch App/Core/Services/TimerManager/TimerManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RefWatch Watch App/Core/Services/TimerManager/TimerManager.swift"; sourceTree = "<group>"; };
+		9AF0AAA11D00000000000002 /* RefWatch Watch App/Core/Services/MatchHistory/MatchHistoryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RefWatch Watch App/Core/Services/MatchHistory/MatchHistoryService.swift"; sourceTree = "<group>"; };
+		9AF0AAA11D00000000000003 /* RefWatch Watch App/Core/Services/PenaltyManager/PenaltyManaging.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RefWatch Watch App/Core/Services/PenaltyManager/PenaltyManaging.swift"; sourceTree = "<group>"; };
+		9AF0AAA11D00000000000004 /* RefWatch Watch App/Core/Services/PenaltyManager/PenaltyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RefWatch Watch App/Core/Services/PenaltyManager/PenaltyManager.swift"; sourceTree = "<group>"; };
+		9AF0AAA11D00000000000005 /* RefWatch Watch App/Features/Match/Models/Match.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RefWatch Watch App/Features/Match/Models/Match.swift"; sourceTree = "<group>"; };
+		9AF0AAA11D00000000000006 /* RefWatch Watch App/Features/Match/Models/CompletedMatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RefWatch Watch App/Features/Match/Models/CompletedMatch.swift"; sourceTree = "<group>"; };
+		9AF0AAA11D00000000000007 /* RefWatch Watch App/Features/Events/Models/MatchEventRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RefWatch Watch App/Features/Events/Models/MatchEventRecord.swift"; sourceTree = "<group>"; };
+		9AF0AAA11D00000000000008 /* RefWatch Watch App/Features/Events/Models/CardModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RefWatch Watch App/Features/Events/Models/CardModels.swift"; sourceTree = "<group>"; };
+		9AF0AAA11D00000000000009 /* RefWatch Watch App/Features/Settings/Models/Settings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RefWatch Watch App/Features/Settings/Models/Settings.swift"; sourceTree = "<group>"; };
+		9AF0AAA11D0000000000000A /* RefWatch Watch App/Features/MatchSetup/Models/MatchSetupModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RefWatch Watch App/Features/MatchSetup/Models/MatchSetupModels.swift"; sourceTree = "<group>"; };
+		9AF0AAA11D0000000000000B /* RefWatch Watch App/Features/TeamManagement/Models/TeamModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RefWatch Watch App/Features/TeamManagement/Models/TeamModels.swift"; sourceTree = "<group>"; };
+		9AF0AAA11D0000000000000C /* RefWatch Watch App/Core/Extensions/DateFormatter+Common.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RefWatch Watch App/Core/Extensions/DateFormatter+Common.swift"; sourceTree = "<group>"; };
+		9AF0AAA11D0000000000000D /* RefWatch Watch App/Features/Match/ViewModels/MatchViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RefWatch Watch App/Features/Match/ViewModels/MatchViewModel.swift"; sourceTree = "<group>"; };
+		9AF0AAA11D0000000000000E /* RefWatch Watch App/Core/Protocols/HapticsProviding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RefWatch Watch App/Core/Protocols/HapticsProviding.swift"; sourceTree = "<group>"; };
+		9AF0AAA11D0000000000000F /* RefWatch Watch App/Core/Protocols/PersistenceProviding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RefWatch Watch App/Core/Protocols/PersistenceProviding.swift"; sourceTree = "<group>"; };
+		9AF0AAA11D00000000000010 /* RefWatch Watch App/Core/Protocols/ConnectivitySyncProviding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RefWatch Watch App/Core/Protocols/ConnectivitySyncProviding.swift"; sourceTree = "<group>"; };
+		96B8129E2E67CDA500B23EC0 /* RefWatchiOSTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RefWatchiOSTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		96B812AE2E67CDA500B23EC0 /* RefWatchiOSUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RefWatchiOSUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -86,6 +121,21 @@
 			path = "RefWatch Watch AppUITests";
 			sourceTree = "<group>";
 		};
+		96B8126F2E67CDA400B23EC0 /* RefWatchiOS */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = RefWatchiOS;
+			sourceTree = "<group>";
+		};
+		96B812902E67CDA500B23EC0 /* RefWatchiOSTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = RefWatchiOSTests;
+			sourceTree = "<group>";
+		};
+		96B812A02E67CDA500B23EC0 /* RefWatchiOSUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = RefWatchiOSUITests;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -110,6 +160,27 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		96B8126B2E67CDA400B23EC0 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+        96B8129B2E67CDA500B23EC0 /* Frameworks */ = {
+            isa = PBXFrameworksBuildPhase;
+            buildActionMask = 2147483647;
+            files = (
+            );
+            runOnlyForDeploymentPostprocessing = 0;
+        };
+        96B812AB2E67CDA500B23EC0 /* Frameworks */ = {
+            isa = PBXFrameworksBuildPhase;
+            buildActionMask = 2147483647;
+            files = (
+            );
+            runOnlyForDeploymentPostprocessing = 0;
+        };
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -119,6 +190,10 @@
 				964A4D752D32234A00D08376 /* RefWatch Watch App */,
 				964A4D862D32234B00D08376 /* RefWatch Watch AppTests */,
 				964A4D902D32234B00D08376 /* RefWatch Watch AppUITests */,
+				96B8126F2E67CDA400B23EC0 /* RefWatchiOS */,
+				96B812902E67CDA500B23EC0 /* RefWatchiOSTests */,
+				96B812A02E67CDA500B23EC0 /* RefWatchiOSUITests */,
+				9AF0AAA01D00000000000001 /* Shared */,
 				964A4D6C2D32234A00D08376 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -130,8 +205,34 @@
 				964A4D712D32234A00D08376 /* RefWatch Watch App.app */,
 				964A4D832D32234B00D08376 /* RefWatch Watch AppTests.xctest */,
 				964A4D8D2D32234B00D08376 /* RefWatch Watch AppUITests.xctest */,
+				96B8126E2E67CDA400B23EC0 /* RefWatchiOS.app */,
+				96B8129E2E67CDA500B23EC0 /* RefWatchiOSTests.xctest */,
+				96B812AE2E67CDA500B23EC0 /* RefWatchiOSUITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		9AF0AAA01D00000000000001 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				9AF0AAA11D00000000000005 /* RefWatch Watch App/Features/Match/Models/Match.swift */,
+				9AF0AAA11D00000000000006 /* RefWatch Watch App/Features/Match/Models/CompletedMatch.swift */,
+				9AF0AAA11D00000000000007 /* RefWatch Watch App/Features/Events/Models/MatchEventRecord.swift */,
+				9AF0AAA11D00000000000008 /* RefWatch Watch App/Features/Events/Models/CardModels.swift */,
+				9AF0AAA11D00000000000009 /* RefWatch Watch App/Features/Settings/Models/Settings.swift */,
+				9AF0AAA11D0000000000000A /* RefWatch Watch App/Features/MatchSetup/Models/MatchSetupModels.swift */,
+				9AF0AAA11D0000000000000B /* RefWatch Watch App/Features/TeamManagement/Models/TeamModels.swift */,
+				9AF0AAA11D00000000000001 /* RefWatch Watch App/Core/Services/TimerManager/TimerManager.swift */,
+				9AF0AAA11D00000000000002 /* RefWatch Watch App/Core/Services/MatchHistory/MatchHistoryService.swift */,
+				9AF0AAA11D00000000000003 /* RefWatch Watch App/Core/Services/PenaltyManager/PenaltyManaging.swift */,
+				9AF0AAA11D00000000000004 /* RefWatch Watch App/Core/Services/PenaltyManager/PenaltyManager.swift */,
+				9AF0AAA11D0000000000000C /* RefWatch Watch App/Core/Extensions/DateFormatter+Common.swift */,
+				9AF0AAA11D0000000000000E /* RefWatch Watch App/Core/Protocols/HapticsProviding.swift */,
+				9AF0AAA11D0000000000000F /* RefWatch Watch App/Core/Protocols/PersistenceProviding.swift */,
+				9AF0AAA11D00000000000010 /* RefWatch Watch App/Core/Protocols/ConnectivitySyncProviding.swift */,
+				9AF0AAA11D0000000000000D /* RefWatch Watch App/Features/Match/ViewModels/MatchViewModel.swift */,
+			);
+			name = Shared;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -224,6 +325,70 @@
 			productReference = 964A4D8D2D32234B00D08376 /* RefWatch Watch AppUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		96B8126D2E67CDA400B23EC0 /* RefWatchiOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 96B812762E67CDA500B23EC0 /* Build configuration list for PBXNativeTarget "RefWatchiOS" */;
+			buildPhases = (
+				96B8126A2E67CDA400B23EC0 /* Sources */,
+				96B8126B2E67CDA400B23EC0 /* Frameworks */,
+				96B8126C2E67CDA400B23EC0 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				96B8126F2E67CDA400B23EC0 /* RefWatchiOS */,
+			);
+			name = RefWatchiOS;
+			packageProductDependencies = (
+			);
+			productName = RefWatchiOS;
+			productReference = 96B8126E2E67CDA400B23EC0 /* RefWatchiOS.app */;
+			productType = "com.apple.product-type.application";
+		};
+        96B8129D2E67CDA500B23EC0 /* RefWatchiOSTests */ = {
+            isa = PBXNativeTarget;
+            buildConfigurationList = 96B812A32E67CDA500B23EC0 /* Build configuration list for PBXNativeTarget "RefWatchiOSTests" */;
+            buildPhases = (
+                96B8129A2E67CDA500B23EC0 /* Sources */,
+                96B8129B2E67CDA500B23EC0 /* Frameworks */,
+                96B8129C2E67CDA500B23EC0 /* Resources */,
+            );
+            buildRules = (
+            );
+            dependencies = (
+                96B812A12E67CDA500B23EC0 /* PBXTargetDependency */,
+            );
+            fileSystemSynchronizedGroups = (
+                96B812902E67CDA500B23EC0 /* RefWatchiOSTests */,
+            );
+            name = RefWatchiOSTests;
+            productName = RefWatchiOSTests;
+            productReference = 96B8129E2E67CDA500B23EC0 /* RefWatchiOSTests.xctest */;
+            productType = "com.apple.product-type.bundle.unit-test";
+        };
+        96B812AD2E67CDA500B23EC0 /* RefWatchiOSUITests */ = {
+            isa = PBXNativeTarget;
+            buildConfigurationList = 96B812B12E67CDA500B23EC0 /* Build configuration list for PBXNativeTarget "RefWatchiOSUITests" */;
+            buildPhases = (
+                96B812AA2E67CDA500B23EC0 /* Sources */,
+                96B812AB2E67CDA500B23EC0 /* Frameworks */,
+                96B812AC2E67CDA500B23EC0 /* Resources */,
+            );
+            buildRules = (
+            );
+            dependencies = (
+                96B812AF2E67CDA500B23EC0 /* PBXTargetDependency */,
+            );
+            fileSystemSynchronizedGroups = (
+                96B812A02E67CDA500B23EC0 /* RefWatchiOSUITests */,
+            );
+            name = RefWatchiOSUITests;
+            productName = RefWatchiOSUITests;
+            productReference = 96B812AE2E67CDA500B23EC0 /* RefWatchiOSUITests.xctest */;
+            productType = "com.apple.product-type.bundle.ui-testing";
+        };
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -231,7 +396,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 1620;
+				LastSwiftUpdateCheck = 2600;
 				LastUpgradeCheck = 1620;
 				TargetAttributes = {
 					964A4D6A2D32234A00D08376 = {
@@ -247,6 +412,17 @@
 					964A4D8C2D32234B00D08376 = {
 						CreatedOnToolsVersion = 16.2;
 						TestTargetID = 964A4D702D32234A00D08376;
+					};
+					96B8126D2E67CDA400B23EC0 = {
+						CreatedOnToolsVersion = 26.0;
+					};
+					96B8129D2E67CDA500B23EC0 = {
+						CreatedOnToolsVersion = 26.0;
+						TestTargetID = 96B8126D2E67CDA400B23EC0;
+					};
+					96B812AD2E67CDA500B23EC0 = {
+						CreatedOnToolsVersion = 26.0;
+						TestTargetID = 96B8126D2E67CDA400B23EC0;
 					};
 				};
 			};
@@ -268,6 +444,9 @@
 				964A4D702D32234A00D08376 /* RefWatch Watch App */,
 				964A4D822D32234B00D08376 /* RefWatch Watch AppTests */,
 				964A4D8C2D32234B00D08376 /* RefWatch Watch AppUITests */,
+				96B8126D2E67CDA400B23EC0 /* RefWatchiOS */,
+                96B8129D2E67CDA500B23EC0 /* RefWatchiOSTests */,
+                96B812AD2E67CDA500B23EC0 /* RefWatchiOSUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -301,6 +480,27 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		96B8126C2E67CDA400B23EC0 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+        96B8129C2E67CDA500B23EC0 /* Resources */ = {
+            isa = PBXResourcesBuildPhase;
+            buildActionMask = 2147483647;
+            files = (
+            );
+            runOnlyForDeploymentPostprocessing = 0;
+        };
+        96B812AC2E67CDA500B23EC0 /* Resources */ = {
+            isa = PBXResourcesBuildPhase;
+            buildActionMask = 2147483647;
+            files = (
+            );
+            runOnlyForDeploymentPostprocessing = 0;
+        };
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -325,6 +525,43 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		96B8126A2E67CDA400B23EC0 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9AF0AAB21D00000000000005 /* RefWatch Watch App/Features/Match/Models/Match.swift in Sources */,
+				9AF0AAB21D00000000000006 /* RefWatch Watch App/Features/Match/Models/CompletedMatch.swift in Sources */,
+				9AF0AAB21D00000000000007 /* RefWatch Watch App/Features/Events/Models/MatchEventRecord.swift in Sources */,
+				9AF0AAB21D00000000000008 /* RefWatch Watch App/Features/Events/Models/CardModels.swift in Sources */,
+				9AF0AAB21D00000000000009 /* RefWatch Watch App/Features/Settings/Models/Settings.swift in Sources */,
+				9AF0AAB21D0000000000000A /* RefWatch Watch App/Features/MatchSetup/Models/MatchSetupModels.swift in Sources */,
+				9AF0AAB21D0000000000000B /* RefWatch Watch App/Features/TeamManagement/Models/TeamModels.swift in Sources */,
+				9AF0AAB21D00000000000001 /* RefWatch Watch App/Core/Services/TimerManager/TimerManager.swift in Sources */,
+				9AF0AAB21D00000000000002 /* RefWatch Watch App/Core/Services/MatchHistory/MatchHistoryService.swift in Sources */,
+				9AF0AAB21D00000000000003 /* RefWatch Watch App/Core/Services/PenaltyManager/PenaltyManaging.swift in Sources */,
+				9AF0AAB21D00000000000004 /* RefWatch Watch App/Core/Services/PenaltyManager/PenaltyManager.swift in Sources */,
+				9AF0AAB21D0000000000000C /* RefWatch Watch App/Core/Extensions/DateFormatter+Common.swift in Sources */,
+				9AF0AAB21D0000000000000E /* RefWatch Watch App/Core/Protocols/HapticsProviding.swift in Sources */,
+				9AF0AAB21D0000000000000F /* RefWatch Watch App/Core/Protocols/PersistenceProviding.swift in Sources */,
+				9AF0AAB21D00000000000010 /* RefWatch Watch App/Core/Protocols/ConnectivitySyncProviding.swift in Sources */,
+				9AF0AAB21D0000000000000D /* RefWatch Watch App/Features/Match/ViewModels/MatchViewModel.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+        96B8129A2E67CDA500B23EC0 /* Sources */ = {
+            isa = PBXSourcesBuildPhase;
+            buildActionMask = 2147483647;
+            files = (
+            );
+            runOnlyForDeploymentPostprocessing = 0;
+        };
+        96B812AA2E67CDA500B23EC0 /* Sources */ = {
+            isa = PBXSourcesBuildPhase;
+            buildActionMask = 2147483647;
+            files = (
+            );
+            runOnlyForDeploymentPostprocessing = 0;
+        };
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -343,6 +580,16 @@
 			target = 964A4D702D32234A00D08376 /* RefWatch Watch App */;
 			targetProxy = 964A4D8E2D32234B00D08376 /* PBXContainerItemProxy */;
 		};
+        96B812A12E67CDA500B23EC0 /* PBXTargetDependency */ = {
+            isa = PBXTargetDependency;
+            target = 96B8126D2E67CDA400B23EC0 /* RefWatchiOS */;
+            targetProxy = 96B812A22E67CDA500B23EC0 /* PBXContainerItemProxy */;
+        };
+        96B812AF2E67CDA500B23EC0 /* PBXTargetDependency */ = {
+            isa = PBXTargetDependency;
+            target = 96B8126D2E67CDA400B23EC0 /* RefWatchiOS */;
+            targetProxy = 96B812B02E67CDA500B23EC0 /* PBXContainerItemProxy */;
+        };
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
@@ -632,6 +879,151 @@
 			};
 			name = Release;
 		};
+		96B812772E67CDA500B23EC0 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 6NV7X5BLU7;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.IbrahimSaidi.RefWatchiOS;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		96B812782E67CDA500B23EC0 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 6NV7X5BLU7;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.IbrahimSaidi.RefWatchiOS;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+        96B812A42E67CDA500B23EC0 /* Debug */ = {
+            isa = XCBuildConfiguration;
+            buildSettings = {
+                CODE_SIGN_STYLE = Automatic;
+                CURRENT_PROJECT_VERSION = 1;
+                DEVELOPMENT_TEAM = 6NV7X5BLU7;
+                GENERATE_INFOPLIST_FILE = YES;
+                IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+                MARKETING_VERSION = 1.0;
+                PRODUCT_BUNDLE_IDENTIFIER = com.IbrahimSaidi.RefWatchiOSTests;
+                PRODUCT_NAME = "$(TARGET_NAME)";
+                SDKROOT = iphoneos;
+                SWIFT_EMIT_LOC_STRINGS = NO;
+                SWIFT_VERSION = 5.0;
+                TARGETED_DEVICE_FAMILY = "1,2";
+            };
+            name = Debug;
+        };
+        96B812A52E67CDA500B23EC0 /* Release */ = {
+            isa = XCBuildConfiguration;
+            buildSettings = {
+                CODE_SIGN_STYLE = Automatic;
+                CURRENT_PROJECT_VERSION = 1;
+                DEVELOPMENT_TEAM = 6NV7X5BLU7;
+                GENERATE_INFOPLIST_FILE = YES;
+                IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+                MARKETING_VERSION = 1.0;
+                PRODUCT_BUNDLE_IDENTIFIER = com.IbrahimSaidi.RefWatchiOSTests;
+                PRODUCT_NAME = "$(TARGET_NAME)";
+                SDKROOT = iphoneos;
+                SWIFT_EMIT_LOC_STRINGS = NO;
+                SWIFT_VERSION = 5.0;
+                TARGETED_DEVICE_FAMILY = "1,2";
+                VALIDATE_PRODUCT = YES;
+            };
+            name = Release;
+        };
+        96B812B22E67CDA500B23EC0 /* Debug */ = {
+            isa = XCBuildConfiguration;
+            buildSettings = {
+                CODE_SIGN_STYLE = Automatic;
+                CURRENT_PROJECT_VERSION = 1;
+                DEVELOPMENT_TEAM = 6NV7X5BLU7;
+                GENERATE_INFOPLIST_FILE = YES;
+                IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+                MARKETING_VERSION = 1.0;
+                PRODUCT_BUNDLE_IDENTIFIER = com.IbrahimSaidi.RefWatchiOSUITests;
+                PRODUCT_NAME = "$(TARGET_NAME)";
+                SDKROOT = iphoneos;
+                SWIFT_EMIT_LOC_STRINGS = NO;
+                SWIFT_VERSION = 5.0;
+                TARGETED_DEVICE_FAMILY = "1,2";
+                TEST_TARGET_NAME = RefWatchiOS;
+            };
+            name = Debug;
+        };
+        96B812B32E67CDA500B23EC0 /* Release */ = {
+            isa = XCBuildConfiguration;
+            buildSettings = {
+                CODE_SIGN_STYLE = Automatic;
+                CURRENT_PROJECT_VERSION = 1;
+                DEVELOPMENT_TEAM = 6NV7X5BLU7;
+                GENERATE_INFOPLIST_FILE = YES;
+                IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+                MARKETING_VERSION = 1.0;
+                PRODUCT_BUNDLE_IDENTIFIER = com.IbrahimSaidi.RefWatchiOSUITests;
+                PRODUCT_NAME = "$(TARGET_NAME)";
+                SDKROOT = iphoneos;
+                SWIFT_EMIT_LOC_STRINGS = NO;
+                SWIFT_VERSION = 5.0;
+                TARGETED_DEVICE_FAMILY = "1,2";
+                TEST_TARGET_NAME = RefWatchiOS;
+                VALIDATE_PRODUCT = YES;
+            };
+            name = Release;
+        };
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -680,6 +1072,33 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		96B812762E67CDA500B23EC0 /* Build configuration list for PBXNativeTarget "RefWatchiOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				96B812772E67CDA500B23EC0 /* Debug */,
+				96B812782E67CDA500B23EC0 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+        96B812A32E67CDA500B23EC0 /* Build configuration list for PBXNativeTarget "RefWatchiOSTests" */ = {
+            isa = XCConfigurationList;
+            buildConfigurations = (
+                96B812A42E67CDA500B23EC0 /* Debug */,
+                96B812A52E67CDA500B23EC0 /* Release */,
+            );
+            defaultConfigurationIsVisible = 0;
+            defaultConfigurationName = Release;
+        };
+        96B812B12E67CDA500B23EC0 /* Build configuration list for PBXNativeTarget "RefWatchiOSUITests" */ = {
+            isa = XCConfigurationList;
+            buildConfigurations = (
+                96B812B22E67CDA500B23EC0 /* Debug */,
+                96B812B32E67CDA500B23EC0 /* Release */,
+            );
+            defaultConfigurationIsVisible = 0;
+            defaultConfigurationName = Release;
+        };
 /* End XCConfigurationList section */
 	};
 	rootObject = 964A4D652D32234A00D08376 /* Project object */;

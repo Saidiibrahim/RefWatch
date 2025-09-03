@@ -8,7 +8,7 @@
 import Foundation
 import SwiftUI
 import Observation
-import WatchKit
+// Haptics abstracted for cross-platform use via HapticsProviding
 // Timer responsibilities delegated to TimerManager (SRP)
 
 // MARK: - TimerManager Integration
@@ -90,6 +90,7 @@ final class MatchViewModel {
 
     // Penalties managed by PenaltyManager (SRP); injected for testing
     private let penaltyManager: PenaltyManaging
+    private let haptics: HapticsProviding
     
     // Persistence error feedback surfaced to UI (optional alert)
     var lastPersistenceError: String? = nil
@@ -118,9 +119,10 @@ final class MatchViewModel {
     var awayTeamDisplayName: String { currentMatch?.awayTeam ?? awayTeam }
 
     // MARK: - Initialization
-    init(history: MatchHistoryStoring = MatchHistoryService(), penaltyManager: PenaltyManaging = PenaltyManager()) {
+    init(history: MatchHistoryStoring = MatchHistoryService(), penaltyManager: PenaltyManaging = PenaltyManager(), haptics: HapticsProviding = NoopHaptics()) {
         self.history = history
         self.penaltyManager = penaltyManager
+        self.haptics = haptics
         self.savedMatches = [
             Match(homeTeam: "Leeds United", awayTeam: "Newcastle United")
         ]
@@ -420,8 +422,8 @@ final class MatchViewModel {
         homeTeamKickingOff = isHome
     }
     
-    /// Get the team that should kick off the second half (already switched in endCurrentPeriod)
-    func getSecondHalfKickingTeam() -> MatchKickOffView.Team {
+    /// Get the team that should kick off the second half (opposite of first half)
+    func getSecondHalfKickingTeam() -> TeamSide {
         // Return the opposite team from the first half (standard football rules)
         return homeTeamKickingOff ? .away : .home
     }
@@ -431,7 +433,7 @@ final class MatchViewModel {
         homeTeamKickingOffET1 = isHome
     }
     
-    func getETSecondHalfKickingTeam() -> MatchKickOffView.Team {
+    func getETSecondHalfKickingTeam() -> TeamSide {
         if let et1 = homeTeamKickingOffET1 {
             return et1 ? .away : .home
         }
@@ -721,7 +723,7 @@ final class MatchViewModel {
                 print("DEBUG: Failed to persist completed match: \(error)")
                 #endif
                 lastPersistenceError = error.localizedDescription
-                WKInterfaceDevice.current().play(.failure)
+                haptics.play(.failure)
             }
         }
         

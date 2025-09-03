@@ -187,5 +187,5 @@ private struct MatchEventRowView: View {
 }
 
 #Preview {
-    MatchLogsView(matchViewModel: MatchViewModel())
+    MatchLogsView(matchViewModel: MatchViewModel(haptics: WatchHaptics()))
 }

@@ -102,5 +102,5 @@ struct MatchOptionsView: View {
 
 
 #Preview {
-    MatchOptionsView(matchViewModel: MatchViewModel())
+    MatchOptionsView(matchViewModel: MatchViewModel(haptics: WatchHaptics()))
 }
