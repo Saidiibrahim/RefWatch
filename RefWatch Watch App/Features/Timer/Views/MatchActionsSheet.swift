@@ -103,5 +103,5 @@ struct MatchActionsSheet: View {
 
 
 #Preview {
-    MatchActionsSheet(matchViewModel: MatchViewModel())
+    MatchActionsSheet(matchViewModel: MatchViewModel(haptics: WatchHaptics()))
 }

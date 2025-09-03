@@ -173,6 +173,6 @@ struct MatchHistoryDetailView: View {
 }
 
 #Preview {
-    let vm = MatchViewModel()
+    let vm = MatchViewModel(haptics: WatchHaptics())
     return NavigationStack { MatchHistoryView(matchViewModel: vm) }
 }

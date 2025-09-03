@@ -5,6 +5,42 @@ Establish a clean, scalable iOS structure that mirrors the watchOS feature‑fir
 
 ---
 
+## Current Status
+
+Current branch
+- Branch: `feature/ios-app-target`
+
+PR I1 — iOS Skeleton & Folder Structure ✅
+- Delivered
+  - Introduced feature‑first structure under `RefWatchiOS/` with `App`, `Core` (DesignSystem, Platform), and `Features` folders.
+  - Moved existing iOS files into the new layout without behavior changes.
+  - Kept physical folder name `RefWatchiOS` to preserve Xcode's file‑system synchronized group.
+- Acceptance
+  - iOS target builds and runs unchanged; scheme remains shared.
+
+PR I2 — Share Models & Services (Phase A) ✅
+- Delivered
+  - Enabled Target Membership for shared domain models and services from watchOS (Match, Events, Team, Settings, MatchSetup; TimerManager, PenaltyManager, MatchHistoryService; DateFormatter extension).
+  - Guarded WatchKit usage in services with `#if os(watchOS)`.
+  - Added a Shared group in the project for clarity and wired files into the iOS target's Sources.
+- Acceptance
+  - Both iOS and watchOS compile against the same sources with no behavior changes on watchOS.
+
+PR I3 — Platform Adapters + Shared ViewModels ✅
+- Delivered
+  - Added adapter protocols: `HapticsProviding`, `PersistenceProviding`, `ConnectivitySyncProviding`.
+  - Implemented `WatchHaptics` (watchOS) and `IOSHaptics` (iOS); introduced `NoopHaptics` default for tests/previews.
+  - Refactored `MatchViewModel` to inject `HapticsProviding` and removed direct WatchKit usage.
+  - Decoupled `MatchViewModel` from `MatchKickOffView.Team` by returning `TeamSide` (shared model) for second‑half/ET kickers; updated call sites and tests.
+  - Added VM/protocols to iOS Sources for cross‑target compilation.
+- Acceptance
+  - watchOS uses `WatchHaptics`; iOS has `IOSHaptics` available; shared VM logic compiles on both targets.
+
+Upcoming
+- PR I4 — Extract `RefWatchCore` Swift Package (deferred to next sprint).
+
+---
+
 ## Current Position Snapshot
 
 - iOS folder `RefWatchiOS/` is flat, mixing app entry, views, and utilities.
@@ -71,7 +107,7 @@ ViewModel Guidance
 
 ## Multi‑PR Roadmap (on `feature/ios-app-target`)
 
-PR I1 — iOS Skeleton & Folder Structure (structure only)
+PR I1 — iOS Skeleton & Folder Structure (structure only) — Completed ✅
 - Goals
   - Create `RefWatch iOS App/` with `App`, `Core`, and `Features` folders.
   - Move existing iOS files into the new structure (no behavior changes).
@@ -83,15 +119,15 @@ PR I1 — iOS Skeleton & Folder Structure (structure only)
   - iOS target builds and runs unchanged (tabs/routes OK).
   - Scheme for iOS is shared for CLI/CI.
 
-PR I2 — Share Models and Services (Phase A)
+PR I2 — Share Models and Services (Phase A) — Completed ✅
 - Goals: Add iOS target membership to shared models and services from watchOS; remove any platform imports from these files if discovered.
 - Acceptance: Both targets compile against the same source files for domain/services; no behavioral change on watchOS.
 
-PR I3 — Platform Adapters + Begin Sharing ViewModels
+PR I3 — Platform Adapters + Begin Sharing ViewModels — Completed ✅
 - Goals: Introduce adapter protocols (`HapticsProviding`, `PersistenceProviding`, `ConnectivitySyncProviding`), extract UI‑agnostic parts of key VMs and inject adapters.
 - Acceptance: watchOS uses Watch‑specific adapters; iOS uses iOS equivalents; derived labels/timing stay identical.
 
-PR I4 — Extract `RefWatchCore` Swift Package (Phase B)
+PR I4 — Extract `RefWatchCore` Swift Package (Phase B) — Next Sprint ▶
 - Goals: Move shared domain/services/VMs into SPM; migrate unit tests into package tests.
 - Acceptance: Both apps depend on the package; `xcodebuild test` runs package tests.
 
@@ -126,4 +162,3 @@ PR I6 — Persistence & Sync (Optional)
 - Proceed PRs in order: I1 → I2 → I3 → I4 → I5 → I6.
 - Keep `MatchLifecycleCoordinator` authoritative for routing on watch; iOS may introduce its own coordinator later but should consume the same VMs/services.
 - All structural changes in I1 avoid code/behavior edits; renames (e.g., `LiveSessionModel` → `LiveSessionViewModel`) are deferred to I3.
-
