@@ -212,5 +212,5 @@ struct TimerView: View {
 // MARK: - Supporting Views
 
 #Preview {
-    TimerView(model: MatchViewModel(), lifecycle: MatchLifecycleCoordinator())
+    TimerView(model: MatchViewModel(haptics: WatchHaptics()), lifecycle: MatchLifecycleCoordinator())
 } 

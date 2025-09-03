@@ -4,38 +4,42 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-RefWatch is a WatchOS app designed for football/soccer referees to manage matches efficiently. The app uses SwiftUI and follows MVVM architecture with modern Swift concurrency patterns.
+RefWatch is a multi-platform app (watchOS + iOS) designed for football/soccer referees to manage matches efficiently. The codebase uses SwiftUI and follows MVVM with a feature‑first architecture and modern Swift patterns. The watchOS app is production‑first; the iOS app complements it with match library, live mirror, and post‑match views.
 
 ## Build & Test Commands
 
 ### Building the Project
 ```bash
-# Build the Watch App target
-xcodebuild -project RefWatch.xcodeproj -scheme "RefWatch Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 10 (46mm)' build
+# Build the Watch app
+xcodebuild -project RefWatch.xcodeproj -scheme "RefWatch Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)' build
 
-# Build all targets
+# Build the iOS app
+xcodebuild -project RefWatch.xcodeproj -scheme "RefWatch iOS App" -destination 'platform=iOS Simulator,name=iPhone 15' build
+
+# Build all targets (schemes must be shared)
 xcodebuild -project RefWatch.xcodeproj build
 ```
 
 ### Running Tests
 ```bash
-# Run unit tests
-xcodebuild -project RefWatch.xcodeproj -scheme "RefWatch Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 10 (46mm)' test
+# Run watchOS unit tests
+xcodebuild -project RefWatch.xcodeproj -scheme "RefWatch Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)' test
 
-# Run UI tests
-xcodebuild -project RefWatch.xcodeproj -scheme "RefWatch Watch AppUITests" -destination 'platform=watchOS Simulator,name=Apple Watch Series 10 (46mm)' test
+# (When present) Run iOS unit tests
+xcodebuild -project RefWatch.xcodeproj -scheme "RefWatch iOS App" -destination 'platform=iOS Simulator,name=iPhone 15' test
 ```
 
 ### Development
 - Open `RefWatch.xcodeproj` in Xcode
-- Select "RefWatch Watch App" scheme
-- Choose a watchOS simulator target
+- Select a scheme:
+  - watchOS: "RefWatch Watch App" → Apple Watch simulator
+  - iOS: "RefWatch iOS App" → iPhone simulator
 - Build and run with ⌘+R
 
 ## Architecture & Code Structure
 
 ### Module Organization
-The app follows a feature-based architecture with clear separation of concerns:
+The repository follows a feature‑first architecture with clear separation of concerns. There are two app folders and a shared pool of sources compiled into both targets.
 
 ```
 RefWatch Watch App/
@@ -50,6 +54,17 @@ RefWatch Watch App/
     ├── Settings/          # App preferences
     ├── TeamManagement/    # Team and officials management
     └── Timer/             # Match timing functionality
+RefWatchiOS/
+├── App/                   # Entry, router, tabs (MainTabView)
+├── Core/
+│   ├── DesignSystem/      # Theme, palettes, shared modifiers
+│   └── Platform/          # iOS platform adapters (e.g., IOSHaptics, Connectivity)
+└── Features/
+    ├── Matches/           # Matches list/detail
+    ├── Live/              # Live mirror
+    ├── Library/           # Teams/competitions/venues hub (placeholder)
+    ├── Trends/            # Analytics (placeholder)
+    └── Settings/          # App preferences
 ```
 
 ### Key Architectural Patterns
@@ -60,8 +75,8 @@ RefWatch Watch App/
 - State management follows modern SwiftUI patterns
 
 **Service/Coordinator Layer:**
-- `MatchLifecycleCoordinator`: Controls high-level lifecycle routing (idle → setup → kickoff → running → halftime → second-half kickoff → finished).
-- Timer responsibilities currently live in `MatchViewModel`; a focused `TimerManager` service will be extracted in PR v3 for SRP and testability.
+- `MatchLifecycleCoordinator`: Controls lifecycle routing on watchOS (idle → setup → kickoff → running → halftime → second‑half/ET → finished).
+- `TimerManager`: Focused service (SRP) for period tick, stoppage accumulation, half‑time elapsed; used by `MatchViewModel`.
 - Coordinators encapsulate multi-step flows (e.g., `CardEventCoordinator`). Prefer coordinators over scattering navigation logic across views.
 
 **Coordinator Pattern:**
@@ -124,20 +139,22 @@ Uses a sophisticated coordinator pattern:
 - Team-specific event tracking
 - Integration with match timing for accurate timestamps
 
-## WatchOS Considerations
+## Platform Considerations
 
-- **Target Platform**: watchOS 11.2+
+- **watchOS**: target 11.2+, WatchKit haptics; avoid per‑tick logs; keep timer scheduling in `.common` and UI updates on main thread.
 - **Development Team**: 6NV7X5BLU7
 - **Bundle ID**: com.IbrahimSaidi.RefWatch.watchkitapp
 - **Interface Orientations**: Portrait and Portrait Upside Down
 - **Deployment**: Watch-only app (WKWatchOnly = YES)
 
+- **iOS**: complementary app with tabs (Matches, Live, Trends, Library, Settings). Uses platform adapters (e.g., `IOSHaptics`) and compiles shared models/services/ViewModels via target membership. Avoid importing `WatchKit` in shared or iOS code.
+
 ## Development Workflow
 
-1. **Feature Development**: Create new features in the `Features/` directory following the established pattern (Models/ViewModels/Views)
-2. **Shared Components**: Add reusable components to `Core/Components/`
-3. **Business Logic**: Implement services in `Core/Services/`
-4. **Testing**: Write unit tests in `RefWatch Watch AppTests/` and UI tests in `RefWatch Watch AppUITests/`
+1. **Feature Development**: Create new features in each app’s `Features/` directory following MVVM (Models/ViewModels/Views).
+2. **Shared Code**: Prefer sharing via Target Membership first; keep shared sources UI‑agnostic (no WatchKit/UIKit). Use adapter protocols (`HapticsProviding`, `PersistenceProviding`, `ConnectivitySyncProviding`).
+3. **Business Logic**: Implement services in `Core/Services/` (watch) and platform adapters under each app’s `Core/Platform/`.
+4. **Testing**: Write unit tests under `RefWatch Watch AppTests/` (and future iOS tests). Keep package‑ready boundaries for a future `RefWatchCore` SPM.
 
 ## Important Notes
 
@@ -152,10 +169,8 @@ Uses a sophisticated coordinator pattern:
 - Time Units: store durations in seconds (`TimeInterval`) in models; convert minutes at view‑model boundaries (e.g., `configureMatch`).
 - Period Math: always use `max(1, numberOfPeriods)` when dividing by periods; clamp remaining/derived time with `max(0, …)`.
 - Timers:
-  - Invalidate existing timers before creating new ones.
-  - Schedule in `.common` run loop mode and perform UI updates on the main thread.
-  - Guard `RunLoop.current.add` by unwrapping timers (`if let`).
-  - In `deinit`, invalidate timers to prevent leaks and retain cycles.
+  - Invalidate before recreate; `RunLoop` `.common`; UI updates on main.
+  - Guard `RunLoop.current.add` (`if let`); invalidate in `deinit` to avoid leaks.
 - Optionals & Logging:
   - Avoid force‑unwraps, including in debug logs; prefer `if let` or `String(describing:)`.
   - Wrap debug logging within `#if DEBUG`; avoid per‑tick logging for performance.
@@ -168,4 +183,4 @@ Uses a sophisticated coordinator pattern:
   - For time‑based assertions, parse `mm:ss` and assert with tolerance (e.g., `>=` for accumulated stoppage).
   - Naming: files `MatchViewModel_<Topic>Tests.swift`; methods `test_<Action>_when<Context>_does<Outcome>()`.
 - Simulator Tips:
-  - When using `xcodebuild`, specify a concrete watch device and OS to avoid destination ambiguity (e.g., `Apple Watch Series 10 (46mm)`, OS 11.5).
+  - Prefer concrete destinations: watchOS (Series 9 45mm), iOS (iPhone 15).

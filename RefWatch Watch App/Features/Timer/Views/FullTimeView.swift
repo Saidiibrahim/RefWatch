@@ -144,7 +144,7 @@ private struct TeamScoreBox: View {
 }
 
 #Preview {
-    let viewModel = MatchViewModel()
+    let viewModel = MatchViewModel(haptics: WatchHaptics())
     // Set up match with some scores for preview
     viewModel.configureMatch(duration: 90, periods: 2, halfTimeLength: 15, hasExtraTime: false, hasPenalties: false)
     viewModel.updateScore(isHome: true, increment: true)

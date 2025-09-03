@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct ContentView: View {
-    @State private var matchViewModel = MatchViewModel()
+    @State private var matchViewModel = MatchViewModel(haptics: WatchHaptics())
     @State private var settingsViewModel = SettingsViewModel()
     @State private var lifecycle = MatchLifecycleCoordinator()
     @State private var showPersistenceError = false
@@ -66,7 +66,7 @@ struct ContentView: View {
                     MatchKickOffView(
                         matchViewModel: matchViewModel,
                         isSecondHalf: true,
-                        defaultSelectedTeam: matchViewModel.getSecondHalfKickingTeam(),
+                        defaultSelectedTeam: (matchViewModel.getSecondHalfKickingTeam() == .home) ? .home : .away,
                         lifecycle: lifecycle
                     )
                 case .kickoffExtraTimeFirstHalf:
@@ -79,7 +79,7 @@ struct ContentView: View {
                     MatchKickOffView(
                         matchViewModel: matchViewModel,
                         extraTimePhase: 2,
-                        defaultSelectedTeam: matchViewModel.getETSecondHalfKickingTeam(),
+                        defaultSelectedTeam: (matchViewModel.getETSecondHalfKickingTeam() == .home) ? .home : .away,
                         lifecycle: lifecycle
                     )
                 case .choosePenaltyFirstKicker:

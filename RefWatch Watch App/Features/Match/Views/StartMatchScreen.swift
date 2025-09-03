@@ -227,6 +227,6 @@ struct SavedMatchesView: View {
 
 struct StartMatchScreen_Previews: PreviewProvider {
     static var previews: some View {
-        StartMatchScreen(matchViewModel: MatchViewModel(), lifecycle: MatchLifecycleCoordinator())
+        StartMatchScreen(matchViewModel: MatchViewModel(haptics: WatchHaptics()), lifecycle: MatchLifecycleCoordinator())
     }
 }
