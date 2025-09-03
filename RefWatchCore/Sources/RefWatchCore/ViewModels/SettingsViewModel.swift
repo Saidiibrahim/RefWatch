@@ -1,0 +1,22 @@
+//
+//  SettingsViewModel.swift
+//  RefWatchCore
+//
+//  ViewModel controlling the logic for user settings.
+//
+
+import Foundation
+
+public final class SettingsViewModel {
+    public var settings = Settings()
+    public init() {}
+    
+    public func updatePeriodDuration(_ duration: Int) {
+        settings.periodDuration = duration
+    }
+    
+    public func updateExtraTimeDuration(_ duration: Int) {
+        settings.extraTimeDuration = duration
+    }
+}
+
