@@ -8,34 +8,30 @@
 import SwiftUI
 
 struct MainTabView: View {
-    @StateObject private var router = AppRouter()
-    @StateObject private var liveSession = LiveSessionModel()
+    @EnvironmentObject private var router: AppRouter
+    @EnvironmentObject private var liveSession: LiveSessionModel
 
     var body: some View {
         TabView(selection: $router.selectedTab) {
             MatchesTabView()
-                .environmentObject(router)
-                .environmentObject(liveSession)
                 .tabItem { Label("Matches", systemImage: "sportscourt") }
-                .tag(0)
+                .tag(AppRouter.Tab.matches)
 
             LiveTabView()
-                .environmentObject(router)
-                .environmentObject(liveSession)
                 .tabItem { Label("Live", systemImage: "timer") }
-                .tag(1)
+                .tag(AppRouter.Tab.live)
 
             TrendsTabView()
                 .tabItem { Label("Trends", systemImage: "chart.line.uptrend.xyaxis") }
-                .tag(2)
+                .tag(AppRouter.Tab.trends)
 
             LibraryTabView()
                 .tabItem { Label("Library", systemImage: "books.vertical") }
-                .tag(3)
+                .tag(AppRouter.Tab.library)
 
             SettingsTabView()
                 .tabItem { Label("Settings", systemImage: "gear") }
-                .tag(4)
+                .tag(AppRouter.Tab.settings)
         }
         .tint(AppTheme.primaryAccent)
     }
@@ -43,5 +39,6 @@ struct MainTabView: View {
 
 #Preview {
     MainTabView()
+        .environmentObject(AppRouter.preview())
+        .environmentObject(LiveSessionModel.preview())
 }
-
