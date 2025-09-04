@@ -169,6 +169,11 @@ I4 Next Steps (to Complete Acceptance) ▶
 - PR wrap‑up:
   - Keep I4 strictly structural (no runtime behavior changes). Document skipped tests rationale. Outline follow‑up (I5) to adopt shared VMs in iOS UIs.
 
+I4b — Remove Duplicated Sources ▶
+- Purpose: Clean the repo by deleting the now‑unchecked duplicate sources (protocols, extensions, services, domain models, shared ViewModels) that were excluded from targets in I4.
+- Scope: Physical deletion only; no behavior changes. After deletion, re‑verify both app schemes and the `RefWatchCore` package tests.
+- Acceptance: iOS and watchOS still build successfully; `xcodebuild test` for the package passes.
+
 PR I5 — iOS Match Flow MVP
 - Goals: Implement iOS screens (MatchSetup → Live Timer → Events → History) using shared VMs/services.
 - Acceptance: Core officiating flow is functional on iPhone; parity with watch logic where appropriate.
