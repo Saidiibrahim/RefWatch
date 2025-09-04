@@ -2,6 +2,7 @@
 // Description: View for selecting the type of goal scored
 
 import SwiftUI
+import RefWatchCore
 
 struct GoalTypeSelectionView: View {
     let team: TeamDetailsView.TeamType

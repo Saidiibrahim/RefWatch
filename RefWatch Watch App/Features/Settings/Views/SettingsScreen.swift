@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import RefWatchCore
 
 struct SettingsScreen: View {
     @Bindable var settingsViewModel: SettingsViewModel

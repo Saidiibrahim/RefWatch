@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import RefWatchCore
 
 struct ContentView: View {
     @State private var matchViewModel = MatchViewModel(haptics: WatchHaptics())

@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import RefWatchCore
 
 /// Options menu providing various match management actions
 struct MatchOptionsView: View {
