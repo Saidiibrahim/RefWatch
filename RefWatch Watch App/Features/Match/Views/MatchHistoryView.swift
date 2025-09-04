@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import RefWatchCore
 
 struct MatchHistoryView: View {
     let matchViewModel: MatchViewModel

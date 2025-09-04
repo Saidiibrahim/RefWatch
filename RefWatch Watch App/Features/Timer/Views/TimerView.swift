@@ -3,6 +3,7 @@
 
 import SwiftUI
 import WatchKit
+import RefWatchCore
 
 struct TimerView: View {
     let model: MatchViewModel

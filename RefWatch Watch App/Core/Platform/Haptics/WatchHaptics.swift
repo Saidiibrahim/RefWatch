@@ -5,6 +5,7 @@
 
 import Foundation
 import WatchKit
+import RefWatchCore
 
 struct WatchHaptics: HapticsProviding {
     func play(_ event: HapticEvent) {
@@ -24,4 +25,3 @@ struct WatchHaptics: HapticsProviding {
         }
     }
 }
-

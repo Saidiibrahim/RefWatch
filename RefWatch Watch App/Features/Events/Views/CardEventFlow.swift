@@ -1,4 +1,5 @@
 import SwiftUI
+import RefWatchCore
 
 // New view to handle the card event flow
 struct CardEventFlow: View {

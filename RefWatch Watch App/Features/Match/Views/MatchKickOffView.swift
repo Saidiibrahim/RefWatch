@@ -2,6 +2,7 @@
 // Description: Screen shown before match/period start to select kicking team
 
 import SwiftUI
+import RefWatchCore
 
 struct MatchKickOffView: View {
     let matchViewModel: MatchViewModel
