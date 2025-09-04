@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import RefWatchCore
 
 /// View displaying all match events in chronological order
 struct MatchLogsView: View {

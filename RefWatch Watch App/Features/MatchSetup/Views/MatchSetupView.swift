@@ -5,6 +5,7 @@
 // Right: Away team details
 
 import SwiftUI
+import RefWatchCore
 
 struct MatchSetupView: View {
     @State private var viewModel: MatchSetupViewModel

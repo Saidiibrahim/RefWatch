@@ -5,6 +5,7 @@
 
 import Foundation
 import UIKit
+import RefWatchCore
 
 struct IOSHaptics: HapticsProviding {
     private let successGen = UINotificationFeedbackGenerator()
@@ -29,4 +30,3 @@ struct IOSHaptics: HapticsProviding {
         }
     }
 }
-
