@@ -7,6 +7,7 @@
 
 import SwiftUI
 import WatchKit
+import RefWatchCore
 
 struct PenaltyFirstKickerView: View {
     let matchViewModel: MatchViewModel
