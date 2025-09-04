@@ -6,7 +6,9 @@
 //
 
 import Foundation
+import Observation
 
+@Observable
 public final class SettingsViewModel {
     public var settings = Settings()
     public init() {}
@@ -19,4 +21,3 @@ public final class SettingsViewModel {
         settings.extraTimeDuration = duration
     }
 }
-
