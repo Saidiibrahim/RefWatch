@@ -9,6 +9,7 @@ import SwiftUI
 import RefWatchCore
 
 struct SettingsTabView: View {
+    let historyStore: MatchHistoryStoring
     @State private var defaultPeriod: Int = 45
     @State private var extraTime: Bool = false
     @State private var penaltyRounds: Int = 5
@@ -56,9 +57,8 @@ struct SettingsTabView: View {
 
 private extension SettingsTabView {
     func wipeHistory() {
-        let store = MatchHistoryService()
         do {
-            try store.wipeAll()
+            try historyStore.wipeAll()
             let schedule = ScheduleService()
             schedule.wipeAll()
             infoMessage = "Local match history wiped."
@@ -70,7 +70,6 @@ private extension SettingsTabView {
     }
 
     func seedDemoHistory() {
-        let store = MatchHistoryService()
         let samples: [(String, String, Int, Int)] = [
             ("Leeds United", "Newcastle United", 2, 1),
             ("Arsenal", "Chelsea", 1, 1),
@@ -85,7 +84,7 @@ private extension SettingsTabView {
             final.homeScore = s.2
             final.awayScore = s.3
             let snapshot = CompletedMatch(match: final, events: [])
-            do { try store.save(snapshot); saved += 1 } catch { }
+            do { try historyStore.save(snapshot); saved += 1 } catch { }
         }
         infoMessage = "Seeded \(saved) demo matches."
         showingInfoAlert = true
@@ -110,4 +109,4 @@ private extension SettingsTabView {
     }
 }
 
-#Preview { SettingsTabView() }
+#Preview { SettingsTabView(historyStore: MatchHistoryService()) }
