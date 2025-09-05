@@ -60,7 +60,6 @@ struct MatchHistoryView: View {
                     .onDelete(perform: delete)
                 }
             }
-        }
         .navigationTitle("History")
         .toolbar { EditButton() }
         .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .automatic), prompt: "Search team")
