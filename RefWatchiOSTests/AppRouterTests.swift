@@ -7,10 +7,9 @@ final class AppRouterTests: XCTestCase {
         XCTAssertEqual(router.selectedTab, .matches)
     }
 
-    func testSelectingLive_whenSettingSelectedTab_doesUpdate() {
+    func testSelectingTrends_whenSettingSelectedTab_doesUpdate() {
         let router = AppRouter()
-        router.selectedTab = .live
-        XCTAssertEqual(router.selectedTab, .live)
+        router.selectedTab = .trends
+        XCTAssertEqual(router.selectedTab, .trends)
     }
 }
-
