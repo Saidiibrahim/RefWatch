@@ -17,6 +17,8 @@ public struct CompletedMatch: Identifiable, Codable {
     public let completedAt: Date
     public let match: Match
     public let events: [MatchEventRecord]
+    // Optional owner identifier for multi-user tagging (iOS may set via auth)
+    public var ownerId: String?
 
     // MARK: - Init
     public init(
@@ -24,13 +26,14 @@ public struct CompletedMatch: Identifiable, Codable {
         completedAt: Date = Date(),
         match: Match,
         events: [MatchEventRecord],
-        schemaVersion: Int = 1
+        schemaVersion: Int = 1,
+        ownerId: String? = nil
     ) {
         self.id = id
         self.completedAt = completedAt
         self.match = match
         self.events = events
         self.schemaVersion = schemaVersion
+        self.ownerId = ownerId
     }
 }
-
