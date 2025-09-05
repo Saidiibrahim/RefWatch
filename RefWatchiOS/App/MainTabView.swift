@@ -6,20 +6,17 @@
 //
 
 import SwiftUI
+import RefWatchCore
 
 struct MainTabView: View {
     @EnvironmentObject private var router: AppRouter
-    @EnvironmentObject private var liveSession: LiveSessionModel
+    let matchViewModel: MatchViewModel
 
     var body: some View {
         TabView(selection: $router.selectedTab) {
-            MatchesTabView()
+            MatchesTabView(matchViewModel: matchViewModel)
                 .tabItem { Label("Matches", systemImage: "sportscourt") }
                 .tag(AppRouter.Tab.matches)
-
-            LiveTabView()
-                .tabItem { Label("Live", systemImage: "timer") }
-                .tag(AppRouter.Tab.live)
 
             TrendsTabView()
                 .tabItem { Label("Trends", systemImage: "chart.line.uptrend.xyaxis") }
@@ -38,7 +35,6 @@ struct MainTabView: View {
 }
 
 #Preview {
-    MainTabView()
+    MainTabView(matchViewModel: MatchViewModel(haptics: NoopHaptics()))
         .environmentObject(AppRouter.preview())
-        .environmentObject(LiveSessionModel.preview())
 }

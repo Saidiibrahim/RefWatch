@@ -2,219 +2,169 @@
 //  MatchesTabView.swift
 //  RefWatchiOS
 //
-//  Placeholder list of fixtures/in-progress/recent matches
+//  Hub for iOS match flow: start a match and browse history.
 //
 
 import SwiftUI
+import RefWatchCore
 
 struct MatchesTabView: View {
     @EnvironmentObject private var router: AppRouter
-    @EnvironmentObject private var session: LiveSessionModel
-    @State private var segment: Segment = .upcoming
-    @State private var fixtures: [Fixture] = [
-        .init(id: UUID(), home: "Leeds United", away: "Newcastle", when: "Sat 15:00", venue: "Elland Road"),
-        .init(id: UUID(), home: "Arsenal", away: "Brighton", when: "Sun 12:30", venue: "Emirates")
-    ]
-    @State private var showingCreate = false
-
-    enum Segment: String, CaseIterable, Identifiable { case upcoming, inProgress, recent
-        var id: String { rawValue }
-        var title: String {
-            switch self { case .upcoming: return "Upcoming"; case .inProgress: return "In‑Progress"; case .recent: return "Recent" }
-        }
-    }
-
-    @State private var errorMessage: String?
+    let matchViewModel: MatchViewModel
+    @State private var path: [Route] = []
+    enum Route: Hashable { case setup, timer, historyList, scheduleSetup(ScheduledMatch) }
+    @State private var recent: [CompletedMatch] = []
+    @State private var today: [ScheduledMatch] = []
+    @State private var upcoming: [ScheduledMatch] = []
+    private let scheduleStore = ScheduleService()
 
     var body: some View {
-        NavigationStack {
-            VStack {
-                Picker("Segment", selection: $segment) {
-                    ForEach(Segment.allCases) { seg in
-                        Text(seg.title).tag(seg)
+        NavigationStack(path: $path) {
+            List {
+                // Primary action
+                Section {
+                    NavigationLink(value: Route.setup) {
+                        Label("Start Match", systemImage: "play.circle.fill")
+                            .font(.headline)
                     }
                 }
-                .pickerStyle(.segmented)
-                .padding([.horizontal, .top])
 
-                List(fixtures) { item in
-                    NavigationLink(value: item) {
-                        HStack(spacing: 12) {
+                // Live (in-progress)
+                if matchViewModel.isMatchInProgress, let m = matchViewModel.currentMatch {
+                    Section("Live") {
+                        NavigationLink(value: Route.timer) {
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("\(item.home) vs \(item.away)")
+                                Text("\(m.homeTeam) vs \(m.awayTeam)")
                                     .font(.headline)
-                                Text("\(item.when) • \(item.venue)")
+                                Text("In progress")
+                                    .font(.subheadline)
                                     .foregroundStyle(.secondary)
                             }
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .font(.footnote)
-                                .foregroundStyle(.tertiary)
                         }
-                        .padding(.vertical, 4)
                     }
                 }
-                .navigationDestination(for: Fixture.self) { fx in
-                    FixtureDetailView(
-                        fixture: fx,
-                        onOpenLive: { home, away in
-                            router.openLive(home: home, away: away, session: session)
-                        },
-                        onSendToWatch: { home, away, when in
-                            let c = ConnectivityClient.shared
-                            guard c.isSupported, c.isPaired, c.isWatchAppInstalled, c.isReachable else {
-                                errorMessage = "Apple Watch is not reachable. Check pairing and connectivity."
-                                return
+
+                // Today (scheduled)
+                if !today.isEmpty {
+                    Section("Today") {
+                        ForEach(today) { item in
+                            NavigationLink(value: Route.scheduleSetup(item)) {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("\(item.homeTeam) vs \(item.awayTeam)").font(.headline)
+                                    Text(Self.formatTime(item.kickoff)).font(.subheadline).foregroundStyle(.secondary)
+                                }
                             }
-                            ConnectivityClient.shared.sendFixtureSummary(home: home, away: away, when: when)
                         }
-                    )
+                    }
+                }
+
+                // Upcoming (scheduled)
+                Section("Upcoming") {
+                    if upcoming.isEmpty {
+                        ContentUnavailableView(
+                            "No Upcoming Matches",
+                            systemImage: "calendar",
+                            description: Text("Add or sync scheduled matches.")
+                        )
+                    } else {
+                        ForEach(upcoming) { item in
+                            NavigationLink(value: Route.scheduleSetup(item)) {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("\(item.homeTeam) vs \(item.awayTeam)").font(.headline)
+                                    Text(Self.formatRelative(item.kickoff)).font(.subheadline).foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Past (recent history)
+                Section("Past") {
+                    if recent.isEmpty {
+                        ContentUnavailableView(
+                            "No Past Matches",
+                            systemImage: "clock.arrow.circlepath",
+                            description: Text("Finish a match to see it here.")
+                        )
+                    } else {
+                        ForEach(recent) { item in
+                            NavigationLink(destination: MatchHistoryDetailView(snapshot: item)) {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("\(item.match.homeTeam) vs \(item.match.awayTeam)")
+                                        .font(.body)
+                                    Text(Self.format(item.completedAt))
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                    }
+                    NavigationLink(value: Route.historyList) { Text("See All History") }
                 }
             }
             .navigationTitle("Matches")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button { showingCreate = true } label: { Image(systemName: "plus") }
+                    Button { path.append(.historyList) } label: { Label("History", systemImage: "clock") }
                 }
             }
-        }
-        .overlay(alignment: .top) {
-            if let banner = connectivityBannerText {
-                Text(banner)
-                    .font(.footnote)
-                    .padding(8)
-                    .frame(maxWidth: .infinity)
-                    .background(Color.yellow.opacity(0.2))
-                    .foregroundStyle(.secondary)
+            .onAppear {
+                recent = matchViewModel.loadRecentCompletedMatches(limit: 5)
+                let all = scheduleStore.loadAll()
+                let now = Date()
+                let cal = Calendar.current
+                today = all.filter { cal.isDate($0.kickoff, inSameDayAs: now) }
+                upcoming = all.filter { $0.kickoff > cal.startOfDay(for: now).addingTimeInterval(24*60*60) }
+                    .sorted(by: { $0.kickoff < $1.kickoff })
             }
-        }
-        .alert("Error", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
-            Button("OK", role: .cancel) { errorMessage = nil }
-        } message: { Text(errorMessage ?? "") }
-        .sheet(isPresented: $showingCreate) {
-            CreateFixtureView { new in fixtures.insert(new, at: 0) }
-            .presentationDetents([.medium])
-        }
-    }
-}
-
-// MARK: - Models & Placeholder Detail
-private struct Fixture: Identifiable, Hashable {
-    let id: UUID
-    let home: String
-    let away: String
-    let when: String
-    let venue: String
-}
-
-private struct FixtureDetailView: View {
-    let fixture: Fixture
-    var onOpenLive: (String, String) -> Void
-    var onSendToWatch: (String, String, String) -> Void
-    var body: some View {
-        List {
-            Section("Fixture") {
-                LabeledContent("Teams", value: "\(fixture.home) vs \(fixture.away)")
-                LabeledContent("When", value: fixture.when)
-                LabeledContent("Venue", value: fixture.venue)
-            }
-            Section("Actions") {
-                Button { onSendToWatch(fixture.home, fixture.away, fixture.when) } label: { Label("Send to Watch", systemImage: "applewatch") }
-                Button { onOpenLive(fixture.home, fixture.away) } label: { Label("Open Live Mirror", systemImage: "play.circle") }
-            }
-        }
-        .navigationTitle("Fixture")
-    }
-}
-
-// MARK: - Create Fixture (placeholder)
-private struct CreateFixtureView: View {
-    @Environment(\.dismiss) private var dismiss
-    @State private var home: String = "Home"
-    @State private var away: String = "Away"
-    @State private var when: String = "Today 19:30"
-    @State private var venue: String = "Venue"
-    @State private var validationMessage: String?
-    var onCreate: (Fixture) -> Void
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section("Teams") {
-                    TextField("Home Team", text: $home)
-                        .onChange(of: home) { _ in validate() }
-                    TextField("Away Team", text: $away)
-                        .onChange(of: away) { _ in validate() }
-                }
-                Section("Details") {
-                    TextField("When", text: $when)
-                        .onChange(of: when) { _ in validate() }
-                    TextField("Venue", text: $venue)
-                        .onChange(of: venue) { _ in validate() }
-                    if let validationMessage {
-                        Text(validationMessage)
-                            .font(.footnote)
-                            .foregroundStyle(.red)
-                            .accessibilityLabel("Validation error: \(validationMessage)")
+            .navigationDestination(for: Route.self) { route in
+                switch route {
+                case .setup:
+                    MatchSetupView(matchViewModel: matchViewModel) { _ in
+                        path.append(.timer)
                     }
-                }
-            }
-            .navigationTitle("New Fixture")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Add") {
-                        onCreate(.init(id: UUID(), home: home, away: away, when: when, venue: venue))
-                        dismiss()
-                    }
-                    .disabled(!isValid)
+                case .timer:
+                    MatchTimerView(matchViewModel: matchViewModel)
+                case .historyList:
+                    MatchHistoryView(matchViewModel: matchViewModel)
+                case .scheduleSetup(let sched):
+                    MatchSetupView(
+                        matchViewModel: matchViewModel,
+                        onStarted: { _ in path.append(.timer) },
+                        prefillTeams: (sched.homeTeam, sched.awayTeam)
+                    )
                 }
             }
         }
-    }
-
-    private var isValid: Bool {
-        let ok = validate()
-        return ok
-    }
-
-    @discardableResult
-    private func validate() -> Bool {
-        func validTeam(_ s: String) -> Bool {
-            let trimmed = s.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !trimmed.isEmpty, trimmed.count <= 40 else { return false }
-            return CharacterSet.alphanumerics.union(.whitespaces).union(CharacterSet(charactersIn: "-&'.")).isSuperset(of: CharacterSet(charactersIn: trimmed))
-        }
-        func validText(_ s: String, max: Int = 60) -> Bool {
-            let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
-            return !t.isEmpty && t.count <= max
-        }
-
-        if !validTeam(home) { validationMessage = "Enter a valid Home team (max 40 chars)."; return false }
-        if !validTeam(away) { validationMessage = "Enter a valid Away team (max 40 chars)."; return false }
-        if !validText(when) { validationMessage = "Enter a valid date/time description."; return false }
-        if !validText(venue, max: 50) { validationMessage = "Enter a valid venue (max 50 chars)."; return false }
-
-        validationMessage = nil
-        return true
     }
 }
-
 #Preview {
-    MatchesTabView()
+    MatchesTabView(matchViewModel: MatchViewModel(haptics: NoopHaptics()))
         .environmentObject(AppRouter.preview())
-        .environmentObject(LiveSessionModel.preview(active: false))
 }
+ 
+// No additional helpers.
 
-// MARK: - Connectivity banner helper
 private extension MatchesTabView {
-    var connectivityBannerText: String? {
-        let c = ConnectivityClient.shared
-        guard c.isSupported else { return "WatchConnectivity not supported on this device" }
-        guard c.isPaired else { return "Apple Watch not paired" }
-        guard c.isWatchAppInstalled else { return "Watch app not installed" }
-        return c.isReachable ? nil : "Apple Watch not reachable"
+    static func format(_ date: Date) -> String {
+        let f = DateFormatter()
+        f.dateStyle = .short
+        f.timeStyle = .short
+        return f.string(from: date)
+    }
+
+    static func formatTime(_ date: Date) -> String {
+        let f = DateFormatter()
+        f.dateStyle = .none
+        f.timeStyle = .short
+        return f.string(from: date)
+    }
+
+    static func formatRelative(_ date: Date) -> String {
+        let cal = Calendar.current
+        if cal.isDateInToday(date) { return formatTime(date) }
+        if cal.isDateInTomorrow(date) { return "Tomorrow, \(formatTime(date))" }
+        let f = DateFormatter(); f.dateFormat = "EEEE, h:mm a"
+        return f.string(from: date)
     }
 }
