@@ -117,11 +117,20 @@ struct MatchesTabView: View {
                 upcoming = all.filter { $0.kickoff > cal.startOfDay(for: now).addingTimeInterval(24*60*60) }
                     .sorted(by: { $0.kickoff < $1.kickoff })
             }
+            .onChange(of: matchViewModel.matchCompleted) { completed in
+                if completed {
+                    recent = matchViewModel.loadRecentCompletedMatches(limit: 5)
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .matchHistoryDidChange)) { _ in
+                recent = matchViewModel.loadRecentCompletedMatches(limit: 5)
+            }
             .navigationDestination(for: Route.self) { route in
                 switch route {
                 case .setup:
                     MatchSetupView(matchViewModel: matchViewModel) { _ in
-                        path.append(.timer)
+                        // Replace the stack with the timer so finishing returns to hub
+                        path = [.timer]
                     }
                 case .timer:
                     MatchTimerView(matchViewModel: matchViewModel)
@@ -130,7 +139,7 @@ struct MatchesTabView: View {
                 case .scheduleSetup(let sched):
                     MatchSetupView(
                         matchViewModel: matchViewModel,
-                        onStarted: { _ in path.append(.timer) },
+                        onStarted: { _ in path = [.timer] },
                         prefillTeams: (sched.homeTeam, sched.awayTeam)
                     )
                 }
