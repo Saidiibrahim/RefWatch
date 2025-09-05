@@ -182,11 +182,41 @@ PR I5 — iOS Match Flow MVP
    - History list loads recent matches from shared store; improved empty state with CTA to start a match.
    - Settings (DEBUG): added "Seed Demo History" to quickly populate local history; implemented Wipe Local Data.
    - UI tests open History explicitly from Matches and assert saved row appears.
+   - Matches dashboard: `MatchesTabView` shows Start, Live (in‑progress), Today (scheduled), Upcoming (scheduled), and Past (recent history) with a "See All History" link.
+   - iOS‑only schedule: Added lightweight `ScheduledMatch` + `ScheduleService` (JSON) and DEBUG seeding in Settings.
  - Notes: Cross-device history (watch → iPhone) remains in I6 via `ConnectivitySyncProviding`.
 
-PR I6 — Persistence & Sync (Optional)
-- Goals: SwiftData on iOS behind `PersistenceProviding`; WatchConnectivity export of completed matches.
-- Acceptance: iOS history persists; watch→phone export works.
+PR I6 — Persistence & Sync
+- Goals:
+  - Migrate iOS history to SwiftData (offline‑first), keeping watch on JSON.
+  - Add a tiny auth‑ready shim so data can be tagged to a user later without migrations.
+  - Implement watch→iPhone export of completed matches via `ConnectivitySyncProviding` with de‑dupe.
+- Scope:
+  - Core auth shim: add `AuthenticationProviding` to RefWatchCore with states (`signedOut`, `signedIn(userId:displayName:)`) and `currentUserId`.
+  - Domain: extend `CompletedMatch` with optional `ownerId: String?` (default `nil`, backward compatible decode).
+  - iOS store: implement `SwiftDataMatchHistoryStore` that conforms to `MatchHistoryStoring`; on first launch import from the existing JSON file then persist only to SwiftData.
+  - WatchConnectivity: implement sender on watch (exports finished `CompletedMatch` as JSON) and receiver on iOS (merges by `id`, sets `ownerId` when available).
+  - Wiring: iOS uses `SwiftDataMatchHistoryStore`; watch keeps `MatchHistoryService` JSON.
+- Acceptance:
+  - iOS history persists across launches using SwiftData; first‑run import succeeds.
+  - Completing a match on the watch transmits to iPhone and appears in iOS History without duplicates.
+  - No new UI for auth; default adapter is `NoopAuth` (signed out).
+- Branch: `feature/i6-persistence-sync`
+- Commits:
+  1) Core: add `AuthenticationProviding` (+ `NoopAuth`) and `ownerId` on `CompletedMatch`.
+  2) iOS: add SwiftData model + store conforming to `MatchHistoryStoring` and import on first run.
+  3) Connectivity: watch sender + iOS receiver with merge/de‑dupe logic.
+  4) Wiring + tests: flip iOS to SwiftData store; add unit tests for import/merge; update docs.
+
+PR I7 — Auth (Clerk)
+- Goals: Integrate Clerk on iOS implementing `AuthenticationProviding`; bridge minimal identity to watch.
+- Scope:
+  - iOS: `ClerkAuth` adapter (sign‑in/out, session, `currentUserId`), Settings → Account section.
+  - Watch: show "Sign in on iPhone" state; receive identity over WatchConnectivity for display/gating only.
+  - Persistence: when signed in, stores set `ownerId` on new snapshots; sign‑out policy configurable (wipe vs. keep local and unlink).
+- Acceptance: Sign in/out works on iOS, watch reflects state; data continues to function offline; no cloud sync in I7 (future optional).
+- Branch: `feature/i7-auth-clerk`
+- Commits: adapter + UI, watch bridge, wiring, docs.
 
 ---
 
@@ -194,7 +224,8 @@ PR I6 — Persistence & Sync (Optional)
 
 - Platform code leaking into shared VMs → enforce adapters and review rule: “no WatchKit/UIKit in shared.”
 - SPM extraction churn → stage with Target Membership first; convert to SPM after stability.
-- Persistence divergence (JSON vs SwiftData) → abstract via `PersistenceProviding` and migrate gradually.
+- Persistence divergence (JSON vs SwiftData) → abstract via `PersistenceProviding` and migrate gradually; one‑time import in I6.
+- Auth coupling → introduce `AuthenticationProviding` interface first; keep Clerk behind adapter to avoid vendor lock‑in.
 
 ---
 
