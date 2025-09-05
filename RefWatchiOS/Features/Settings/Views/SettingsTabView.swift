@@ -98,7 +98,7 @@ private extension SettingsTabView {
         let now = Date()
         let today10 = cal.date(bySettingHour: 10, minute: 0, second: 0, of: now) ?? now
         let tomorrow12 = cal.date(byAdding: .day, value: 1, to: cal.date(bySettingHour: 12, minute: 0, second: 0, of: now) ?? now) ?? now
-        let saturday14 = cal.nextDate(after: now, matching: DateComponents(weekday: 7, hour: 14), matchingPolicy: .nextTimePreservingSmallerComponents) ?? now
+        let saturday14 = cal.nextDate(after: now, matching: DateComponents(hour: 14, weekday: 7), matchingPolicy: .nextTimePreservingSmallerComponents) ?? now
         let items = [
             ScheduledMatch(homeTeam: "U16 Boys", awayTeam: "Rivals", kickoff: today10),
             ScheduledMatch(homeTeam: "U18 Girls", awayTeam: "City", kickoff: tomorrow12),
