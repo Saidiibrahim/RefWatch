@@ -12,8 +12,11 @@ struct MatchesTabView: View {
     @EnvironmentObject private var router: AppRouter
     let matchViewModel: MatchViewModel
     @State private var path: [Route] = []
-    enum Route: Hashable { case setup, timer, historyList }
+    enum Route: Hashable { case setup, timer, historyList, scheduleSetup(ScheduledMatch) }
     @State private var recent: [CompletedMatch] = []
+    @State private var today: [ScheduledMatch] = []
+    @State private var upcoming: [ScheduledMatch] = []
+    private let scheduleStore = ScheduleService()
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -26,9 +29,9 @@ struct MatchesTabView: View {
                     }
                 }
 
-                // Today (in-progress)
+                // Live (in-progress)
                 if matchViewModel.isMatchInProgress, let m = matchViewModel.currentMatch {
-                    Section("Today") {
+                    Section("Live") {
                         NavigationLink(value: Route.timer) {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("\(m.homeTeam) vs \(m.awayTeam)")
@@ -36,6 +39,40 @@ struct MatchesTabView: View {
                                 Text("In progress")
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+
+                // Today (scheduled)
+                if !today.isEmpty {
+                    Section("Today") {
+                        ForEach(today) { item in
+                            NavigationLink(value: Route.scheduleSetup(item)) {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("\(item.homeTeam) vs \(item.awayTeam)").font(.headline)
+                                    Text(Self.formatTime(item.kickoff)).font(.subheadline).foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Upcoming (scheduled)
+                Section("Upcoming") {
+                    if upcoming.isEmpty {
+                        ContentUnavailableView(
+                            "No Upcoming Matches",
+                            systemImage: "calendar",
+                            description: Text("Add or sync scheduled matches.")
+                        )
+                    } else {
+                        ForEach(upcoming) { item in
+                            NavigationLink(value: Route.scheduleSetup(item)) {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("\(item.homeTeam) vs \(item.awayTeam)").font(.headline)
+                                    Text(Self.formatRelative(item.kickoff)).font(.subheadline).foregroundStyle(.secondary)
+                                }
                             }
                         }
                     }
@@ -71,7 +108,15 @@ struct MatchesTabView: View {
                     Button { path.append(.historyList) } label: { Label("History", systemImage: "clock") }
                 }
             }
-            .onAppear { recent = matchViewModel.loadRecentCompletedMatches(limit: 5) }
+            .onAppear {
+                recent = matchViewModel.loadRecentCompletedMatches(limit: 5)
+                let all = scheduleStore.loadAll()
+                let now = Date()
+                let cal = Calendar.current
+                today = all.filter { cal.isDate($0.kickoff, inSameDayAs: now) }
+                upcoming = all.filter { $0.kickoff > cal.startOfDay(for: now).addingTimeInterval(24*60*60) }
+                    .sorted(by: { $0.kickoff < $1.kickoff })
+            }
             .navigationDestination(for: Route.self) { route in
                 switch route {
                 case .setup:
@@ -82,6 +127,12 @@ struct MatchesTabView: View {
                     MatchTimerView(matchViewModel: matchViewModel)
                 case .historyList:
                     MatchHistoryView(matchViewModel: matchViewModel)
+                case .scheduleSetup(let sched):
+                    MatchSetupView(
+                        matchViewModel: matchViewModel,
+                        onStarted: { _ in path.append(.timer) },
+                        prefillTeams: (sched.homeTeam, sched.awayTeam)
+                    )
                 }
             }
         }
@@ -99,6 +150,21 @@ private extension MatchesTabView {
         let f = DateFormatter()
         f.dateStyle = .short
         f.timeStyle = .short
+        return f.string(from: date)
+    }
+
+    static func formatTime(_ date: Date) -> String {
+        let f = DateFormatter()
+        f.dateStyle = .none
+        f.timeStyle = .short
+        return f.string(from: date)
+    }
+
+    static func formatRelative(_ date: Date) -> String {
+        let cal = Calendar.current
+        if cal.isDateInToday(date) { return formatTime(date) }
+        if cal.isDateInTomorrow(date) { return "Tomorrow, \(formatTime(date))" }
+        let f = DateFormatter(); f.dateFormat = "EEEE, h:mm a"
         return f.string(from: date)
     }
 }

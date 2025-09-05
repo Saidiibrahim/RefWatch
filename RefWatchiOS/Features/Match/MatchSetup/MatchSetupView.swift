@@ -25,6 +25,15 @@ struct MatchSetupView: View {
 
     @State private var validationMessage: String?
 
+    init(matchViewModel: MatchViewModel, onStarted: ((MatchViewModel) -> Void)? = nil, prefillTeams: (String, String)? = nil) {
+        self.matchViewModel = matchViewModel
+        self.onStarted = onStarted
+        if let teams = prefillTeams {
+            _homeTeam = State(initialValue: teams.0)
+            _awayTeam = State(initialValue: teams.1)
+        }
+    }
+
     var body: some View {
         Form {
             Section("Teams") {
@@ -118,4 +127,3 @@ struct MatchSetupView: View {
     let vm = MatchViewModel(haptics: NoopHaptics())
     return NavigationStack { MatchSetupView(matchViewModel: vm) }
 }
-

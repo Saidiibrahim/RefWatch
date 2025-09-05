@@ -40,6 +40,7 @@ struct SettingsTabView: View {
                 #if DEBUG
                 Section("Debug") {
                     Button { seedDemoHistory() } label: { Label("Seed Demo History", systemImage: "sparkles") }
+                    Button { seedDemoSchedule() } label: { Label("Seed Demo Schedule", systemImage: "calendar.badge.plus") }
                 }
                 #endif
             }
@@ -58,6 +59,8 @@ private extension SettingsTabView {
         let store = MatchHistoryService()
         do {
             try store.wipeAll()
+            let schedule = ScheduleService()
+            schedule.wipeAll()
             infoMessage = "Local match history wiped."
             showingInfoAlert = true
         } catch {
@@ -85,6 +88,24 @@ private extension SettingsTabView {
             do { try store.save(snapshot); saved += 1 } catch { }
         }
         infoMessage = "Seeded \(saved) demo matches."
+        showingInfoAlert = true
+    }
+
+    func seedDemoSchedule() {
+        let store = ScheduleService()
+        store.wipeAll()
+        let cal = Calendar.current
+        let now = Date()
+        let today10 = cal.date(bySettingHour: 10, minute: 0, second: 0, of: now) ?? now
+        let tomorrow12 = cal.date(byAdding: .day, value: 1, to: cal.date(bySettingHour: 12, minute: 0, second: 0, of: now) ?? now) ?? now
+        let saturday14 = cal.nextDate(after: now, matching: DateComponents(weekday: 7, hour: 14), matchingPolicy: .nextTimePreservingSmallerComponents) ?? now
+        let items = [
+            ScheduledMatch(homeTeam: "U16 Boys", awayTeam: "Rivals", kickoff: today10),
+            ScheduledMatch(homeTeam: "U18 Girls", awayTeam: "City", kickoff: tomorrow12),
+            ScheduledMatch(homeTeam: "U14 Boys", awayTeam: "United", kickoff: saturday14),
+        ]
+        items.forEach { store.save($0) }
+        infoMessage = "Seeded demo schedule (Today + Upcoming)."
         showingInfoAlert = true
     }
 }
