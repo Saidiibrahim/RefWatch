@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import RefWatchCore
 
 #if DEBUG
 extension AppRouter {
@@ -16,14 +17,12 @@ extension AppRouter {
     }
 }
 
-extension LiveSessionModel {
-    static func preview(active: Bool = true) -> LiveSessionModel {
-        let s = LiveSessionModel()
-        if active {
-            s.simulateStart(home: "HOM", away: "AWA")
-        }
-        return s
+extension MatchViewModel {
+    static func previewActive() -> MatchViewModel {
+        let vm = MatchViewModel(haptics: NoopHaptics())
+        vm.newMatch = Match(homeTeam: "HOM", awayTeam: "AWA")
+        vm.createMatch(); vm.startMatch()
+        return vm
     }
 }
 #endif
-

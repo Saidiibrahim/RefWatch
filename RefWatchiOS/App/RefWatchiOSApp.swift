@@ -6,17 +6,17 @@
 //
 
 import SwiftUI
+import RefWatchCore
 
 @main
 struct RefWatchiOSApp: App {
     @StateObject private var router = AppRouter()
-    @StateObject private var liveSession = LiveSessionModel()
+    @State private var matchVM = MatchViewModel(haptics: IOSHaptics())
 
     var body: some Scene {
         WindowGroup {
-            MainTabView()
+            MainTabView(matchViewModel: matchVM)
                 .environmentObject(router)
-                .environmentObject(liveSession)
         }
     }
 }
