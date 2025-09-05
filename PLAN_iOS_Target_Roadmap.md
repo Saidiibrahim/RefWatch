@@ -37,7 +37,7 @@ PR I3 — Platform Adapters + Shared ViewModels ✅
   - watchOS uses `WatchHaptics`; iOS has `IOSHaptics` available; shared VM logic compiles on both targets.
 
 Upcoming
-- PR I4 — Extract `RefWatchCore` Swift Package — In Progress ▶
+- PR I4 — Extract `RefWatchCore` Swift Package — Completed ✅
 
 ---
 
@@ -127,7 +127,7 @@ PR I3 — Platform Adapters + Begin Sharing ViewModels — Completed ✅
 - Goals: Introduce adapter protocols (`HapticsProviding`, `PersistenceProviding`, `ConnectivitySyncProviding`), extract UI‑agnostic parts of key VMs and inject adapters.
 - Acceptance: watchOS uses Watch‑specific adapters; iOS uses iOS equivalents; derived labels/timing stay identical.
 
-PR I4 — Extract `RefWatchCore` Swift Package (Phase B) — In Progress ▶
+PR I4 — Extract `RefWatchCore` Swift Package (Phase B) — Completed ✅
 - Goals: Move shared domain/services/VMs into SPM; migrate unit tests into package tests.
 - Acceptance: Both apps depend on the package; `xcodebuild test` runs package tests.
 
@@ -169,7 +169,7 @@ I4 Next Steps (to Complete Acceptance) ▶
 - PR wrap‑up:
   - Keep I4 strictly structural (no runtime behavior changes). Document skipped tests rationale. Outline follow‑up (I5) to adopt shared VMs in iOS UIs.
 
-I4b — Remove Duplicated Sources ▶
+I4b — Remove Duplicated Sources — Completed ✅
 - Purpose: Clean the repo by deleting the now‑unchecked duplicate sources (protocols, extensions, services, domain models, shared ViewModels) that were excluded from targets in I4.
 - Scope: Physical deletion only; no behavior changes. After deletion, re‑verify both app schemes and the `RefWatchCore` package tests.
 - Acceptance: iOS and watchOS still build successfully; `xcodebuild test` for the package passes.
@@ -177,6 +177,12 @@ I4b — Remove Duplicated Sources ▶
 PR I5 — iOS Match Flow MVP
 - Goals: Implement iOS screens (MatchSetup → Live Timer → Events → History) using shared VMs/services.
 - Acceptance: Core officiating flow is functional on iPhone; parity with watch logic where appropriate.
+ - Delivery (current):
+   - Live timer finalization saves `CompletedMatch` via `MatchHistoryService` (JSON) and surfaces save errors with an alert.
+   - History list loads recent matches from shared store; improved empty state with CTA to start a match.
+   - Settings (DEBUG): added "Seed Demo History" to quickly populate local history; implemented Wipe Local Data.
+   - UI tests open History explicitly from Matches and assert saved row appears.
+ - Notes: Cross-device history (watch → iPhone) remains in I6 via `ConnectivitySyncProviding`.
 
 PR I6 — Persistence & Sync (Optional)
 - Goals: SwiftData on iOS behind `PersistenceProviding`; WatchConnectivity export of completed matches.
