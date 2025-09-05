@@ -65,6 +65,8 @@ struct MatchHistoryView: View {
         .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .automatic), prompt: "Search team")
         .refreshable { reload() }
         .onAppear { reload() }
+        .onReceive(NotificationCenter.default.publisher(for: .matchHistoryDidChange)) { _ in reload() }
+        .onChange(of: matchViewModel.matchCompleted) { completed in if completed { reload() } }
     }
 
     private func delete(at offsets: IndexSet) {
