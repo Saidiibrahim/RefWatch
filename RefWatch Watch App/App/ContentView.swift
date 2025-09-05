@@ -9,7 +9,7 @@ import SwiftUI
 import RefWatchCore
 
 struct ContentView: View {
-    @State private var matchViewModel = MatchViewModel(haptics: WatchHaptics())
+    @State private var matchViewModel = MatchViewModel(haptics: WatchHaptics(), connectivity: WatchConnectivitySyncClient())
     @State private var settingsViewModel = SettingsViewModel()
     @State private var lifecycle = MatchLifecycleCoordinator()
     @State private var showPersistenceError = false
