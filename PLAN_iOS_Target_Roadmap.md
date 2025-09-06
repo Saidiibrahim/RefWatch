@@ -174,7 +174,7 @@ I4b — Remove Duplicated Sources — Completed ✅
 - Scope: Physical deletion only; no behavior changes. After deletion, re‑verify both app schemes and the `RefWatchCore` package tests.
 - Acceptance: iOS and watchOS still build successfully; `xcodebuild test` for the package passes.
 
-PR I5 — iOS Match Flow MVP
+PR I5 — iOS Match Flow MVP - Completed ✅
 - Goals: Implement iOS screens (MatchSetup → Live Timer → Events → History) using shared VMs/services.
 - Acceptance: Core officiating flow is functional on iPhone; parity with watch logic where appropriate.
  - Delivery (current):
@@ -239,6 +239,6 @@ PR I7 — Auth (Clerk)
 
 ## Handoff Notes
 
-- Proceed PRs in order: I1 → I2 → I3 → I4 → I5 → I6.
+- Proceed PRs in order: I1 → I2 → I3 → I4 → I5 → I6 → I7.
 - Keep `MatchLifecycleCoordinator` authoritative for routing on watch; iOS may introduce its own coordinator later but should consume the same VMs/services.
 - All structural changes in I1 avoid code/behavior edits; renames (e.g., `LiveSessionModel` → `LiveSessionViewModel`) are deferred to I3.

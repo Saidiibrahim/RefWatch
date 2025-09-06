@@ -10,6 +10,7 @@ import Foundation
 import SwiftData
 import RefWatchCore
 
+@MainActor
 final class SwiftDataMatchHistoryStore: MatchHistoryStoring {
     private let container: ModelContainer
     private let context: ModelContext
