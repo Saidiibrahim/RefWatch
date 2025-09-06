@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Combine
 import RefWatchCore
 
 struct MatchHistoryView: View {
@@ -65,7 +66,7 @@ struct MatchHistoryView: View {
         .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .automatic), prompt: "Search team")
         .refreshable { reload() }
         .onAppear { reload() }
-        .onReceive(NotificationCenter.default.publisher(for: .matchHistoryDidChange)) { _ in reload() }
+        .onReceive(NotificationCenter.default.publisher(for: .matchHistoryDidChange).receive(on: RunLoop.main)) { _ in reload() }
         .onChange(of: matchViewModel.matchCompleted) { completed in if completed { reload() } }
     }
 

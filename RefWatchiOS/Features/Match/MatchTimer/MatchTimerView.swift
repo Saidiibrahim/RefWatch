@@ -14,6 +14,7 @@ struct MatchTimerView: View {
     @State private var showingFinishAlert = false
     @State private var showingSaveErrorAlert = false
     @State private var saveErrorMessage: String = ""
+    @State private var showingActions = false
     @Environment(\.dismiss) private var dismiss
 
     private var periodLabel: String {
@@ -73,48 +74,6 @@ struct MatchTimerView: View {
             // Controls
             controlButtons
 
-            // Quick event logging (skeleton)
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Quick Events").font(.subheadline).bold().padding(.horizontal)
-                HStack {
-                    Button("Home Goal") { matchViewModel.recordGoal(team: .home, goalType: .regular) }
-                    Button("Away Goal") { matchViewModel.recordGoal(team: .away, goalType: .regular) }
-                }
-                .buttonStyle(.bordered)
-                .padding(.horizontal)
-                HStack {
-                    Button("Home Penalty") { matchViewModel.recordGoal(team: .home, goalType: .penalty) }
-                    Button("Away Penalty") { matchViewModel.recordGoal(team: .away, goalType: .penalty) }
-                }
-                .buttonStyle(.bordered)
-                .padding(.horizontal)
-                HStack {
-                    // Own goals credit the opposite team
-                    Button("Home Own Goal") { matchViewModel.recordGoal(team: .away, goalType: .ownGoal) }
-                    Button("Away Own Goal") { matchViewModel.recordGoal(team: .home, goalType: .ownGoal) }
-                }
-                .buttonStyle(.bordered)
-                .padding(.horizontal)
-                HStack {
-                    Button("Home Yellow") { matchViewModel.recordCard(team: .home, cardType: .yellow, recipientType: .player, reason: "General") }
-                    Button("Away Yellow") { matchViewModel.recordCard(team: .away, cardType: .yellow, recipientType: .player, reason: "General") }
-                }
-                .buttonStyle(.bordered)
-                .padding(.horizontal)
-                HStack {
-                    Button("Home Red") { matchViewModel.recordCard(team: .home, cardType: .red, recipientType: .player, reason: "General") }
-                    Button("Away Red") { matchViewModel.recordCard(team: .away, cardType: .red, recipientType: .player, reason: "General") }
-                }
-                .buttonStyle(.bordered)
-                .padding(.horizontal)
-                HStack {
-                    Button("Home Sub") { matchViewModel.recordSubstitution(team: .home) }
-                    Button("Away Sub") { matchViewModel.recordSubstitution(team: .away) }
-                }
-                .buttonStyle(.bordered)
-                .padding(.horizontal)
-            }
-
             // Recent events
             List {
                 let items = Array(matchViewModel.matchEvents.suffix(25).reversed())
@@ -148,6 +107,11 @@ struct MatchTimerView: View {
                     Text("Finish")
                 }
             }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button { showingActions = true } label: {
+                    Label("Actions", systemImage: "ellipsis.circle")
+                }
+            }
         }
         .alert("Finish Match?", isPresented: $showingFinishAlert) {
             Button("Cancel", role: .cancel) {}
@@ -171,6 +135,9 @@ struct MatchTimerView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text(saveErrorMessage.isEmpty ? "An unknown error occurred while saving." : saveErrorMessage)
+        }
+        .sheet(isPresented: $showingActions) {
+            MatchActionsSheet(matchViewModel: matchViewModel)
         }
     }
 

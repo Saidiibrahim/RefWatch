@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Combine
 import RefWatchCore
 
 struct MatchesTabView: View {
@@ -122,7 +123,7 @@ struct MatchesTabView: View {
                     recent = matchViewModel.loadRecentCompletedMatches(limit: 5)
                 }
             }
-            .onReceive(NotificationCenter.default.publisher(for: .matchHistoryDidChange)) { _ in
+            .onReceive(NotificationCenter.default.publisher(for: .matchHistoryDidChange).receive(on: RunLoop.main)) { _ in
                 recent = matchViewModel.loadRecentCompletedMatches(limit: 5)
             }
             .navigationDestination(for: Route.self) { route in
