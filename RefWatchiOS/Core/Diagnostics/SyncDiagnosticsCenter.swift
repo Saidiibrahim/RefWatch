@@ -7,6 +7,7 @@
 
 import Foundation
 import Combine
+import RefWatchCore
 
 final class SyncDiagnosticsCenter: ObservableObject {
     @Published var lastErrorMessage: String? = nil

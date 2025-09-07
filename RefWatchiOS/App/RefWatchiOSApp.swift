@@ -33,14 +33,17 @@ struct RefWatchiOSApp: App {
         // 3) JSON store: final safety net to ensure critical features continue to work.
         let schema = Schema([CompletedMatchRecord.self])
         let result = ModelContainerFactory.makeStore(builder: Self.containerBuilder, schema: schema)
-        self.modelContainer = result.0
-        self.historyStore = result.1
+        // Build dependencies as locals first to avoid capturing `self` in escaping autoclosures
+        let container = result.0
+        let store = result.1
+        let vm = MatchViewModel(history: store, haptics: IOSHaptics())
+        let controller = ConnectivitySyncController(history: store, auth: NoopAuth())
 
-        // Initialize the MatchViewModel with the SwiftData-backed store
-        _matchVM = State(initialValue: MatchViewModel(history: historyStore, haptics: IOSHaptics()))
-
-        // Set up WatchConnectivity receiver
-        _syncController = StateObject(wrappedValue: ConnectivitySyncController(history: historyStore, auth: NoopAuth()))
+        // Assign to stored properties/wrappers
+        self.modelContainer = container
+        self.historyStore = store
+        _matchVM = State(initialValue: vm)
+        _syncController = StateObject(wrappedValue: controller)
     }
 
     var body: some Scene {
