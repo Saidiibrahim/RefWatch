@@ -75,6 +75,17 @@ final class IOSConnectivitySyncClient: NSObject {
             NotificationCenter.default.post(name: .matchHistoryDidChange, object: nil)
         }
     }
+
+    /// Deactivates the WCSession delegate to avoid dangling references when the app
+    /// transitions to background or the controller is torn down.
+    func deactivate() {
+        #if canImport(WatchConnectivity)
+        guard WCSession.isSupported() else { return }
+        if WCSession.default.delegate === self {
+            WCSession.default.delegate = nil
+        }
+        #endif
+    }
 }
 
 #if canImport(WatchConnectivity)
@@ -88,21 +99,17 @@ extension IOSConnectivitySyncClient: WCSessionDelegate {
     func session(_ session: WCSession, didReceiveMessage message: [String : Any]) {
         guard let type = message["type"] as? String, type == "completedMatch" else { return }
         guard let data = message["data"] as? Data else {
-            #if DEBUG
             DispatchQueue.main.async {
                 NotificationCenter.default.post(name: .syncNonrecoverableError, object: nil, userInfo: ["error": "missing data", "context": "ios.didReceiveMessage.payload"])
             }
-            #endif
             return
         }
         queue.async { [weak self] in
             let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .iso8601
             guard let match = try? decoder.decode(CompletedMatch.self, from: data) else {
-                #if DEBUG
                 DispatchQueue.main.async {
                     NotificationCenter.default.post(name: .syncNonrecoverableError, object: nil, userInfo: ["error": "decode failed", "context": "ios.didReceiveMessage.decode"])
                 }
-                #endif
                 return
             }
             self?.handleCompletedMatch(match)
@@ -113,21 +120,17 @@ extension IOSConnectivitySyncClient: WCSessionDelegate {
     func session(_ session: WCSession, didReceiveUserInfo userInfo: [String : Any] = [:]) {
         guard let type = userInfo["type"] as? String, type == "completedMatch" else { return }
         guard let data = userInfo["data"] as? Data else {
-            #if DEBUG
             DispatchQueue.main.async {
                 NotificationCenter.default.post(name: .syncNonrecoverableError, object: nil, userInfo: ["error": "missing data", "context": "ios.didReceiveUserInfo.payload"])
             }
-            #endif
             return
         }
         queue.async { [weak self] in
             let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .iso8601
             guard let match = try? decoder.decode(CompletedMatch.self, from: data) else {
-                #if DEBUG
                 DispatchQueue.main.async {
                     NotificationCenter.default.post(name: .syncNonrecoverableError, object: nil, userInfo: ["error": "decode failed", "context": "ios.didReceiveUserInfo.decode"])
                 }
-                #endif
                 return
             }
             self?.handleCompletedMatch(match)

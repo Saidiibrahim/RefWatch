@@ -17,7 +17,9 @@ struct RefWatchiOSApp: App {
     private let historyStore: MatchHistoryStoring
 
     @State private var matchVM: MatchViewModel
-    private let iosSync: IOSConnectivitySyncClient
+    @StateObject private var syncController: ConnectivitySyncController
+    @StateObject private var syncDiagnostics = SyncDiagnosticsCenter()
+    @Environment(\.scenePhase) private var scenePhase
 
     init() {
         // Build SwiftData container and store with graceful fallback.
@@ -56,15 +58,24 @@ struct RefWatchiOSApp: App {
         _matchVM = State(initialValue: MatchViewModel(history: historyStore, haptics: IOSHaptics()))
 
         // Set up WatchConnectivity receiver
-        let sync = IOSConnectivitySyncClient(history: historyStore, auth: NoopAuth())
-        sync.activate()
-        self.iosSync = sync
+        _syncController = StateObject(wrappedValue: ConnectivitySyncController(history: historyStore, auth: NoopAuth()))
     }
 
     var body: some Scene {
         WindowGroup {
             MainTabView(matchViewModel: matchVM, historyStore: historyStore)
                 .environmentObject(router)
+                .environmentObject(syncDiagnostics)
+                .onChange(of: scenePhase) { phase in
+                    switch phase {
+                    case .active:
+                        syncController.start()
+                    case .inactive, .background:
+                        syncController.stop()
+                    @unknown default:
+                        break
+                    }
+                }
         }
     }
 }
