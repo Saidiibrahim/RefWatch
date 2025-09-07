@@ -14,6 +14,11 @@ struct MatchActionsSheet: View {
     @State private var showGoalFlow = false
     @State private var showCardFlow = false
     @State private var showSubFlow = false
+    @State private var showEndPeriodConfirm = false
+    @State private var showFullTime = false
+    @State private var showResetConfirm = false
+    @State private var showAbandonConfirm = false
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
@@ -51,17 +56,25 @@ struct MatchActionsSheet: View {
 
                     if matchViewModel.isMatchInProgress {
                         Button(role: .destructive) {
-                            matchViewModel.endCurrentPeriod()
+                            showEndPeriodConfirm = true
                         } label: { Label("End Current Period", systemImage: "stop.circle") }
                     }
                 }
 
                 Section("Finish") {
                     Button(role: .destructive) {
-                        matchViewModel.finalizeMatch()
-                    } label: {
-                        Label("Finish Match", systemImage: "flag.checkered")
-                    }
+                        showFullTime = true
+                    } label: { Label("Finish Match", systemImage: "flag.checkered") }
+                }
+
+                Section("Options") {
+                    Button {
+                        showResetConfirm = true
+                    } label: { Label("Reset Match", systemImage: "arrow.counterclockwise") }
+
+                    Button(role: .destructive) {
+                        showAbandonConfirm = true
+                    } label: { Label("Abandon Match", systemImage: "xmark.circle") }
                 }
             }
             .navigationTitle("Match Actions")
@@ -75,7 +88,51 @@ struct MatchActionsSheet: View {
             .sheet(isPresented: $showSubFlow) {
                 SubstitutionEventFlowView(matchViewModel: matchViewModel)
             }
+            .sheet(isPresented: $showFullTime) {
+                FullTimeView_iOS(matchViewModel: matchViewModel)
+            }
+            .confirmationDialog(
+                "",
+                isPresented: $showEndPeriodConfirm,
+                titleVisibility: .hidden
+            ) {
+                Button("Yes") {
+                    let isFinalReg = (matchViewModel.currentMatch != nil
+                                      && matchViewModel.currentPeriod == (matchViewModel.currentMatch?.numberOfPeriods ?? 2)
+                                      && (matchViewModel.currentMatch?.hasExtraTime == false))
+                    matchViewModel.endCurrentPeriod()
+                    if isFinalReg {
+                        // When this ends the match in regulation, the timer will present Full Time
+                    }
+                }
+                Button("No", role: .cancel) {}
+            } message: {
+                Text(
+                    (matchViewModel.currentMatch != nil
+                     && matchViewModel.currentPeriod == (matchViewModel.currentMatch?.numberOfPeriods ?? 2)
+                     && (matchViewModel.currentMatch?.hasExtraTime == false))
+                    ? "Are you sure you want to 'End Match'?"
+                    : "Are you sure you want to 'End Half'?"
+                )
+            }
+            .alert("Reset Match", isPresented: $showResetConfirm) {
+                Button("Cancel", role: .cancel) {}
+                Button("Reset", role: .destructive) {
+                    matchViewModel.resetMatch()
+                    dismiss()
+                }
+            } message: {
+                Text("This will reset score, cards, and events. This cannot be undone.")
+            }
+            .alert("Abandon Match", isPresented: $showAbandonConfirm) {
+                Button("Cancel", role: .cancel) {}
+                Button("Abandon", role: .destructive) {
+                    matchViewModel.abandonMatch()
+                    dismiss()
+                }
+            } message: {
+                Text("This will end the match immediately and record it as abandoned.")
+            }
         }
     }
 }
-
