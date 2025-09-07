@@ -184,3 +184,43 @@ Uses a sophisticated coordinator pattern:
   - Naming: files `MatchViewModel_<Topic>Tests.swift`; methods `test_<Action>_when<Context>_does<Outcome>()`.
 - Simulator Tips:
   - Prefer concrete destinations: watchOS (Series 9 45mm), iOS (iPhone 15).
+
+## Sync Error Handling & Retry Policy (I6)
+
+- Transport Envelope:
+  - Dictionary with keys: `type: "completedMatch"`, `data: Data` (JSON-encoded `CompletedMatch`).
+  - Dates encoded/decoded with ISO8601 across platforms for consistency.
+- Sender Policy (watchOS):
+  - Encode JSON on a background queue to avoid UI stutters.
+  - If `WCSession.default.isReachable` → call `sendMessage` with an `errorHandler`.
+  - On `sendMessage` error or when not reachable → immediately fall back to `transferUserInfo` for durable delivery.
+  - On watchOS, `isPaired` is unavailable; availability uses `WCSession.isSupported()`.
+- Receiver Policy (iOS):
+  - Decode JSON on a background queue.
+  - Persist to SwiftData and post notifications on the main actor.
+  - Attach `ownerId` if available and missing in the snapshot (idempotent).
+- Diagnostics (DEBUG only):
+  - `Notification.Name.syncFallbackOccurred` posted when falling back to durable transfer.
+  - `Notification.Name.syncNonrecoverableError` posted for non-recoverable issues (e.g., encode/decode failure, session unavailable).
+  - Diagnostics are non-intrusive and only posted on debug builds.
+
+## Threading Invariants (Persistence & Sync)
+
+- JSON encode/decode runs off the main thread.
+- SwiftData operations run on the main actor in this app (store annotated `@MainActor`).
+- NotificationCenter posts that drive UI updates occur on the main thread.
+- Tests assert that connectivity-triggered saves occur on the main thread.
+
+## History Loading & Pagination (I6)
+
+- Default bounded loads: `SwiftDataMatchHistoryStore.loadAll()` applies a reasonable default fetch limit to protect memory.
+- Pagination API: `loadPage(offset:limit:)` is available for “See All” or infinite scrolling screens.
+- UI guidance:
+  - Use `loadAll()` for “Recent/Past” summaries.
+  - Use `loadPage(offset:limit:)` for full-history views.
+
+## Lifecycle & WCSession Delegate (iOS)
+
+- `IOSConnectivitySyncClient` is retained for app lifetime by the App root and activates the session once.
+- `deinit` clears `WCSession.default.delegate` defensively to avoid dangling delegate references in case of lifecycle changes.
+- If the client ever becomes observable, consider `@StateObject` in App and explicit `deactivate()` on scene phase changes.

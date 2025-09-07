@@ -6,12 +6,18 @@
 //
 
 import SwiftUI
+import Combine
 import RefWatchCore
 
 struct MatchHistoryView: View {
     let matchViewModel: MatchViewModel
+    let historyStore: MatchHistoryStoring
     @State private var items: [CompletedMatch] = []
     @State private var searchText: String = ""
+    @State private var isLoading: Bool = false
+    @State private var hasMore: Bool = true
+    @State private var nextCursor: Date? = nil
+    private let pageSize: Int = 50
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -58,22 +64,73 @@ struct MatchHistoryView: View {
                         }
                     }
                     .onDelete(perform: delete)
+
+                    // Paging footer: infinite scroll trigger and loading state
+                    if hasMore || isLoading {
+                        HStack {
+                            Spacer()
+                            if isLoading {
+                                ProgressView()
+                                    .progressViewStyle(.circular)
+                                    .padding(.vertical, 8)
+                            } else {
+                                Text("Load more…")
+                                    .foregroundStyle(.secondary)
+                                    .padding(.vertical, 8)
+                                    .onAppear { loadNextPage() }
+                            }
+                            Spacer()
+                        }
+                    }
                 }
             }
         .navigationTitle("History")
         .toolbar { EditButton() }
         .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .automatic), prompt: "Search team")
-        .refreshable { reload() }
-        .onAppear { reload() }
+        .refreshable { resetAndLoadFirstPage() }
+        .onAppear { if items.isEmpty { resetAndLoadFirstPage() } }
+        .onReceive(NotificationCenter.default.publisher(for: .matchHistoryDidChange).receive(on: RunLoop.main)) { _ in resetAndLoadFirstPage() }
+        .onChange(of: matchViewModel.matchCompleted) { completed in if completed { resetAndLoadFirstPage() } }
     }
 
     private func delete(at offsets: IndexSet) {
         // Deletion operates on base items, not filtered view
         for i in offsets { matchViewModel.deleteCompletedMatch(id: filteredItems[i].id) }
-        reload()
+        resetAndLoadFirstPage()
     }
 
-    private func reload() { items = matchViewModel.loadRecentCompletedMatches() }
+    private func resetAndLoadFirstPage() {
+        items = []
+        nextCursor = nil
+        hasMore = true
+        loadNextPage()
+    }
+
+    private func loadNextPage() {
+        guard !isLoading, hasMore else { return }
+        isLoading = true
+        let limit = pageSize
+        var page: [CompletedMatch] = []
+        if let sd = historyStore as? SwiftDataMatchHistoryStore {
+            page = (try? sd.loadBefore(completedAt: nextCursor, limit: limit)) ?? []
+        } else {
+            // Fallback for non-SwiftData stores: emulate cursor by filtering on completedAt
+            let all = (try? historyStore.loadAll()) ?? []
+            let source = nextCursor == nil ? all : all.filter { $0.completedAt < (nextCursor ?? Date.distantFuture) }
+            page = Array(source.prefix(limit))
+        }
+        // Deduplicate by id and maintain order
+        var existing = Set(items.map { $0.id })
+        let uniques = page.filter { snap in
+            let seen = existing.contains(snap.id)
+            if !seen { existing.insert(snap.id) }
+            return !seen
+        }
+        items.append(contentsOf: uniques)
+        nextCursor = items.last?.completedAt
+        hasMore = page.count == limit
+        isLoading = false
+    }
 
     private var filteredItems: [CompletedMatch] {
         let q = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -93,5 +150,5 @@ struct MatchHistoryView: View {
 }
 
 #Preview {
-    MatchHistoryView(matchViewModel: MatchViewModel(haptics: NoopHaptics()))
+    MatchHistoryView(matchViewModel: MatchViewModel(haptics: NoopHaptics()), historyStore: MatchHistoryService())
 }
