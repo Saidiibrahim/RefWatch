@@ -50,7 +50,6 @@ final class WatchConnectivitySyncClient: ConnectivitySyncProviding {
     func sendCompletedMatch(_ match: CompletedMatch) {
         #if canImport(WatchConnectivity)
         guard let session = session else {
-            #if DEBUG
             DispatchQueue.main.async {
                 NotificationCenter.default.post(
                     name: .syncNonrecoverableError,
@@ -58,13 +57,11 @@ final class WatchConnectivitySyncClient: ConnectivitySyncProviding {
                     userInfo: ["error": "WCSession unavailable", "context": "watch.sendCompletedMatch.sessionNil"]
                 )
             }
-            #endif
             return
         }
         queue.async {
             let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .iso8601
             guard let data = try? encoder.encode(match) else {
-                #if DEBUG
                 DispatchQueue.main.async {
                     NotificationCenter.default.post(
                         name: .syncNonrecoverableError,
@@ -72,7 +69,6 @@ final class WatchConnectivitySyncClient: ConnectivitySyncProviding {
                         userInfo: ["error": "encode failed", "context": "watch.sendCompletedMatch.encode"]
                     )
                 }
-                #endif
                 return
             }
             let payload: [String: Any] = [

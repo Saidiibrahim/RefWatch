@@ -10,6 +10,7 @@ import RefWatchCore
 
 struct SettingsTabView: View {
     let historyStore: MatchHistoryStoring
+    @EnvironmentObject private var syncDiagnostics: SyncDiagnosticsCenter
     @State private var defaultPeriod: Int = 45
     @State private var extraTime: Bool = false
     @State private var penaltyRounds: Int = 5
@@ -19,6 +20,29 @@ struct SettingsTabView: View {
     var body: some View {
         NavigationStack {
             Form {
+                if syncDiagnostics.showBanner, let msg = syncDiagnostics.lastErrorMessage {
+                    Section {
+                        HStack(alignment: .top, spacing: 8) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundStyle(.white)
+                                .padding(6)
+                                .background(Color.red)
+                                .clipShape(RoundedRectangle(cornerRadius: 6))
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Sync Issue Detected").font(.headline)
+                                Text(msg).font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                                if let ctx = syncDiagnostics.lastErrorContext {
+                                    Text(ctx).font(.caption2).foregroundStyle(.secondary)
+                                }
+                                Button("Dismiss") { syncDiagnostics.dismiss() }
+                                    .buttonStyle(.bordered)
+                                    .padding(.top, 4)
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
+                }
                 Section("Defaults") {
                     Stepper(value: $defaultPeriod, in: 30...60, step: 5) {
                         LabeledContent("Regulation Period", value: "\(defaultPeriod) min")
@@ -109,4 +133,7 @@ private extension SettingsTabView {
     }
 }
 
-#Preview { SettingsTabView(historyStore: MatchHistoryService()) }
+#Preview {
+    SettingsTabView(historyStore: MatchHistoryService())
+        .environmentObject(SyncDiagnosticsCenter())
+}
