@@ -15,6 +15,15 @@ struct MatchTimerView: View {
     @State private var showingSaveErrorAlert = false
     @State private var saveErrorMessage: String = ""
     @State private var showingActions = false
+    @State private var showingFullTime = false
+    @State private var showKickoffSecond = false
+    @State private var showKickoffET1 = false
+    @State private var showKickoffET2 = false
+    @State private var kickoffDefaultSecond: TeamSide? = nil
+    @State private var kickoffDefaultET2: TeamSide? = nil
+    @State private var showPenFirst = false
+    @State private var showPenShootout = false
+    @State private var showEndHalfTimeConfirm = false
     @Environment(\.dismiss) private var dismiss
 
     private var periodLabel: String {
@@ -71,8 +80,12 @@ struct MatchTimerView: View {
                 }
             }
 
-            // Controls
-            controlButtons
+            // Controls / Half-time
+            if matchViewModel.isHalfTime {
+                halfTimeSection
+            } else {
+                controlButtons
+            }
 
             // Recent events
             List {
@@ -126,10 +139,29 @@ struct MatchTimerView: View {
             Text("This will finalize and save the match.")
         }
         .onChange(of: matchViewModel.isFullTime) { isFT in
-            // Avoid dismissing if a save error occurred; allow the user to see the error first.
-            if isFT, (matchViewModel.lastPersistenceError == nil || matchViewModel.lastPersistenceError?.isEmpty == true) {
-                dismiss()
+            if isFT { showingFullTime = true }
+        }
+        .onChange(of: matchViewModel.matchCompleted) { completed in
+            // After finalize, pop back to Matches hub (if we are still on timer)
+            if completed { dismiss() }
+        }
+        .onChange(of: matchViewModel.waitingForSecondHalfStart) { waiting in
+            if waiting {
+                kickoffDefaultSecond = matchViewModel.getSecondHalfKickingTeam()
+                showKickoffSecond = true
             }
+        }
+        .onChange(of: matchViewModel.waitingForET1Start) { waiting in
+            if waiting { showKickoffET1 = true }
+        }
+        .onChange(of: matchViewModel.waitingForET2Start) { waiting in
+            if waiting {
+                kickoffDefaultET2 = matchViewModel.getETSecondHalfKickingTeam()
+                showKickoffET2 = true
+            }
+        }
+        .onChange(of: matchViewModel.waitingForPenaltiesStart) { waiting in
+            if waiting { showPenFirst = true }
         }
         .alert("Save Failed", isPresented: $showingSaveErrorAlert) {
             Button("OK", role: .cancel) {}
@@ -138,6 +170,37 @@ struct MatchTimerView: View {
         }
         .sheet(isPresented: $showingActions) {
             MatchActionsSheet(matchViewModel: matchViewModel)
+        }
+        .sheet(isPresented: $showingFullTime) {
+            FullTimeView_iOS(matchViewModel: matchViewModel)
+        }
+        .sheet(isPresented: $showKickoffSecond) {
+            MatchKickoffView(
+                matchViewModel: matchViewModel,
+                phase: .secondHalf,
+                defaultSelected: kickoffDefaultSecond
+            )
+        }
+        .sheet(isPresented: $showKickoffET1) {
+            MatchKickoffView(
+                matchViewModel: matchViewModel,
+                phase: .extraTimeFirst
+            )
+        }
+        .sheet(isPresented: $showKickoffET2) {
+            MatchKickoffView(
+                matchViewModel: matchViewModel,
+                phase: .extraTimeSecond,
+                defaultSelected: kickoffDefaultET2
+            )
+        }
+        .sheet(isPresented: $showPenFirst, onDismiss: {
+            if matchViewModel.penaltyShootoutActive { showPenShootout = true }
+        }) {
+            PenaltyFirstKickerView(matchViewModel: matchViewModel)
+        }
+        .sheet(isPresented: $showPenShootout) {
+            PenaltyShootoutView(matchViewModel: matchViewModel)
         }
     }
 
@@ -209,6 +272,26 @@ struct MatchTimerView: View {
     }
 
     // Team column helper removed; using ScoreStripView instead.
+}
+
+private extension MatchTimerView {
+    @ViewBuilder
+    var halfTimeSection: some View {
+        VStack(spacing: 8) {
+            Text(matchViewModel.halfTimeElapsed)
+                .font(.system(size: 40, weight: .bold, design: .rounded))
+                .monospacedDigit()
+            Button("End Half‑time") { showEndHalfTimeConfirm = true }
+                .buttonStyle(.borderedProminent)
+        }
+        .padding(.horizontal)
+        .confirmationDialog("", isPresented: $showEndHalfTimeConfirm, titleVisibility: .hidden) {
+            Button("Yes") { matchViewModel.endHalfTimeManually() }
+            Button("No", role: .cancel) {}
+        } message: {
+            Text("Are you sure you want to 'End Half'?")
+        }
+    }
 }
 
 #Preview {
