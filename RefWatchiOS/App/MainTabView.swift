@@ -11,10 +11,11 @@ import RefWatchCore
 struct MainTabView: View {
     @EnvironmentObject private var router: AppRouter
     let matchViewModel: MatchViewModel
+    let historyStore: MatchHistoryStoring
 
     var body: some View {
         TabView(selection: $router.selectedTab) {
-            MatchesTabView(matchViewModel: matchViewModel)
+            MatchesTabView(matchViewModel: matchViewModel, historyStore: historyStore)
                 .tabItem { Label("Matches", systemImage: "sportscourt") }
                 .tag(AppRouter.Tab.matches)
 
@@ -26,7 +27,7 @@ struct MainTabView: View {
                 .tabItem { Label("Library", systemImage: "books.vertical") }
                 .tag(AppRouter.Tab.library)
 
-            SettingsTabView()
+            SettingsTabView(historyStore: historyStore)
                 .tabItem { Label("Settings", systemImage: "gear") }
                 .tag(AppRouter.Tab.settings)
         }
@@ -35,6 +36,6 @@ struct MainTabView: View {
 }
 
 #Preview {
-    MainTabView(matchViewModel: MatchViewModel(haptics: NoopHaptics()))
+    MainTabView(matchViewModel: MatchViewModel(haptics: NoopHaptics()), historyStore: MatchHistoryService())
         .environmentObject(AppRouter.preview())
 }

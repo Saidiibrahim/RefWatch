@@ -84,6 +84,7 @@ public final class MatchViewModel {
     // Penalties managed by PenaltyManager (SRP); injected for testing
     private let penaltyManager: PenaltyManaging
     private let haptics: HapticsProviding
+    private let connectivity: ConnectivitySyncProviding?
     
     // Persistence error feedback surfaced to UI (optional alert)
     public var lastPersistenceError: String? = nil
@@ -111,10 +112,11 @@ public final class MatchViewModel {
     public var awayTeamDisplayName: String { currentMatch?.awayTeam ?? awayTeam }
 
     // MARK: - Initialization
-    public init(history: MatchHistoryStoring = MatchHistoryService(), penaltyManager: PenaltyManaging = PenaltyManager(), haptics: HapticsProviding = NoopHaptics()) {
+    public init(history: MatchHistoryStoring = MatchHistoryService(), penaltyManager: PenaltyManaging = PenaltyManager(), haptics: HapticsProviding = NoopHaptics(), connectivity: ConnectivitySyncProviding? = nil) {
         self.history = history
         self.penaltyManager = penaltyManager
         self.haptics = haptics
+        self.connectivity = connectivity
         self.savedMatches = [
             Match(homeTeam: "Leeds United", awayTeam: "Newcastle United")
         ]
@@ -243,19 +245,20 @@ public final class MatchViewModel {
         
         guard let match = currentMatch else { return }
         
-        if currentPeriod < match.numberOfPeriods {
-            if currentPeriod == match.numberOfPeriods / 2 {
+        let total = max(1, match.numberOfPeriods)
+        if currentPeriod < total {
+            if currentPeriod == total / 2 {
                 startHalfTime()
             }
-        } else if match.hasExtraTime && currentPeriod == match.numberOfPeriods {
+        } else if match.hasExtraTime && currentPeriod == total {
             isMatchInProgress = false
             isPaused = false
             waitingForET1Start = true
-        } else if match.hasExtraTime && currentPeriod == match.numberOfPeriods + 1 {
+        } else if match.hasExtraTime && currentPeriod == total + 1 {
             isMatchInProgress = false
             isPaused = false
             waitingForET2Start = true
-        } else if currentPeriod == match.numberOfPeriods + 2 {
+        } else if currentPeriod == total + 2 {
             if match.hasPenalties {
                 waitingForPenaltiesStart = true
             } else {
@@ -530,7 +533,10 @@ public final class MatchViewModel {
                 match: match,
                 events: matchEvents
             )
-            do { try history.save(snapshot) } catch {
+            do {
+                try history.save(snapshot)
+                connectivity?.sendCompletedMatch(snapshot)
+            } catch {
                 lastPersistenceError = error.localizedDescription
                 haptics.play(.failure)
             }

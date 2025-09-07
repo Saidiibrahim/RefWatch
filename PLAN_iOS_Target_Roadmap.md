@@ -174,7 +174,7 @@ I4b — Remove Duplicated Sources — Completed ✅
 - Scope: Physical deletion only; no behavior changes. After deletion, re‑verify both app schemes and the `RefWatchCore` package tests.
 - Acceptance: iOS and watchOS still build successfully; `xcodebuild test` for the package passes.
 
-PR I5 — iOS Match Flow MVP
+PR I5 — iOS Match Flow MVP - Completed ✅
 - Goals: Implement iOS screens (MatchSetup → Live Timer → Events → History) using shared VMs/services.
 - Acceptance: Core officiating flow is functional on iPhone; parity with watch logic where appropriate.
  - Delivery (current):
@@ -208,6 +208,89 @@ PR I6 — Persistence & Sync
   3) Connectivity: watch sender + iOS receiver with merge/de‑dupe logic.
   4) Wiring + tests: flip iOS to SwiftData store; add unit tests for import/merge; update docs.
 
+---
+
+I6p — iOS Match Flow Parity (on top of I6)
+
+Purpose
+- Bring iOS match flow behavior to parity with watchOS: respect match settings (ET/penalties), add kickoff selection screens, enforce confirmations on period/match end, add half‑time UI, and implement penalties (first‑kicker + shootout) on iOS.
+
+Current Gaps vs. watchOS (summary)
+- Settings: iOS ignores configurable number of periods (hard‑coded 2 in setup); ET/penalties flags are respected by VM but lack complete UI routing on iOS.
+- Confirmations: watch asks to confirm End Half/End Match; iOS ends period immediately from Actions; actions sheet “Finish Match” finalizes without confirm.
+- Kickoff transitions: watch routes to dedicated kickoff selection for 2nd half and ET; iOS starts next period directly with no kickoff selection/alternation step.
+- Penalties: iOS has no first‑kicker picker or shootout UI; watch has both.
+- Half‑time: watch shows dedicated half‑time view with elapsed HT; iOS shows generic controls only.
+- Finalization: when regulation ends on iOS (ET off), `isFullTime` can dismiss timer without surfacing an explicit “save/finalize” step like watch Full Time.
+
+Plan (no code changes in this PR; implementation to follow)
+1) Finalize/Full Time flow
+   - Replace auto‑dismiss on `isFullTime` in iOS with a Full Time screen/sheet mirroring watch behavior.
+   - Show scores + “End Match” button; confirm before calling `finalizeMatch()`; then navigate back to Matches hub.
+   - Unify “Finish Match” from Actions to also require confirmation (or route to Full Time).
+
+2) End period confirmation
+   - Wrap “End Current Period” in a confirmation dialog.
+   - Adaptive copy: when ending final regulation period with ET disabled → “End Match?”; otherwise → “End Half?”.
+
+3) Kickoff selection for 2nd half and ET
+   - Add iOS `MatchKickoffView` (home/away selection, preselect defaults via `getSecondHalfKickingTeam()` and `getETSecondHalfKickingTeam()`).
+   - Observe `waitingForSecondHalfStart`, `waitingForET1Start`, `waitingForET2Start` to route into kickoff view; on confirm, call the corresponding start method and return to timer.
+
+4) Penalties flow (first kicker + shootout)
+   - Add iOS `PenaltyFirstKickerView` that calls `startPenalties(withFirstKicker:)` and routes to shootout.
+   - Add iOS `PenaltyShootoutView` mirroring watch tallies/next taker/sudden death; guard “End Shootout” behind `isPenaltyShootoutDecided`, then route to Full Time.
+   - Observe `waitingForPenaltiesStart` in timer and route to first‑kicker picker, then shootout.
+
+5) Half‑time UI
+   - In timer, when `isHalfTime == true`, show a half‑time subview with `halfTimeElapsed` prominently.
+   - Respect `waitingForHalfTimeStart` gating and provide an explicit action to end half‑time (with confirmation).
+
+6) Options parity
+   - Add “Reset Match” and “Abandon Match” actions in iOS actions sheet with confirmation dialogs (match watch `MatchOptionsView`).
+
+7) UX polish and adapters
+   - Use `IOSHaptics` for key actions (start/pause/resume/confirmations) similar to watchOS feedback.
+   - Keep period labels consistent (“First Half”, “Second Half”, “Extra Time 1/2”, “Penalties”).
+
+8) Tests (lock behavior)
+   - UI tests (iOS):
+     - Regulation end with ET off routes to Full Time; confirm required to save; history updates.
+     - End Current Period confirms; copy adapts based on context.
+     - ET on: end regulation → ET1 kickoff screen; ET flow to ET2; ending ET2 with penalties on → penalties first‑kicker → shootout → Full Time.
+     - Penalties: first‑kicker picker appears; next‑team alternation; “End Shootout” disabled until decided; after end, Full Time confirm → save.
+   - Unit: rely on shared `MatchViewModel` tests already in `RefWatchCore` for period/ET/penalties state transitions.
+
+File Touchpoints (anticipated)
+- Update
+  - `RefWatchiOS/Features/Match/MatchTimer/MatchTimerView.swift` (finalize flow, half‑time view, observers → kickoff/penalties routing).
+  - `RefWatchiOS/Features/Match/Events/MatchActionsSheet.swift` (confirmations; reset/abandon entries).
+- New
+  - `RefWatchiOS/Features/Match/FullTime/FullTimeView_iOS.swift`.
+  - `RefWatchiOS/Features/Match/MatchKickoff/MatchKickoffView.swift`.
+  - `RefWatchiOS/Features/Match/Penalties/PenaltyFirstKickerView.swift`.
+  - `RefWatchiOS/Features/Match/Penalties/PenaltyShootoutView.swift`.
+- Routing
+  - `RefWatchiOS/Features/Matches/Views/MatchesTabView.swift` to register new destinations or use local navigation in timer.
+
+Sequencing (within I6 branch)
+- I6a — Safety and flow fixes: Full Time confirm; remove auto‑dismiss; end‑period confirm; reset/abandon options.
+- I6b — Half‑time UI + kickoff selection: half‑time view; kickoff screens and observers for 2nd half and ET.
+- I6c — Penalties: first‑kicker picker and shootout views; routing and guards.
+
+Acceptance (parity slice)
+- Regulation end (ET off) no longer auto‑dismisses; shows Full Time; “End Match” requires confirmation to save snapshot; returns to Matches; history updates.
+- End Current Period asks for confirmation; dialog message adapts for last regulation period → “End Match?”.
+- 2nd half/ET flows route to kickoff selection with default team preselected; period labels update correctly upon start.
+- Penalties are fully operable on iOS: first‑kicker selection, shootout with alternation/sudden death, “End Shootout” only when decided, then Full Time confirm/save.
+- Half‑time view shows elapsed half‑time and provides explicit controls aligned with watch behavior.
+- Options include Reset and Abandon with confirmations.
+- UI tests added to assert the above; shared VM tests continue to pass.
+
+Notes
+- This work focuses on UI/routing parity and does not alter shared `MatchViewModel` logic. The shared VM already enforces settings (periods/ET/penalties) and event logging.
+- Period count configurability on iOS (currently hard‑coded to 2 in `MatchSetupView`) can be added in a follow‑up if needed to fully mirror watch setup options.
+
 PR I7 — Auth (Clerk)
 - Goals: Integrate Clerk on iOS implementing `AuthenticationProviding`; bridge minimal identity to watch.
 - Scope:
@@ -239,6 +322,6 @@ PR I7 — Auth (Clerk)
 
 ## Handoff Notes
 
-- Proceed PRs in order: I1 → I2 → I3 → I4 → I5 → I6.
+- Proceed PRs in order: I1 → I2 → I3 → I4 → I5 → I6 → I7.
 - Keep `MatchLifecycleCoordinator` authoritative for routing on watch; iOS may introduce its own coordinator later but should consume the same VMs/services.
 - All structural changes in I1 avoid code/behavior edits; renames (e.g., `LiveSessionModel` → `LiveSessionViewModel`) are deferred to I3.
