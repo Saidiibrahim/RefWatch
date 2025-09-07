@@ -15,9 +15,26 @@ extension Notification.Name {
     static let matchHistoryDidChange = Notification.Name("MatchHistoryDidChange")
 }
 
+/// iOS WatchConnectivity receiver for completed match snapshots.
+///
+/// Envelope
+/// - `type: "completedMatch"`
+/// - `data: Data` (JSON-encoded CompletedMatch, ISO8601 dates)
+///
+/// Responsibilities
+/// - Activate `WCSession` and listen for `sendMessage` and `transferUserInfo` payloads.
+/// - Decode off the main thread; persist and notify on the main actor.
+/// - Attach `ownerId` using the provided `AuthenticationProviding` if missing (idempotent).
+///
+/// Diagnostics (DEBUG only)
+/// - Posts `.syncNonrecoverableError` on malformed payloads or decode failures.
+/// - `.syncFallbackOccurred` is posted by the watch sender during error fallback.
 final class IOSConnectivitySyncClient: NSObject {
     private let history: MatchHistoryStoring
     private let auth: AuthenticationProviding
+    #if canImport(WatchConnectivity)
+    private let queue = DispatchQueue(label: "IOSConnectivitySyncClient.decode")
+    #endif
 
     init(history: MatchHistoryStoring, auth: AuthenticationProviding) {
         self.history = history
@@ -33,24 +50,30 @@ final class IOSConnectivitySyncClient: NSObject {
         #endif
     }
 
+    deinit {
+        #if canImport(WatchConnectivity)
+        if WCSession.isSupported() {
+            // Ensure delegate does not outlive this object
+            if WCSession.default.delegate === self {
+                WCSession.default.delegate = nil
+            }
+        }
+        #endif
+    }
+
     // Exposed for tests to bypass WCSession
     func handleCompletedMatch(_ match: CompletedMatch) {
-        // Attach ownerId if we have one and the snapshot is missing it
-        let snapshot: CompletedMatch
-        if match.ownerId == nil, let uid = auth.currentUserId {
-            snapshot = CompletedMatch(
-                id: match.id,
-                completedAt: match.completedAt,
-                match: match.match,
-                events: match.events,
-                schemaVersion: match.schemaVersion,
-                ownerId: uid
-            )
-        } else {
-            snapshot = match
+        // Attach owner id if missing
+        let snapshot = match.attachingOwnerIfMissing(using: auth)
+        // Persist and notify on main actor (SwiftData stores are often main-actor isolated)
+        Task { @MainActor in
+            do { try history.save(snapshot) } catch {
+                #if DEBUG
+                print("DEBUG: Failed to save synced snapshot: \(error)")
+                #endif
+            }
+            NotificationCenter.default.post(name: .matchHistoryDidChange, object: nil)
         }
-        do { try history.save(snapshot) } catch { /* log if needed */ }
-        NotificationCenter.default.post(name: .matchHistoryDidChange, object: nil)
     }
 }
 
@@ -61,21 +84,54 @@ extension IOSConnectivitySyncClient: WCSessionDelegate {
     func sessionDidBecomeInactive(_ session: WCSession) { }
     func sessionDidDeactivate(_ session: WCSession) { }
 
+    /// Handles immediate messages. Decodes off the main thread and merges on main.
     func session(_ session: WCSession, didReceiveMessage message: [String : Any]) {
         guard let type = message["type"] as? String, type == "completedMatch" else { return }
-        guard let data = message["data"] as? Data else { return }
-        let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .iso8601
-        guard let match = try? decoder.decode(CompletedMatch.self, from: data) else { return }
-        handleCompletedMatch(match)
+        guard let data = message["data"] as? Data else {
+            #if DEBUG
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(name: .syncNonrecoverableError, object: nil, userInfo: ["error": "missing data", "context": "ios.didReceiveMessage.payload"])
+            }
+            #endif
+            return
+        }
+        queue.async { [weak self] in
+            let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .iso8601
+            guard let match = try? decoder.decode(CompletedMatch.self, from: data) else {
+                #if DEBUG
+                DispatchQueue.main.async {
+                    NotificationCenter.default.post(name: .syncNonrecoverableError, object: nil, userInfo: ["error": "decode failed", "context": "ios.didReceiveMessage.decode"])
+                }
+                #endif
+                return
+            }
+            self?.handleCompletedMatch(match)
+        }
     }
 
+    /// Handles background transfers. Decodes off the main thread and merges on main.
     func session(_ session: WCSession, didReceiveUserInfo userInfo: [String : Any] = [:]) {
         guard let type = userInfo["type"] as? String, type == "completedMatch" else { return }
-        guard let data = userInfo["data"] as? Data else { return }
-        let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .iso8601
-        guard let match = try? decoder.decode(CompletedMatch.self, from: data) else { return }
-        handleCompletedMatch(match)
+        guard let data = userInfo["data"] as? Data else {
+            #if DEBUG
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(name: .syncNonrecoverableError, object: nil, userInfo: ["error": "missing data", "context": "ios.didReceiveUserInfo.payload"])
+            }
+            #endif
+            return
+        }
+        queue.async { [weak self] in
+            let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .iso8601
+            guard let match = try? decoder.decode(CompletedMatch.self, from: data) else {
+                #if DEBUG
+                DispatchQueue.main.async {
+                    NotificationCenter.default.post(name: .syncNonrecoverableError, object: nil, userInfo: ["error": "decode failed", "context": "ios.didReceiveUserInfo.decode"])
+                }
+                #endif
+                return
+            }
+            self?.handleCompletedMatch(match)
+        }
     }
 }
 #endif
-

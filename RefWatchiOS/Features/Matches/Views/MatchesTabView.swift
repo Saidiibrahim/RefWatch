@@ -12,6 +12,7 @@ import RefWatchCore
 struct MatchesTabView: View {
     @EnvironmentObject private var router: AppRouter
     let matchViewModel: MatchViewModel
+    let historyStore: MatchHistoryStoring
     @State private var path: [Route] = []
     enum Route: Hashable { case setup, timer, historyList, scheduleSetup(ScheduledMatch) }
     @State private var recent: [CompletedMatch] = []
@@ -136,7 +137,7 @@ struct MatchesTabView: View {
                 case .timer:
                     MatchTimerView(matchViewModel: matchViewModel)
                 case .historyList:
-                    MatchHistoryView(matchViewModel: matchViewModel)
+                    MatchHistoryView(matchViewModel: matchViewModel, historyStore: historyStore)
                 case .scheduleSetup(let sched):
                     MatchSetupView(
                         matchViewModel: matchViewModel,
@@ -149,7 +150,7 @@ struct MatchesTabView: View {
     }
 }
 #Preview {
-    MatchesTabView(matchViewModel: MatchViewModel(haptics: NoopHaptics()))
+    MatchesTabView(matchViewModel: MatchViewModel(haptics: NoopHaptics()), historyStore: MatchHistoryService())
         .environmentObject(AppRouter.preview())
 }
  
