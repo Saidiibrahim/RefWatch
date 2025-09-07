@@ -15,7 +15,7 @@ struct MainTabView: View {
 
     var body: some View {
         TabView(selection: $router.selectedTab) {
-            MatchesTabView(matchViewModel: matchViewModel)
+            MatchesTabView(matchViewModel: matchViewModel, historyStore: historyStore)
                 .tabItem { Label("Matches", systemImage: "sportscourt") }
                 .tag(AppRouter.Tab.matches)
 

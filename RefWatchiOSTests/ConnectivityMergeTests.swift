@@ -28,5 +28,32 @@ final class ConnectivityMergeTests: XCTestCase {
         XCTAssertEqual((try? store.loadAll())?.count, 1)
         XCTAssertEqual((try? store.loadAll())?.first?.match.homeScore, 3)
     }
-}
 
+    func testHandleCompletedMatch_savesOnMainActor() async {
+        class MainActorStore: MatchHistoryStoring {
+            let exp: XCTestExpectation
+            init(exp: XCTestExpectation) { self.exp = exp }
+            func loadAll() throws -> [CompletedMatch] { [] }
+            func save(_ match: CompletedMatch) throws {
+                // Expect to run on main thread due to @MainActor hop in client
+                XCTAssertTrue(Thread.isMainThread)
+                exp.fulfill()
+            }
+            func delete(id: UUID) throws {}
+            func wipeAll() throws {}
+        }
+
+        let exp = expectation(description: "save on main")
+        let store = MainActorStore(exp: exp)
+        let client = IOSConnectivitySyncClient(history: store, auth: NoopAuth())
+        let match = Match(homeTeam: "H", awayTeam: "A")
+        let snap = CompletedMatch(match: match, events: [])
+
+        // Call from a background queue to ensure hop
+        DispatchQueue.global().async {
+            client.handleCompletedMatch(snap)
+        }
+
+        wait(for: [exp], timeout: 2.0)
+    }
+}

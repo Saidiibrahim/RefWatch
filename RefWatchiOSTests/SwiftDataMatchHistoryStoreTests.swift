@@ -50,5 +50,42 @@ final class SwiftDataMatchHistoryStoreTests: XCTestCase {
         let all = try store.loadAll()
         XCTAssertEqual(all.first?.ownerId, "u1")
     }
-}
 
+    func testLoadAll_isBoundedByDefaultLimit() throws {
+        let container = try makeContainer()
+        let store = SwiftDataMatchHistoryStore(container: container, importJSONOnFirstRun: false)
+        // Insert more than the default fetch limit (200)
+        for i in 0..<300 {
+            var m = Match(homeTeam: "H\(i)", awayTeam: "A\(i)")
+            m.homeScore = i
+            let snap = CompletedMatch(match: m, events: [])
+            try store.save(snap)
+        }
+        let all = try store.loadAll()
+        XCTAssertLessThanOrEqual(all.count, 200)
+        XCTAssertGreaterThan(all.count, 0)
+    }
+
+    func testLoadBefore_returnsDescendingPages() throws {
+        let container = try makeContainer()
+        let store = SwiftDataMatchHistoryStore(container: container, importJSONOnFirstRun: false)
+        let now = Date()
+        // Seed 15 snapshots with distinct completion times
+        for i in 0..<15 {
+            var m = Match(homeTeam: "H", awayTeam: "A")
+            m.homeScore = i
+            let ts = now.addingTimeInterval(TimeInterval(-i * 60)) // newer first
+            let snap = CompletedMatch(id: UUID(), completedAt: ts, match: m, events: [])
+            try store.save(snap)
+        }
+        let first = try store.loadBefore(completedAt: nil, limit: 5)
+        XCTAssertEqual(first.count, 5)
+        XCTAssertTrue(first[0].completedAt > first[1].completedAt)
+        let cursor = first.last!.completedAt
+        let second = try store.loadBefore(completedAt: cursor, limit: 5)
+        XCTAssertEqual(second.count, 5)
+        XCTAssertTrue(second[0].completedAt > second[1].completedAt)
+        // Ensure strictly older than cursor
+        XCTAssertTrue(second.first!.completedAt < cursor)
+    }
+}

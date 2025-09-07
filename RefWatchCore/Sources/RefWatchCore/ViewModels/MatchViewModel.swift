@@ -245,19 +245,20 @@ public final class MatchViewModel {
         
         guard let match = currentMatch else { return }
         
-        if currentPeriod < match.numberOfPeriods {
-            if currentPeriod == match.numberOfPeriods / 2 {
+        let total = max(1, match.numberOfPeriods)
+        if currentPeriod < total {
+            if currentPeriod == total / 2 {
                 startHalfTime()
             }
-        } else if match.hasExtraTime && currentPeriod == match.numberOfPeriods {
+        } else if match.hasExtraTime && currentPeriod == total {
             isMatchInProgress = false
             isPaused = false
             waitingForET1Start = true
-        } else if match.hasExtraTime && currentPeriod == match.numberOfPeriods + 1 {
+        } else if match.hasExtraTime && currentPeriod == total + 1 {
             isMatchInProgress = false
             isPaused = false
             waitingForET2Start = true
-        } else if currentPeriod == match.numberOfPeriods + 2 {
+        } else if currentPeriod == total + 2 {
             if match.hasPenalties {
                 waitingForPenaltiesStart = true
             } else {
