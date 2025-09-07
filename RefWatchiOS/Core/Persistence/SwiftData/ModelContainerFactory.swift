@@ -8,6 +8,7 @@
 
 import Foundation
 import SwiftData
+import RefWatchCore
 
 protocol ModelContainerBuilding {
     func makePersistent(schema: Schema) throws -> ModelContainer
@@ -37,4 +38,3 @@ enum ModelContainerFactory {
         return (nil, MatchHistoryService())
     }
 }
-
