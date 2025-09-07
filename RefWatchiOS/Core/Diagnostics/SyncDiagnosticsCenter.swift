@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import Combine
 
 final class SyncDiagnosticsCenter: ObservableObject {
     @Published var lastErrorMessage: String? = nil
@@ -32,4 +33,3 @@ final class SyncDiagnosticsCenter: ObservableObject {
 
     func dismiss() { showBanner = false }
 }
-

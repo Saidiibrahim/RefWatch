@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import Combine
 import RefWatchCore
 #if canImport(WatchConnectivity)
 import WatchConnectivity
@@ -31,4 +32,3 @@ final class ConnectivitySyncController: ObservableObject {
         stop()
     }
 }
-

@@ -13,13 +13,16 @@ import WatchConnectivity
 
 final class WatchConnectivitySyncClient: ConnectivitySyncProviding {
     #if canImport(WatchConnectivity)
-    private let session: WCSession? = WCSession.isSupported() ? WCSession.default : nil
+    private let session: WCSessioning? = WCSession.isSupported() ? WCSessionWrapper.shared : nil
     private let queue = DispatchQueue(label: "WatchConnectivitySyncClient")
     #endif
 
-    init() {
+    init(session: WCSessioning? = nil) {
         #if canImport(WatchConnectivity)
-        if let session = session { session.activate() }
+        if let injected = session {
+            self.session = injected
+        }
+        if let session = self.session { session.activate() }
         #endif
     }
 
@@ -77,7 +80,7 @@ final class WatchConnectivitySyncClient: ConnectivitySyncProviding {
             ]
 
             if session.isReachable {
-                session.sendMessage(payload, replyHandler: nil) { error in
+                session.sendMessage(payload) { error in
                     #if DEBUG
                     print("DEBUG: sendMessage failed: \(error.localizedDescription). Falling back to transferUserInfo.")
                     DispatchQueue.main.async {
