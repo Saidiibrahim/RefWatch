@@ -77,7 +77,10 @@ struct MatchHistoryView: View {
                                 Text("Load more…")
                                     .foregroundStyle(.secondary)
                                     .padding(.vertical, 8)
-                                    .onAppear { loadNextPage() }
+                                    .onAppear {
+                                        // Schedule to next runloop to avoid state writes during view update
+                                        DispatchQueue.main.async { loadNextPage() }
+                                    }
                             }
                             Spacer()
                         }
@@ -88,9 +91,20 @@ struct MatchHistoryView: View {
         .toolbar { EditButton() }
         .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .automatic), prompt: "Search team")
         .refreshable { resetAndLoadFirstPage() }
-        .onAppear { if items.isEmpty { resetAndLoadFirstPage() } }
-        .onReceive(NotificationCenter.default.publisher(for: .matchHistoryDidChange).receive(on: RunLoop.main)) { _ in resetAndLoadFirstPage() }
-        .onChange(of: matchViewModel.matchCompleted) { completed in if completed { resetAndLoadFirstPage() } }
+        .onAppear {
+            if items.isEmpty {
+                // Schedule to next runloop to avoid mutations during initial layout
+                DispatchQueue.main.async { resetAndLoadFirstPage() }
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .matchHistoryDidChange).receive(on: RunLoop.main)) { _ in
+            DispatchQueue.main.async { resetAndLoadFirstPage() }
+        }
+        .onChange(of: matchViewModel.matchCompleted) { completed in
+            if completed {
+                DispatchQueue.main.async { resetAndLoadFirstPage() }
+            }
+        }
     }
 
     private func delete(at offsets: IndexSet) {

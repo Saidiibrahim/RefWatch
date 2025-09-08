@@ -210,7 +210,7 @@ PR I6 — Persistence & Sync ✅
 
 ---
 
-I6p — iOS Match Flow Parity (on top of I6) ▶
+I6p — iOS Match Flow Parity (on top of I6) ✅
 
 Purpose
 - Bring iOS match flow behavior to parity with watchOS: respect match settings (ET/penalties), add kickoff selection screens, enforce confirmations on period/match end, add half‑time UI, and implement penalties (first‑kicker + shootout) on iOS.
@@ -298,8 +298,16 @@ PR I7 — Auth (Clerk) ▶
   - Watch: show "Sign in on iPhone" state; receive identity over WatchConnectivity for display/gating only.
   - Persistence: when signed in, stores set `ownerId` on new snapshots; sign‑out policy configurable (wipe vs. keep local and unlink).
 - Acceptance: Sign in/out works on iOS, watch reflects state; data continues to function offline; no cloud sync in I7 (future optional).
-- Branch: `feature/i7-auth-clerk`
+- Branch: `feat/clerk-auth-setup`
 - Commits: adapter + UI, watch bridge, wiring, docs.
+
+Implementation notes (addressing PR feedback)
+- Build config: Disabled `GENERATE_INFOPLIST_FILE` for iOS target so custom `RefWatchiOS/Info.plist` ships with `ClerkPublishableKey` and URL scheme.
+- Debugging: Added `AuthStateDebugger` (DEBUG-only) and do/catch around `clerk.load()` with error logging and signed-in/out transition logs.
+- Adapter: Extracted `ClerkAuth.bestDisplayName(firstName:username:id:)` for deterministic display-name mapping.
+- Tests added:
+  - Unit: `ClerkAuthTests` (name mapping + signed-out when Clerk absent), `CompletedMatchOwnershipTests` (owner attach semantics).
+  - UI: `SettingsAuthUITests` asserts signed-out state shows "Sign in".
 
 ---
 
