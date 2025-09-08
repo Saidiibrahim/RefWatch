@@ -301,6 +301,14 @@ PR I7 — Auth (Clerk) ▶
 - Branch: `feat/clerk-auth-setup`
 - Commits: adapter + UI, watch bridge, wiring, docs.
 
+Implementation notes (addressing PR feedback)
+- Build config: Disabled `GENERATE_INFOPLIST_FILE` for iOS target so custom `RefWatchiOS/Info.plist` ships with `ClerkPublishableKey` and URL scheme.
+- Debugging: Added `AuthStateDebugger` (DEBUG-only) and do/catch around `clerk.load()` with error logging and signed-in/out transition logs.
+- Adapter: Extracted `ClerkAuth.bestDisplayName(firstName:username:id:)` for deterministic display-name mapping.
+- Tests added:
+  - Unit: `ClerkAuthTests` (name mapping + signed-out when Clerk absent), `CompletedMatchOwnershipTests` (owner attach semantics).
+  - UI: `SettingsAuthUITests` asserts signed-out state shows "Sign in".
+
 ---
 
 ## Risks & Mitigations

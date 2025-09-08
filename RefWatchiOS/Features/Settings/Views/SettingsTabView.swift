@@ -18,8 +18,7 @@ struct SettingsTabView: View {
     @State private var penaltyRounds: Int = 5
     @State private var showingInfoAlert = false
     @State private var infoMessage: String = ""
-    @State private var showingAuth = false
-    @State private var showingProfile = false
+    @State private var activeSheet: ActiveSheet? = nil
 
     var body: some View {
         NavigationStack {
@@ -37,14 +36,14 @@ struct SettingsTabView: View {
                                     .foregroundStyle(.secondary)
                             }
                             Spacer()
-                            Button("Manage") { showingProfile = true }
+                            Button("Manage") { activeSheet = .profile }
                                 .buttonStyle(.bordered)
                         }
                         Text("Signing out keeps local data. New history will not be tagged with your account.")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     } else {
-                        Button { showingAuth = true } label: {
+                        Button { activeSheet = .auth } label: {
                             Label("Sign in", systemImage: "person.crop.circle.badge.plus")
                         }
                         Text("Sign in on iPhone to tag new match history to your account. You can continue offline without signing in.")
@@ -102,8 +101,20 @@ struct SettingsTabView: View {
                 #endif
             }
             .navigationTitle("Settings")
-            .sheet(isPresented: $showingAuth) { AuthView() }
-            .sheet(isPresented: $showingProfile) { UserProfileView() }
+            .sheet(item: $activeSheet) { sheet in
+                switch sheet {
+                case .auth:
+                    AuthView()
+                        .presentationDetents([.large])
+                case .profile:
+                    UserProfileView()
+                        .presentationDetents([.large])
+                }
+            }
+            // Dismiss any presented clerk UI when auth state changes
+            .onChange(of: clerk.user?.id) { _ in
+                activeSheet = nil
+            }
             .alert("Info", isPresented: $showingInfoAlert) {
                 Button("OK", role: .cancel) { }
             } message: {
@@ -114,6 +125,10 @@ struct SettingsTabView: View {
 }
 
 private extension SettingsTabView {
+    enum ActiveSheet: Identifiable { case auth, profile
+        var id: String { self == .auth ? "auth" : "profile" }
+    }
+
     func wipeHistory() {
         do {
             try historyStore.wipeAll()
