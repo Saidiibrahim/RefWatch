@@ -210,7 +210,7 @@ PR I6 — Persistence & Sync ✅
 
 ---
 
-I6p — iOS Match Flow Parity (on top of I6) ▶
+I6p — iOS Match Flow Parity (on top of I6) ✅
 
 Purpose
 - Bring iOS match flow behavior to parity with watchOS: respect match settings (ET/penalties), add kickoff selection screens, enforce confirmations on period/match end, add half‑time UI, and implement penalties (first‑kicker + shootout) on iOS.
@@ -298,7 +298,7 @@ PR I7 — Auth (Clerk) ▶
   - Watch: show "Sign in on iPhone" state; receive identity over WatchConnectivity for display/gating only.
   - Persistence: when signed in, stores set `ownerId` on new snapshots; sign‑out policy configurable (wipe vs. keep local and unlink).
 - Acceptance: Sign in/out works on iOS, watch reflects state; data continues to function offline; no cloud sync in I7 (future optional).
-- Branch: `feature/i7-auth-clerk`
+- Branch: `feat/clerk-auth-setup`
 - Commits: adapter + UI, watch bridge, wiring, docs.
 
 ---
