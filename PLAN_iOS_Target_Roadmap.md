@@ -44,8 +44,8 @@ Upcoming
 ## Current Position Snapshot
 
 - iOS folder `RefWatchiOS/` is flat, mixing app entry, views, and utilities.
-- watchOS follows feature‑first MVVM under `RefWatch Watch App/` with `App`, `Core`, and `Features/**/(Views|Models|ViewModels)`.
-- Shareable today: models under `RefWatch Watch App/Features/**/Models`, core services under `RefWatch Watch App/Core/Services` (e.g., `TimerManager`, `PenaltyManager`, `MatchHistoryService`).
+- watchOS follows feature‑first MVVM under `RefWatchWatchOS/` with `App`, `Core`, and `Features/**/(Views|Models|ViewModels)`.
+- Shareable today: models under `RefWatchWatchOS/Features/**/Models`, core services under `RefWatchWatchOS/Core/Services` (e.g., `TimerManager`, `PenaltyManager`, `MatchHistoryService`).
 - Platform‑specific pieces: WatchKit haptics, complication plumbing, some timer UX micro‑interactions.
 
 ---
@@ -152,9 +152,9 @@ I4 Next Steps (to Complete Acceptance) ▶
 - Flip imports (no behavior changes):
   - Add `import RefWatchCore` to all app files (watchOS/iOS) that reference shared types.
   - Likely touch points:
-    - Timer/Match/Events/Setup/Settings watch views under `RefWatch Watch App/Features/**/Views`.
+    - Timer/Match/Events/Setup/Settings watch views under `RefWatchWatchOS/Features/**/Views`.
     - Coordinators/VM consumers (e.g., `CardEventCoordinator`).
-    - Platform adapters: `RefWatch Watch App/Core/Platform/Haptics/WatchHaptics.swift`, `RefWatchiOS/Core/Platform/Haptics/IOSHaptics.swift`.
+    - Platform adapters: `RefWatchWatchOS/Core/Platform/Haptics/WatchHaptics.swift`, `RefWatchiOS/Core/Platform/Haptics/IOSHaptics.swift`.
 - Remove target membership for duplicates (do not delete files in I4):
   - Watch Core shared: Protocols, Extensions, Services (TimerManager, PenaltyManager, MatchHistoryService).
   - Watch Feature Models shared: Match, CompletedMatch, MatchEventRecord, CardModels, TeamModels, MatchSetupModels, Settings.
