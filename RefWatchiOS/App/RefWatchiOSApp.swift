@@ -17,7 +17,7 @@ struct RefWatchiOSApp: App {
     private let modelContainer: ModelContainer?
     private let historyStore: MatchHistoryStoring
 
-    @State private var clerk = Clerk.shared
+    private let clerk = Clerk.shared
     @State private var matchVM: MatchViewModel
     @StateObject private var syncController: ConnectivitySyncController
     @StateObject private var syncDiagnostics = SyncDiagnosticsCenter()
@@ -58,13 +58,27 @@ struct RefWatchiOSApp: App {
                 .task {
                     if let key = Bundle.main.object(forInfoDictionaryKey: "ClerkPublishableKey") as? String, !key.isEmpty {
                         clerk.configure(publishableKey: key)
-                        try? await clerk.load()
+                        do {
+                            try await clerk.load()
+                        } catch {
+                            #if DEBUG
+                            print("DEBUG: Clerk.load() failed: \(error)")
+                            #endif
+                        }
+                        #if DEBUG
+                        AuthStateDebugger.shared.logChange(userId: clerk.user?.id, displayName: clerk.user?.firstName ?? clerk.user?.username)
+                        #endif
                     } else {
                         #if DEBUG
                         print("DEBUG: ClerkPublishableKey missing; continuing in signed-out state.")
                         #endif
                     }
                 }
+                #if DEBUG
+                .onChange(of: clerk.user?.id) { uid in
+                    AuthStateDebugger.shared.logChange(userId: uid, displayName: clerk.user?.firstName ?? clerk.user?.username)
+                }
+                #endif
                 .onChange(of: scenePhase) { phase in
                     switch phase {
                     case .active:
