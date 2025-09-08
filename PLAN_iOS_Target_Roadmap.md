@@ -186,7 +186,7 @@ PR I5 — iOS Match Flow MVP - Completed ✅
    - iOS‑only schedule: Added lightweight `ScheduledMatch` + `ScheduleService` (JSON) and DEBUG seeding in Settings.
  - Notes: Cross-device history (watch → iPhone) remains in I6 via `ConnectivitySyncProviding`.
 
-PR I6 — Persistence & Sync
+PR I6 — Persistence & Sync ✅
 - Goals:
   - Migrate iOS history to SwiftData (offline‑first), keeping watch on JSON.
   - Add a tiny auth‑ready shim so data can be tagged to a user later without migrations.
@@ -210,7 +210,7 @@ PR I6 — Persistence & Sync
 
 ---
 
-I6p — iOS Match Flow Parity (on top of I6)
+I6p — iOS Match Flow Parity (on top of I6) ▶
 
 Purpose
 - Bring iOS match flow behavior to parity with watchOS: respect match settings (ET/penalties), add kickoff selection screens, enforce confirmations on period/match end, add half‑time UI, and implement penalties (first‑kicker + shootout) on iOS.
@@ -291,7 +291,7 @@ Notes
 - This work focuses on UI/routing parity and does not alter shared `MatchViewModel` logic. The shared VM already enforces settings (periods/ET/penalties) and event logging.
 - Period count configurability on iOS (currently hard‑coded to 2 in `MatchSetupView`) can be added in a follow‑up if needed to fully mirror watch setup options.
 
-PR I7 — Auth (Clerk)
+PR I7 — Auth (Clerk) ▶
 - Goals: Integrate Clerk on iOS implementing `AuthenticationProviding`; bridge minimal identity to watch.
 - Scope:
   - iOS: `ClerkAuth` adapter (sign‑in/out, session, `currentUserId`), Settings → Account section.

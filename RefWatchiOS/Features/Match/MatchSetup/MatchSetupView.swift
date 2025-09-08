@@ -24,6 +24,7 @@ struct MatchSetupView: View {
     @State private var penaltyRounds: Int = 5
 
     @State private var validationMessage: String?
+    @State private var showKickoffFirstHalf: Bool = false
 
     init(matchViewModel: MatchViewModel, onStarted: ((MatchViewModel) -> Void)? = nil, prefillTeams: (String, String)? = nil) {
         self.matchViewModel = matchViewModel
@@ -82,6 +83,13 @@ struct MatchSetupView: View {
             }
         }
         .navigationTitle("Match Setup")
+        .sheet(isPresented: $showKickoffFirstHalf) {
+            MatchKickoffView(
+                matchViewModel: matchViewModel,
+                phase: .firstHalf,
+                onConfirmStart: { onStarted?(matchViewModel) }
+            )
+        }
     }
 
     private var isValid: Bool { validate() }
@@ -118,8 +126,8 @@ struct MatchSetupView: View {
 
         matchViewModel.newMatch = m
         matchViewModel.createMatch()
-        matchViewModel.startMatch()
-        onStarted?(matchViewModel)
+        // Defer kickoff + start to first-half kickoff sheet
+        showKickoffFirstHalf = true
     }
 }
 
