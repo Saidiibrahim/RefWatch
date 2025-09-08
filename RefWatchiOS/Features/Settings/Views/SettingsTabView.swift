@@ -7,19 +7,51 @@
 
 import SwiftUI
 import RefWatchCore
+import Clerk
 
 struct SettingsTabView: View {
     let historyStore: MatchHistoryStoring
     @EnvironmentObject private var syncDiagnostics: SyncDiagnosticsCenter
+    @Environment(\.clerk) private var clerk
     @State private var defaultPeriod: Int = 45
     @State private var extraTime: Bool = false
     @State private var penaltyRounds: Int = 5
     @State private var showingInfoAlert = false
     @State private var infoMessage: String = ""
+    @State private var showingAuth = false
+    @State private var showingProfile = false
 
     var body: some View {
         NavigationStack {
             Form {
+                Section("Account") {
+                    if clerk.user != nil {
+                        HStack(spacing: 12) {
+                            UserButton()
+                                .frame(width: 36, height: 36)
+                            VStack(alignment: .leading) {
+                                Text(clerk.user?.firstName ?? clerk.user?.username ?? "Signed in")
+                                    .font(.headline)
+                                Text("Manage your profile or sign out")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Button("Manage") { showingProfile = true }
+                                .buttonStyle(.bordered)
+                        }
+                        Text("Signing out keeps local data. New history will not be tagged with your account.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Button { showingAuth = true } label: {
+                            Label("Sign in", systemImage: "person.crop.circle.badge.plus")
+                        }
+                        Text("Sign in on iPhone to tag new match history to your account. You can continue offline without signing in.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
                 if syncDiagnostics.showBanner, let msg = syncDiagnostics.lastErrorMessage {
                     Section {
                         HStack(alignment: .top, spacing: 8) {
@@ -70,6 +102,8 @@ struct SettingsTabView: View {
                 #endif
             }
             .navigationTitle("Settings")
+            .sheet(isPresented: $showingAuth) { AuthView() }
+            .sheet(isPresented: $showingProfile) { UserProfileView() }
             .alert("Info", isPresented: $showingInfoAlert) {
                 Button("OK", role: .cancel) { }
             } message: {
