@@ -14,24 +14,24 @@ struct PenaltyShootoutView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 16) {
-                Text("Penalties").font(.headline)
+            VStack(spacing: AppTheme.Spacing.l) {
+                Text("penalties_title").font(AppTheme.Typography.header)
 
                 if matchViewModel.isPenaltyShootoutDecided, let winner = matchViewModel.penaltyWinner {
-                    Text("\(winner == .home ? matchViewModel.homeTeamDisplayName : matchViewModel.awayTeamDisplayName) win")
-                        .font(.subheadline)
-                        .padding(8)
+                    Text(String(format: NSLocalizedString("shootout_winner_format", comment: ""), (winner == .home ? matchViewModel.homeTeamDisplayName : matchViewModel.awayTeamDisplayName)))
+                        .font(AppTheme.Typography.subheader)
+                        .padding(AppTheme.Spacing.s)
                         .frame(maxWidth: .infinity)
-                        .background(RoundedRectangle(cornerRadius: 10).fill(.green.opacity(0.2)))
+                        .background(RoundedRectangle(cornerRadius: AppTheme.Corners.s).fill(.green.opacity(0.2)))
                 } else if matchViewModel.isSuddenDeathActive {
-                    Text("Sudden Death")
-                        .font(.subheadline)
-                        .padding(6)
+                    Text("shootout_sudden_death")
+                        .font(AppTheme.Typography.subheader)
+                        .padding(AppTheme.Spacing.xs)
                         .frame(maxWidth: .infinity)
-                        .background(RoundedRectangle(cornerRadius: 10).fill(.orange.opacity(0.2)))
+                        .background(RoundedRectangle(cornerRadius: AppTheme.Corners.s).fill(.orange.opacity(0.2)))
                 }
 
-                HStack(spacing: 12) {
+                HStack(spacing: AppTheme.Spacing.m) {
                     panel(.home,
                           title: matchViewModel.homeTeamDisplayName,
                           scored: matchViewModel.homePenaltiesScored,
@@ -59,14 +59,14 @@ struct PenaltyShootoutView: View {
                     matchViewModel.endPenaltiesAndProceed()
                     dismiss() // dismiss shootout; timer will present Full Time
                 } label: {
-                    Label("End Shootout", systemImage: "flag.checkered")
+                    Label(LocalizedStringKey("shootout_end_cta"), systemImage: "flag.checkered")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(!matchViewModel.isPenaltyShootoutDecided)
                 .padding(.horizontal)
             }
-            .navigationTitle("Shootout")
+            .navigationTitle("shootout_nav_title")
             .navigationBarTitleDisplayMode(.inline)
             .onAppear {
                 matchViewModel.beginPenaltiesIfNeeded()
@@ -83,10 +83,10 @@ struct PenaltyShootoutView: View {
                        active: Bool,
                        onScore: @escaping () -> Void,
                        onMiss: @escaping () -> Void) -> some View {
-        VStack(spacing: 10) {
-            Text(title).font(.headline)
+        VStack(spacing: AppTheme.Spacing.m - 2) {
+            Text(title).font(AppTheme.Typography.header)
             Text("\(scored) / \(taken)").font(.subheadline).foregroundStyle(.secondary)
-            HStack(spacing: 6) {
+            HStack(spacing: AppTheme.Spacing.xs) {
                 ForEach(0..<rounds, id: \.self) { i in
                     Group {
                         if i < results.count {
@@ -97,9 +97,10 @@ struct PenaltyShootoutView: View {
                     }.frame(width: 8, height: 8)
                 }
             }
-            HStack(spacing: 10) {
+            HStack(spacing: AppTheme.Spacing.m - 2) {
                 Button(action: onScore) {
-                    Label("Score", systemImage: "checkmark.circle.fill")
+                    Label(LocalizedStringKey("shootout_score"), systemImage: "checkmark.circle.fill")
+                        .accessibilityLabel(Text("Record score for \(title)"))
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
@@ -107,7 +108,8 @@ struct PenaltyShootoutView: View {
                 .disabled(!active)
 
                 Button(action: onMiss) {
-                    Label("Miss", systemImage: "xmark.circle.fill")
+                    Label(LocalizedStringKey("shootout_miss"), systemImage: "xmark.circle.fill")
+                        .accessibilityLabel(Text("Record miss for \(title)"))
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
@@ -117,9 +119,9 @@ struct PenaltyShootoutView: View {
         }
         .frame(maxWidth: .infinity)
         .padding()
-        .background(RoundedRectangle(cornerRadius: 12).fill(Color(.secondarySystemBackground)))
+        .background(RoundedRectangle(cornerRadius: AppTheme.Corners.m).fill(Color(.secondarySystemBackground)))
         .overlay(
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: AppTheme.Corners.m)
                 .stroke(active ? .green : .clear, lineWidth: 2)
         )
     }
@@ -128,4 +130,3 @@ struct PenaltyShootoutView: View {
 #Preview {
     PenaltyShootoutView(matchViewModel: MatchViewModel(haptics: NoopHaptics()))
 }
-

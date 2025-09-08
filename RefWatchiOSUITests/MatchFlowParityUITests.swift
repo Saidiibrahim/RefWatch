@@ -18,6 +18,13 @@ final class MatchFlowParityUITests: XCTestCase {
         XCTAssertTrue(startButton.waitForExistence(timeout: 3))
         startButton.tap()
 
+        // Kickoff sheet should appear for first half
+        let home = app.buttons["homeTeamButton"]
+        let away = app.buttons["awayTeamButton"]
+        XCTAssertTrue(home.waitForExistence(timeout: 3) || away.waitForExistence(timeout: 3))
+        (home.exists ? home : away).tap()
+        app.buttons["Start"].tap()
+
         let timerArea = app.otherElements["timerArea"]
         XCTAssertTrue(timerArea.waitForExistence(timeout: 5))
     }
@@ -54,5 +61,28 @@ final class MatchFlowParityUITests: XCTestCase {
         let endMatchBtn = app.buttons["End Match"]
         XCTAssertTrue(endMatchBtn.waitForExistence(timeout: 3))
     }
-}
 
+    func testLongPress_onTimer_opensActionsSheet() {
+        startDefaultMatch()
+        let timerArea = app.otherElements["timerArea"]
+        XCTAssertTrue(timerArea.waitForExistence(timeout: 3))
+        timerArea.press(forDuration: 0.7)
+
+        // Expect an action from the sheet to be visible
+        let goalAction = app.cells.buttons["Record Goal"]
+        XCTAssertTrue(goalAction.waitForExistence(timeout: 2))
+    }
+
+    func testAdvanceNextPeriod_availableInActions_notInPausedControls() {
+        startDefaultMatch()
+
+        // Open Actions, pause, and confirm Advance option is present in the same sheet
+        app.navigationBars.buttons["Actions"].tap()
+        let pauseCell = app.cells.buttons["Pause Timer"]
+        XCTAssertTrue(pauseCell.waitForExistence(timeout: 2))
+        pauseCell.tap()
+
+        let advance = app.cells.buttons["Advance to Next Period"]
+        XCTAssertTrue(advance.waitForExistence(timeout: 2))
+    }
+}

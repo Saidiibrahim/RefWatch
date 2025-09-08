@@ -18,16 +18,16 @@ struct FullTimeView_iOS: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 24) {
-                VStack(spacing: 6) {
+            VStack(spacing: AppTheme.Spacing.xl) {
+                VStack(spacing: AppTheme.Spacing.s - 2) {
                     Text(currentTime)
-                        .font(.title3)
+                        .font(AppTheme.Typography.subheader)
                         .foregroundStyle(.secondary)
-                    Text("Full Time")
-                        .font(.headline)
+                    Text("full_time_title")
+                        .font(AppTheme.Typography.header)
                 }
 
-                HStack(spacing: 16) {
+                HStack(spacing: AppTheme.Spacing.l) {
                     teamBox(name: matchViewModel.homeTeamDisplayName,
                             score: matchViewModel.currentMatch?.homeScore ?? 0)
                     teamBox(name: matchViewModel.awayTeamDisplayName,
@@ -40,19 +40,19 @@ struct FullTimeView_iOS: View {
                 Button {
                     showingConfirm = true
                 } label: {
-                    Label("End Match", systemImage: "checkmark.circle.fill")
-                        .font(.headline)
+                    Label(LocalizedStringKey("end_match_cta"), systemImage: "checkmark.circle.fill")
+                        .font(AppTheme.Typography.header)
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
                 .padding(.horizontal)
             }
-            .padding(.top, 16)
-            .navigationTitle("Full Time")
+            .padding(.top, AppTheme.Spacing.l)
+            .navigationTitle("full_time_title")
             .navigationBarTitleDisplayMode(.inline)
-            .alert("End Match", isPresented: $showingConfirm) {
-                Button("Cancel", role: .cancel) {}
-                Button("End", role: .destructive) {
+            .alert("end_match_alert_title", isPresented: $showingConfirm) {
+                Button("common_cancel", role: .cancel) {}
+                Button("common_end", role: .destructive) {
                     matchViewModel.finalizeMatch()
                     if let err = matchViewModel.lastPersistenceError, !err.isEmpty {
                         saveErrorMessage = err
@@ -62,12 +62,12 @@ struct FullTimeView_iOS: View {
                     }
                 }
             } message: {
-                Text("This will finalize and save the match.")
+                Text("end_match_alert_message")
             }
-            .alert("Save Failed", isPresented: $showingSaveError) {
-                Button("OK", role: .cancel) {}
+            .alert("save_failed_alert_title", isPresented: $showingSaveError) {
+                Button("common_ok", role: .cancel) {}
             } message: {
-                Text(saveErrorMessage.isEmpty ? "An unknown error occurred while saving." : saveErrorMessage)
+                Text(saveErrorMessage.isEmpty ? String(localized: "save_failed_alert_fallback") : saveErrorMessage)
             }
         }
     }
@@ -79,15 +79,15 @@ struct FullTimeView_iOS: View {
     private func teamBox(name: String, score: Int) -> some View {
         VStack(spacing: 8) {
             Text(name)
-                .font(.headline)
+                .font(AppTheme.Typography.header)
             Text("\(score)")
-                .font(.system(size: 40, weight: .bold, design: .rounded))
+                .font(AppTheme.Typography.scoreXL)
                 .monospacedDigit()
         }
         .frame(maxWidth: .infinity)
         .padding()
         .background(
-            RoundedRectangle(cornerRadius: 12).fill(Color(.secondarySystemBackground))
+            RoundedRectangle(cornerRadius: AppTheme.Corners.m).fill(Color(.secondarySystemBackground))
         )
     }
 }
@@ -101,4 +101,3 @@ struct FullTimeView_iOS: View {
     vm.isFullTime = true
     return FullTimeView_iOS(matchViewModel: vm)
 }
-

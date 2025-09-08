@@ -10,6 +10,7 @@ import RefWatchCore
 
 struct MatchKickoffView: View {
     enum Phase {
+        case firstHalf
         case secondHalf
         case extraTimeFirst
         case extraTimeSecond
@@ -18,28 +19,30 @@ struct MatchKickoffView: View {
     let matchViewModel: MatchViewModel
     let phase: Phase
     let defaultSelected: TeamSide?
+    let onConfirmStart: (() -> Void)?
     @Environment(\.dismiss) private var dismiss
     @State private var selected: TeamSide?
 
-    init(matchViewModel: MatchViewModel, phase: Phase, defaultSelected: TeamSide? = nil) {
+    init(matchViewModel: MatchViewModel, phase: Phase, defaultSelected: TeamSide? = nil, onConfirmStart: (() -> Void)? = nil) {
         self.matchViewModel = matchViewModel
         self.phase = phase
         self.defaultSelected = defaultSelected
+        self.onConfirmStart = onConfirmStart
         _selected = State(initialValue: defaultSelected)
     }
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 20) {
-                VStack(spacing: 4) {
+            VStack(spacing: AppTheme.Spacing.l) {
+                VStack(spacing: AppTheme.Spacing.s - 2) {
                     Text(headerTitle)
-                        .font(.headline)
+                        .font(AppTheme.Typography.header)
                     Text(durationLabel)
-                        .font(.subheadline)
+                        .font(AppTheme.Typography.subheader)
                         .foregroundStyle(.secondary)
                 }
 
-                HStack(spacing: 12) {
+                HStack(spacing: AppTheme.Spacing.m) {
                     teamButton(.home, name: matchViewModel.homeTeamDisplayName,
                                score: matchViewModel.currentMatch?.homeScore ?? 0)
                     teamButton(.away, name: matchViewModel.awayTeamDisplayName,
@@ -52,6 +55,10 @@ struct MatchKickoffView: View {
                 Button {
                     guard let s = selected else { return }
                     switch phase {
+                    case .firstHalf:
+                        matchViewModel.setKickingTeam(s == .home)
+                        matchViewModel.startMatch()
+                        onConfirmStart?()
                     case .secondHalf:
                         matchViewModel.setKickingTeam(s == .home)
                         matchViewModel.startSecondHalfManually()
@@ -63,15 +70,15 @@ struct MatchKickoffView: View {
                     }
                     dismiss()
                 } label: {
-                    Label("Start", systemImage: "checkmark.circle.fill")
-                        .font(.headline)
+                    Label(LocalizedStringKey("kickoff_start_cta"), systemImage: "checkmark.circle.fill")
+                        .font(AppTheme.Typography.header)
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(selected == nil && phase != .extraTimeSecond)
                 .padding(.horizontal)
             }
-            .navigationTitle("Kickoff")
+            .navigationTitle("kickoff_title")
             .navigationBarTitleDisplayMode(.inline)
         }
         .onAppear {
@@ -82,9 +89,10 @@ struct MatchKickoffView: View {
 
     private var headerTitle: String {
         switch phase {
-        case .secondHalf: return "Second Half"
-        case .extraTimeFirst: return "Extra Time 1"
-        case .extraTimeSecond: return "Extra Time 2"
+        case .firstHalf: return String(localized: "kickoff_header_first")
+        case .secondHalf: return String(localized: "kickoff_header_second")
+        case .extraTimeFirst: return String(localized: "kickoff_header_et1")
+        case .extraTimeSecond: return String(localized: "kickoff_header_et2")
         }
     }
 
@@ -100,22 +108,23 @@ struct MatchKickoffView: View {
         Button {
             selected = side
         } label: {
-            VStack(spacing: 8) {
-                Text(name).font(.headline)
+            VStack(spacing: AppTheme.Spacing.s) {
+                Text(name).font(AppTheme.Typography.header)
                 Text("\(score)")
-                    .font(.system(size: 34, weight: .bold, design: .rounded))
+                    .font(AppTheme.Typography.scoreL)
                     .monospacedDigit()
             }
             .frame(maxWidth: .infinity)
             .padding()
             .background(
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: AppTheme.Corners.m)
                     .fill((selected == side) ? Color.green.opacity(0.8) : Color(.secondarySystemBackground))
             )
             .foregroundStyle((selected == side) ? .white : .primary)
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier(side == .home ? "homeTeamButton" : "awayTeamButton")
+        .accessibilityLabel(Text(String(format: NSLocalizedString("kickoff_select_team_accessibility", comment: ""), name)))
     }
 
     private static func format(seconds: Int) -> String {
@@ -131,4 +140,3 @@ struct MatchKickoffView: View {
     vm.createMatch()
     return MatchKickoffView(matchViewModel: vm, phase: .secondHalf, defaultSelected: .home)
 }
-
