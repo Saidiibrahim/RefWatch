@@ -27,12 +27,20 @@ struct DefaultModelContainerBuilder: ModelContainerBuilding {
 }
 
 enum ModelContainerFactory {
-    static func makeStore(builder: ModelContainerBuilding, schema: Schema) -> (ModelContainer?, MatchHistoryStoring) {
+    /// Builds a SwiftData container and returns a tuple of (container, history store).
+    /// The provided `auth` is threaded into the SwiftData-backed store so that
+    /// owner identity can be attached on save. In failure fallbacks, the JSON
+    /// store is returned which does not use auth (best-effort continuity).
+    static func makeStore(
+        builder: ModelContainerBuilding,
+        schema: Schema,
+        auth: AuthenticationProviding = NoopAuth()
+    ) -> (ModelContainer?, MatchHistoryStoring) {
         if let persistent = try? builder.makePersistent(schema: schema) {
-            return (persistent, SwiftDataMatchHistoryStore(container: persistent, auth: NoopAuth(), importJSONOnFirstRun: true))
+            return (persistent, SwiftDataMatchHistoryStore(container: persistent, auth: auth, importJSONOnFirstRun: true))
         }
         if let memory = try? builder.makeInMemory(schema: schema) {
-            return (memory, SwiftDataMatchHistoryStore(container: memory, auth: NoopAuth(), importJSONOnFirstRun: true))
+            return (memory, SwiftDataMatchHistoryStore(container: memory, auth: auth, importJSONOnFirstRun: true))
         }
         // Final fallback
         return (nil, MatchHistoryService())
