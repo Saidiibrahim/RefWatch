@@ -16,10 +16,10 @@ struct PenaltyFirstKickerView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 20) {
-                VStack(spacing: 6) {
-                    Text("Who kicks first?")
-                        .font(.headline)
+            VStack(spacing: AppTheme.Spacing.l) {
+                VStack(spacing: AppTheme.Spacing.s - 2) {
+                    Text("penalties_who_kicks_first")
+                        .font(AppTheme.Typography.header)
                 }
 
                 HStack(spacing: 12) {
@@ -30,12 +30,12 @@ struct PenaltyFirstKickerView: View {
 
                 Spacer()
             }
-            .navigationTitle("Penalties")
+            .navigationTitle("penalties_title")
             .navigationBarTitleDisplayMode(.inline)
-            .alert("Failed to start", isPresented: $showError) {
-                Button("OK", role: .cancel) {}
+            .alert("penalties_start_failed_title", isPresented: $showError) {
+                Button("common_ok", role: .cancel) {}
             } message: {
-                Text("Could not start penalties. Try again.")
+                Text("penalties_start_failed_message")
             }
         }
     }
@@ -53,10 +53,10 @@ struct PenaltyFirstKickerView: View {
             }
         } label: {
             Text(title)
-                .font(.headline)
+                .font(AppTheme.Typography.header)
                 .frame(maxWidth: .infinity)
-                .frame(height: 48)
-                .background(RoundedRectangle(cornerRadius: 12).fill(side == .home ? .blue : .red))
+                .frame(height: AppTheme.Buttons.heightM)
+                .background(RoundedRectangle(cornerRadius: AppTheme.Corners.m).fill(side == .home ? .blue : .red))
                 .foregroundStyle(.white)
         }
         .buttonStyle(.plain)
@@ -67,4 +67,3 @@ struct PenaltyFirstKickerView: View {
 #Preview {
     PenaltyFirstKickerView(matchViewModel: MatchViewModel(haptics: NoopHaptics()))
 }
-
