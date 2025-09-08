@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		964A4D722D32234A00D08376 /* RefWatch Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 964A4D712D32234A00D08376 /* RefWatch Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		966D6DD62E6E5BBE0086E820 /* Clerk in Frameworks */ = {isa = PBXBuildFile; productRef = 966D6DD52E6E5BBE0086E820 /* Clerk */; };
 		96F51E932E6852D400C27CF8 /* RefWatchCore in Frameworks */ = {isa = PBXBuildFile; productRef = 96F51E922E6852D400C27CF8 /* RefWatchCore */; };
 		96F51E952E68530000C27CF8 /* RefWatchCore in Frameworks */ = {isa = PBXBuildFile; productRef = 96F51E942E68530000C27CF8 /* RefWatchCore */; };
 /* End PBXBuildFile section */
@@ -91,6 +92,13 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		966D6DDC2E6E6E630086E820 /* Exceptions for "RefWatchiOS" folder in "RefWatchiOS" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 96B8126D2E67CDA400B23EC0 /* RefWatchiOS */;
+		};
 		96C042042D3B45960087BC55 /* Exceptions for "RefWatch Watch App" folder in "RefWatch Watch App" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -123,6 +131,9 @@
 		};
 		96B8126F2E67CDA400B23EC0 /* RefWatchiOS */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				966D6DDC2E6E6E630086E820 /* Exceptions for "RefWatchiOS" folder in "RefWatchiOS" target */,
+			);
 			path = RefWatchiOS;
 			sourceTree = "<group>";
 		};
@@ -165,6 +176,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				966D6DD62E6E5BBE0086E820 /* Clerk in Frameworks */,
 				96F51E952E68530000C27CF8 /* RefWatchCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -346,6 +358,7 @@
 			name = RefWatchiOS;
 			packageProductDependencies = (
 				96F51E942E68530000C27CF8 /* RefWatchCore */,
+				966D6DD52E6E5BBE0086E820 /* Clerk */,
 			);
 			productName = RefWatchiOS;
 			productReference = 96B8126E2E67CDA400B23EC0 /* RefWatchiOS.app */;
@@ -441,6 +454,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				96F51E912E6852D400C27CF8 /* XCLocalSwiftPackageReference "RefWatchCore" */,
+				966D6DD42E6E5BBE0086E820 /* XCRemoteSwiftPackageReference "clerk-ios" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 964A4D6C2D32234A00D08376 /* Products */;
@@ -915,11 +929,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = RefWatchiOS/RefWatchiOS.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 6NV7X5BLU7;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = RefWatchiOS/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -949,11 +965,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = RefWatchiOS/RefWatchiOS.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 6NV7X5BLU7;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = RefWatchiOS/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -1139,7 +1157,23 @@
 		};
 /* End XCLocalSwiftPackageReference section */
 
+/* Begin XCRemoteSwiftPackageReference section */
+		966D6DD42E6E5BBE0086E820 /* XCRemoteSwiftPackageReference "clerk-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/clerk/clerk-ios";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.67.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
+		966D6DD52E6E5BBE0086E820 /* Clerk */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 966D6DD42E6E5BBE0086E820 /* XCRemoteSwiftPackageReference "clerk-ios" */;
+			productName = Clerk;
+		};
 		96F51E922E6852D400C27CF8 /* RefWatchCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = RefWatchCore;
