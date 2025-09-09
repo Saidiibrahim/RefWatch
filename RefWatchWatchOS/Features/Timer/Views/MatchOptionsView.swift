@@ -21,53 +21,48 @@ struct MatchOptionsView: View {
     
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 0) {
-                    // Options list - using system dismiss (X button) per WatchOS best practices
-                    VStack(spacing: 12) {
-                        // Home option
-                        ActionButton(
-                            title: "Home",
-                            icon: "house",
-                            color: .green
-                        ) {
-                            matchViewModel.navigateHome()
-                            lifecycle?.resetToStart()
-                            dismiss()
-                        }
-                        
-                        // Choose colours option (placeholder for future feature)
-                        ActionButton(
-                            title: "Choose colours",
-                            icon: "paintpalette",
-                            color: .orange
-                        ) {
-                            showingColorPicker = true
-                        }
-                        
-                        // Reset match option
-                        ActionButton(
-                            title: "Reset match",
-                            icon: "trash",
-                            color: .blue
-                        ) {
-                            showingResetConfirmation = true
-                        }
-                        
-                        // Abandon match option
-                        ActionButton(
-                            title: "Abandon match",
-                            icon: "xmark.circle",
-                            color: .red
-                        ) {
-                            showingAbandonConfirmation = true
-                        }
+            List {
+                Section("Options") {
+                    // Home option
+                    ActionButton(
+                        title: "Home",
+                        icon: "house",
+                        color: .green
+                    ) {
+                        matchViewModel.navigateHome()
+                        lifecycle?.resetToStart()
+                        dismiss()
+                    }
+
+                    // Choose colours option (placeholder for future feature)
+                    ActionButton(
+                        title: "Choose colours",
+                        icon: "paintpalette",
+                        color: .orange
+                    ) {
+                        showingColorPicker = true
+                    }
+
+                    // Reset match option
+                    ActionButton(
+                        title: "Reset match",
+                        icon: "trash",
+                        color: .blue
+                    ) {
+                        showingResetConfirmation = true
+                    }
+
+                    // Abandon match option
+                    ActionButton(
+                        title: "Abandon match",
+                        icon: "xmark.circle",
+                        color: .red
+                    ) {
+                        showingAbandonConfirmation = true
                     }
                 }
-                .padding(.horizontal)
             }
-            .safeAreaPadding(.top, 8)
-            .navigationTitle("Options")
+            .listStyle(.carousel)
         }
         .alert("Reset Match", isPresented: $showingResetConfirmation) {
             Button("Cancel", role: .cancel) { }
