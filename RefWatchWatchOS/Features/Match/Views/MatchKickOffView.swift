@@ -62,6 +62,11 @@ struct MatchKickOffView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 8) {
+                // Inline header under the system clock
+                Text(screenTitle)
+                    .font(.title2).bold()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal)
             
             // Team selection boxes (horizontal layout)
             HStack(spacing: 12) {
@@ -136,7 +141,6 @@ struct MatchKickOffView: View {
             .safeAreaPadding(.top, 8)
         }
         .navigationBarBackButtonHidden()
-        .navigationTitle(screenTitle)
         .onAppear {
             // Set the default selected team for second half
             if isSecondHalf, let defaultTeam = defaultSelectedTeam {

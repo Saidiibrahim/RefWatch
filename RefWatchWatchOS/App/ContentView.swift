@@ -21,6 +21,12 @@ struct ContentView: View {
                 case .idle:
                     ScrollView {
                         VStack(spacing: 20) {
+                            // Inline header under the system clock
+                            Text("RefWatch")
+                                .font(.headline)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal)
+
                             VStack(spacing: 16) {
                             // Start Match flow
                             NavigationLinkButton(
@@ -50,7 +56,7 @@ struct ContentView: View {
                         }
                         .safeAreaPadding(.top, 10)
                     }
-                    .navigationTitle("RefWatch")
+                    // Intentionally no navigationTitle on watchOS to avoid large overlay titles
                 case .kickoffFirstHalf:
                     MatchKickOffView(
                         matchViewModel: matchViewModel,
