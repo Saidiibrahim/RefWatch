@@ -20,10 +20,6 @@ struct ContentView: View {
                 switch lifecycle.state {
                 case .idle:
                     VStack(spacing: 20) {
-                        Text("Welcome to Referee Assistant")
-                            .font(.headline)
-                            .padding(.top)
-                        
                         VStack(spacing: 16) {
                             // Start Match flow
                             NavigationLinkButton(
@@ -53,6 +49,7 @@ struct ContentView: View {
                         
                         Spacer()
                     }
+                    .navigationTitle("RefWatch")
                 case .kickoffFirstHalf:
                     MatchKickOffView(
                         matchViewModel: matchViewModel,
@@ -127,8 +124,6 @@ struct ContentView: View {
     }
 }
 
-struct ContentView_Previews: PreviewProvider {
-    static var previews: some View {
-        ContentView()
-    }
+#Preview {
+    ContentView()
 }

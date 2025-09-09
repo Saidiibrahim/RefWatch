@@ -22,6 +22,7 @@ struct TeamDetailsView: View {
                 .font(.title2)
                 .bold()
                 .padding(.bottom, 8)
+                .accessibilityLabel(teamType == .home ? "Home" : "Away")
             
             VStack(spacing: 16) {
                 HStack(spacing: 20) {
