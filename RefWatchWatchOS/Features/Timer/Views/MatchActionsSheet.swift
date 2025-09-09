@@ -20,14 +20,10 @@ struct MatchActionsSheet: View {
     @State private var showingEndHalfConfirmation = false
     
     var body: some View {
-        VStack(spacing: 20) {
-            // Title
-            Text("Match Actions")
-                .font(.headline)
-                .padding(.top)
-            
-            // Action buttons in vertical layout for watch
-            VStack(spacing: 16) {
+        NavigationStack {
+            VStack(spacing: 20) {
+                // Action buttons in vertical layout for watch
+                VStack(spacing: 16) {
                 // Match Log Button
                 ActionButton(
                     title: "Match Log",
@@ -68,10 +64,12 @@ struct MatchActionsSheet: View {
                     }
                 }
             }
-            
-            Spacer()
+                
+                Spacer()
+            }
+            .padding()
+            .navigationTitle("Match Actions")
         }
-        .padding()
         .sheet(isPresented: $showingMatchLogs) {
             MatchLogsView(matchViewModel: matchViewModel)
         }
