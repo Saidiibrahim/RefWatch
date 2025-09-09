@@ -16,15 +16,6 @@ struct PenaltyShootoutView: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            // Header
-            VStack(spacing: 2) {
-                Text(formattedCurrentTime)
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.white)
-                Text("Penalties")
-                    .font(.system(size: 16))
-                    .foregroundColor(.white)
-            }
 
             if matchViewModel.isPenaltyShootoutDecided, let winner = matchViewModel.penaltyWinner {
                 Text("\(winner == .home ? matchViewModel.homeTeamDisplayName : matchViewModel.awayTeamDisplayName) win")
@@ -84,6 +75,7 @@ struct PenaltyShootoutView: View {
             // Ensure we mark penalties started once (idempotent)
             matchViewModel.beginPenaltiesIfNeeded()
         }
+        .navigationTitle("Penalties")
         // Bottom action
         .safeAreaInset(edge: .bottom) {
             Button(action: {
@@ -117,9 +109,7 @@ struct PenaltyShootoutView: View {
         // First-kicker prompt handled at ContentView level before routing
     }
 
-    private var formattedCurrentTime: String {
-        DateFormatter.watchShortTime.string(from: Date())
-    }
+    
 }
 
 private struct PenaltyTeamPanel: View {
