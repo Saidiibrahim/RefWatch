@@ -129,6 +129,11 @@ public final class MatchViewModel {
     public convenience init(haptics: HapticsProviding = NoopHaptics()) {
         self.init(history: MatchHistoryService(), penaltyManager: PenaltyManager(), haptics: haptics, connectivity: nil)
     }
+
+    @MainActor
+    public convenience init(haptics: HapticsProviding = NoopHaptics(), connectivity: ConnectivitySyncProviding?) {
+        self.init(history: MatchHistoryService(), penaltyManager: PenaltyManager(), haptics: haptics, connectivity: connectivity)
+    }
     
     // MARK: - Match Management
     public func createMatch() {
