@@ -18,6 +18,7 @@ extension AppRouter {
 }
 
 extension MatchViewModel {
+    @MainActor
     static func previewActive() -> MatchViewModel {
         let vm = MatchViewModel(haptics: NoopHaptics())
         vm.newMatch = Match(homeTeam: "HOM", awayTeam: "AWA")
