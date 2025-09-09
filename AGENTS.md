@@ -2,10 +2,10 @@
 
 ## Project Structure & Module Organization
 - watchOS (primary)
-  - `RefWatch Watch App/App`: App entry (`RefWatchApp.swift`, `ContentView.swift`).
-  - `RefWatch Watch App/Core`: Reusable components and services (`TimerManager`, `MatchHistoryService`, `PenaltyManager`, protocols, platform adapters like `WatchHaptics`).
-  - `RefWatch Watch App/Features`: Feature-first MVVM folders (`MatchSetup`, `Match`, `Events`, `Timer`, `Settings`, `TeamManagement`) with `Views/Models/ViewModels`.
-  - `RefWatch Watch App/Assets.xcassets`, `Preview Content`.
+  - `RefWatchWatchOS/App`: App entry (`RefWatchApp.swift`, `ContentView.swift`).
+  - `RefWatchWatchOS/Core`: Reusable components and services (`TimerManager`, `MatchHistoryService`, `PenaltyManager`, protocols, platform adapters like `WatchHaptics`).
+  - `RefWatchWatchOS/Features`: Feature-first MVVM folders (`MatchSetup`, `Match`, `Events`, `Timer`, `Settings`, `TeamManagement`) with `Views/Models/ViewModels`.
+  - `RefWatchWatchOS/Assets.xcassets`, `Preview Content`.
   - Tests: `RefWatch Watch AppTests` (unit) and `RefWatch Watch AppUITests` (UI).
 
 - iOS (complementary)
@@ -15,14 +15,14 @@
   - `RefWatchiOS/Assets.xcassets`.
 
 - Shared (via Target Membership)
-  - Domain models under `RefWatch Watch App/Features/**/Models`.
-  - Services under `RefWatch Watch App/Core/Services`.
-  - Protocols under `RefWatch Watch App/Core/Protocols`.
+  - Domain models under `RefWatchWatchOS/Features/**/Models`.
+  - Services under `RefWatchWatchOS/Core/Services`.
+  - Protocols under `RefWatchWatchOS/Core/Protocols`.
 
 ## Build, Test, and Development Commands
 - Open in Xcode: `open RefWatch.xcodeproj` (or double‑click the project).
 - Build (watchOS, CLI): `xcodebuild -project RefWatch.xcodeproj -scheme "RefWatch Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)' build`.
-- Build (iOS, CLI): `xcodebuild -project RefWatch.xcodeproj -scheme "RefWatch iOS App" -destination 'platform=iOS Simulator,name=iPhone 15' build`.
+- Build (iOS, CLI): `xcodebuild -project RefWatch.xcodeproj -scheme RefWatchiOS -destination 'platform=iOS Simulator,name=iPhone 15' build`.
 - Test (watchOS, CLI): `xcodebuild test -project RefWatch.xcodeproj -scheme "RefWatch Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)'`.
 - Run locally: Select scheme → choose simulator → ⌘R.
 - Share schemes for CLI/CI: Product → Scheme → Manage Schemes… → check "Shared".

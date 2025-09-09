@@ -42,7 +42,7 @@ xcodebuild -project RefWatch.xcodeproj -scheme "RefWatch iOS App" -destination '
 The repository follows a feature‑first architecture with clear separation of concerns. There are two app folders and a shared pool of sources compiled into both targets.
 
 ```
-RefWatch Watch App/
+RefWatchWatchOS/
 ├── App/                    # Entry point and root configuration
 ├── Core/                   # Shared components and services
 │   ├── Components/         # Reusable UI components
@@ -154,7 +154,7 @@ Uses a sophisticated coordinator pattern:
 1. **Feature Development**: Create new features in each app’s `Features/` directory following MVVM (Models/ViewModels/Views).
 2. **Shared Code**: Prefer sharing via Target Membership first; keep shared sources UI‑agnostic (no WatchKit/UIKit). Use adapter protocols (`HapticsProviding`, `PersistenceProviding`, `ConnectivitySyncProviding`).
 3. **Business Logic**: Implement services in `Core/Services/` (watch) and platform adapters under each app’s `Core/Platform/`.
-4. **Testing**: Write unit tests under `RefWatch Watch AppTests/` (and future iOS tests). Keep package‑ready boundaries for a future `RefWatchCore` SPM.
+4. **Testing**: Write unit tests under `RefWatchWatchOSTests/` (and future iOS tests). Keep package‑ready boundaries for a future `RefWatchCore` SPM.
 
 ## Important Notes
 

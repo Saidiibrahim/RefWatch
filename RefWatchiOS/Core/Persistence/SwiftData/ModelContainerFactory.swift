@@ -31,6 +31,7 @@ enum ModelContainerFactory {
     /// The provided `auth` is threaded into the SwiftData-backed store so that
     /// owner identity can be attached on save. In failure fallbacks, the JSON
     /// store is returned which does not use auth (best-effort continuity).
+    @MainActor
     static func makeStore(
         builder: ModelContainerBuilding,
         schema: Schema,

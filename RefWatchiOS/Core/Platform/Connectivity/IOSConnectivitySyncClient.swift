@@ -63,10 +63,10 @@ final class IOSConnectivitySyncClient: NSObject {
 
     // Exposed for tests to bypass WCSession
     func handleCompletedMatch(_ match: CompletedMatch) {
-        // Attach owner id if missing
-        let snapshot = match.attachingOwnerIfMissing(using: auth)
         // Persist and notify on main actor (SwiftData stores are often main-actor isolated)
         Task { @MainActor in
+            // Attach owner id if missing on the main actor (ClerkAuth accesses @MainActor values)
+            let snapshot = match.attachingOwnerIfMissing(using: auth)
             do { try history.save(snapshot) } catch {
                 #if DEBUG
                 print("DEBUG: Failed to save synced snapshot: \(error)")

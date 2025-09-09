@@ -21,12 +21,12 @@ final class MatchHistoryServiceConcurrencyTests: XCTestCase {
                         match: match,
                         events: [e]
                     )
-                    try? svc.save(cm)
+                    await MainActor.run { try? svc.save(cm) }
                 }
             }
         }
 
-        let loaded = try svc.loadAll()
+        let loaded = try await svc.loadAll()
         XCTAssertEqual(loaded.count, 50)
         XCTAssertEqual(loaded.first?.match.homeScore, 49)
         XCTAssertEqual(loaded.last?.match.homeScore, 0)
@@ -46,14 +46,13 @@ final class MatchHistoryServiceConcurrencyTests: XCTestCase {
                 match: Match(homeTeam: "H\(i)", awayTeam: "A\(i)"),
                 events: [e]
             )
-            try svc.save(cm)
+            try await svc.save(cm)
         }
 
-        let recent = svc.loadRecent(3)
+        let recent = await svc.loadRecent(3)
         XCTAssertEqual(recent.count, 3)
         XCTAssertEqual(recent[0].match.homeTeam, "H9")
         XCTAssertEqual(recent[1].match.homeTeam, "H8")
         XCTAssertEqual(recent[2].match.homeTeam, "H7")
     }
 }
-

@@ -1,6 +1,6 @@
 //
 //  MatchHistoryView.swift
-//  RefWatch Watch App
+//  RefWatchWatchOS
 //
 //  Description: Simple history list of completed matches with navigation to details.
 //

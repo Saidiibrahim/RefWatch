@@ -9,6 +9,7 @@
 import Foundation
 
 // MARK: - Protocol
+@MainActor
 public protocol MatchHistoryStoring {
     func loadAll() throws -> [CompletedMatch]
     func save(_ match: CompletedMatch) throws
@@ -25,6 +26,7 @@ public extension MatchHistoryStoring {
 }
 
 // MARK: - Service
+@MainActor
 public final class MatchHistoryService: MatchHistoryStoring {
     private let fileURL: URL
     private var cache: [CompletedMatch] = []
@@ -139,4 +141,3 @@ public final class MatchHistoryService: MatchHistoryStoring {
         }
     }
 }
-

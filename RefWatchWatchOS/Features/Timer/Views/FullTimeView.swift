@@ -1,6 +1,6 @@
 //
 //  FullTimeView.swift
-//  RefWatch Watch App
+//  RefWatchWatchOS
 //
 //  Description: Full-time display showing final scores and option to end match
 //

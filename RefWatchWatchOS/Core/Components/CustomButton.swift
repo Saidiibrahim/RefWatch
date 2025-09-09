@@ -1,6 +1,6 @@
 //
 //  CustomButton.swift
-//  RefWatch Watch App
+//  RefWatchWatchOS
 //
 //  Description: Enhanced reusable button components for consistent WatchOS styling
 //

@@ -1,6 +1,6 @@
 //
 //  RefWatchApp.swift
-//  RefWatch Watch App
+//  RefWatchWatchOS
 //
 //  Created by Ibrahim Saidi on 11/1/2025.
 //
