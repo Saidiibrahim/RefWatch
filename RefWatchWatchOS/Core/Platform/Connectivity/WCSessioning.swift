@@ -1,6 +1,6 @@
 //
 //  WCSessioning.swift
-//  RefWatch Watch App
+//  RefWatchWatchOS
 //
 //  Lightweight wrapper over WCSession to enable dependency injection in tests.
 //
@@ -33,4 +33,3 @@ final class WCSessionWrapper: WCSessioning {
     }
 }
 #endif
-

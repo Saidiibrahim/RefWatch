@@ -1,6 +1,6 @@
 //
 //  MatchActionsSheet.swift
-//  RefWatch Watch App
+//  RefWatchWatchOS
 //
 //  Description: Sheet presented when user long-presses on TimerView, showing match action options
 //

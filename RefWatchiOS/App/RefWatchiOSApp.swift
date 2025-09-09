@@ -11,6 +11,7 @@ import RefWatchCore
 import Clerk
 
 @main
+@MainActor
 struct RefWatchiOSApp: App {
     @StateObject private var router = AppRouter()
     // Built once during app init to avoid lazy/self init ordering issues

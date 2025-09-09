@@ -1,6 +1,6 @@
 //
 //  WatchConnectivitySyncClient.swift
-//  RefWatch Watch App
+//  RefWatchWatchOS
 //
 //  watchOS implementation to export completed matches to the paired iPhone.
 //

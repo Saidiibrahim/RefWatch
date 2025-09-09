@@ -23,6 +23,7 @@ struct ClerkAuth: AuthenticationProviding {
         return id
     }
 
+    @MainActor
     var state: AuthState {
         #if canImport(Clerk)
         if let user = Clerk.shared.user {
@@ -33,6 +34,7 @@ struct ClerkAuth: AuthenticationProviding {
         return .signedOut
     }
 
+    @MainActor
     var currentUserId: String? {
         #if canImport(Clerk)
         Clerk.shared.user?.id
