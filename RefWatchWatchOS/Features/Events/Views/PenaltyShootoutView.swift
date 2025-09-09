@@ -75,7 +75,6 @@ struct PenaltyShootoutView: View {
             // Ensure we mark penalties started once (idempotent)
             matchViewModel.beginPenaltiesIfNeeded()
         }
-        .navigationTitle("Penalties")
         // Bottom action
         .safeAreaInset(edge: .bottom) {
             Button(action: {
