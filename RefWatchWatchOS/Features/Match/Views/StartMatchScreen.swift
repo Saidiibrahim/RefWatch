@@ -75,7 +75,6 @@ struct StartMatchScreen: View {
             
             Spacer()
         }
-        .navigationTitle("Start Match")
         // When the lifecycle leaves idle, close this screen to reveal root routing
         .onChange(of: lifecycle.state) { newValue in
             if newValue != .idle {

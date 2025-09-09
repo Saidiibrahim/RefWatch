@@ -19,15 +19,14 @@ struct ContentView: View {
             Group {
                 switch lifecycle.state {
                 case .idle:
-                    ScrollView {
-                        VStack(spacing: 20) {
-                            // Inline header under the system clock
-                            Text("RefWatch")
-                                .font(.headline)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.horizontal)
+                    VStack(spacing: 16) {
+                        // Inline header under the system clock
+                        Text("RefWatch")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal)
 
-                            VStack(spacing: 16) {
+                        VStack(spacing: 12) {
                             // Start Match flow
                             NavigationLinkButton(
                                 title: "Start Match",
@@ -51,11 +50,10 @@ struct ContentView: View {
                                 destination: MatchHistoryView(matchViewModel: matchViewModel),
                                 backgroundColor: .blue
                             )
-                            }
-                            .padding(.horizontal)
                         }
-                        .safeAreaPadding(.top, 10)
+                        .padding(.horizontal)
                     }
+                    .padding(.top, 10)
                     // Intentionally no navigationTitle on watchOS to avoid large overlay titles
                 case .kickoffFirstHalf:
                     MatchKickOffView(
