@@ -61,19 +61,6 @@ struct MatchKickOffView: View {
     
     var body: some View {
         VStack(spacing: 8) {
-            // Header with time and kick off text (right-aligned)
-            HStack {
-                Spacer()
-                VStack(spacing: 2) {
-                    Text(formattedCurrentTime)
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.white)
-                    Text(etPhase == 1 ? "Extra Time 1" : etPhase == 2 ? "Extra Time 2" : (isSecondHalf ? "Second Half" : "Kick off"))
-                        .font(.system(size: 16))
-                        .foregroundColor(.white)
-                }
-            }
-            .padding(.horizontal)
             
             // Team selection boxes (horizontal layout)
             HStack(spacing: 12) {
@@ -84,6 +71,7 @@ struct MatchKickOffView: View {
                     action: { selectedTeam = .home },
                     accessibilityIdentifier: "homeTeamButton"
                 )
+                .accessibilityLabel("Home")
                 
                 SimpleTeamBox(
                     teamName: matchViewModel.awayTeamDisplayName, 
@@ -92,6 +80,7 @@ struct MatchKickOffView: View {
                     action: { selectedTeam = .away },
                     accessibilityIdentifier: "awayTeamButton"
                 )
+                .accessibilityLabel("Away")
             }
             .padding(.horizontal)
             
@@ -144,6 +133,7 @@ struct MatchKickOffView: View {
             .padding(.bottom, 12)
         }
         .navigationBarBackButtonHidden()
+        .navigationTitle(screenTitle)
         .onAppear {
             // Set the default selected team for second half
             if isSecondHalf, let defaultTeam = defaultSelectedTeam {
@@ -156,9 +146,11 @@ struct MatchKickOffView: View {
         }
     }
     
-    // Computed property for current time
-    private var formattedCurrentTime: String {
-        DateFormatter.watchShortTime.string(from: Date())
+    private var screenTitle: String {
+        if let phase = etPhase {
+            return phase == 1 ? "ET 1" : "ET 2"
+        }
+        return isSecondHalf ? "Second Half" : "Kick Off"
     }
 
     // Per-period duration label derived from current match when available

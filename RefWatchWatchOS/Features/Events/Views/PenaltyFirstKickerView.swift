@@ -16,15 +16,6 @@ struct PenaltyFirstKickerView: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            // Header
-            VStack(spacing: 4) {
-                Text(formattedCurrentTime)
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(.white)
-                Text("Who kicks first?")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.white)
-            }
 
             // Buttons
             HStack(spacing: 12) {
@@ -37,6 +28,7 @@ struct PenaltyFirstKickerView: View {
         }
         .padding(.top)
         .background(Color.black)
+        .navigationTitle("First Kicker")
     }
 
     private func firstKickerButton(title: String, side: TeamSide, color: Color) -> some View {
@@ -72,9 +64,7 @@ struct PenaltyFirstKickerView: View {
         .accessibilityIdentifier(side == .home ? "firstKickerHomeBtn" : "firstKickerAwayBtn")
     }
 
-    private var formattedCurrentTime: String {
-        DateFormatter.watchShortTime.string(from: Date())
-    }
+    
 }
 
 #Preview {
