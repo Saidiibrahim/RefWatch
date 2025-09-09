@@ -13,16 +13,14 @@ import WatchConnectivity
 
 final class WatchConnectivitySyncClient: ConnectivitySyncProviding {
     #if canImport(WatchConnectivity)
-    private let session: WCSessioning? = WCSession.isSupported() ? WCSessionWrapper.shared : nil
+    private let session: WCSessioning?
     private let queue = DispatchQueue(label: "WatchConnectivitySyncClient")
     #endif
 
     init(session: WCSessioning? = nil) {
         #if canImport(WatchConnectivity)
-        if let injected = session {
-            self.session = injected
-        }
-        if let session = self.session { session.activate() }
+        self.session = session ?? (WCSession.isSupported() ? WCSessionWrapper.shared : nil)
+        self.session?.activate()
         #endif
     }
 
