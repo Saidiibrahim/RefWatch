@@ -66,6 +66,7 @@ struct MatchOptionsView: View {
                 }
                 .padding(.horizontal)
             }
+            .safeAreaPadding(.top, 8)
             .navigationTitle("Options")
         }
         .alert("Reset Match", isPresented: $showingResetConfirmation) {
