@@ -19,8 +19,9 @@ struct ContentView: View {
             Group {
                 switch lifecycle.state {
                 case .idle:
-                    VStack(spacing: 20) {
-                        VStack(spacing: 16) {
+                    ScrollView {
+                        VStack(spacing: 20) {
+                            VStack(spacing: 16) {
                             // Start Match flow
                             NavigationLinkButton(
                                 title: "Start Match",
@@ -44,10 +45,10 @@ struct ContentView: View {
                                 destination: MatchHistoryView(matchViewModel: matchViewModel),
                                 backgroundColor: .blue
                             )
+                            }
+                            .padding(.horizontal)
                         }
-                        .padding(.horizontal)
-                        
-                        Spacer()
+                        .safeAreaPadding(.top, 10)
                     }
                     .navigationTitle("RefWatch")
                 case .kickoffFirstHalf:

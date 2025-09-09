@@ -60,7 +60,8 @@ struct MatchKickOffView: View {
     }
     
     var body: some View {
-        VStack(spacing: 8) {
+        ScrollView {
+            VStack(spacing: 8) {
             
             // Team selection boxes (horizontal layout)
             HStack(spacing: 12) {
@@ -131,6 +132,8 @@ struct MatchKickOffView: View {
             .disabled(selectedTeam == nil)
             .accessibilityIdentifier("kickoffConfirmButton")
             .padding(.bottom, 12)
+            }
+            .safeAreaPadding(.top, 8)
         }
         .navigationBarBackButtonHidden()
         .navigationTitle(screenTitle)
