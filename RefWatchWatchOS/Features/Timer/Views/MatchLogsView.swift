@@ -16,15 +16,6 @@ struct MatchLogsView: View {
     var body: some View {
         NavigationStack {
             VStack {
-                // Clean header with centered title
-                Text("Match Log")
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                    .padding(.top, 8)
-                
-                Divider()
-                    .padding(.horizontal)
-                
                 // Event list
                 if matchViewModel.matchEvents.isEmpty {
                     // Empty state
@@ -55,6 +46,7 @@ struct MatchLogsView: View {
                     .listStyle(.carousel)
                 }
             }
+            .navigationTitle("Match Log")
         }
     }
 }

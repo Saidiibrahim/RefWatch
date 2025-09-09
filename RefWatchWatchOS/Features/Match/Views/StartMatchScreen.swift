@@ -15,9 +15,6 @@ struct StartMatchScreen: View {
     
     var body: some View {
         VStack(spacing: 20) {
-            Text("Start a New Match")
-                .font(.headline)
-                .padding(.top)
             
             VStack(spacing: 16) {
                 // Select from library

@@ -23,13 +23,6 @@ struct MatchOptionsView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 0) {
-                    // Title header for consistency with other modal views
-                    Text("Match Options")
-                        .font(.headline)
-                        .fontWeight(.semibold)
-                        .padding(.top, 8)
-                        .padding(.bottom, 16)
-                    
                     // Options list - using system dismiss (X button) per WatchOS best practices
                     VStack(spacing: 12) {
                         // Home option
@@ -73,6 +66,7 @@ struct MatchOptionsView: View {
                 }
                 .padding(.horizontal)
             }
+            .navigationTitle("Options")
         }
         .alert("Reset Match", isPresented: $showingResetConfirmation) {
             Button("Cancel", role: .cancel) { }
