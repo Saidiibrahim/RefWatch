@@ -1,6 +1,6 @@
 //
 //  MatchOptionsView.swift
-//  RefWatch Watch App
+//  RefWatchWatchOS
 //
 //  Description: Options menu for match management actions during gameplay
 //

@@ -22,7 +22,7 @@
 ## Build, Test, and Development Commands
 - Open in Xcode: `open RefWatch.xcodeproj` (or double‑click the project).
 - Build (watchOS, CLI): `xcodebuild -project RefWatch.xcodeproj -scheme "RefWatch Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)' build`.
-- Build (iOS, CLI): `xcodebuild -project RefWatch.xcodeproj -scheme "RefWatch iOS App" -destination 'platform=iOS Simulator,name=iPhone 15' build`.
+- Build (iOS, CLI): `xcodebuild -project RefWatch.xcodeproj -scheme RefWatchiOS -destination 'platform=iOS Simulator,name=iPhone 15' build`.
 - Test (watchOS, CLI): `xcodebuild test -project RefWatch.xcodeproj -scheme "RefWatch Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)'`.
 - Run locally: Select scheme → choose simulator → ⌘R.
 - Share schemes for CLI/CI: Product → Scheme → Manage Schemes… → check "Shared".

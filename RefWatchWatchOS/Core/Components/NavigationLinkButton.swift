@@ -1,6 +1,6 @@
 //
 //  NavigationLinkButton.swift
-//  RefWatch Watch App
+//  RefWatchWatchOS
 //
 //  Description: Reusable NavigationLink wrapper with consistent WatchOS styling
 //
