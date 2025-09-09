@@ -60,85 +60,94 @@ struct MatchKickOffView: View {
     }
     
     var body: some View {
-        ScrollView {
-            VStack(spacing: 8) {
-                // Inline header under the system clock
+        GeometryReader { geometry in
+            VStack(spacing: 0) {
+                // Header - more compact with improved font size
                 Text(screenTitle)
-                    .font(.title2).bold()
+                    .font(.system(size: 18, weight: .semibold))
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal)
-            
-            // Team selection boxes (horizontal layout)
-            HStack(spacing: 12) {
-                SimpleTeamBox(
-                    teamName: matchViewModel.homeTeamDisplayName,
-                    score: matchViewModel.currentMatch?.homeScore ?? 0,
-                    isSelected: selectedTeam == .home,
-                    action: { selectedTeam = .home },
-                    accessibilityIdentifier: "homeTeamButton"
-                )
-                .accessibilityLabel("Home")
+                    .padding(.top, 4)
                 
-                SimpleTeamBox(
-                    teamName: matchViewModel.awayTeamDisplayName, 
-                    score: matchViewModel.currentMatch?.awayScore ?? 0,
-                    isSelected: selectedTeam == .away,
-                    action: { selectedTeam = .away },
-                    accessibilityIdentifier: "awayTeamButton"
-                )
-                .accessibilityLabel("Away")
-            }
-            .padding(.horizontal)
-            
-            // Duration button
-            Button(action: { }) {
-                CompactButton(
-                    title: perPeriodDurationLabel,
-                    style: .secondary
-                )
-            }
-            .buttonStyle(PlainButtonStyle())
-            
-            Spacer()
-            
-            // Start button (simple green circle with checkmark)
-            Button {
-                guard let team = selectedTeam else { return }
-                if let phase = etPhase {
-                    if phase == 1 {
-                        matchViewModel.setKickingTeamET1(team == .home)
-                        matchViewModel.startExtraTimeFirstHalfManually()
+                Spacer(minLength: 8)
+                
+                // Team selection boxes - more compact layout
+                HStack(spacing: 10) {
+                    CompactTeamBox(
+                        teamName: matchViewModel.homeTeamDisplayName,
+                        score: matchViewModel.currentMatch?.homeScore ?? 0,
+                        isSelected: selectedTeam == .home,
+                        action: { selectedTeam = .home },
+                        accessibilityIdentifier: "homeTeamButton"
+                    )
+                    .accessibilityLabel("Home")
+                    
+                    CompactTeamBox(
+                        teamName: matchViewModel.awayTeamDisplayName,
+                        score: matchViewModel.currentMatch?.awayScore ?? 0,
+                        isSelected: selectedTeam == .away,
+                        action: { selectedTeam = .away },
+                        accessibilityIdentifier: "awayTeamButton"
+                    )
+                    .accessibilityLabel("Away")
+                }
+                .padding(.horizontal)
+                
+                Spacer(minLength: 8)
+                
+                // Duration display - inline text instead of button
+                Text(perPeriodDurationLabel)
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(.secondary)
+                    .padding(.vertical, 6)
+                    .padding(.horizontal, 12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.gray.opacity(0.1))
+                    )
+                    .padding(.horizontal)
+                
+                Spacer(minLength: 12)
+                
+                // Start button - optimized size for better fit
+                Button {
+                    guard let team = selectedTeam else { return }
+                    if let phase = etPhase {
+                        if phase == 1 {
+                            matchViewModel.setKickingTeamET1(team == .home)
+                            matchViewModel.startExtraTimeFirstHalfManually()
+                            lifecycle.goToSetup()
+                        } else {
+                            matchViewModel.startExtraTimeSecondHalfManually()
+                            lifecycle.goToSetup()
+                        }
+                    } else if isSecondHalf {
+                        matchViewModel.setKickingTeam(team == .home)
+                        matchViewModel.startSecondHalfManually()
                         lifecycle.goToSetup()
                     } else {
-                        matchViewModel.startExtraTimeSecondHalfManually()
+                        // First half: match already configured in CreateMatchView
+                        matchViewModel.setKickingTeam(team == .home)
+                        matchViewModel.startMatch()
                         lifecycle.goToSetup()
                     }
-                } else if isSecondHalf {
-                    matchViewModel.setKickingTeam(team == .home)
-                    matchViewModel.startSecondHalfManually()
-                    lifecycle.goToSetup()
-                } else {
-                    // First half: match already configured in CreateMatchView
-                    matchViewModel.setKickingTeam(team == .home)
-                    matchViewModel.startMatch()
-                    lifecycle.goToSetup()
+                } label: {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 20, weight: .medium))
+                        .foregroundColor(.white)
+                        .frame(width: 44, height: 44)
+                        .background(
+                            Circle()
+                                .fill(selectedTeam != nil ? Color.green : Color.gray)
+                        )
                 }
-            } label: {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 24, weight: .medium))
-                    .foregroundColor(.white)
-                    .frame(width: 50, height: 50)
-                    .background(
-                        Circle()
-                            .fill(selectedTeam != nil ? Color.green : Color.gray)
-                    )
+                .buttonStyle(PlainButtonStyle())
+                .disabled(selectedTeam == nil)
+                .accessibilityIdentifier("kickoffConfirmButton")
+                
+                Spacer(minLength: 4)
             }
-            .buttonStyle(PlainButtonStyle())
-            .disabled(selectedTeam == nil)
-            .accessibilityIdentifier("kickoffConfirmButton")
-            .padding(.bottom, 12)
-            }
-            .safeAreaPadding(.top, 8)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .navigationBarBackButtonHidden()
         .onAppear {
@@ -183,8 +192,8 @@ struct MatchKickOffView: View {
     }
 }
 
-// Simple team box component matching target design
-private struct SimpleTeamBox: View {
+// Compact team box component optimized for watch screen space
+private struct CompactTeamBox: View {
     let teamName: String
     let score: Int
     let isSelected: Bool
@@ -193,17 +202,17 @@ private struct SimpleTeamBox: View {
     
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 8) {
+            VStack(spacing: 4) {
                 Text(teamName)
-                    .font(.system(size: 18, weight: .bold))
+                    .font(.system(size: 16, weight: .bold))
                     .foregroundColor(.white)
                 
                 Text("\(score)")
-                    .font(.system(size: 28, weight: .bold))
+                    .font(.system(size: 24, weight: .bold))
                     .foregroundColor(.white)
             }
             .frame(maxWidth: .infinity)
-            .frame(height: 80)
+            .frame(height: 65) // Reduced from 80pt for better fit
             .background(
                 RoundedRectangle(cornerRadius: 8)
                     .fill(isSelected ? Color.green : Color.gray.opacity(0.7))
