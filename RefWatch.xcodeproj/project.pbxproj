@@ -710,30 +710,31 @@
 				DEVELOPMENT_ASSET_PATHS = "\"RefWatchWatchOS/Preview Content\"";
 				DEVELOPMENT_TEAM = 6NV7X5BLU7;
 				ENABLE_PREVIEWS = YES;
-				EXCLUDED_SOURCE_FILE_NAMES = (
-					Match.swift,
-					CompletedMatch.swift,
-					MatchEventRecord.swift,
-					CardModels.swift,
-					Settings.swift,
-					MatchSetupModels.swift,
-					TeamModels.swift,
-					TimerManager.swift,
-					PenaltyManaging.swift,
-					PenaltyManager.swift,
-					MatchHistoryService.swift,
-					HapticsProviding.swift,
-					PersistenceProviding.swift,
-					ConnectivitySyncProviding.swift,
-					MatchViewModel.swift,
-					MatchSetupViewModel.swift,
-					SettingsViewModel.swift,
-					"DateFormatter+Common.swift",
-				);
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_KEY_CFBundleDisplayName = RefWatch;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
-				INFOPLIST_KEY_WKWatchOnly = YES;
+                    EXCLUDED_SOURCE_FILE_NAMES = (
+                        Match.swift,
+                        CompletedMatch.swift,
+                        MatchEventRecord.swift,
+                        CardModels.swift,
+                        Settings.swift,
+                        MatchSetupModels.swift,
+                        TeamModels.swift,
+                        TimerManager.swift,
+                        PenaltyManaging.swift,
+                        PenaltyManager.swift,
+                        MatchHistoryService.swift,
+                        HapticsProviding.swift,
+                        PersistenceProviding.swift,
+                        ConnectivitySyncProviding.swift,
+                        MatchViewModel.swift,
+                        MatchSetupViewModel.swift,
+                        SettingsViewModel.swift,
+                        "DateFormatter+Common.swift",
+                        README.md,
+                    );
+                    GENERATE_INFOPLIST_FILE = YES;
+                    INFOPLIST_KEY_CFBundleDisplayName = RefWatch;
+                    INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+                    INFOPLIST_KEY_WKWatchOnly = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -760,30 +761,31 @@
 				DEVELOPMENT_ASSET_PATHS = "\"RefWatchWatchOS/Preview Content\"";
 				DEVELOPMENT_TEAM = 6NV7X5BLU7;
 				ENABLE_PREVIEWS = YES;
-				EXCLUDED_SOURCE_FILE_NAMES = (
-					Match.swift,
-					CompletedMatch.swift,
-					MatchEventRecord.swift,
-					CardModels.swift,
-					Settings.swift,
-					MatchSetupModels.swift,
-					TeamModels.swift,
-					TimerManager.swift,
-					PenaltyManaging.swift,
-					PenaltyManager.swift,
-					MatchHistoryService.swift,
-					HapticsProviding.swift,
-					PersistenceProviding.swift,
-					ConnectivitySyncProviding.swift,
-					MatchViewModel.swift,
-					MatchSetupViewModel.swift,
-					SettingsViewModel.swift,
-					"DateFormatter+Common.swift",
-				);
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_KEY_CFBundleDisplayName = RefWatch;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
-				INFOPLIST_KEY_WKWatchOnly = YES;
+                    EXCLUDED_SOURCE_FILE_NAMES = (
+                        Match.swift,
+                        CompletedMatch.swift,
+                        MatchEventRecord.swift,
+                        CardModels.swift,
+                        Settings.swift,
+                        MatchSetupModels.swift,
+                        TeamModels.swift,
+                        TimerManager.swift,
+                        PenaltyManaging.swift,
+                        PenaltyManager.swift,
+                        MatchHistoryService.swift,
+                        HapticsProviding.swift,
+                        PersistenceProviding.swift,
+                        ConnectivitySyncProviding.swift,
+                        MatchViewModel.swift,
+                        MatchSetupViewModel.swift,
+                        SettingsViewModel.swift,
+                        "DateFormatter+Common.swift",
+                        README.md,
+                    );
+                    GENERATE_INFOPLIST_FILE = YES;
+                    INFOPLIST_KEY_CFBundleDisplayName = RefWatch;
+                    INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+                    INFOPLIST_KEY_WKWatchOnly = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
