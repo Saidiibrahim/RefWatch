@@ -1,6 +1,7 @@
 import XCTest
 @testable import RefWatchCore
 
+@MainActor
 private final class MockMatchHistoryService: MatchHistoryStoring {
     var saved: [CompletedMatch] = []
     func loadAll() throws -> [CompletedMatch] { saved }
@@ -29,6 +30,7 @@ final class MatchViewModel_PersistenceTests: XCTestCase {
         XCTAssertNil(vm.currentMatch)
     }
 
+    @MainActor
     private final class FailingMatchHistoryService: MatchHistoryStoring {
         func loadAll() throws -> [CompletedMatch] { [] }
         func save(_ match: CompletedMatch) throws { throw NSError(domain: "test", code: -1) }
@@ -47,4 +49,3 @@ final class MatchViewModel_PersistenceTests: XCTestCase {
         XCTAssertNil(vm.currentMatch)
     }
 }
-

@@ -44,8 +44,8 @@ Upcoming
 ## Current Position Snapshot
 
 - iOS folder `RefWatchiOS/` is flat, mixing app entry, views, and utilities.
-- watchOS follows feature‑first MVVM under `RefWatch Watch App/` with `App`, `Core`, and `Features/**/(Views|Models|ViewModels)`.
-- Shareable today: models under `RefWatch Watch App/Features/**/Models`, core services under `RefWatch Watch App/Core/Services` (e.g., `TimerManager`, `PenaltyManager`, `MatchHistoryService`).
+- watchOS follows feature‑first MVVM under `RefWatchWatchOS/` with `App`, `Core`, and `Features/**/(Views|Models|ViewModels)`.
+- Shareable today: models under `RefWatchWatchOS/Features/**/Models`, core services under `RefWatchWatchOS/Core/Services` (e.g., `TimerManager`, `PenaltyManager`, `MatchHistoryService`).
 - Platform‑specific pieces: WatchKit haptics, complication plumbing, some timer UX micro‑interactions.
 
 ---
@@ -62,7 +62,7 @@ Upcoming
 
 ## Target iOS Folder Structure (physical folders)
 
-`RefWatch iOS App/`
+`RefWatchiOS/`
 - `App/` — `RefWatchiOSApp.swift`, `AppRouter.swift`, `ContentView.swift`, `MainTabView.swift`
 - `Core/`
   - `DesignSystem/` — `Theme.swift`
@@ -109,7 +109,7 @@ ViewModel Guidance
 
 PR I1 — iOS Skeleton & Folder Structure (structure only) — Completed ✅
 - Goals
-  - Create `RefWatch iOS App/` with `App`, `Core`, and `Features` folders.
+  - Create `RefWatchiOS/` with `App`, `Core`, and `Features` folders.
   - Move existing iOS files into the new structure (no behavior changes).
   - Do not rename types yet (avoid incidental breakages); keep compile green.
 - Deliverables
@@ -141,7 +141,7 @@ I4 Delivery So Far ✅
   - ViewModels (UI‑agnostic): `MatchViewModel`, `SettingsViewModel`, `MatchSetupViewModel`.
 - Added XCTest package tests under `RefWatchCore/Tests/RefWatchCoreTests` (converted from `Testing` where needed). A few tests are intentionally skipped due to runloop/threshold nuances; this is documented in the test files.
 - Branch pushed: `feature/i4-refwatchcore-spm` with logically separated commits.
-- Xcode: Local package added and linked to the iOS target (RefWatch iOS App). Build succeeds.
+- Xcode: Local package added and linked to the iOS target (RefWatchiOS). Build succeeds.
 - Added package to watch target:
   - Target `RefWatch Watch App` → General → Frameworks, Libraries, and Embedded Content → add `RefWatchCore` (Do Not Embed).
 - Share package scheme:
@@ -152,16 +152,16 @@ I4 Next Steps (to Complete Acceptance) ▶
 - Flip imports (no behavior changes):
   - Add `import RefWatchCore` to all app files (watchOS/iOS) that reference shared types.
   - Likely touch points:
-    - Timer/Match/Events/Setup/Settings watch views under `RefWatch Watch App/Features/**/Views`.
+    - Timer/Match/Events/Setup/Settings watch views under `RefWatchWatchOS/Features/**/Views`.
     - Coordinators/VM consumers (e.g., `CardEventCoordinator`).
-    - Platform adapters: `RefWatch Watch App/Core/Platform/Haptics/WatchHaptics.swift`, `RefWatchiOS/Core/Platform/Haptics/IOSHaptics.swift`.
+    - Platform adapters: `RefWatchWatchOS/Core/Platform/Haptics/WatchHaptics.swift`, `RefWatchiOS/Core/Platform/Haptics/IOSHaptics.swift`.
 - Remove target membership for duplicates (do not delete files in I4):
   - Watch Core shared: Protocols, Extensions, Services (TimerManager, PenaltyManager, MatchHistoryService).
   - Watch Feature Models shared: Match, CompletedMatch, MatchEventRecord, CardModels, TeamModels, MatchSetupModels, Settings.
   - Watch ViewModels shared: MatchViewModel, MatchSetupViewModel, SettingsViewModel.
   - Goal is to avoid duplicate symbols once package is linked.
 - Verify builds and package tests:
-  - iOS build: `xcodebuild -project RefWatch.xcodeproj -scheme "RefWatch iOS App" -destination 'platform=iOS Simulator,name=iPhone 15' build`.
+- iOS build: `xcodebuild -project RefWatch.xcodeproj -scheme RefWatchiOS -destination 'platform=iOS Simulator,name=iPhone 15' build`.
   - watchOS build: `xcodebuild -project RefWatch.xcodeproj -scheme "RefWatch Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)' build`.
   - package tests: `xcodebuild -project RefWatch.xcodeproj -scheme "RefWatchCore-Package" test`.
 - Manual sanity (watchOS):
@@ -322,7 +322,7 @@ Implementation notes (addressing PR feedback)
 
 ## Build, Test, Verification
 
-- iOS build: `xcodebuild -project RefWatch.xcodeproj -scheme "RefWatch iOS App" -destination 'platform=iOS Simulator,name=iPhone 15' build`
+- iOS build: `xcodebuild -project RefWatch.xcodeproj -scheme RefWatchiOS -destination 'platform=iOS Simulator,name=iPhone 15' build`
 - watchOS build: `xcodebuild -project RefWatch.xcodeproj -scheme "RefWatch Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)' build`
 - Tests: Start with unit tests on shared services (TimerManager/event ordering/formatting) in Phase B; add app‑level UI tests per target later.
 

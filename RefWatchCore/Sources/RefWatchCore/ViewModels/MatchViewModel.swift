@@ -112,7 +112,8 @@ public final class MatchViewModel {
     public var awayTeamDisplayName: String { currentMatch?.awayTeam ?? awayTeam }
 
     // MARK: - Initialization
-    public init(history: MatchHistoryStoring = MatchHistoryService(), penaltyManager: PenaltyManaging = PenaltyManager(), haptics: HapticsProviding = NoopHaptics(), connectivity: ConnectivitySyncProviding? = nil) {
+    @MainActor
+    public init(history: MatchHistoryStoring, penaltyManager: PenaltyManaging = PenaltyManager(), haptics: HapticsProviding = NoopHaptics(), connectivity: ConnectivitySyncProviding? = nil) {
         self.history = history
         self.penaltyManager = penaltyManager
         self.haptics = haptics
@@ -121,6 +122,17 @@ public final class MatchViewModel {
             Match(homeTeam: "Leeds United", awayTeam: "Newcastle United")
         ]
         self.newMatch = Match()
+    }
+
+    // Convenience initializers to preserve previous call sites
+    @MainActor
+    public convenience init(haptics: HapticsProviding = NoopHaptics()) {
+        self.init(history: MatchHistoryService(), penaltyManager: PenaltyManager(), haptics: haptics, connectivity: nil)
+    }
+
+    @MainActor
+    public convenience init(haptics: HapticsProviding = NoopHaptics(), connectivity: ConnectivitySyncProviding?) {
+        self.init(history: MatchHistoryService(), penaltyManager: PenaltyManager(), haptics: haptics, connectivity: connectivity)
     }
     
     // MARK: - Match Management
@@ -526,6 +538,7 @@ public final class MatchViewModel {
         penaltyManager.end()
     }
     
+    @MainActor
     public func finalizeMatch() {
         recordMatchEvent(.matchEnd)
         if let match = currentMatch {
@@ -558,9 +571,9 @@ public final class MatchViewModel {
     public func navigateHome() { resetMatch(); currentMatch = nil }
 
     // MARK: - History Bridges
-    public func loadCompletedMatches() -> [CompletedMatch] { (try? history.loadAll()) ?? [] }
-    public func loadRecentCompletedMatches(limit: Int = 50) -> [CompletedMatch] { history.loadRecent(limit) }
-    public func deleteCompletedMatch(id: UUID) { try? history.delete(id: id) }
+    @MainActor public func loadCompletedMatches() -> [CompletedMatch] { (try? history.loadAll()) ?? [] }
+    @MainActor public func loadRecentCompletedMatches(limit: Int = 50) -> [CompletedMatch] { history.loadRecent(limit) }
+    @MainActor public func deleteCompletedMatch(id: UUID) { try? history.delete(id: id) }
 
     // MARK: - Penalty Manager Wiring
     private func wirePenaltyCallbacks() {

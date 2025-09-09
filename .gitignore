@@ -62,3 +62,7 @@ fastlane/screenshots/**/*.png
 fastlane/test_output
 
 .mcp.json
+
+# macOS Finder files
+.DS_Store
+**/.DS_Store
