@@ -20,50 +20,77 @@ struct MatchActionsSheet: View {
     @State private var showingEndHalfConfirmation = false
     
     var body: some View {
-        List {
-            Section("Match Actions") {
-                // Match Log Button
-                ActionButton(
-                    title: "Match Log",
-                    icon: "list.bullet",
-                    color: .blue
-                ) {
-                    showingMatchLogs = true
-                }
+        // Two equal columns with compact spacing to fit on one screen
+        let columns = Array(repeating: GridItem(.flexible(), spacing: 10), count: 2)
+        
+        NavigationStack {
+            GeometryReader { proxy in
+                let hPadding: CGFloat = 10
+                let colSpacing: CGFloat = 10
+                let cellWidth = (proxy.size.width - (hPadding * 2) - colSpacing) / 2
                 
-                // Options Button
-                ActionButton(
-                    title: "Options",
-                    icon: "ellipsis.circle",
-                    color: .gray
-                ) {
-                    showingOptions = true
-                }
-                
-                // End Half Button (conditional based on match state)
-                if matchViewModel.isHalfTime {
-                    // During half-time: Show "End Half" option with consistent styling
-                    ActionButton(
-                        title: "End Half",
-                        icon: "checkmark.circle",
-                        color: .green
-                    ) {
-                        matchViewModel.endHalfTimeManually()
-                        dismiss()
+                ScrollView(.vertical) {
+                    VStack(spacing: 12) {
+                        // Top row: two primary actions
+                        LazyVGrid(columns: columns, alignment: .center, spacing: 12) {
+                            // Match Log
+                            ActionGridItem(
+                                title: "Match Log",
+                                icon: "list.bullet",
+                                color: .blue
+                            ) {
+                                showingMatchLogs = true
+                            }
+                            
+                            // Options
+                            ActionGridItem(
+                                title: "Options",
+                                icon: "ellipsis.circle",
+                                color: .gray
+                            ) {
+                                showingOptions = true
+                            }
+                        }
+                        
+                        // Bottom row: single action centered to match column width
+                        if matchViewModel.isHalfTime {
+                            HStack {
+                                Spacer(minLength: 0)
+                                ActionGridItem(
+                                    title: "End Half",
+                                    icon: "checkmark.circle",
+                                    color: .green,
+                                    expandHorizontally: false
+                                ) {
+                                    matchViewModel.endHalfTimeManually()
+                                    dismiss()
+                                }
+                                .frame(width: cellWidth)
+                                Spacer(minLength: 0)
+                            }
+                        } else {
+                            HStack {
+                                Spacer(minLength: 0)
+                                ActionGridItem(
+                                    title: "End Half",
+                                    icon: "checkmark.circle",
+                                    color: .green,
+                                    expandHorizontally: false
+                                ) {
+                                    showingEndHalfConfirmation = true
+                                }
+                                .frame(width: cellWidth)
+                                Spacer(minLength: 0)
+                            }
+                        }
                     }
-                } else {
-                    // During match: Show "End Half" option
-                    ActionButton(
-                        title: "End Half",
-                        icon: "checkmark.circle",
-                        color: .green
-                    ) {
-                        showingEndHalfConfirmation = true
-                    }
+                    .padding(.horizontal, hPadding)
+                    .padding(.top, 2)
+                    .padding(.bottom, 4)
                 }
             }
+            .navigationTitle("Match Actions")
         }
-        .listStyle(.carousel)
         .sheet(isPresented: $showingMatchLogs) {
             MatchLogsView(matchViewModel: matchViewModel)
         }
@@ -97,4 +124,60 @@ struct MatchActionsSheet: View {
 
 #Preview {
     MatchActionsSheet(matchViewModel: MatchViewModel(haptics: WatchHaptics()))
+}
+
+// MARK: - Private Grid Item
+
+private struct ActionGridItem: View {
+    let title: String
+    let icon: String
+    let color: Color
+    let action: () -> Void
+    var expandHorizontally: Bool = true
+    
+    init(
+        title: String,
+        icon: String,
+        color: Color,
+        expandHorizontally: Bool = true,
+        action: @escaping () -> Void
+    ) {
+        self.title = title
+        self.icon = icon
+        self.color = color
+        self.expandHorizontally = expandHorizontally
+        self.action = action
+    }
+    
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 4) {
+                ZStack {
+                    Circle()
+                        .fill(color)
+                        .frame(width: 44, height: 44)
+                    Image(systemName: icon)
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundColor(.white)
+                }
+                
+                Text(title)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(.primary)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.85)
+            }
+            .frame(maxWidth: expandHorizontally ? .infinity : nil, minHeight: 72)
+            .padding(.vertical, 6)
+            .padding(.horizontal, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color.gray.opacity(0.1))
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(Text(title))
+    }
 }
