@@ -125,9 +125,9 @@ struct TimerView: View {
             Spacer()
             
             IconButton(
-                icon: "checkmark",
-                color: Color(red: 0.78, green: 0.90, blue: 0.19), // Yellow-green color
-                size: 70,
+                icon: "checkmark.circle.fill",
+                color: Color.green,
+                size: 44,
                 action: {
                     WKInterfaceDevice.current().play(.start)
                     model.startHalfTimeManually()
@@ -179,33 +179,35 @@ struct TimerView: View {
             }
         }
         
+        //TODO: Remove the commented code below
+        //TODO: Add logic to let user know timer is paused via haptic feedback.
         // Visual indicator for pause state
-        if model.isMatchInProgress && model.isPaused {
-            VStack(spacing: 8) {
-                Text("PAUSED")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.orange)
+        // if model.isMatchInProgress && model.isPaused {
+        //     VStack(spacing: 8) {
+        //         Text("PAUSED")
+        //             .font(.system(size: 14, weight: .semibold))
+        //             .foregroundColor(.orange)
                 
-                Text("Tap to resume")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.gray)
+        //         Text("Tap to resume")
+        //             .font(.system(size: 12, weight: .medium))
+        //             .foregroundColor(.gray)
                 
-                // Show period advance option during pause
-                if !model.isHalfTime {
-                    Button(action: {
-                        model.startNextPeriod()
-                    }) {
-                        HStack {
-                            Image(systemName: "forward.fill")
-                            Text("Next Period")
-                        }
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.blue)
-                    }
-                    .padding(.top, 4)
-                }
-            }
-        }
+        //         // Show period advance option during pause
+        //         if !model.isHalfTime {
+        //             Button(action: {
+        //                 model.startNextPeriod()
+        //             }) {
+        //                 HStack {
+        //                     Image(systemName: "forward.fill")
+        //                     Text("Next Period")
+        //                 }
+        //                 .font(.system(size: 12, weight: .medium))
+        //                 .foregroundColor(.blue)
+        //             }
+        //             .padding(.top, 4)
+        //         }
+        //     }
+        // }
     }
     
 }

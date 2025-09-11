@@ -24,6 +24,14 @@ Each feature follows a consistent organization:
 - Shared functionality should be moved to the Core module
 - Features can depend on Core but should not depend on other features
 
+### UI Conventions (watchOS)
+
+- Use `navigationTitle` for screen titles; avoid placing duplicate headers inside the body at the top of the view.
+- Do not render the time-of-day within views; the system clock is always visible on Apple Watch.
+- When presenting sheets, wrap the content in `NavigationStack` and set a title so the system close affordance (X) appears consistently.
+- Keep top padding conservative to avoid crowding the status area and curved corners.
+- Preserve compact labels like "HOM/AWA" visually, but provide clear accessibility labels, e.g., `.accessibilityLabel("Home")` / `.accessibilityLabel("Away")`.
+
 ## Card Event Recording Feature
 
 ### Overview

@@ -22,6 +22,7 @@ struct TeamDetailsView: View {
                 .font(.title2)
                 .bold()
                 .padding(.bottom, 8)
+                .accessibilityLabel(teamType == .home ? "Home" : "Away")
             
             VStack(spacing: 16) {
                 HStack(spacing: 20) {
@@ -123,6 +124,7 @@ struct TeamDetailsView: View {
                     team: teamType,
                     goalType: goalType,
                     cardType: nil,
+                    context: "goal scorer",
                     onComplete: { number in
                         print("DEBUG: Player number entered for goal: #\(number)")
                         recordGoal(type: goalType, playerNumber: number)

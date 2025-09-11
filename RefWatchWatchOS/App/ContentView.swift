@@ -19,12 +19,14 @@ struct ContentView: View {
             Group {
                 switch lifecycle.state {
                 case .idle:
-                    VStack(spacing: 20) {
-                        Text("Welcome to Referee Assistant")
+                    VStack(spacing: 16) {
+                        // Inline header under the system clock
+                        Text("RefWatch")
                             .font(.headline)
-                            .padding(.top)
-                        
-                        VStack(spacing: 16) {
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal)
+
+                        VStack(spacing: 12) {
                             // Start Match flow
                             NavigationLinkButton(
                                 title: "Start Match",
@@ -50,9 +52,9 @@ struct ContentView: View {
                             )
                         }
                         .padding(.horizontal)
-                        
-                        Spacer()
                     }
+                    .padding(.top, 10)
+                    // Intentionally no navigationTitle on watchOS to avoid large overlay titles
                 case .kickoffFirstHalf:
                     MatchKickOffView(
                         matchViewModel: matchViewModel,
@@ -101,6 +103,7 @@ struct ContentView: View {
                 }
             }
         }
+        .environment(settingsViewModel)
         .onChange(of: matchViewModel.matchCompleted) { completed, _ in
             #if DEBUG
             print("DEBUG: ContentView.onChange matchCompleted=\(completed) state=\(lifecycle.state)")
@@ -127,8 +130,6 @@ struct ContentView: View {
     }
 }
 
-struct ContentView_Previews: PreviewProvider {
-    static var previews: some View {
-        ContentView()
-    }
+#Preview {
+    ContentView()
 }
