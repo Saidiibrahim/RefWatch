@@ -74,7 +74,6 @@
             ReferencedContainer = "container:RefWatch.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
-      <!-- No shared environment variables. Configure OPENAI_API_KEY locally in an unshared scheme if needed. -->
    </LaunchAction>
    <ProfileAction
       buildConfiguration = "Release"
