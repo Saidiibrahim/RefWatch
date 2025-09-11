@@ -16,9 +16,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "96B8126D2E67CDA400B23EC0"
-               BuildableName = "RefWatchiOS.app"
-               BlueprintName = "RefWatchiOS"
-               ReferencedContainer = "container:RefWatch.xcodeproj">
+               BuildableName = "RefZoneiOS.app"
+               BlueprintName = "RefZoneiOS"
+               ReferencedContainer = "container:RefZone.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -36,9 +36,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "96B8129D2E67CDA500B23EC0"
-               BuildableName = "RefWatchiOSTests.xctest"
-               BlueprintName = "RefWatchiOSTests"
-               ReferencedContainer = "container:RefWatch.xcodeproj">
+               BuildableName = "RefZoneiOSTests.xctest"
+               BlueprintName = "RefZoneiOSTests"
+               ReferencedContainer = "container:RefZone.xcodeproj">
             </BuildableReference>
          </TestableReference>
          <TestableReference
@@ -47,9 +47,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "96B812AD2E67CDA500B23EC0"
-               BuildableName = "RefWatchiOSUITests.xctest"
-               BlueprintName = "RefWatchiOSUITests"
-               ReferencedContainer = "container:RefWatch.xcodeproj">
+               BuildableName = "RefZoneiOSUITests.xctest"
+               BlueprintName = "RefZoneiOSUITests"
+               ReferencedContainer = "container:RefZone.xcodeproj">
             </BuildableReference>
          </TestableReference>
       </Testables>
@@ -69,9 +69,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "96B8126D2E67CDA400B23EC0"
-            BuildableName = "RefWatchiOS.app"
-            BlueprintName = "RefWatchiOS"
-            ReferencedContainer = "container:RefWatch.xcodeproj">
+            BuildableName = "RefZoneiOS.app"
+            BlueprintName = "RefZoneiOS"
+            ReferencedContainer = "container:RefZone.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -86,9 +86,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "96B8126D2E67CDA400B23EC0"
-            BuildableName = "RefWatchiOS.app"
-            BlueprintName = "RefWatchiOS"
-            ReferencedContainer = "container:RefWatch.xcodeproj">
+            BuildableName = "RefZoneiOS.app"
+            BlueprintName = "RefZoneiOS"
+            ReferencedContainer = "container:RefZone.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>

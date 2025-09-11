@@ -4,7 +4,7 @@
 //
 
 import Testing
-@testable import RefWatch_Watch_App
+@testable import RefZone_Watch_App
 
 // A simple fake that never activates on begin(), allowing us to simulate
 // a failure path for startPenalties(withFirstKicker:).
@@ -58,4 +58,3 @@ struct PenaltiesStartFailureTests {
         #expect(vm.hasChosenPenaltyFirstKicker == false)
     }
 }
-

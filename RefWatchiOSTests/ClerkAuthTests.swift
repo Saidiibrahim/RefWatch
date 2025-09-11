@@ -1,5 +1,5 @@
 import XCTest
-@testable import RefWatchiOS
+@testable import RefZoneiOS
 
 final class ClerkAuthTests: XCTestCase {
     func testBestDisplayName_prefersFirstName_whenPresent() {
@@ -29,4 +29,3 @@ final class ClerkAuthTests: XCTestCase {
     }
     #endif
 }
-

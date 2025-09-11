@@ -2,28 +2,28 @@
 
 ## Project Structure & Module Organization
 - watchOS (primary)
-  - `RefWatchWatchOS/App`: App entry (`RefWatchApp.swift`, `ContentView.swift`).
-  - `RefWatchWatchOS/Core`: Reusable components and services (`TimerManager`, `MatchHistoryService`, `PenaltyManager`, protocols, platform adapters like `WatchHaptics`).
-  - `RefWatchWatchOS/Features`: Feature-first MVVM folders (`MatchSetup`, `Match`, `Events`, `Timer`, `Settings`, `TeamManagement`) with `Views/Models/ViewModels`.
-  - `RefWatchWatchOS/Assets.xcassets`, `Preview Content`.
+  - `RefZoneWatchOS/App`: App entry (`RefWatchApp.swift`, `ContentView.swift`).
+  - `RefZoneWatchOS/Core`: Reusable components and services (`TimerManager`, `MatchHistoryService`, `PenaltyManager`, protocols, platform adapters like `WatchHaptics`).
+  - `RefZoneWatchOS/Features`: Feature-first MVVM folders (`MatchSetup`, `Match`, `Events`, `Timer`, `Settings`, `TeamManagement`) with `Views/Models/ViewModels`.
+  - `RefZoneWatchOS/Assets.xcassets`, `Preview Content`.
   - Tests: `RefWatch Watch AppTests` (unit) and `RefWatch Watch AppUITests` (UI).
 
 - iOS (complementary)
-  - `RefWatchiOS/App`: App entry (`RefWatchiOSApp.swift`, `MainTabView.swift`, `AppRouter.swift`).
-  - `RefWatchiOS/Core`: `DesignSystem/` (Theme), `Platform/` (iOS adapters such as `IOSHaptics`, `ConnectivityClient`).
-  - `RefWatchiOS/Features`: Feature-first MVVM folders (`Matches`, `Live`, `Library`, `Trends`, `Settings`).
-  - `RefWatchiOS/Assets.xcassets`.
+  - `RefZoneiOS/App`: App entry (`RefZoneiOSApp.swift`, `MainTabView.swift`, `AppRouter.swift`).
+  - `RefZoneiOS/Core`: `DesignSystem/` (Theme), `Platform/` (iOS adapters such as `IOSHaptics`, `ConnectivityClient`).
+  - `RefZoneiOS/Features`: Feature-first MVVM folders (`Matches`, `Live`, `Library`, `Trends`, `Settings`).
+  - `RefZoneiOS/Assets.xcassets`.
 
 - Shared (via Target Membership)
-  - Domain models under `RefWatchWatchOS/Features/**/Models`.
-  - Services under `RefWatchWatchOS/Core/Services`.
-  - Protocols under `RefWatchWatchOS/Core/Protocols`.
+  - Domain models under `RefZoneWatchOS/Features/**/Models`.
+  - Services under `RefZoneWatchOS/Core/Services`.
+  - Protocols under `RefZoneWatchOS/Core/Protocols`.
 
 ## Build, Test, and Development Commands
-- Open in Xcode: `open RefWatch.xcodeproj` (or double‑click the project).
-- Build (watchOS, CLI): `xcodebuild -project RefWatch.xcodeproj -scheme "RefWatch Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)' build`.
-- Build (iOS, CLI): `xcodebuild -project RefWatch.xcodeproj -scheme RefWatchiOS -destination 'platform=iOS Simulator,name=iPhone 15' build`.
-- Test (watchOS, CLI): `xcodebuild test -project RefWatch.xcodeproj -scheme "RefWatch Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)'`.
+- Open in Xcode: `open RefZone.xcodeproj` (or double‑click the project).
+- Build (watchOS, CLI): `xcodebuild -project RefZone.xcodeproj -scheme "RefZone Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)' build`.
+- Build (iOS, CLI): `xcodebuild -project RefZone.xcodeproj -scheme RefZoneiOS -destination 'platform=iOS Simulator,name=iPhone 15' build`.
+- Test (watchOS, CLI): `xcodebuild test -project RefZone.xcodeproj -scheme "RefZone Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)'`.
 - Run locally: Select scheme → choose simulator → ⌘R.
 - Share schemes for CLI/CI: Product → Scheme → Manage Schemes… → check "Shared".
 

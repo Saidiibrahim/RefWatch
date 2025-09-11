@@ -5,7 +5,7 @@
 
 import Foundation
 import Testing
-@testable import RefWatch_Watch_App
+@testable import RefZone_Watch_App
 
 private func parseMMSS(_ s: String) -> Int {
     let comps = s.split(separator: ":")

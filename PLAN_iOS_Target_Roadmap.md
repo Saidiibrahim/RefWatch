@@ -12,9 +12,9 @@ Current branch
 
 PR I1 — iOS Skeleton & Folder Structure ✅
 - Delivered
-  - Introduced feature‑first structure under `RefWatchiOS/` with `App`, `Core` (DesignSystem, Platform), and `Features` folders.
+  - Introduced feature‑first structure under `RefZoneiOS/` with `App`, `Core` (DesignSystem, Platform), and `Features` folders.
   - Moved existing iOS files into the new layout without behavior changes.
-  - Kept physical folder name `RefWatchiOS` to preserve Xcode's file‑system synchronized group.
+  - Kept physical folder name `RefZoneiOS` to preserve Xcode's file‑system synchronized group.
 - Acceptance
   - iOS target builds and runs unchanged; scheme remains shared.
 
@@ -43,9 +43,9 @@ Upcoming
 
 ## Current Position Snapshot
 
-- iOS folder `RefWatchiOS/` is flat, mixing app entry, views, and utilities.
-- watchOS follows feature‑first MVVM under `RefWatchWatchOS/` with `App`, `Core`, and `Features/**/(Views|Models|ViewModels)`.
-- Shareable today: models under `RefWatchWatchOS/Features/**/Models`, core services under `RefWatchWatchOS/Core/Services` (e.g., `TimerManager`, `PenaltyManager`, `MatchHistoryService`).
+- iOS folder `RefZoneiOS/` is flat, mixing app entry, views, and utilities.
+- watchOS follows feature‑first MVVM under `RefZoneWatchOS/` with `App`, `Core`, and `Features/**/(Views|Models|ViewModels)`.
+- Shareable today: models under `RefZoneWatchOS/Features/**/Models`, core services under `RefZoneWatchOS/Core/Services` (e.g., `TimerManager`, `PenaltyManager`, `MatchHistoryService`).
 - Platform‑specific pieces: WatchKit haptics, complication plumbing, some timer UX micro‑interactions.
 
 ---
@@ -62,8 +62,8 @@ Upcoming
 
 ## Target iOS Folder Structure (physical folders)
 
-`RefWatchiOS/`
-- `App/` — `RefWatchiOSApp.swift`, `AppRouter.swift`, `ContentView.swift`, `MainTabView.swift`
+`RefZoneiOS/`
+- `App/` — `RefZoneiOSApp.swift`, `AppRouter.swift`, `ContentView.swift`, `MainTabView.swift`
 - `Core/`
   - `DesignSystem/` — `Theme.swift`
   - `Components/` — (reusable iOS‑only views; empty initially)
@@ -109,7 +109,7 @@ ViewModel Guidance
 
 PR I1 — iOS Skeleton & Folder Structure (structure only) — Completed ✅
 - Goals
-  - Create `RefWatchiOS/` with `App`, `Core`, and `Features` folders.
+  - Create `RefZoneiOS/` with `App`, `Core`, and `Features` folders.
   - Move existing iOS files into the new structure (no behavior changes).
   - Do not rename types yet (avoid incidental breakages); keep compile green.
 - Deliverables
@@ -141,9 +141,9 @@ I4 Delivery So Far ✅
   - ViewModels (UI‑agnostic): `MatchViewModel`, `SettingsViewModel`, `MatchSetupViewModel`.
 - Added XCTest package tests under `RefWatchCore/Tests/RefWatchCoreTests` (converted from `Testing` where needed). A few tests are intentionally skipped due to runloop/threshold nuances; this is documented in the test files.
 - Branch pushed: `feature/i4-refwatchcore-spm` with logically separated commits.
-- Xcode: Local package added and linked to the iOS target (RefWatchiOS). Build succeeds.
+- Xcode: Local package added and linked to the iOS target (RefZoneiOS). Build succeeds.
 - Added package to watch target:
-  - Target `RefWatch Watch App` → General → Frameworks, Libraries, and Embedded Content → add `RefWatchCore` (Do Not Embed).
+- Target `RefZone Watch App` → General → Frameworks, Libraries, and Embedded Content → add `RefWatchCore` (Do Not Embed).
 - Share package scheme:
   - Product → Scheme → Manage Schemes… → enable “Show Package Schemes” → check Shared for `RefWatchCore-Package` and commit the `.xcscheme`.
 
@@ -152,18 +152,18 @@ I4 Next Steps (to Complete Acceptance) ▶
 - Flip imports (no behavior changes):
   - Add `import RefWatchCore` to all app files (watchOS/iOS) that reference shared types.
   - Likely touch points:
-    - Timer/Match/Events/Setup/Settings watch views under `RefWatchWatchOS/Features/**/Views`.
+    - Timer/Match/Events/Setup/Settings watch views under `RefZoneWatchOS/Features/**/Views`.
     - Coordinators/VM consumers (e.g., `CardEventCoordinator`).
-    - Platform adapters: `RefWatchWatchOS/Core/Platform/Haptics/WatchHaptics.swift`, `RefWatchiOS/Core/Platform/Haptics/IOSHaptics.swift`.
+    - Platform adapters: `RefZoneWatchOS/Core/Platform/Haptics/WatchHaptics.swift`, `RefZoneiOS/Core/Platform/Haptics/IOSHaptics.swift`.
 - Remove target membership for duplicates (do not delete files in I4):
   - Watch Core shared: Protocols, Extensions, Services (TimerManager, PenaltyManager, MatchHistoryService).
   - Watch Feature Models shared: Match, CompletedMatch, MatchEventRecord, CardModels, TeamModels, MatchSetupModels, Settings.
   - Watch ViewModels shared: MatchViewModel, MatchSetupViewModel, SettingsViewModel.
   - Goal is to avoid duplicate symbols once package is linked.
 - Verify builds and package tests:
-- iOS build: `xcodebuild -project RefWatch.xcodeproj -scheme RefWatchiOS -destination 'platform=iOS Simulator,name=iPhone 15' build`.
-  - watchOS build: `xcodebuild -project RefWatch.xcodeproj -scheme "RefWatch Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)' build`.
-  - package tests: `xcodebuild -project RefWatch.xcodeproj -scheme "RefWatchCore-Package" test`.
+- iOS build: `xcodebuild -project RefZone.xcodeproj -scheme RefZoneiOS -destination 'platform=iOS Simulator,name=iPhone 15' build`.
+- watchOS build: `xcodebuild -project RefZone.xcodeproj -scheme "RefZone Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)' build`.
+  - package tests: `xcodebuild -project RefZone.xcodeproj -scheme "RefWatchCore-Package" test`.
 - Manual sanity (watchOS):
   - Start/pause/resume/next period; half‑time; ET gating; penalties first‑kicker selection and attempts; finalize/save.
 - PR wrap‑up:
@@ -263,15 +263,15 @@ Plan (no code changes in this PR; implementation to follow)
 
 File Touchpoints (anticipated)
 - Update
-  - `RefWatchiOS/Features/Match/MatchTimer/MatchTimerView.swift` (finalize flow, half‑time view, observers → kickoff/penalties routing).
-  - `RefWatchiOS/Features/Match/Events/MatchActionsSheet.swift` (confirmations; reset/abandon entries).
+  - `RefZoneiOS/Features/Match/MatchTimer/MatchTimerView.swift` (finalize flow, half‑time view, observers → kickoff/penalties routing).
+  - `RefZoneiOS/Features/Match/Events/MatchActionsSheet.swift` (confirmations; reset/abandon entries).
 - New
-  - `RefWatchiOS/Features/Match/FullTime/FullTimeView_iOS.swift`.
-  - `RefWatchiOS/Features/Match/MatchKickoff/MatchKickoffView.swift`.
-  - `RefWatchiOS/Features/Match/Penalties/PenaltyFirstKickerView.swift`.
-  - `RefWatchiOS/Features/Match/Penalties/PenaltyShootoutView.swift`.
+  - `RefZoneiOS/Features/Match/FullTime/FullTimeView_iOS.swift`.
+  - `RefZoneiOS/Features/Match/MatchKickoff/MatchKickoffView.swift`.
+  - `RefZoneiOS/Features/Match/Penalties/PenaltyFirstKickerView.swift`.
+  - `RefZoneiOS/Features/Match/Penalties/PenaltyShootoutView.swift`.
 - Routing
-  - `RefWatchiOS/Features/Matches/Views/MatchesTabView.swift` to register new destinations or use local navigation in timer.
+  - `RefZoneiOS/Features/Matches/Views/MatchesTabView.swift` to register new destinations or use local navigation in timer.
 
 Sequencing (within I6 branch)
 - I6a — Safety and flow fixes: Full Time confirm; remove auto‑dismiss; end‑period confirm; reset/abandon options.
@@ -302,7 +302,7 @@ PR I7 — Auth (Clerk) ▶
 - Commits: adapter + UI, watch bridge, wiring, docs.
 
 Implementation notes (addressing PR feedback)
-- Build config: Disabled `GENERATE_INFOPLIST_FILE` for iOS target so custom `RefWatchiOS/Info.plist` ships with `ClerkPublishableKey` and URL scheme.
+- Build config: Disabled `GENERATE_INFOPLIST_FILE` for iOS target so custom `RefZoneiOS/Info.plist` ships with `ClerkPublishableKey` and URL scheme.
 - Debugging: Added `AuthStateDebugger` (DEBUG-only) and do/catch around `clerk.load()` with error logging and signed-in/out transition logs.
 - Adapter: Extracted `ClerkAuth.bestDisplayName(firstName:username:id:)` for deterministic display-name mapping.
 - Tests added:
@@ -322,8 +322,8 @@ Implementation notes (addressing PR feedback)
 
 ## Build, Test, Verification
 
-- iOS build: `xcodebuild -project RefWatch.xcodeproj -scheme RefWatchiOS -destination 'platform=iOS Simulator,name=iPhone 15' build`
-- watchOS build: `xcodebuild -project RefWatch.xcodeproj -scheme "RefWatch Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)' build`
+- iOS build: `xcodebuild -project RefZone.xcodeproj -scheme RefZoneiOS -destination 'platform=iOS Simulator,name=iPhone 15' build`
+- watchOS build: `xcodebuild -project RefZone.xcodeproj -scheme "RefZone Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)' build`
 - Tests: Start with unit tests on shared services (TimerManager/event ordering/formatting) in Phase B; add app‑level UI tests per target later.
 
 ---

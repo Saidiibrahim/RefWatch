@@ -4,7 +4,7 @@
 //
 
 import Testing
-@testable import RefWatch_Watch_App
+@testable import RefZone_Watch_App
 
 struct MatchLifecycleCoordinatorTests {
     @Test func test_initial_state_is_idle() async throws {
@@ -31,4 +31,3 @@ struct MatchLifecycleCoordinatorTests {
         #expect(lc.state == .idle)
     }
 }
-

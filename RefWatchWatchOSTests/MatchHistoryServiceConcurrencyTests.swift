@@ -5,7 +5,7 @@
 
 import Foundation
 import Testing
-@testable import RefWatch_Watch_App
+@testable import RefZone_Watch_App
 
 struct MatchHistoryServiceConcurrencyTests {
 
@@ -66,4 +66,3 @@ struct MatchHistoryServiceConcurrencyTests {
         #expect(recent[2].match.homeTeam == "H7")
     }
 }
-

@@ -12,7 +12,7 @@ import Clerk
 
 @main
 @MainActor
-struct RefWatchiOSApp: App {
+struct RefZoneiOSApp: App {
     @StateObject private var router = AppRouter()
     // Built once during app init to avoid lazy/self init ordering issues
     private let modelContainer: ModelContainer?

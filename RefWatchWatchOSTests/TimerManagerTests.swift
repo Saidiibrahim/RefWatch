@@ -5,7 +5,7 @@
 
 import Foundation
 import Testing
-@testable import RefWatch_Watch_App
+@testable import RefZone_Watch_App
 
 struct TimerManagerTests {
 
@@ -54,4 +54,3 @@ struct TimerManagerTests {
         // No expectations; success is not crashing
     }
 }
-

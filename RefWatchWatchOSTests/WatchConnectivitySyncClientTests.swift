@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import RefWatch_Watch_App
+@testable import RefZone_Watch_App
 import RefWatchCore
 
 final class MockWCSession: WCSessioning {
@@ -48,4 +48,3 @@ struct WatchConnectivitySyncClientTests {
         #expect(observed == true)
     }
 }
-
