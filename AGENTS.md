@@ -51,3 +51,10 @@
 - Share Xcode schemes so others can build/test (both watchOS and iOS).
 - Avoid importing `WatchKit` in iOS or shared sources; use adapters (`HapticsProviding`, etc.) and `#if os(watchOS)` for watch‑only code.
 - Repo includes Claude Code workflows; PRs may receive automated review comments.
+
+### Timer Faces (watchOS)
+- `TimerFaceModel` protocols expose read‑only state (`matchTime`, `periodTimeRemaining`, etc.) and minimal actions (`pauseMatch`, `resumeMatch`, `startHalfTimeManually`).
+- `TimerFaceStyle` enumerates available faces; default is `standard`. Persisted via `@AppStorage("timer_face_style")`.
+- `TimerFaceFactory` returns a SwiftUI view for a given style and model.
+- `StandardTimerFace` mirrors the previous inline timer UI.
+- `TimerView` is now the host: keeps period label, score display, actions sheet, and lifecycle routing; renders the selected face in the middle.
