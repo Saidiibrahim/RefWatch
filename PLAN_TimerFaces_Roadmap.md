@@ -115,7 +115,23 @@ Status: Working plan for introducing swappable timer faces to the watchOS app.
 - Each PR is additive and can be reverted independently.
 - Standard remains the default face; if a new face causes issues, remove its enum case + factory mapping.
 
-## Open Questions
-- Do we want a quick access toggle (force‑press/long‑press) in the timer screen, or is Settings sufficient?
-- Should face selection sync across devices via connectivity in a future pass?
+## Decisions on Prior Open Questions
+- Quick access toggle: Defer. Settings toggle is sufficient for now.
+- Cross‑device sync: Yes. Add a dedicated PR to sync face selection via connectivity.
 
+### PR6 — Sync Face Selection Across Devices (Connectivity)
+- Branch: `feature/timer-face-connectivity-sync`
+- Base: `main`
+- Commits: ~3–5
+- Scope:
+  - Use existing connectivity adapter (`ConnectivitySyncProviding`) to sync a small payload with the selected `TimerFaceStyle`.
+  - Watch side: on change of `@AppStorage("timer_face_style")`, send `{"timer_face_style": "standard|proStoppage|..."}`.
+  - iOS side: receive payload and persist in iOS AppStorage/UserDefaults (app group optional later), notify UI if Settings screen is visible.
+  - On app launch, each side can optionally send its current value to reconcile.
+- Acceptance:
+  - Changing face on watch updates iOS preference shortly after (and vice versa if desired).
+  - No crashes offline; updates queue or are dropped gracefully.
+- Tests:
+  - Use existing connectivity test scaffolding to assert send/receive round‑trip for a simple key/value change.
+- Risk:
+  - Low/Medium. Ensure schema versioning or namespacing (e.g., `prefs.timer_face_style`) to avoid clashing with other messages.
