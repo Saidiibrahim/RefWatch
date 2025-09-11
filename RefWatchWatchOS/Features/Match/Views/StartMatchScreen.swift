@@ -15,9 +15,6 @@ struct StartMatchScreen: View {
     
     var body: some View {
         VStack(spacing: 20) {
-            Text("Start a New Match")
-                .font(.headline)
-                .padding(.top)
             
             VStack(spacing: 16) {
                 // Select from library
@@ -78,7 +75,6 @@ struct StartMatchScreen: View {
             
             Spacer()
         }
-        .navigationTitle("Start Match")
         // When the lifecycle leaves idle, close this screen to reveal root routing
         .onChange(of: lifecycle.state) { newValue in
             if newValue != .idle {

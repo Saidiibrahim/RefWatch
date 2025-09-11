@@ -20,58 +20,81 @@ struct MatchActionsSheet: View {
     @State private var showingEndHalfConfirmation = false
     
     var body: some View {
-        VStack(spacing: 20) {
-            // Title
-            Text("Match Actions")
-                .font(.headline)
-                .padding(.top)
-            
-            // Action buttons in vertical layout for watch
-            VStack(spacing: 16) {
-                // Match Log Button
-                ActionButton(
-                    title: "Match Log",
-                    icon: "list.bullet",
-                    color: .blue
-                ) {
-                    showingMatchLogs = true
-                }
+        // Two equal columns with compact spacing to fit on one screen
+        let columns = Array(repeating: GridItem(.flexible(), spacing: 10), count: 2)
+        
+        NavigationStack {
+            GeometryReader { proxy in
+                let hPadding: CGFloat = 10
+                let colSpacing: CGFloat = 10
+                let cellWidth = (proxy.size.width - (hPadding * 2) - colSpacing) / 2
                 
-                // Options Button
-                ActionButton(
-                    title: "Options",
-                    icon: "ellipsis.circle",
-                    color: .gray
-                ) {
-                    showingOptions = true
-                }
-                
-                // End Half Button (conditional based on match state)
-                if matchViewModel.isHalfTime {
-                    // During half-time: Show "End Half" option with consistent styling
-                    ActionButton(
-                        title: "End Half",
-                        icon: "checkmark.circle",
-                        color: .green
-                    ) {
-                        matchViewModel.endHalfTimeManually()
-                        dismiss()
+                ScrollView(.vertical) {
+                    VStack(spacing: 12) {
+                        // Top row: two primary actions
+                        LazyVGrid(columns: columns, alignment: .center, spacing: 12) {
+                            // Match Log
+                            ActionGridItem(
+                                title: "Match Log",
+                                icon: "list.bullet",
+                                color: .blue,
+                                showBackground: false // Remove background for Match Actions sheet
+                            ) {
+                                showingMatchLogs = true
+                            }
+                            
+                            // Options
+                            ActionGridItem(
+                                title: "Options",
+                                icon: "ellipsis.circle",
+                                color: .gray,
+                                showBackground: false // Remove background for Match Actions sheet
+                            ) {
+                                showingOptions = true
+                            }
+                        }
+                        
+                        // Bottom row: single action centered to match column width
+                        if matchViewModel.isHalfTime {
+                            HStack {
+                                Spacer(minLength: 0)
+                                ActionGridItem(
+                                    title: "End Half",
+                                    icon: "checkmark.circle",
+                                    color: .green,
+                                    expandHorizontally: false,
+                                    showBackground: false // Remove background for Match Actions sheet
+                                ) {
+                                    matchViewModel.endHalfTimeManually()
+                                    dismiss()
+                                }
+                                .frame(width: cellWidth)
+                                Spacer(minLength: 0)
+                            }
+                        } else {
+                            HStack {
+                                Spacer(minLength: 0)
+                                ActionGridItem(
+                                    title: "End Half",
+                                    icon: "checkmark.circle",
+                                    color: .green,
+                                    expandHorizontally: false,
+                                    showBackground: false // Remove background for Match Actions sheet
+                                ) {
+                                    showingEndHalfConfirmation = true
+                                }
+                                .frame(width: cellWidth)
+                                Spacer(minLength: 0)
+                            }
+                        }
                     }
-                } else {
-                    // During match: Show "End Half" option
-                    ActionButton(
-                        title: "End Half",
-                        icon: "checkmark.circle",
-                        color: .green
-                    ) {
-                        showingEndHalfConfirmation = true
-                    }
+                    .padding(.horizontal, hPadding)
+                    .padding(.top, 2)
+                    .padding(.bottom, 4)
                 }
             }
-            
-            Spacer()
+            .navigationTitle("Match Actions")
         }
-        .padding()
         .sheet(isPresented: $showingMatchLogs) {
             MatchLogsView(matchViewModel: matchViewModel)
         }
@@ -106,3 +129,4 @@ struct MatchActionsSheet: View {
 #Preview {
     MatchActionsSheet(matchViewModel: MatchViewModel(haptics: WatchHaptics()))
 }
+

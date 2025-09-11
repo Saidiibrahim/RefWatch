@@ -17,16 +17,6 @@ struct FullTimeView: View {
         VStack(spacing: 20) {
             Spacer()
             
-            // Time indicator
-            VStack(spacing: 4) {
-                Text(formattedCurrentTime)
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(.white)
-                Text("Full Time")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.white)
-            }
-            
             // Team score boxes
             HStack(spacing: 16) {
                 TeamScoreBox(
@@ -44,6 +34,7 @@ struct FullTimeView: View {
             Spacer()
         }
         .background(Color.black)
+        .navigationTitle("Full Time")
         // Compact button pinned above the bottom safe area
         .safeAreaInset(edge: .bottom) {
             Button(action: {
@@ -114,10 +105,6 @@ struct FullTimeView: View {
         }
     }
     
-    // Computed property for current time
-    private var formattedCurrentTime: String {
-        DateFormatter.watchShortTime.string(from: Date())
-    }
 }
 
 // Team score box component

@@ -78,8 +78,6 @@ struct MatchKickoffView: View {
                 .disabled(selected == nil && phase != .extraTimeSecond)
                 .padding(.horizontal)
             }
-            .navigationTitle("kickoff_title")
-            .navigationBarTitleDisplayMode(.inline)
         }
         .onAppear {
             // Ensure defaults are set on appear (covers ET second half default override case)

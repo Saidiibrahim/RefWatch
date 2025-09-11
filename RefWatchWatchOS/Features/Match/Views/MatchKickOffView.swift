@@ -60,88 +60,88 @@ struct MatchKickOffView: View {
     }
     
     var body: some View {
-        VStack(spacing: 8) {
-            // Header with time and kick off text (right-aligned)
-            HStack {
-                Spacer()
-                VStack(spacing: 2) {
-                    Text(formattedCurrentTime)
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.white)
-                    Text(etPhase == 1 ? "Extra Time 1" : etPhase == 2 ? "Extra Time 2" : (isSecondHalf ? "Second Half" : "Kick off"))
-                        .font(.system(size: 16))
-                        .foregroundColor(.white)
-                }
-            }
-            .padding(.horizontal)
-            
-            // Team selection boxes (horizontal layout)
-            HStack(spacing: 12) {
-                SimpleTeamBox(
-                    teamName: matchViewModel.homeTeamDisplayName,
-                    score: matchViewModel.currentMatch?.homeScore ?? 0,
-                    isSelected: selectedTeam == .home,
-                    action: { selectedTeam = .home },
-                    accessibilityIdentifier: "homeTeamButton"
-                )
+        GeometryReader { geometry in
+            VStack(spacing: 0) {
+                // Header - more compact with improved font size
+                Text(screenTitle)
+                    .font(.system(size: 18, weight: .semibold))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal)
+                    .padding(.top, 4)
                 
-                SimpleTeamBox(
-                    teamName: matchViewModel.awayTeamDisplayName, 
-                    score: matchViewModel.currentMatch?.awayScore ?? 0,
-                    isSelected: selectedTeam == .away,
-                    action: { selectedTeam = .away },
-                    accessibilityIdentifier: "awayTeamButton"
-                )
-            }
-            .padding(.horizontal)
-            
-            // Duration button
-            Button(action: { }) {
-                CompactButton(
-                    title: perPeriodDurationLabel,
-                    style: .secondary
-                )
-            }
-            .buttonStyle(PlainButtonStyle())
-            
-            Spacer()
-            
-            // Start button (simple green circle with checkmark)
-            Button {
-                guard let team = selectedTeam else { return }
-                if let phase = etPhase {
-                    if phase == 1 {
-                        matchViewModel.setKickingTeamET1(team == .home)
-                        matchViewModel.startExtraTimeFirstHalfManually()
+                Spacer(minLength: 8)
+                
+                // Team selection boxes - more compact layout
+                HStack(spacing: 10) {
+                    CompactTeamBox(
+                        teamName: matchViewModel.homeTeamDisplayName,
+                        score: matchViewModel.currentMatch?.homeScore ?? 0,
+                        isSelected: selectedTeam == .home,
+                        action: { selectedTeam = .home },
+                        accessibilityIdentifier: "homeTeamButton"
+                    )
+                    .accessibilityLabel("Home")
+                    
+                    CompactTeamBox(
+                        teamName: matchViewModel.awayTeamDisplayName,
+                        score: matchViewModel.currentMatch?.awayScore ?? 0,
+                        isSelected: selectedTeam == .away,
+                        action: { selectedTeam = .away },
+                        accessibilityIdentifier: "awayTeamButton"
+                    )
+                    .accessibilityLabel("Away")
+                }
+                .padding(.horizontal)
+                
+                Spacer(minLength: 8)
+                
+                // Duration display - inline text instead of button
+                Text(perPeriodDurationLabel)
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(.secondary)
+                    .padding(.vertical, 6)
+                    .padding(.horizontal, 12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.gray.opacity(0.1))
+                    )
+                    .padding(.horizontal)
+                
+                Spacer(minLength: 12)
+                
+                // Start button - using IconButton component
+                IconButton(
+                    icon: "checkmark.circle.fill",
+                    color: selectedTeam != nil ? Color.green : Color.gray,
+                    size: 44
+                ) {
+                    guard let team = selectedTeam else { return }
+                    if let phase = etPhase {
+                        if phase == 1 {
+                            matchViewModel.setKickingTeamET1(team == .home)
+                            matchViewModel.startExtraTimeFirstHalfManually()
+                            lifecycle.goToSetup()
+                        } else {
+                            matchViewModel.startExtraTimeSecondHalfManually()
+                            lifecycle.goToSetup()
+                        }
+                    } else if isSecondHalf {
+                        matchViewModel.setKickingTeam(team == .home)
+                        matchViewModel.startSecondHalfManually()
                         lifecycle.goToSetup()
                     } else {
-                        matchViewModel.startExtraTimeSecondHalfManually()
+                        // First half: match already configured in CreateMatchView
+                        matchViewModel.setKickingTeam(team == .home)
+                        matchViewModel.startMatch()
                         lifecycle.goToSetup()
                     }
-                } else if isSecondHalf {
-                    matchViewModel.setKickingTeam(team == .home)
-                    matchViewModel.startSecondHalfManually()
-                    lifecycle.goToSetup()
-                } else {
-                    // First half: match already configured in CreateMatchView
-                    matchViewModel.setKickingTeam(team == .home)
-                    matchViewModel.startMatch()
-                    lifecycle.goToSetup()
                 }
-            } label: {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 24, weight: .medium))
-                    .foregroundColor(.white)
-                    .frame(width: 50, height: 50)
-                    .background(
-                        Circle()
-                            .fill(selectedTeam != nil ? Color.green : Color.gray)
-                    )
+                .disabled(selectedTeam == nil)
+                .accessibilityIdentifier("kickoffConfirmButton")
+                
+                Spacer(minLength: 4)
             }
-            .buttonStyle(PlainButtonStyle())
-            .disabled(selectedTeam == nil)
-            .accessibilityIdentifier("kickoffConfirmButton")
-            .padding(.bottom, 12)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .navigationBarBackButtonHidden()
         .onAppear {
@@ -156,9 +156,11 @@ struct MatchKickOffView: View {
         }
     }
     
-    // Computed property for current time
-    private var formattedCurrentTime: String {
-        DateFormatter.watchShortTime.string(from: Date())
+    private var screenTitle: String {
+        if let phase = etPhase {
+            return phase == 1 ? "ET 1" : "ET 2"
+        }
+        return isSecondHalf ? "Second Half" : "Kick Off"
     }
 
     // Per-period duration label derived from current match when available
@@ -184,33 +186,3 @@ struct MatchKickOffView: View {
     }
 }
 
-// Simple team box component matching target design
-private struct SimpleTeamBox: View {
-    let teamName: String
-    let score: Int
-    let isSelected: Bool
-    let action: () -> Void
-    let accessibilityIdentifier: String?
-    
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 8) {
-                Text(teamName)
-                    .font(.system(size: 18, weight: .bold))
-                    .foregroundColor(.white)
-                
-                Text("\(score)")
-                    .font(.system(size: 28, weight: .bold))
-                    .foregroundColor(.white)
-            }
-            .frame(maxWidth: .infinity)
-            .frame(height: 80)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(isSelected ? Color.green : Color.gray.opacity(0.7))
-            )
-        }
-        .buttonStyle(PlainButtonStyle())
-        .accessibilityIdentifier(accessibilityIdentifier ?? "teamBox_\(teamName)")
-    }
-} 
