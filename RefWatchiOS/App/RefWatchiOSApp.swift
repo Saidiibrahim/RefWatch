@@ -17,6 +17,7 @@ struct RefWatchiOSApp: App {
     // Built once during app init to avoid lazy/self init ordering issues
     private let modelContainer: ModelContainer?
     private let historyStore: MatchHistoryStoring
+    private let journalStore: JournalEntryStoring
 
     private let clerk = Clerk.shared
     @State private var matchVM: MatchViewModel
@@ -34,7 +35,7 @@ struct RefWatchiOSApp: App {
         // 1) On-disk SwiftData (preferred): full persistence, query performance, and indexing.
         // 2) In-memory SwiftData: avoids startup crash if persistent container fails; keeps app usable.
         // 3) JSON store: final safety net to ensure critical features continue to work.
-        let schema = Schema([CompletedMatchRecord.self])
+        let schema = Schema([CompletedMatchRecord.self, JournalEntryRecord.self])
         let auth = ClerkAuth()
         let result = ModelContainerFactory.makeStore(builder: Self.containerBuilder, schema: schema, auth: auth)
         // Build dependencies as locals first to avoid capturing `self` in escaping autoclosures
@@ -42,10 +43,17 @@ struct RefWatchiOSApp: App {
         let store = result.1
         let vm = MatchViewModel(history: store, haptics: IOSHaptics())
         let controller = ConnectivitySyncController(history: store, auth: auth)
+        let jStore: JournalEntryStoring
+        if let container {
+            jStore = SwiftDataJournalStore(container: container, auth: auth)
+        } else {
+            jStore = InMemoryJournalStore()
+        }
 
         // Assign to stored properties/wrappers
         self.modelContainer = container
         self.historyStore = store
+        self.journalStore = jStore
         _matchVM = State(initialValue: vm)
         _syncController = StateObject(wrappedValue: controller)
     }
@@ -56,6 +64,7 @@ struct RefWatchiOSApp: App {
                 .environmentObject(router)
                 .environmentObject(syncDiagnostics)
                 .environment(\.clerk, clerk)
+                .environment(\.journalStore, journalStore)
                 .task {
                     if let key = Bundle.main.object(forInfoDictionaryKey: "ClerkPublishableKey") as? String, !key.isEmpty {
                         clerk.configure(publishableKey: key)

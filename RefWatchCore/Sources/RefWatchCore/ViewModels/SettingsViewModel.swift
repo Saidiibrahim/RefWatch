@@ -20,4 +20,13 @@ public final class SettingsViewModel {
     public func updateExtraTimeDuration(_ duration: Int) {
         settings.extraTimeDuration = duration
     }
+
+    // Substitution settings methods
+    public func updateConfirmSubstitutions(_ confirm: Bool) {
+        settings.confirmSubstitutions = confirm
+    }
+
+    public func updateSubstitutionOrder(_ playerOffFirst: Bool) {
+        settings.substitutionOrderPlayerOffFirst = playerOffFirst
+    }
 }
