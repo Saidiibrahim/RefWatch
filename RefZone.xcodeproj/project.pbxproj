@@ -118,7 +118,7 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		966D6DDC2E6E6E630086E820 /* Exceptions for "RefWatchiOS" folder in "RefZoneiOS" target */ = {
+		966D6DDC2E6E6E630086E820 /* Exceptions for "RefZoneiOS" folder in "RefZoneiOS" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
@@ -128,7 +128,7 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		964A4D752D32234A00D08376 /* RefWatchWatchOS */ = {
+		964A4D752D32234A00D08376 /* RefZoneWatchOS */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = RefZoneWatchOS;
 			sourceTree = "<group>";
@@ -143,7 +143,7 @@
 			path = RefZoneWatchOSUITests;
 			sourceTree = "<group>";
 		};
-		96B8126F2E67CDA400B23EC0 /* RefWatchiOS */ = {
+		96B8126F2E67CDA400B23EC0 /* RefZoneiOS */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				966D6DDC2E6E6E630086E820 /* Exceptions for "RefWatchiOS" folder in "RefZoneiOS" target */,
@@ -215,10 +215,10 @@
 		964A4D642D32234A00D08376 = {
 			isa = PBXGroup;
 			children = (
-				964A4D752D32234A00D08376 /* RefWatchWatchOS */,
+				964A4D752D32234A00D08376 /* RefZoneWatchOS */,
 				964A4D862D32234B00D08376 /* RefZoneWatchOSTests */,
 				964A4D902D32234B00D08376 /* RefZoneWatchOSUITests */,
-				96B8126F2E67CDA400B23EC0 /* RefWatchiOS */,
+				96B8126F2E67CDA400B23EC0 /* RefZoneiOS */,
 				96B812902E67CDA500B23EC0 /* RefZoneiOSTests */,
 				96B812A02E67CDA500B23EC0 /* RefZoneiOSUITests */,
 				9AF0AAA01D00000000000001 /* Shared */,
@@ -307,7 +307,7 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				964A4D752D32234A00D08376 /* RefWatchWatchOS */,
+				964A4D752D32234A00D08376 /* RefZoneWatchOS */,
 			);
 			name = "RefZone Watch App";
 			packageProductDependencies = (
@@ -378,7 +378,7 @@
 				96FEE6062E72E22A00EDD7BD /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				96B8126F2E67CDA400B23EC0 /* RefWatchiOS */,
+				96B8126F2E67CDA400B23EC0 /* RefZoneiOS */,
 			);
 			name = RefZoneiOS;
 			packageProductDependencies = (
