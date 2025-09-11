@@ -332,6 +332,8 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 96B812762E67CDA500B23EC0 /* Build configuration list for PBXNativeTarget "RefWatchiOS" */;
 			buildPhases = (
+				9AF0A0012E6E6E6300000001 /* Generate Secrets.swift (Debug) */,
+				9AF0A0012E6E6E6300000002 /* Guard Secrets in Release */,
 				96B8126A2E67CDA400B23EC0 /* Sources */,
 				96B8126B2E67CDA400B23EC0 /* Frameworks */,
 				96B8126C2E67CDA400B23EC0 /* Resources */,
@@ -556,6 +558,45 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		9AF0A0012E6E6E6300000001 /* Generate Secrets.swift (Debug) */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Generate Secrets.swift (Debug)";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -euo pipefail\nOUT_DIR=\"${SRCROOT}/RefWatchiOS/Generated\"\nOUT_FILE=\"${OUT_DIR}/Secrets.swift\"\nmkdir -p \"${OUT_DIR}\"\nVALUE=\"${OPENAI_API_KEY:-}\"\nif [ \"${CONFIGURATION}\" != \"Debug\" ]; then VALUE=\"\"; fi\n{\n  echo \"// Generated. Do not edit. Not tracked in VCS.\"\n  echo \"import Foundation\"\n  echo \"\"\n  echo \"enum Secrets {\"\n  echo \"    static var openAIKey: String? {\"\n  echo \"        #if DEBUG\"\n  echo \"        let env = ProcessInfo.processInfo.environment[\\\"OPENAI_API_KEY\\\"]\"\n  echo \"        let compiled = \\\"${VALUE}\\\"\"\n  echo \"        return env ?? (compiled.isEmpty ? nil : compiled)\"\n  echo \"        #else\"\n  echo \"        return nil\"\n  echo \"        #endif\"\n  echo \"    }\"\n  echo \"}\"\n} > \"${OUT_FILE}\"\n";
+		};
+		9AF0A0012E6E6E6300000002 /* Guard Secrets in Release */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Guard Secrets in Release";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -euo pipefail\n# Only enforce on Release\nif [ \"${CONFIGURATION}\" != \"Release\" ]; then\n  exit 0\nfi\nif [ -n \"${OPENAI_API_KEY:-}\" ]; then\n  echo \"error: OPENAI_API_KEY must not be set for Release builds.\" 1>&2\n  exit 1\nfi\nif /usr/libexec/PlistBuddy -c \"Print :OpenAIAPIKey\" \"$INFOPLIST_FILE\" >/dev/null 2>&1; then\n  echo \"error: OpenAIAPIKey must not be present in Info.plist\" 1>&2\n  exit 1\nfi\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXTargetDependency section */
 		964A4D742D32234A00D08376 /* PBXTargetDependency */ = {

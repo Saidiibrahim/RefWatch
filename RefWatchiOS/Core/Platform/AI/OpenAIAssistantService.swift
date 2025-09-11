@@ -17,8 +17,15 @@ final class OpenAIAssistantService: AssistantProviding {
     }
 
     static func fromBundleIfAvailable() -> OpenAIAssistantService? {
-        guard let key = Bundle.main.object(forInfoDictionaryKey: "OpenAIAPIKey") as? String, !key.isEmpty else { return nil }
-        return OpenAIAssistantService(apiKey: key)
+        #if DEBUG
+        if let key = Secrets.openAIKey, !key.isEmpty {
+            return OpenAIAssistantService(apiKey: key)
+        }
+        return nil
+        #else
+        // Never load secrets in Release
+        return nil
+        #endif
     }
 
     func streamResponse(for messages: [ChatMessage]) -> AsyncStream<String> {
@@ -95,4 +102,3 @@ final class OpenAIAssistantService: AssistantProviding {
         return chunk.choices.first?.delta?.content
     }
 }
-
