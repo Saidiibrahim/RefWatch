@@ -124,6 +124,7 @@ struct TeamDetailsView: View {
                     team: teamType,
                     goalType: goalType,
                     cardType: nil,
+                    context: "goal scorer",
                     onComplete: { number in
                         print("DEBUG: Player number entered for goal: #\(number)")
                         recordGoal(type: goalType, playerNumber: number)

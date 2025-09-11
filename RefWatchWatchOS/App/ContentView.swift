@@ -103,6 +103,7 @@ struct ContentView: View {
                 }
             }
         }
+        .environment(settingsViewModel)
         .onChange(of: matchViewModel.matchCompleted) { completed, _ in
             #if DEBUG
             print("DEBUG: ContentView.onChange matchCompleted=\(completed) state=\(lifecycle.state)")

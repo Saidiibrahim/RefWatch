@@ -9,15 +9,25 @@ struct SubstitutionFlow: View {
     let matchViewModel: MatchViewModel
     let setupViewModel: MatchSetupViewModel
     
-    @State private var step: SubstitutionStep = .playerOff
+    @State private var step: SubstitutionStep
     @State private var playerOffNumber: Int?
     @State private var playerOnNumber: Int?
     @Environment(\.dismiss) private var dismiss
+    @Environment(SettingsViewModel.self) private var settingsViewModel
     
     enum SubstitutionStep {
         case playerOff
         case playerOn
         case confirmation
+    }
+    
+    // Initialize with proper starting step based on settings
+    init(team: TeamDetailsView.TeamType, matchViewModel: MatchViewModel, setupViewModel: MatchSetupViewModel) {
+        self.team = team
+        self.matchViewModel = matchViewModel
+        self.setupViewModel = setupViewModel
+        // Will be updated in body based on settings
+        self._step = State(initialValue: .playerOff)
     }
     
     var body: some View {
@@ -28,38 +38,58 @@ struct SubstitutionFlow: View {
                     team: team,
                     goalType: nil,
                     cardType: nil,
+                    context: settingsViewModel.settings.substitutionOrderPlayerOffFirst ? "player off" : "player on",
                     onComplete: { number in
-                        playerOffNumber = number
-                        step = .playerOn
+                        if settingsViewModel.settings.substitutionOrderPlayerOffFirst {
+                            playerOffNumber = number
+                            step = .playerOn
+                        } else {
+                            playerOnNumber = number
+                            step = .playerOn
+                        }
                     }
                 )
-                .navigationTitle("\(team == .home ? "HOM" : "AWA") - Player Off")
                 
             case .playerOn:
                 PlayerNumberInputView(
                     team: team,
                     goalType: nil,
                     cardType: nil,
+                    context: settingsViewModel.settings.substitutionOrderPlayerOffFirst ? "player on" : "player off",
                     onComplete: { number in
-                        playerOnNumber = number
-                        step = .confirmation
+                        if settingsViewModel.settings.substitutionOrderPlayerOffFirst {
+                            playerOnNumber = number
+                        } else {
+                            playerOffNumber = number
+                        }
+                        
+                        // Check if confirmation is enabled
+                        if settingsViewModel.settings.confirmSubstitutions {
+                            step = .confirmation
+                        } else {
+                            // Record substitution immediately without confirmation
+                            recordSubstitution()
+                        }
                     }
                 )
-                .navigationTitle("\(team == .home ? "HOM" : "AWA") - Player On")
                 .navigationBarBackButtonHidden(false)
                 
             case .confirmation:
                 confirmationView
-                    .navigationTitle("Confirm Substitution")
+                    // .navigationTitle("Confirm Substitution")
                     .navigationBarBackButtonHidden(false)
             }
+        }
+        .onAppear {
+            // Set initial step based on settings
+            step = settingsViewModel.settings.substitutionOrderPlayerOffFirst ? .playerOff : .playerOn
         }
     }
     
     private var confirmationView: some View {
         VStack(spacing: 20) {
-            Text("Substitution")
-                .font(.headline)
+            // Text("Substitution")
+            //     .font(.system(size: 16, weight: .medium))
             
             VStack(spacing: 12) {
                 HStack {
@@ -80,7 +110,7 @@ struct SubstitutionFlow: View {
                         .fontWeight(.medium)
                 }
             }
-            .padding()
+            // .padding()
             .background(
                 RoundedRectangle(cornerRadius: 12)
                     .fill(Color.gray.opacity(0.1))
@@ -88,16 +118,17 @@ struct SubstitutionFlow: View {
             
             Spacer()
             
+            // Replace with custom button
             Button("Confirm Substitution") {
                 recordSubstitution()
             }
-            .font(.headline)
-            .padding()
-            .frame(maxWidth: .infinity)
-            .background(Color.blue)
-            .foregroundColor(.white)
-            .cornerRadius(12)
-            .padding(.horizontal)
+            // .font(.headline)
+            // .padding()
+            // .frame(maxWidth: .infinity)
+            // .background(Color.blue)
+            // .foregroundColor(.white)
+            // .cornerRadius(12)
+            // .padding(.horizontal)
         }
         .padding()
     }
@@ -126,4 +157,203 @@ struct SubstitutionFlow: View {
         // Dismiss the entire flow
         dismiss()
     }
+}
+
+// MARK: - Preview Support
+
+#Preview("Making Substitution - Player Off") {
+    SubstitutionFlow(
+        team: .home,
+        matchViewModel: PreviewMatchViewModel(),
+        setupViewModel: PreviewMatchSetupViewModel()
+    )
+}
+
+#Preview("Making Substitution - Player On") {
+    SubstitutionFlowWithState(
+        team: .away,
+        initialStep: .playerOn
+    )
+}
+
+#Preview("Confirming Substitution") {
+    SubstitutionFlowWithState(
+        team: .home,
+        initialStep: .confirmation
+    )
+}
+
+// MARK: - Preview Helper View
+
+private struct SubstitutionFlowWithState: View {
+    let team: TeamDetailsView.TeamType
+    let initialStep: SubstitutionFlow.SubstitutionStep
+    
+    var body: some View {
+        SubstitutionFlowPreview(
+            team: team,
+            matchViewModel: PreviewMatchViewModel(),
+            setupViewModel: PreviewMatchSetupViewModel(),
+            initialStep: initialStep
+        )
+    }
+}
+
+private struct SubstitutionFlowPreview: View {
+    let team: TeamDetailsView.TeamType
+    let matchViewModel: MatchViewModel
+    let setupViewModel: MatchSetupViewModel
+    let initialStep: SubstitutionFlow.SubstitutionStep
+    
+    @State private var step: SubstitutionFlow.SubstitutionStep
+    @State private var playerOffNumber: Int? = 10
+    @State private var playerOnNumber: Int? = 23
+    @Environment(\.dismiss) private var dismiss
+    
+    init(team: TeamDetailsView.TeamType, matchViewModel: MatchViewModel, setupViewModel: MatchSetupViewModel, initialStep: SubstitutionFlow.SubstitutionStep) {
+        self.team = team
+        self.matchViewModel = matchViewModel
+        self.setupViewModel = setupViewModel
+        self.initialStep = initialStep
+        self._step = State(initialValue: initialStep)
+    }
+    
+    var body: some View {
+        NavigationStack {
+            switch step {
+            case .playerOff:
+                PlayerNumberInputView(
+                    team: team,
+                    goalType: nil,
+                    cardType: nil,
+                    context: "player off",
+                    onComplete: { number in
+                        playerOffNumber = number
+                        step = .playerOn
+                    }
+                )
+                
+            case .playerOn:
+                PlayerNumberInputView(
+                    team: team,
+                    goalType: nil,
+                    cardType: nil,
+                    context: "player on",
+                    onComplete: { number in
+                        playerOnNumber = number
+                        step = .confirmation
+                    }
+                )
+                .navigationBarBackButtonHidden(false)
+                
+            case .confirmation:
+                confirmationView
+//                    .navigationTitle("Confirm Substitution")
+                    .navigationBarBackButtonHidden(false)
+            }
+        }
+    }
+    
+    private var confirmationView: some View {
+        VStack(spacing: 20) {
+//            Text("Substitution")
+//                .font(.headline)
+            
+            VStack(spacing: 12) {
+                HStack {
+                    Text("Player Off:")
+                        .font(.body)
+                    Spacer()
+                    Text("#\(playerOffNumber ?? 10)")
+                        .font(.title2)
+                        .fontWeight(.medium)
+                }
+                
+                HStack {
+                    Text("Player On:")
+                        .font(.body)
+                    Spacer()
+                    Text("#\(playerOnNumber ?? 23)")
+                        .font(.title2)
+                        .fontWeight(.medium)
+                }
+            }
+            // .padding()
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color.gray.opacity(0.1))
+            )
+            
+            Spacer()
+            
+            Button("Confirm Substitution") {
+                recordSubstitution()
+            }
+            // .font(.headline)
+            // .padding()
+            // .frame(maxWidth: .infinity)
+            // .background(Color.blue)
+            // .foregroundColor(.white)
+            // .cornerRadius(12)
+            // .padding(.horizontal)
+        }
+        // .padding()
+    }
+    
+    private func recordSubstitution() {
+        guard let offNumber = playerOffNumber,
+              let onNumber = playerOnNumber else { return }
+        
+        print("Preview: Recording substitution - Off: #\(offNumber), On: #\(onNumber), Team: \(team)")
+        
+        // Map team to new enum
+        let teamSide: TeamSide = team == .home ? .home : .away
+        
+        // Record substitution using mock system
+        matchViewModel.recordSubstitution(
+            team: teamSide,
+            playerOut: offNumber,
+            playerIn: onNumber
+        )
+        
+        print("Preview: Substitution recorded successfully")
+        
+        // Navigate back to middle screen
+        setupViewModel.setSelectedTab(1)
+        
+        // Dismiss the entire flow
+        dismiss()
+    }
+}
+
+// MARK: - Preview Mock View Models
+
+@MainActor
+private func PreviewMatchViewModel() -> MatchViewModel {
+    // Create a mock MatchViewModel for previews with proper initialization
+    let mockViewModel = MatchViewModel(
+        history: MockMatchHistoryService(),
+        haptics: NoopHaptics()
+    )
+    
+    // Set up a mock match
+    mockViewModel.newMatch = Match(homeTeam: "Arsenal", awayTeam: "Chelsea")
+    mockViewModel.createMatch()
+    
+    return mockViewModel
+}
+
+@MainActor 
+private func PreviewMatchSetupViewModel() -> MatchSetupViewModel {
+    let matchViewModel = PreviewMatchViewModel()
+    return MatchSetupViewModel(matchViewModel: matchViewModel)
+}
+
+// MARK: - Mock Services for Previews
+
+private class MockMatchHistoryService: MatchHistoryStoring {
+    func loadAll() throws -> [CompletedMatch] { return [] }
+    func save(_ match: CompletedMatch) throws { print("Mock: Saved match \(match.match.homeTeam) vs \(match.match.awayTeam)") }
+    func delete(id: UUID) throws { print("Mock: Deleted match \(id)") }
+    func wipeAll() throws { print("Mock: Wiped all matches") }
 }

@@ -37,7 +37,8 @@ struct MatchActionsSheet: View {
                             ActionGridItem(
                                 title: "Match Log",
                                 icon: "list.bullet",
-                                color: .blue
+                                color: .blue,
+                                showBackground: false // Remove background for Match Actions sheet
                             ) {
                                 showingMatchLogs = true
                             }
@@ -46,7 +47,8 @@ struct MatchActionsSheet: View {
                             ActionGridItem(
                                 title: "Options",
                                 icon: "ellipsis.circle",
-                                color: .gray
+                                color: .gray,
+                                showBackground: false // Remove background for Match Actions sheet
                             ) {
                                 showingOptions = true
                             }
@@ -60,7 +62,8 @@ struct MatchActionsSheet: View {
                                     title: "End Half",
                                     icon: "checkmark.circle",
                                     color: .green,
-                                    expandHorizontally: false
+                                    expandHorizontally: false,
+                                    showBackground: false // Remove background for Match Actions sheet
                                 ) {
                                     matchViewModel.endHalfTimeManually()
                                     dismiss()
@@ -75,7 +78,8 @@ struct MatchActionsSheet: View {
                                     title: "End Half",
                                     icon: "checkmark.circle",
                                     color: .green,
-                                    expandHorizontally: false
+                                    expandHorizontally: false,
+                                    showBackground: false // Remove background for Match Actions sheet
                                 ) {
                                     showingEndHalfConfirmation = true
                                 }
@@ -126,58 +130,3 @@ struct MatchActionsSheet: View {
     MatchActionsSheet(matchViewModel: MatchViewModel(haptics: WatchHaptics()))
 }
 
-// MARK: - Private Grid Item
-
-private struct ActionGridItem: View {
-    let title: String
-    let icon: String
-    let color: Color
-    let action: () -> Void
-    var expandHorizontally: Bool = true
-    
-    init(
-        title: String,
-        icon: String,
-        color: Color,
-        expandHorizontally: Bool = true,
-        action: @escaping () -> Void
-    ) {
-        self.title = title
-        self.icon = icon
-        self.color = color
-        self.expandHorizontally = expandHorizontally
-        self.action = action
-    }
-    
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 4) {
-                ZStack {
-                    Circle()
-                        .fill(color)
-                        .frame(width: 44, height: 44)
-                    Image(systemName: icon)
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundColor(.white)
-                }
-                
-                Text(title)
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundColor(.primary)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.85)
-            }
-            .frame(maxWidth: expandHorizontally ? .infinity : nil, minHeight: 72)
-            .padding(.vertical, 6)
-            .padding(.horizontal, 6)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.gray.opacity(0.1))
-            )
-        }
-        .buttonStyle(.plain)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(Text(title))
-    }
-}

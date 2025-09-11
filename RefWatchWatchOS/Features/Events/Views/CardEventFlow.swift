@@ -37,7 +37,8 @@ struct CardEventFlow: View {
                     PlayerNumberInputView(
                         team: coordinator.selectedTeam,
                         goalType: nil,
-                        cardType: coordinator.cardType
+                        cardType: coordinator.cardType,
+                        context: "player #"
                     ) { number in
                         coordinator.handlePlayerNumber(number)
                     }

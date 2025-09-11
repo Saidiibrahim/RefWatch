@@ -109,8 +109,12 @@ struct MatchKickOffView: View {
                 
                 Spacer(minLength: 12)
                 
-                // Start button - optimized size for better fit
-                Button {
+                // Start button - using IconButton component
+                IconButton(
+                    icon: "checkmark.circle.fill",
+                    color: selectedTeam != nil ? Color.green : Color.gray,
+                    size: 44
+                ) {
                     guard let team = selectedTeam else { return }
                     if let phase = etPhase {
                         if phase == 1 {
@@ -131,17 +135,7 @@ struct MatchKickOffView: View {
                         matchViewModel.startMatch()
                         lifecycle.goToSetup()
                     }
-                } label: {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 20, weight: .medium))
-                        .foregroundColor(.white)
-                        .frame(width: 44, height: 44)
-                        .background(
-                            Circle()
-                                .fill(selectedTeam != nil ? Color.green : Color.gray)
-                        )
                 }
-                .buttonStyle(PlainButtonStyle())
                 .disabled(selectedTeam == nil)
                 .accessibilityIdentifier("kickoffConfirmButton")
                 
@@ -192,33 +186,3 @@ struct MatchKickOffView: View {
     }
 }
 
-// Compact team box component optimized for watch screen space
-private struct CompactTeamBox: View {
-    let teamName: String
-    let score: Int
-    let isSelected: Bool
-    let action: () -> Void
-    let accessibilityIdentifier: String?
-    
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 4) {
-                Text(teamName)
-                    .font(.system(size: 16, weight: .bold))
-                    .foregroundColor(.white)
-                
-                Text("\(score)")
-                    .font(.system(size: 24, weight: .bold))
-                    .foregroundColor(.white)
-            }
-            .frame(maxWidth: .infinity)
-            .frame(height: 65) // Reduced from 80pt for better fit
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(isSelected ? Color.green : Color.gray.opacity(0.7))
-            )
-        }
-        .buttonStyle(PlainButtonStyle())
-        .accessibilityIdentifier(accessibilityIdentifier ?? "teamBox_\(teamName)")
-    }
-} 
