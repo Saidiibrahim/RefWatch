@@ -127,9 +127,7 @@ struct MatchesTabView: View {
                     .sorted(by: { $0.kickoff < $1.kickoff })
             }
             .onChange(of: matchViewModel.matchCompleted) { completed in
-                if completed {
-                    refreshRecentAndPrompt()
-                }
+                if completed { refreshRecentAndPrompt() }
             }
             .onReceive(NotificationCenter.default.publisher(for: .matchHistoryDidChange).receive(on: RunLoop.main)) { _ in
                 refreshRecentAndPrompt()
@@ -188,7 +186,6 @@ private extension MatchesTabView {
         let f = DateFormatter(); f.dateFormat = "EEEE, h:mm a"
         return f.string(from: date)
     }
-
     func refreshRecentAndPrompt() {
         recent = matchViewModel.loadRecentCompletedMatches(limit: 5)
         // Compute prompt candidate

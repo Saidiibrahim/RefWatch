@@ -11,11 +11,10 @@ public struct Settings {
     public var exampleSetting: Bool
     public var periodDuration: Int
     public var extraTimeDuration: Int
-    
     // Substitution settings
     public var confirmSubstitutions: Bool
     public var substitutionOrderPlayerOffFirst: Bool
-    
+
     public init(
         exampleSetting: Bool = false,
         periodDuration: Int = 45,
@@ -30,4 +29,3 @@ public struct Settings {
         self.substitutionOrderPlayerOffFirst = substitutionOrderPlayerOffFirst
     }
 }
-
