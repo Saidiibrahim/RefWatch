@@ -1,6 +1,7 @@
 import XCTest
 @testable import RefWatch_Watch_App
 
+@MainActor
 final class TimerFaceFactoryTests: XCTestCase {
     func testMatchViewModel_conformsToTimerFaceModel() {
         // Given
@@ -22,4 +23,3 @@ final class TimerFaceFactoryTests: XCTestCase {
         XCTAssertTrue(true)
     }
 }
-

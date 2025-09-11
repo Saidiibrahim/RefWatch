@@ -13,7 +13,7 @@ struct TimerView: View {
     @Environment(\.dismiss) private var dismiss
     // Persist selected timer face
     @AppStorage("timer_face_style") private var timerFaceStyleRaw: String = TimerFaceStyle.standard.rawValue
-    private var faceStyle: TimerFaceStyle { TimerFaceStyle(rawValue: timerFaceStyleRaw) ?? .standard }
+    private var faceStyle: TimerFaceStyle { TimerFaceStyle.parse(raw: timerFaceStyleRaw) }
     
     private var periodLabel: String {
         if model.isHalfTime && !model.waitingForHalfTimeStart {
