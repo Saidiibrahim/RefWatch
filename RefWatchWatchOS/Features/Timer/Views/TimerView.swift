@@ -11,6 +11,9 @@ struct TimerView: View {
     @State private var showingActionSheet = false
     @State private var pendingRouteToChooseFirstKicker = false
     @Environment(\.dismiss) private var dismiss
+    // Persist selected timer face
+    @AppStorage("timer_face_style") private var timerFaceStyleRaw: String = TimerFaceStyle.standard.rawValue
+    private var faceStyle: TimerFaceStyle { TimerFaceStyle.parse(raw: timerFaceStyleRaw) }
     
     private var periodLabel: String {
         if model.isHalfTime && !model.waitingForHalfTimeStart {
@@ -49,12 +52,8 @@ struct TimerView: View {
                     awayScore: model.currentMatch?.awayScore ?? 0
                 )
                 
-                // Main content based on match state
-                if model.isHalfTime {
-                    halfTimeView
-                } else {
-                    runningMatchView
-                }
+                // Main content: render selected timer face
+                TimerFaceFactory.view(for: faceStyle, model: model)
         }
         .accessibilityIdentifier("timerArea")
         .padding(.top)
@@ -115,101 +114,7 @@ struct TimerView: View {
         }
     }
     
-    // MARK: - State-specific Views
-    
-    
-    @ViewBuilder
-    private var halfTimeView: some View {
-        if model.waitingForHalfTimeStart {
-            // Show large circular button matching the screenshot
-            Spacer()
-            
-            IconButton(
-                icon: "checkmark.circle.fill",
-                color: Color.green,
-                size: 44,
-                action: {
-                    WKInterfaceDevice.current().play(.start)
-                    model.startHalfTimeManually()
-                }
-            )
-            .padding(.bottom, 20)
-            
-            Spacer()
-        } else {
-            // Show only the timer counting up (matching second screenshot)
-            Text(model.halfTimeElapsed)
-                .font(.system(size: 48, weight: .bold, design: .rounded))
-                .monospacedDigit()
-                .foregroundColor(.white)
-                .padding(.vertical, 40)
-        }
-    }
-    
-    @ViewBuilder
-    private var runningMatchView: some View {
-        VStack(spacing: 4) {
-            Text(model.matchTime)
-                .font(.system(size: 36, weight: .bold, design: .rounded))
-                .monospacedDigit()
-            
-            // Countdown timer (remaining time in period)
-            Text(model.periodTimeRemaining)
-                .font(.system(size: 20, weight: .medium, design: .rounded))
-                .monospacedDigit()
-                .foregroundColor(.gray)
-            
-            // Stoppage time (when active)
-            if model.isInStoppage {
-                Text("+\(model.formattedStoppageTime)")
-                    .font(.system(size: 16, weight: .medium, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundColor(.orange)
-            }
-        }
-        .padding(.vertical, 8)
-        .onTapGesture {
-            // Haptic feedback
-            WKInterfaceDevice.current().play(.click)
-            
-            if model.isPaused {
-                model.resumeMatch()
-            } else {
-                model.pauseMatch()
-            }
-        }
-        
-        //TODO: Remove the commented code below
-        //TODO: Add logic to let user know timer is paused via haptic feedback.
-        // Visual indicator for pause state
-        // if model.isMatchInProgress && model.isPaused {
-        //     VStack(spacing: 8) {
-        //         Text("PAUSED")
-        //             .font(.system(size: 14, weight: .semibold))
-        //             .foregroundColor(.orange)
-                
-        //         Text("Tap to resume")
-        //             .font(.system(size: 12, weight: .medium))
-        //             .foregroundColor(.gray)
-                
-        //         // Show period advance option during pause
-        //         if !model.isHalfTime {
-        //             Button(action: {
-        //                 model.startNextPeriod()
-        //             }) {
-        //                 HStack {
-        //                     Image(systemName: "forward.fill")
-        //                     Text("Next Period")
-        //                 }
-        //                 .font(.system(size: 12, weight: .medium))
-        //                 .foregroundColor(.blue)
-        //             }
-        //             .padding(.top, 4)
-        //         }
-        //     }
-        // }
-    }
-    
+    // MARK: - Faces are rendered above; no state-specific views here.
 }
 
 // MARK: - Supporting Views
