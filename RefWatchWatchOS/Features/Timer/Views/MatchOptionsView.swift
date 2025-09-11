@@ -33,6 +33,7 @@ struct MatchOptionsView: View {
                         lifecycle?.resetToStart()
                         dismiss()
                     }
+                    //.listRowBackground(Color.clear) // Remove list row background
 
                     // Choose colours option (placeholder for future feature)
                     ActionButton(
@@ -42,6 +43,7 @@ struct MatchOptionsView: View {
                     ) {
                         showingColorPicker = true
                     }
+                    //.listRowBackground(Color.clear) // Remove list row background
 
                     // Reset match option
                     ActionButton(
@@ -51,6 +53,7 @@ struct MatchOptionsView: View {
                     ) {
                         showingResetConfirmation = true
                     }
+                    //.listRowBackground(Color.clear) // Remove list row background
 
                     // Abandon match option
                     ActionButton(
@@ -60,6 +63,7 @@ struct MatchOptionsView: View {
                     ) {
                         showingAbandonConfirmation = true
                     }
+                    //.listRowBackground(Color.clear) // Remove list row background
                 }
             }
             .listStyle(.carousel)

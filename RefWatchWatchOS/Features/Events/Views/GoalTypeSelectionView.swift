@@ -1,5 +1,10 @@
-// New file: GoalTypeSelectionView.swift
-// Description: View for selecting the type of goal scored
+//
+//  GoalTypeSelectionView.swift
+//  RefWatchWatchOS
+//
+//  Description: View for selecting the type of goal scored
+//  Rule Applied: Code Structure - abstracted selection list to reusable component
+//
 
 import SwiftUI
 import RefWatchCore
@@ -21,18 +26,15 @@ struct GoalTypeSelectionView: View {
     }
     
     var body: some View {
-        List {
-            ForEach(allTypes, id: \.self) { type in
-                Button(action: { 
-                    print("DEBUG: Goal type selected: \(label(for: type))")
-                    onSelect(type) 
-                }) {
-                    Text(label(for: type))
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-            }
+        // Use the new reusable SelectionListView component with custom formatter
+        SelectionListView(
+            title: team == .home ? "HOM" : "AWA",
+            options: allTypes,
+            formatter: label(for:),
+            useCarouselStyle: true
+        ) { type in
+            print("DEBUG: Goal type selected: \(label(for: type))")
+            onSelect(type)
         }
-        .navigationTitle(team == .home ? "HOM" : "AWA")
-        .listStyle(.carousel)
     }
 } 

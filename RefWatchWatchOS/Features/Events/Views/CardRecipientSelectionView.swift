@@ -1,21 +1,25 @@
+//
+//  CardRecipientSelectionView.swift
+//  RefWatchWatchOS
+//
+//  Description: View for selecting card recipient type
+//  Rule Applied: Code Structure - abstracted selection list to reusable component
+//
+
 import SwiftUI
 import RefWatchCore
 
 struct CardRecipientSelectionView: View {
     let team: TeamDetailsView.TeamType
     let cardType: CardDetails.CardType
-    let onComplete: (CardRecipientType) -> Void // Simplified to only handle recipient selection
+    let onComplete: (CardRecipientType) -> Void
     
     var body: some View {
-        List {
-            ForEach(CardRecipientType.allCases, id: \.self) { recipient in
-                Button(action: {
-                    onComplete(recipient)
-                }) {
-                    Text(recipient.rawValue)
-                }
-            }
+        // Use the new reusable SelectionListView component
+        SelectionListView<CardRecipientType>(
+            title: "Select Recipient"
+        ) { recipient in
+            onComplete(recipient)
         }
-        .navigationTitle("Select Recipient")
     }
 } 
