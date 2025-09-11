@@ -96,7 +96,7 @@ Manual QA done for v2 (high level)
 
 Key files changed/added (v2)
 - Guards: `RefZoneWatchOS/Features/Match/ViewModels/MatchViewModel.swift`, `RefZoneWatchOS/Features/Match/Views/MatchKickOffView.swift`
-- Tests: `RefWatchWatchOSTests/MatchViewModel_TimeConversionTests.swift`, `RefWatchWatchOSTests/MatchViewModel_KickoffAlternationTests.swift`, `RefWatchWatchOSTests/MatchViewModel_EventsAndStoppageTests.swift`
+- Tests: `RefZoneWatchOSTests/MatchViewModel_TimeConversionTests.swift`, `RefZoneWatchOSTests/MatchViewModel_KickoffAlternationTests.swift`, `RefZoneWatchOSTests/MatchViewModel_EventsAndStoppageTests.swift`
 
 ---
 
@@ -141,7 +141,7 @@ PR v2 (Completed) ✅ — Tests + Defensive Hardening
   - All tests pass locally and in CI.
   - No per‑tick logs in release; no timer crashes due to nil unwrapping.
 - Suggested Files:
-  - `RefWatchWatchOSTests/*` (new tests)
+- `RefZoneWatchOSTests/*` (new tests)
   - `RefZoneWatchOS/Features/Match/ViewModels/MatchViewModel.swift` (small guards only)
 
 ---
@@ -164,8 +164,8 @@ Delivered in v3
   - Delegates timer/stoppage/halftime responsibilities to `TimerManager` while preserving public API and behavior.
   - Removed unused legacy start-time assignments and updated debug log.
 - Tests:
-- Added `RefWatchWatchOSTests/TimerManagerTests.swift` (per-period label calc, safety/idempotency cases).
-- Added `RefWatchWatchOSTests/TestTimeHelpers.swift` (mm:ss parsing helper).
+- Added `RefZoneWatchOSTests/TimerManagerTests.swift` (per-period label calc, safety/idempotency cases).
+- Added `RefZoneWatchOSTests/TestTimeHelpers.swift` (mm:ss parsing helper).
 - Review Follow-ups:
   - Guard comment explaining single period timer; note about potential repeated halftime haptic (behavior unchanged by design).
 
@@ -276,7 +276,7 @@ PR v6.1 — Data Security, Export, and History UX
   - `Core/Services/MatchHistory/MatchHistoryService.swift` (size reporting, export, optional integrity logging)
   - `Features/Match/ViewModels/MatchViewModel.swift` (bridges for export + filtering)
   - `Features/Match/Views/MatchHistoryView.swift` (search/filter controls in a compact watch‑friendly UI; export trigger in overflow menu)
-- `RefWatchWatchOSTests/*` (export success test using temp dir; size reporting tests)
+- `RefZoneWatchOSTests/*` (export success test using temp dir; size reporting tests)
 
 PR v7 — Docs + Cleanup
 - Goals:

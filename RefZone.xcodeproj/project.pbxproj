@@ -133,14 +133,14 @@
 			path = RefZoneWatchOS;
 			sourceTree = "<group>";
 		};
-		964A4D862D32234B00D08376 /* RefWatchWatchOSTests */ = {
+		964A4D862D32234B00D08376 /* RefZoneWatchOSTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = RefWatchWatchOSTests;
+			path = RefZoneWatchOSTests;
 			sourceTree = "<group>";
 		};
-		964A4D902D32234B00D08376 /* RefWatchWatchOSUITests */ = {
+		964A4D902D32234B00D08376 /* RefZoneWatchOSUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = RefWatchWatchOSUITests;
+			path = RefZoneWatchOSUITests;
 			sourceTree = "<group>";
 		};
 		96B8126F2E67CDA400B23EC0 /* RefWatchiOS */ = {
@@ -151,14 +151,14 @@
 			path = RefZoneiOS;
 			sourceTree = "<group>";
 		};
-		96B812902E67CDA500B23EC0 /* RefWatchiOSTests */ = {
+		96B812902E67CDA500B23EC0 /* RefZoneiOSTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = RefWatchiOSTests;
+			path = RefZoneiOSTests;
 			sourceTree = "<group>";
 		};
-		96B812A02E67CDA500B23EC0 /* RefWatchiOSUITests */ = {
+		96B812A02E67CDA500B23EC0 /* RefZoneiOSUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = RefWatchiOSUITests;
+			path = RefZoneiOSUITests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -216,11 +216,11 @@
 			isa = PBXGroup;
 			children = (
 				964A4D752D32234A00D08376 /* RefWatchWatchOS */,
-				964A4D862D32234B00D08376 /* RefWatchWatchOSTests */,
-				964A4D902D32234B00D08376 /* RefWatchWatchOSUITests */,
+				964A4D862D32234B00D08376 /* RefZoneWatchOSTests */,
+				964A4D902D32234B00D08376 /* RefZoneWatchOSUITests */,
 				96B8126F2E67CDA400B23EC0 /* RefWatchiOS */,
-				96B812902E67CDA500B23EC0 /* RefWatchiOSTests */,
-				96B812A02E67CDA500B23EC0 /* RefWatchiOSUITests */,
+				96B812902E67CDA500B23EC0 /* RefZoneiOSTests */,
+				96B812A02E67CDA500B23EC0 /* RefZoneiOSUITests */,
 				9AF0AAA01D00000000000001 /* Shared */,
 				96FEE6032E72E22A00EDD7BD /* Frameworks */,
 				964A4D6C2D32234A00D08376 /* Products */,
@@ -331,7 +331,7 @@
 				964A4D852D32234B00D08376 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				964A4D862D32234B00D08376 /* RefWatchWatchOSTests */,
+				964A4D862D32234B00D08376 /* RefZoneWatchOSTests */,
 			);
 			name = "RefZone Watch AppTests";
 			packageProductDependencies = (
@@ -354,7 +354,7 @@
 				964A4D8F2D32234B00D08376 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				964A4D902D32234B00D08376 /* RefWatchWatchOSUITests */,
+				964A4D902D32234B00D08376 /* RefZoneWatchOSUITests */,
 			);
 			name = "RefZone Watch AppUITests";
 			packageProductDependencies = (
@@ -403,7 +403,7 @@
 				96B812A12E67CDA500B23EC0 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				96B812902E67CDA500B23EC0 /* RefWatchiOSTests */,
+				96B812902E67CDA500B23EC0 /* RefZoneiOSTests */,
 			);
 			name = RefZoneiOSTests;
 			productName = RefZoneiOSTests;
@@ -424,7 +424,7 @@
 				96B812AF2E67CDA500B23EC0 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				96B812A02E67CDA500B23EC0 /* RefWatchiOSUITests */,
+				96B812A02E67CDA500B23EC0 /* RefZoneiOSUITests */,
 			);
 			name = RefZoneiOSUITests;
 			productName = RefZoneiOSUITests;
