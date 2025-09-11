@@ -74,13 +74,7 @@
             ReferencedContainer = "container:RefWatch.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
-      <EnvironmentVariables>
-         <EnvironmentVariable
-            key = "OPENAI_API_KEY"
-            value = "REDACTED"
-            isEnabled = "YES">
-         </EnvironmentVariable>
-      </EnvironmentVariables>
+      <!-- No shared environment variables. Configure OPENAI_API_KEY locally in an unshared scheme if needed. -->
    </LaunchAction>
    <ProfileAction
       buildConfiguration = "Release"
