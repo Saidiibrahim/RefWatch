@@ -13,5 +13,11 @@ public enum TimerFaceStyle: String, CaseIterable, Identifiable {
         case .standard: return "Standard"
         }
     }
-}
 
+    /// Safely parse a stored raw value into a face style.
+    /// Falls back to `.standard` for nil/unknown values to avoid crashes or undefined UI.
+    public static func parse(raw: String?) -> TimerFaceStyle {
+        guard let raw, let style = TimerFaceStyle(rawValue: raw) else { return .standard }
+        return style
+    }
+}
