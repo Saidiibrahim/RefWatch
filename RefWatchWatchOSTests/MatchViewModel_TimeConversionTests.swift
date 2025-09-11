@@ -5,7 +5,7 @@
 
 import Testing
 import Foundation
-@testable import RefWatch_Watch_App
+@testable import RefZone_Watch_App
 
 struct MatchViewModel_TimeConversionTests {
 

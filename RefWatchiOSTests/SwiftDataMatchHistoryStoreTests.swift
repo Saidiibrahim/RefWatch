@@ -1,7 +1,7 @@
 import XCTest
 import SwiftData
 import RefWatchCore
-@testable import RefWatchiOS
+@testable import RefZoneiOS
 
 final class SwiftDataMatchHistoryStoreTests: XCTestCase {
     private func makeContainer() throws -> ModelContainer {

@@ -1,6 +1,6 @@
 import XCTest
 import RefWatchCore
-@testable import RefWatchiOS
+@testable import RefZoneiOS
 
 final class MatchFlowTests: XCTestCase {
     // Creates a VM using a temporary history file location
@@ -49,4 +49,3 @@ final class MatchFlowTests: XCTestCase {
         XCTAssertEqual(all.first?.match.awayTeam, "Away")
     }
 }
-

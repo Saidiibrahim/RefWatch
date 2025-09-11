@@ -1,5 +1,5 @@
 import XCTest
-@testable import RefWatchiOS
+@testable import RefZoneiOS
 
 final class AppRouterTests: XCTestCase {
     func testDefaultTab_whenInitialized_isMatches() {

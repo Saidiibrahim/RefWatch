@@ -1,6 +1,6 @@
 import XCTest
 import SwiftData
-@testable import RefWatchiOS
+@testable import RefZoneiOS
 import RefWatchCore
 
 private struct FailingBuilder: ModelContainerBuilding {
@@ -31,4 +31,3 @@ final class ModelContainerFactoryTests: XCTestCase {
         XCTAssertTrue(store is MatchHistoryService)
     }
 }
-

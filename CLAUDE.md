@@ -11,28 +11,28 @@ RefWatch is a multi-platform app (watchOS + iOS) designed for football/soccer re
 ### Building the Project
 ```bash
 # Build the Watch app
-xcodebuild -project RefWatch.xcodeproj -scheme "RefWatch Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)' build
+xcodebuild -project RefZone.xcodeproj -scheme "RefZone Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)' build
 
 # Build the iOS app
-xcodebuild -project RefWatch.xcodeproj -scheme "RefWatch iOS App" -destination 'platform=iOS Simulator,name=iPhone 15' build
+xcodebuild -project RefZone.xcodeproj -scheme "RefWatch iOS App" -destination 'platform=iOS Simulator,name=iPhone 15' build
 
 # Build all targets (schemes must be shared)
-xcodebuild -project RefWatch.xcodeproj build
+xcodebuild -project RefZone.xcodeproj build
 ```
 
 ### Running Tests
 ```bash
 # Run watchOS unit tests
-xcodebuild -project RefWatch.xcodeproj -scheme "RefWatch Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)' test
+xcodebuild -project RefZone.xcodeproj -scheme "RefZone Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)' test
 
 # (When present) Run iOS unit tests
-xcodebuild -project RefWatch.xcodeproj -scheme "RefWatch iOS App" -destination 'platform=iOS Simulator,name=iPhone 15' test
+xcodebuild -project RefZone.xcodeproj -scheme "RefWatch iOS App" -destination 'platform=iOS Simulator,name=iPhone 15' test
 ```
 
 ### Development
-- Open `RefWatch.xcodeproj` in Xcode
+- Open `RefZone.xcodeproj` in Xcode
 - Select a scheme:
-  - watchOS: "RefWatch Watch App" → Apple Watch simulator
+  - watchOS: "RefZone Watch App" → Apple Watch simulator
   - iOS: "RefWatch iOS App" → iPhone simulator
 - Build and run with ⌘+R
 
@@ -42,7 +42,7 @@ xcodebuild -project RefWatch.xcodeproj -scheme "RefWatch iOS App" -destination '
 The repository follows a feature‑first architecture with clear separation of concerns. There are two app folders and a shared pool of sources compiled into both targets.
 
 ```
-RefWatchWatchOS/
+RefZoneWatchOS/
 ├── App/                    # Entry point and root configuration
 ├── Core/                   # Shared components and services
 │   ├── Components/         # Reusable UI components
@@ -54,7 +54,7 @@ RefWatchWatchOS/
     ├── Settings/          # App preferences
     ├── TeamManagement/    # Team and officials management
     └── Timer/             # Match timing functionality
-RefWatchiOS/
+RefZoneiOS/
 ├── App/                   # Entry, router, tabs (MainTabView)
 ├── Core/
 │   ├── DesignSystem/      # Theme, palettes, shared modifiers

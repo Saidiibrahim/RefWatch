@@ -1,6 +1,6 @@
 import XCTest
 import RefWatchCore
-@testable import RefWatchiOS
+@testable import RefZoneiOS
 
 final class ConnectivityMergeTests: XCTestCase {
     private final class InMemoryStore: MatchHistoryStoring {
