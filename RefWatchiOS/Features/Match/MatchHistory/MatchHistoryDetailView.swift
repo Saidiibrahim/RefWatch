@@ -7,12 +7,46 @@
 
 import SwiftUI
 import RefWatchCore
+import Combine
 
 struct MatchHistoryDetailView: View {
     let snapshot: CompletedMatch
+    @Environment(\.journalStore) private var journalStore
+    @State private var latestJournal: JournalEntry? = nil
 
     var body: some View {
         List {
+            // Self-Assessment
+            Section("Self‑Assessment") {
+                if let entry = latestJournal {
+                    NavigationLink(destination: JournalListView(snapshot: snapshot)) {
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack {
+                                if let rating = entry.rating { Text("⭐️ \(rating)/5").font(.subheadline) }
+                                Spacer()
+                                Text(Self.format(entry.updatedAt)).font(.caption).foregroundStyle(.secondary)
+                            }
+                            if let txt = entry.overall, !txt.isEmpty {
+                                Text(txt).lineLimit(2)
+                            } else if let txt = entry.wentWell, !txt.isEmpty {
+                                Text(txt).lineLimit(2)
+                            } else if let txt = entry.toImprove, !txt.isEmpty {
+                                Text(txt).lineLimit(2)
+                            } else {
+                                Text("(No text)").foregroundStyle(.secondary).font(.caption)
+                            }
+                        }
+                    }
+                    NavigationLink(destination: JournalEditorView(matchId: snapshot.id, onSaved: { loadLatest() })) {
+                        Label("Add Entry", systemImage: "plus")
+                    }
+                } else {
+                    NavigationLink(destination: JournalEditorView(matchId: snapshot.id, onSaved: { loadLatest() })) {
+                        Label("Add Self‑Assessment", systemImage: "square.and.pencil")
+                    }
+                }
+            }
+
             Section {
                 HStack {
                     VStack(spacing: 4) {
@@ -58,6 +92,8 @@ struct MatchHistoryDetailView: View {
             }
         }
         .navigationTitle("Details")
+        .onAppear { loadLatest() }
+        .onReceive(NotificationCenter.default.publisher(for: .journalDidChange).receive(on: RunLoop.main)) { _ in loadLatest() }
     }
 
     private func icon(for event: MatchEventRecord) -> String {
@@ -100,3 +136,12 @@ struct MatchHistoryDetailView: View {
     return NavigationStack { MatchHistoryDetailView(snapshot: snapshot) }
 }
 
+private extension MatchHistoryDetailView {
+    static func format(_ date: Date) -> String {
+        let f = DateFormatter(); f.dateStyle = .short; f.timeStyle = .short
+        return f.string(from: date)
+    }
+    func loadLatest() {
+        latestJournal = (try? journalStore.loadLatest(for: snapshot.id)) ?? nil
+    }
+}

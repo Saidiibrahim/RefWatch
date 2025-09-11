@@ -23,9 +23,9 @@ struct MainTabView: View {
                 .tabItem { Label("Trends", systemImage: "chart.line.uptrend.xyaxis") }
                 .tag(AppRouter.Tab.trends)
 
-            LibraryTabView()
-                .tabItem { Label("Library", systemImage: "books.vertical") }
-                .tag(AppRouter.Tab.library)
+            AssistantTabView()
+                .tabItem { Label("Assistant", systemImage: "brain.head.profile") }
+                .tag(AppRouter.Tab.assistant)
 
             SettingsTabView(historyStore: historyStore)
                 .tabItem { Label("Settings", systemImage: "gear") }

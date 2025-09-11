@@ -51,6 +51,13 @@ struct SettingsTabView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+                Section("Library") {
+                    NavigationLink {
+                        LibrarySettingsView()
+                    } label: {
+                        Label("View Library", systemImage: "books.vertical")
+                    }
+                }
                 if syncDiagnostics.showBanner, let msg = syncDiagnostics.lastErrorMessage {
                     Section {
                         HStack(alignment: .top, spacing: 8) {

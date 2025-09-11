@@ -12,14 +12,22 @@ public struct Settings {
     public var periodDuration: Int
     public var extraTimeDuration: Int
     
+    // Substitution settings
+    public var confirmSubstitutions: Bool
+    public var substitutionOrderPlayerOffFirst: Bool
+    
     public init(
         exampleSetting: Bool = false,
         periodDuration: Int = 45,
-        extraTimeDuration: Int = 15
+        extraTimeDuration: Int = 15,
+        confirmSubstitutions: Bool = true,
+        substitutionOrderPlayerOffFirst: Bool = true
     ) {
         self.exampleSetting = exampleSetting
         self.periodDuration = periodDuration
         self.extraTimeDuration = extraTimeDuration
+        self.confirmSubstitutions = confirmSubstitutions
+        self.substitutionOrderPlayerOffFirst = substitutionOrderPlayerOffFirst
     }
 }
 

@@ -12,6 +12,7 @@ import RefWatchCore
 struct MatchHistoryView: View {
     let matchViewModel: MatchViewModel
     let historyStore: MatchHistoryStoring
+    @Environment(\.journalStore) private var journalStore
     @State private var items: [CompletedMatch] = []
     @State private var searchText: String = ""
     @State private var isLoading: Bool = false
@@ -109,7 +110,11 @@ struct MatchHistoryView: View {
 
     private func delete(at offsets: IndexSet) {
         // Deletion operates on base items, not filtered view
-        for i in offsets { matchViewModel.deleteCompletedMatch(id: filteredItems[i].id) }
+        for i in offsets {
+            let id = filteredItems[i].id
+            matchViewModel.deleteCompletedMatch(id: id)
+            try? journalStore.deleteAll(for: id)
+        }
         resetAndLoadFirstPage()
     }
 

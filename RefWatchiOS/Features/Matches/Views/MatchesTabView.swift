@@ -11,6 +11,7 @@ import RefWatchCore
 
 struct MatchesTabView: View {
     @EnvironmentObject private var router: AppRouter
+    @Environment(\.journalStore) private var journalStore
     let matchViewModel: MatchViewModel
     let historyStore: MatchHistoryStoring
     @State private var path: [Route] = []
@@ -19,6 +20,7 @@ struct MatchesTabView: View {
     @State private var today: [ScheduledMatch] = []
     @State private var upcoming: [ScheduledMatch] = []
     private let scheduleStore = ScheduleService()
+    @State private var lastNeedingJournal: CompletedMatch? = nil
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -82,6 +84,11 @@ struct MatchesTabView: View {
 
                 // Past (recent history)
                 Section("Past") {
+                    if let need = lastNeedingJournal {
+                        NavigationLink(destination: JournalEditorView(matchId: need.id, onSaved: { refreshRecentAndPrompt() })) {
+                            Label("Journal your last match", systemImage: "square.and.pencil")
+                        }
+                    }
                     if recent.isEmpty {
                         ContentUnavailableView(
                             "No Past Matches",
@@ -111,7 +118,7 @@ struct MatchesTabView: View {
                 }
             }
             .onAppear {
-                recent = matchViewModel.loadRecentCompletedMatches(limit: 5)
+                refreshRecentAndPrompt()
                 let all = scheduleStore.loadAll()
                 let now = Date()
                 let cal = Calendar.current
@@ -121,11 +128,14 @@ struct MatchesTabView: View {
             }
             .onChange(of: matchViewModel.matchCompleted) { completed in
                 if completed {
-                    recent = matchViewModel.loadRecentCompletedMatches(limit: 5)
+                    refreshRecentAndPrompt()
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: .matchHistoryDidChange).receive(on: RunLoop.main)) { _ in
-                recent = matchViewModel.loadRecentCompletedMatches(limit: 5)
+                refreshRecentAndPrompt()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .journalDidChange).receive(on: RunLoop.main)) { _ in
+                refreshRecentAndPrompt()
             }
             .navigationDestination(for: Route.self) { route in
                 switch route {
@@ -177,5 +187,16 @@ private extension MatchesTabView {
         if cal.isDateInTomorrow(date) { return "Tomorrow, \(formatTime(date))" }
         let f = DateFormatter(); f.dateFormat = "EEEE, h:mm a"
         return f.string(from: date)
+    }
+
+    func refreshRecentAndPrompt() {
+        recent = matchViewModel.loadRecentCompletedMatches(limit: 5)
+        // Compute prompt candidate
+        if let latest = matchViewModel.loadRecentCompletedMatches(limit: 1).first {
+            let latestJournal = (try? journalStore.loadLatest(for: latest.id)) ?? nil
+            lastNeedingJournal = latestJournal == nil ? latest : nil
+        } else {
+            lastNeedingJournal = nil
+        }
     }
 }
