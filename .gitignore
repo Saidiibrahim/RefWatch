@@ -66,3 +66,6 @@ fastlane/test_output
 # macOS Finder files
 .DS_Store
 **/.DS_Store
+
+# Local secrets (iOS)
+RefWatchiOS/Config/Secrets.xcconfig

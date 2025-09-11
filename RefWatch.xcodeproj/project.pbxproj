@@ -73,22 +73,22 @@
 		96B8126E2E67CDA400B23EC0 /* RefWatchiOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = RefWatchiOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		96B8129E2E67CDA500B23EC0 /* RefWatchiOSTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RefWatchiOSTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		96B812AE2E67CDA500B23EC0 /* RefWatchiOSUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RefWatchiOSUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		9AF0AAA11D00000000000001 /* RefWatchWatchOS/Core/Services/TimerManager/TimerManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RefWatchWatchOS/Core/Services/TimerManager/TimerManager.swift"; sourceTree = "<group>"; };
-		9AF0AAA11D00000000000002 /* RefWatchWatchOS/Core/Services/MatchHistory/MatchHistoryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RefWatchWatchOS/Core/Services/MatchHistory/MatchHistoryService.swift"; sourceTree = "<group>"; };
-		9AF0AAA11D00000000000003 /* RefWatchWatchOS/Core/Services/PenaltyManager/PenaltyManaging.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RefWatchWatchOS/Core/Services/PenaltyManager/PenaltyManaging.swift"; sourceTree = "<group>"; };
-		9AF0AAA11D00000000000004 /* RefWatchWatchOS/Core/Services/PenaltyManager/PenaltyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RefWatchWatchOS/Core/Services/PenaltyManager/PenaltyManager.swift"; sourceTree = "<group>"; };
-		9AF0AAA11D00000000000005 /* RefWatchWatchOS/Features/Match/Models/Match.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RefWatchWatchOS/Features/Match/Models/Match.swift"; sourceTree = "<group>"; };
-		9AF0AAA11D00000000000006 /* RefWatchWatchOS/Features/Match/Models/CompletedMatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RefWatchWatchOS/Features/Match/Models/CompletedMatch.swift"; sourceTree = "<group>"; };
-		9AF0AAA11D00000000000007 /* RefWatchWatchOS/Features/Events/Models/MatchEventRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RefWatchWatchOS/Features/Events/Models/MatchEventRecord.swift"; sourceTree = "<group>"; };
-		9AF0AAA11D00000000000008 /* RefWatchWatchOS/Features/Events/Models/CardModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RefWatchWatchOS/Features/Events/Models/CardModels.swift"; sourceTree = "<group>"; };
-		9AF0AAA11D00000000000009 /* RefWatchWatchOS/Features/Settings/Models/Settings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RefWatchWatchOS/Features/Settings/Models/Settings.swift"; sourceTree = "<group>"; };
-		9AF0AAA11D0000000000000A /* RefWatchWatchOS/Features/MatchSetup/Models/MatchSetupModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RefWatchWatchOS/Features/MatchSetup/Models/MatchSetupModels.swift"; sourceTree = "<group>"; };
-		9AF0AAA11D0000000000000B /* RefWatchWatchOS/Features/TeamManagement/Models/TeamModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RefWatchWatchOS/Features/TeamManagement/Models/TeamModels.swift"; sourceTree = "<group>"; };
+		9AF0AAA11D00000000000001 /* RefWatchWatchOS/Core/Services/TimerManager/TimerManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RefWatchWatchOS/Core/Services/TimerManager/TimerManager.swift; sourceTree = "<group>"; };
+		9AF0AAA11D00000000000002 /* RefWatchWatchOS/Core/Services/MatchHistory/MatchHistoryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RefWatchWatchOS/Core/Services/MatchHistory/MatchHistoryService.swift; sourceTree = "<group>"; };
+		9AF0AAA11D00000000000003 /* RefWatchWatchOS/Core/Services/PenaltyManager/PenaltyManaging.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RefWatchWatchOS/Core/Services/PenaltyManager/PenaltyManaging.swift; sourceTree = "<group>"; };
+		9AF0AAA11D00000000000004 /* RefWatchWatchOS/Core/Services/PenaltyManager/PenaltyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RefWatchWatchOS/Core/Services/PenaltyManager/PenaltyManager.swift; sourceTree = "<group>"; };
+		9AF0AAA11D00000000000005 /* RefWatchWatchOS/Features/Match/Models/Match.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RefWatchWatchOS/Features/Match/Models/Match.swift; sourceTree = "<group>"; };
+		9AF0AAA11D00000000000006 /* RefWatchWatchOS/Features/Match/Models/CompletedMatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RefWatchWatchOS/Features/Match/Models/CompletedMatch.swift; sourceTree = "<group>"; };
+		9AF0AAA11D00000000000007 /* RefWatchWatchOS/Features/Events/Models/MatchEventRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RefWatchWatchOS/Features/Events/Models/MatchEventRecord.swift; sourceTree = "<group>"; };
+		9AF0AAA11D00000000000008 /* RefWatchWatchOS/Features/Events/Models/CardModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RefWatchWatchOS/Features/Events/Models/CardModels.swift; sourceTree = "<group>"; };
+		9AF0AAA11D00000000000009 /* RefWatchWatchOS/Features/Settings/Models/Settings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RefWatchWatchOS/Features/Settings/Models/Settings.swift; sourceTree = "<group>"; };
+		9AF0AAA11D0000000000000A /* RefWatchWatchOS/Features/MatchSetup/Models/MatchSetupModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RefWatchWatchOS/Features/MatchSetup/Models/MatchSetupModels.swift; sourceTree = "<group>"; };
+		9AF0AAA11D0000000000000B /* RefWatchWatchOS/Features/TeamManagement/Models/TeamModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RefWatchWatchOS/Features/TeamManagement/Models/TeamModels.swift; sourceTree = "<group>"; };
 		9AF0AAA11D0000000000000C /* RefWatchWatchOS/Core/Extensions/DateFormatter+Common.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RefWatchWatchOS/Core/Extensions/DateFormatter+Common.swift"; sourceTree = "<group>"; };
-		9AF0AAA11D0000000000000D /* RefWatchWatchOS/Features/Match/ViewModels/MatchViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RefWatchWatchOS/Features/Match/ViewModels/MatchViewModel.swift"; sourceTree = "<group>"; };
-		9AF0AAA11D0000000000000E /* RefWatchWatchOS/Core/Protocols/HapticsProviding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RefWatchWatchOS/Core/Protocols/HapticsProviding.swift"; sourceTree = "<group>"; };
-		9AF0AAA11D0000000000000F /* RefWatchWatchOS/Core/Protocols/PersistenceProviding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RefWatchWatchOS/Core/Protocols/PersistenceProviding.swift"; sourceTree = "<group>"; };
-		9AF0AAA11D00000000000010 /* RefWatchWatchOS/Core/Protocols/ConnectivitySyncProviding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RefWatchWatchOS/Core/Protocols/ConnectivitySyncProviding.swift"; sourceTree = "<group>"; };
+		9AF0AAA11D0000000000000D /* RefWatchWatchOS/Features/Match/ViewModels/MatchViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RefWatchWatchOS/Features/Match/ViewModels/MatchViewModel.swift; sourceTree = "<group>"; };
+		9AF0AAA11D0000000000000E /* RefWatchWatchOS/Core/Protocols/HapticsProviding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RefWatchWatchOS/Core/Protocols/HapticsProviding.swift; sourceTree = "<group>"; };
+		9AF0AAA11D0000000000000F /* RefWatchWatchOS/Core/Protocols/PersistenceProviding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RefWatchWatchOS/Core/Protocols/PersistenceProviding.swift; sourceTree = "<group>"; };
+		9AF0AAA11D00000000000010 /* RefWatchWatchOS/Core/Protocols/ConnectivitySyncProviding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RefWatchWatchOS/Core/Protocols/ConnectivitySyncProviding.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -102,17 +102,17 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		964A4D752D32234A00D08376 /* RefWatch Watch App */ = {
+		964A4D752D32234A00D08376 /* RefWatchWatchOS */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = RefWatchWatchOS;
 			sourceTree = "<group>";
 		};
-		964A4D862D32234B00D08376 /* RefWatch Watch AppTests */ = {
+		964A4D862D32234B00D08376 /* RefWatchWatchOSTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = RefWatchWatchOSTests;
 			sourceTree = "<group>";
 		};
-		964A4D902D32234B00D08376 /* RefWatch Watch AppUITests */ = {
+		964A4D902D32234B00D08376 /* RefWatchWatchOSUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = RefWatchWatchOSUITests;
 			sourceTree = "<group>";
@@ -189,9 +189,9 @@
 		964A4D642D32234A00D08376 = {
 			isa = PBXGroup;
 			children = (
-				964A4D752D32234A00D08376 /* RefWatch Watch App */,
-				964A4D862D32234B00D08376 /* RefWatch Watch AppTests */,
-				964A4D902D32234B00D08376 /* RefWatch Watch AppUITests */,
+				964A4D752D32234A00D08376 /* RefWatchWatchOS */,
+				964A4D862D32234B00D08376 /* RefWatchWatchOSTests */,
+				964A4D902D32234B00D08376 /* RefWatchWatchOSUITests */,
 				96B8126F2E67CDA400B23EC0 /* RefWatchiOS */,
 				96B812902E67CDA500B23EC0 /* RefWatchiOSTests */,
 				96B812A02E67CDA500B23EC0 /* RefWatchiOSUITests */,
@@ -272,7 +272,7 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				964A4D752D32234A00D08376 /* RefWatch Watch App */,
+				964A4D752D32234A00D08376 /* RefWatchWatchOS */,
 			);
 			name = "RefWatch Watch App";
 			packageProductDependencies = (
@@ -296,7 +296,7 @@
 				964A4D852D32234B00D08376 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				964A4D862D32234B00D08376 /* RefWatch Watch AppTests */,
+				964A4D862D32234B00D08376 /* RefWatchWatchOSTests */,
 			);
 			name = "RefWatch Watch AppTests";
 			packageProductDependencies = (
@@ -319,7 +319,7 @@
 				964A4D8F2D32234B00D08376 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				964A4D902D32234B00D08376 /* RefWatch Watch AppUITests */,
+				964A4D902D32234B00D08376 /* RefWatchWatchOSUITests */,
 			);
 			name = "RefWatch Watch AppUITests";
 			packageProductDependencies = (
@@ -710,31 +710,31 @@
 				DEVELOPMENT_ASSET_PATHS = "\"RefWatchWatchOS/Preview Content\"";
 				DEVELOPMENT_TEAM = 6NV7X5BLU7;
 				ENABLE_PREVIEWS = YES;
-                    EXCLUDED_SOURCE_FILE_NAMES = (
-                        Match.swift,
-                        CompletedMatch.swift,
-                        MatchEventRecord.swift,
-                        CardModels.swift,
-                        Settings.swift,
-                        MatchSetupModels.swift,
-                        TeamModels.swift,
-                        TimerManager.swift,
-                        PenaltyManaging.swift,
-                        PenaltyManager.swift,
-                        MatchHistoryService.swift,
-                        HapticsProviding.swift,
-                        PersistenceProviding.swift,
-                        ConnectivitySyncProviding.swift,
-                        MatchViewModel.swift,
-                        MatchSetupViewModel.swift,
-                        SettingsViewModel.swift,
-                        "DateFormatter+Common.swift",
-                        README.md,
-                    );
-                    GENERATE_INFOPLIST_FILE = YES;
-                    INFOPLIST_KEY_CFBundleDisplayName = RefWatch;
-                    INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
-                    INFOPLIST_KEY_WKWatchOnly = YES;
+				EXCLUDED_SOURCE_FILE_NAMES = (
+					Match.swift,
+					CompletedMatch.swift,
+					MatchEventRecord.swift,
+					CardModels.swift,
+					Settings.swift,
+					MatchSetupModels.swift,
+					TeamModels.swift,
+					TimerManager.swift,
+					PenaltyManaging.swift,
+					PenaltyManager.swift,
+					MatchHistoryService.swift,
+					HapticsProviding.swift,
+					PersistenceProviding.swift,
+					ConnectivitySyncProviding.swift,
+					MatchViewModel.swift,
+					MatchSetupViewModel.swift,
+					SettingsViewModel.swift,
+					"DateFormatter+Common.swift",
+					README.md,
+				);
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = RefWatch;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKWatchOnly = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -761,31 +761,31 @@
 				DEVELOPMENT_ASSET_PATHS = "\"RefWatchWatchOS/Preview Content\"";
 				DEVELOPMENT_TEAM = 6NV7X5BLU7;
 				ENABLE_PREVIEWS = YES;
-                    EXCLUDED_SOURCE_FILE_NAMES = (
-                        Match.swift,
-                        CompletedMatch.swift,
-                        MatchEventRecord.swift,
-                        CardModels.swift,
-                        Settings.swift,
-                        MatchSetupModels.swift,
-                        TeamModels.swift,
-                        TimerManager.swift,
-                        PenaltyManaging.swift,
-                        PenaltyManager.swift,
-                        MatchHistoryService.swift,
-                        HapticsProviding.swift,
-                        PersistenceProviding.swift,
-                        ConnectivitySyncProviding.swift,
-                        MatchViewModel.swift,
-                        MatchSetupViewModel.swift,
-                        SettingsViewModel.swift,
-                        "DateFormatter+Common.swift",
-                        README.md,
-                    );
-                    GENERATE_INFOPLIST_FILE = YES;
-                    INFOPLIST_KEY_CFBundleDisplayName = RefWatch;
-                    INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
-                    INFOPLIST_KEY_WKWatchOnly = YES;
+				EXCLUDED_SOURCE_FILE_NAMES = (
+					Match.swift,
+					CompletedMatch.swift,
+					MatchEventRecord.swift,
+					CardModels.swift,
+					Settings.swift,
+					MatchSetupModels.swift,
+					TeamModels.swift,
+					TimerManager.swift,
+					PenaltyManaging.swift,
+					PenaltyManager.swift,
+					MatchHistoryService.swift,
+					HapticsProviding.swift,
+					PersistenceProviding.swift,
+					ConnectivitySyncProviding.swift,
+					MatchViewModel.swift,
+					MatchSetupViewModel.swift,
+					SettingsViewModel.swift,
+					"DateFormatter+Common.swift",
+					README.md,
+				);
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = RefWatch;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKWatchOnly = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -931,7 +931,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-                IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -967,7 +967,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-                IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
