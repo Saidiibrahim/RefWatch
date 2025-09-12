@@ -6,7 +6,8 @@ enum Secrets {
     static var openAIKey: String? {
         // Prefer value injected via Info.plist (Debug builds set INFOPLIST_KEY_OPENAI_API_KEY)
         if let key = Bundle.main.object(forInfoDictionaryKey: "OPENAI_API_KEY") as? String,
-           key.isEmpty == false {
+           key.isEmpty == false,
+           key.contains("$(") == false { // guard unresolved placeholder
             return key
         }
 
