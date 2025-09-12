@@ -157,10 +157,12 @@ struct MatchesTabView: View {
         }
     }
 }
+#if DEBUG
 #Preview {
     MatchesTabView(matchViewModel: MatchViewModel(haptics: NoopHaptics()), historyStore: MatchHistoryService())
         .environmentObject(AppRouter.preview())
 }
+#endif
  
 // No additional helpers.
 

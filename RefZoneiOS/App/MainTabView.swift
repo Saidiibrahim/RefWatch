@@ -35,7 +35,9 @@ struct MainTabView: View {
     }
 }
 
+#if DEBUG
 #Preview {
     MainTabView(matchViewModel: MatchViewModel(haptics: NoopHaptics()), historyStore: MatchHistoryService())
         .environmentObject(AppRouter.preview())
 }
+#endif
