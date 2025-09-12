@@ -1,6 +1,6 @@
 //
 //  SwiftDataMatchHistoryStore.swift
-//  RefWatchiOS
+//  RefZoneiOS
 //
 //  iOS implementation of MatchHistoryStoring backed by SwiftData.
 //

@@ -1,6 +1,6 @@
 //
 //  MatchTimerView.swift
-//  RefWatchiOS
+//  RefZoneiOS
 //
 //  iOS live timer skeleton for an in-progress match.
 //  Shows period label, timers, a simple score strip and core controls.

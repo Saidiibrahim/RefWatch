@@ -1,6 +1,6 @@
 //
 //  MatchSetupView.swift
-//  RefWatchiOS
+//  RefZoneiOS
 //
 //  iOS setup form for creating and starting a match using RefWatchCore.
 //  Skeleton only — navigation is delegated via optional onStarted closure.

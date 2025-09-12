@@ -1,6 +1,6 @@
 //
 //  MainTabView.swift
-//  RefWatchiOS
+//  RefZoneiOS
 //
 //  Minimal TabView scaffold for iOS with placeholder tabs
 //

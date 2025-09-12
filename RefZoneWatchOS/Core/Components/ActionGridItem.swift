@@ -1,6 +1,6 @@
 //
 //  ActionGridItem.swift
-//  RefWatchWatchOS
+//  RefZoneWatchOS
 //
 //  Description: Grid item component with circular icon and text label for action sheets
 //

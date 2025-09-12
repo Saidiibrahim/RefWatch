@@ -1,6 +1,6 @@
 //
 //  CompletedMatchRecord.swift
-//  RefWatchiOS
+//  RefZoneiOS
 //
 //  SwiftData model for storing CompletedMatch snapshots on iOS.
 //
@@ -43,4 +43,3 @@ final class CompletedMatchRecord {
         self.payload = payload
     }
 }
-

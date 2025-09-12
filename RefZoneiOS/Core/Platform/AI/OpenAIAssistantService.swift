@@ -1,6 +1,6 @@
 //
 //  OpenAIAssistantService.swift
-//  RefWatchiOS
+//  RefZoneiOS
 //
 
 import Foundation

@@ -1,6 +1,6 @@
 //
 //  TrendsTabView.swift
-//  RefWatchiOS
+//  RefZoneiOS
 //
 //  Placeholder analytics overview (static summaries)
 //
@@ -36,4 +36,3 @@ struct TrendsTabView: View {
 }
 
 #Preview { TrendsTabView() }
-

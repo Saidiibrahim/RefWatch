@@ -1,6 +1,6 @@
 //
 //  LibrarySettingsView.swift
-//  RefWatchiOS
+//  RefZoneiOS
 //
 
 import SwiftUI
@@ -25,4 +25,3 @@ struct LibrarySettingsView: View {
 }
 
 #Preview { NavigationStack { LibrarySettingsView() } }
-

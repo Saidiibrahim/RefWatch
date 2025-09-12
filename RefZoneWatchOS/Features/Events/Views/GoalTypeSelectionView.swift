@@ -1,6 +1,6 @@
 //
 //  GoalTypeSelectionView.swift
-//  RefWatchWatchOS
+//  RefZoneWatchOS
 //
 //  Description: View for selecting the type of goal scored
 //  Rule Applied: Code Structure - abstracted selection list to reusable component

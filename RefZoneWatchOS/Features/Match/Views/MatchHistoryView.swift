@@ -1,6 +1,6 @@
 //
 //  MatchHistoryView.swift
-//  RefWatchWatchOS
+//  RefZoneWatchOS
 //
 //  Description: Simple history list of completed matches with navigation to details.
 //

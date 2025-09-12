@@ -1,6 +1,6 @@
 //
 //  MatchHistoryView.swift
-//  RefWatchiOS
+//  RefZoneiOS
 //
 //  Dedicated iOS history list for completed matches.
 //

@@ -1,6 +1,6 @@
 //
 //  TestTimeHelpers.swift
-//  RefWatch Watch AppTests
+//  RefZone Watch AppTests
 //
 //  Description: Small helpers for time label parsing in tests.
 //
@@ -15,4 +15,3 @@ func parseMMSS(_ s: String) -> Int {
           let ss = Int(comps[1]) else { return 0 }
     return mm * 60 + ss
 }
-

@@ -1,6 +1,6 @@
 //
 //  ContentView.swift
-//  RefWatchiOS
+//  RefZoneiOS
 //
 //  Created by Ibrahim Saidi on 3/9/2025.
 //
@@ -22,4 +22,3 @@ struct ContentView: View {
 #Preview {
     ContentView()
 }
-

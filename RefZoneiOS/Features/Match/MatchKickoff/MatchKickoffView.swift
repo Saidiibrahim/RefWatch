@@ -1,6 +1,6 @@
 //
 //  MatchKickoffView.swift
-//  RefWatchiOS
+//  RefZoneiOS
 //
 //  Kickoff selection view for second half and extra time phases.
 //

@@ -1,6 +1,6 @@
 //
 //  ConnectivitySyncController.swift
-//  RefWatchiOS
+//  RefZoneiOS
 //
 //  Observable controller that owns the WatchConnectivity client and manages
 //  its lifecycle across scene phases.

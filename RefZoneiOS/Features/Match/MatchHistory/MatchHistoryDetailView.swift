@@ -1,6 +1,6 @@
 //
 //  MatchHistoryDetailView.swift
-//  RefWatchiOS
+//  RefZoneiOS
 //
 //  Detail screen for a completed match. Ported from watch design, adapted for iOS.
 //

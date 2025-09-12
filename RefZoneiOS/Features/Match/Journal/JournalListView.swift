@@ -1,6 +1,6 @@
 //
 //  JournalListView.swift
-//  RefWatchiOS
+//  RefZoneiOS
 //
 
 import SwiftUI

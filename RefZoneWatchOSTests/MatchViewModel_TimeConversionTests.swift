@@ -1,6 +1,6 @@
 //
 //  MatchViewModel_TimeConversionTests.swift
-//  RefWatch Watch AppTests
+//  RefZone Watch AppTests
 //
 
 import Testing

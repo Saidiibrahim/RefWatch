@@ -1,6 +1,6 @@
 //
 //  RefWatch_Watch_AppTests.swift
-//  RefWatch Watch AppTests
+//  RefZone Watch AppTests
 //
 //  Created by Ibrahim Saidi on 11/1/2025.
 //

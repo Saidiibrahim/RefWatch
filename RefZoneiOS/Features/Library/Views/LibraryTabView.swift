@@ -1,6 +1,6 @@
 //
 //  LibraryTabView.swift
-//  RefWatchiOS
+//  RefZoneiOS
 //
 //  Placeholder Library hub for Teams/Competitions/Venues
 //
@@ -29,4 +29,3 @@ struct LibraryTabView: View {
 }
 
 #Preview { LibraryTabView() }
-

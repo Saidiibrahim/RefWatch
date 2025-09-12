@@ -1,6 +1,6 @@
 //
 //  InMemoryJournalStore.swift
-//  RefWatchiOS
+//  RefZoneiOS
 //
 //  Non-persistent fallback used only if SwiftData container fails to build.
 //
@@ -53,4 +53,3 @@ final class InMemoryJournalStore: JournalEntryStoring {
         NotificationCenter.default.post(name: .journalDidChange, object: nil)
     }
 }
-

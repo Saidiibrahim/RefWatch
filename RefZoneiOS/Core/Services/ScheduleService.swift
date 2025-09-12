@@ -1,6 +1,6 @@
 //
 //  ScheduleService.swift
-//  RefWatchiOS
+//  RefZoneiOS
 //
 //  Simple JSON-backed store for scheduled matches (iOS-only for now).
 //
@@ -69,4 +69,3 @@ final class ScheduleService: ScheduleStoring {
         } catch { /* best-effort */ }
     }
 }
-

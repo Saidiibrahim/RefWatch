@@ -1,6 +1,6 @@
 //
 //  MatchActionsSheet.swift
-//  RefWatchWatchOS
+//  RefZoneWatchOS
 //
 //  Description: Sheet presented when user long-presses on TimerView, showing match action options
 //
@@ -129,4 +129,3 @@ struct MatchActionsSheet: View {
 #Preview {
     MatchActionsSheet(matchViewModel: MatchViewModel(haptics: WatchHaptics()))
 }
-

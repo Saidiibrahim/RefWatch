@@ -1,6 +1,6 @@
 //
 //  CardRecipientSelectionView.swift
-//  RefWatchWatchOS
+//  RefZoneWatchOS
 //
 //  Description: View for selecting card recipient type
 //  Rule Applied: Code Structure - abstracted selection list to reusable component

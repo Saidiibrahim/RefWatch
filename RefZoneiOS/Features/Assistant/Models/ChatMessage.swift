@@ -1,6 +1,6 @@
 //
 //  ChatMessage.swift
-//  RefWatchiOS
+//  RefZoneiOS
 //
 
 import Foundation
@@ -20,4 +20,3 @@ struct ChatMessage: Identifiable, Hashable {
         self.date = date
     }
 }
-

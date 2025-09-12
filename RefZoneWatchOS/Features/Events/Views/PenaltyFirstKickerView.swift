@@ -1,6 +1,6 @@
 //
 //  PenaltyFirstKickerView.swift
-//  RefWatchWatchOS
+//  RefZoneWatchOS
 //
 //  Description: Dedicated screen to select the first kicker before entering penalties.
 //

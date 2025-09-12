@@ -1,6 +1,6 @@
 //
 //  AuthStateDebugger.swift
-//  RefWatchiOS
+//  RefZoneiOS
 //
 //  DEBUG-only helper to log authentication state transitions without
 //  introducing vendor coupling. Called from App after Clerk loads and
@@ -28,4 +28,3 @@ final class AuthStateDebugger {
     }
 }
 #endif
-

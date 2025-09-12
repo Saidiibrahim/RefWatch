@@ -1,6 +1,6 @@
 //
 //  GoalEventFlowView.swift
-//  RefWatchiOS
+//  RefZoneiOS
 //
 //  Minimal goal recording flow: choose team, type, and optional player number.
 //
@@ -58,4 +58,3 @@ struct GoalEventFlowView: View {
         }
     }
 }
-

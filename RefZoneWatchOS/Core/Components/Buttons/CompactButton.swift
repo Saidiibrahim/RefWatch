@@ -1,6 +1,6 @@
 //
 //  CompactButton.swift
-//  RefWatchWatchOS
+//  RefZoneWatchOS
 //
 //  Description: Compact button for space-constrained views like WatchOS
 //

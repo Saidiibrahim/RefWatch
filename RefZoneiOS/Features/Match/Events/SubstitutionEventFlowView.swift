@@ -1,6 +1,6 @@
 //
 //  SubstitutionEventFlowView.swift
-//  RefWatchiOS
+//  RefZoneiOS
 //
 //  Minimal substitution flow: choose team and optional player numbers.
 //
@@ -55,4 +55,3 @@ struct SubstitutionEventFlowView: View {
         }
     }
 }
-
