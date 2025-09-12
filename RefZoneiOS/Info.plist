@@ -59,5 +59,9 @@
         <string>UIInterfaceOrientationLandscapeLeft</string>
         <string>UIInterfaceOrientationLandscapeRight</string>
     </array>
+    
+    <!-- Debug-only injection: resolved from RefZoneiOS/Config/Secrets.xcconfig -->
+    <key>OPENAI_API_KEY</key>
+    <string>$(OPENAI_API_KEY)</string>
 </dict>
 </plist>
