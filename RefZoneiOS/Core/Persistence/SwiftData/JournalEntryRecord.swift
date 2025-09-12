@@ -1,6 +1,6 @@
 //
 //  JournalEntryRecord.swift
-//  RefWatchiOS
+//  RefZoneiOS
 //
 //  SwiftData model for storing self-assessment journal entries.
 //
@@ -43,4 +43,3 @@ final class JournalEntryRecord {
         self.toImprove = toImprove
     }
 }
-

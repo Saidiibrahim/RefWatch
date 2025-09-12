@@ -1,6 +1,6 @@
 //
 //  MatchLogsView.swift
-//  RefWatchWatchOS
+//  RefZoneWatchOS
 //
 //  Description: View displaying chronological match events log for referee reference
 //

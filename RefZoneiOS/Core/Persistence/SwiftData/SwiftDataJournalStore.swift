@@ -1,6 +1,6 @@
 //
 //  SwiftDataJournalStore.swift
-//  RefWatchiOS
+//  RefZoneiOS
 //
 //  iOS implementation of JournalEntryStoring backed by SwiftData.
 //
@@ -143,4 +143,3 @@ final class SwiftDataJournalStore: JournalEntryStoring {
         )
     }
 }
-

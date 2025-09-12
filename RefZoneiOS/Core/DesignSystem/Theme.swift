@@ -1,6 +1,6 @@
 //
 //  Theme.swift
-//  RefWatchiOS
+//  RefZoneiOS
 //
 //  Minimal color palette to mirror watch semantics
 //

@@ -1,6 +1,6 @@
 //
 //  PenaltyFirstKickerView.swift
-//  RefWatchiOS
+//  RefZoneiOS
 //
 //  Choose first kicker and start penalties.
 //

@@ -1,6 +1,6 @@
 //
 //  NavigationLinkButton.swift
-//  RefWatchWatchOS
+//  RefZoneWatchOS
 //
 //  Description: Reusable NavigationLink wrapper with consistent WatchOS styling
 //

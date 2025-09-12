@@ -1,4 +1,4 @@
-# RefWatch Watch App
+# RefZone Watch App
 
 A WatchOS app designed for football/soccer referees to manage matches efficiently.
 

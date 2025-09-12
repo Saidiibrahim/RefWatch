@@ -1,6 +1,6 @@
 //
 //  PreviewSupport.swift
-//  RefWatchiOS
+//  RefZoneiOS
 //
 //  Helpers for safe, realistic previews.
 //

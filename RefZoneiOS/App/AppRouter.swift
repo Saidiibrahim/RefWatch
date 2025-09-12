@@ -1,6 +1,6 @@
 //
 //  AppRouter.swift
-//  RefWatchiOS
+//  RefZoneiOS
 //
 //  Simple router to switch tabs from nested views
 //

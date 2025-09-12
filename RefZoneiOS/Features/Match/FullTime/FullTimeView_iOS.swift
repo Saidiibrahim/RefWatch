@@ -1,6 +1,6 @@
 //
 //  FullTimeView_iOS.swift
-//  RefWatchiOS
+//  RefZoneiOS
 //
 //  iOS Full Time view: shows final scores and requires explicit
 //  confirmation before finalizing/saving the match snapshot.

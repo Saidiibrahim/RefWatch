@@ -1,6 +1,6 @@
 //
 //  FullTimeView.swift
-//  RefWatchWatchOS
+//  RefZoneWatchOS
 //
 //  Description: Full-time display showing final scores and option to end match
 //

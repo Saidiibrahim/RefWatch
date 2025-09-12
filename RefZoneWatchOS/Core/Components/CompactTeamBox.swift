@@ -1,6 +1,6 @@
 //
 //  CompactTeamBox.swift
-//  RefWatchWatchOS
+//  RefZoneWatchOS
 //
 //  Description: Compact team selection box component optimized for watch screen space
 //

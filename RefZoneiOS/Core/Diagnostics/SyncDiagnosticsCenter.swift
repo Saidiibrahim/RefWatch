@@ -1,6 +1,6 @@
 //
 //  SyncDiagnosticsCenter.swift
-//  RefWatchiOS
+//  RefZoneiOS
 //
 //  Observes sync diagnostics notifications and exposes user-facing state.
 //

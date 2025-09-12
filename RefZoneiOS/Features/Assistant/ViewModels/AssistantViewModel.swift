@@ -1,6 +1,6 @@
 //
 //  AssistantViewModel.swift
-//  RefWatchiOS
+//  RefZoneiOS
 //
 
 import Foundation

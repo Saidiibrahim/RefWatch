@@ -1,6 +1,6 @@
 //
 //  ScoreStripView.swift
-//  RefWatchiOS
+//  RefZoneiOS
 //
 //  Lightweight iOS score display component inspired by the watch ScoreDisplayView.
 //
@@ -33,4 +33,3 @@ struct ScoreStripView: View {
 #Preview {
     ScoreStripView(homeTeam: "HOM", awayTeam: "AWA", homeScore: 1, awayScore: 0)
 }
-

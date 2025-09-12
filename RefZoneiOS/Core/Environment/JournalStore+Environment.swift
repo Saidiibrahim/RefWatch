@@ -1,6 +1,6 @@
 //
 //  JournalStore+Environment.swift
-//  RefWatchiOS
+//  RefZoneiOS
 //
 //  Environment bridge for injecting JournalEntryStoring.
 //
@@ -18,4 +18,3 @@ extension EnvironmentValues {
         set { self[JournalStoreKey.self] = newValue }
     }
 }
-

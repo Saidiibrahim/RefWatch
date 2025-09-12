@@ -1,6 +1,6 @@
 //
 //  PenaltyShootoutView.swift
-//  RefWatchWatchOS
+//  RefZoneWatchOS
 //
 //  Description: Penalty shootout flow with attempts and tallies for each team.
 //

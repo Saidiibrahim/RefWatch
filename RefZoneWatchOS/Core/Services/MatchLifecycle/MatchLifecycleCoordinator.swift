@@ -1,6 +1,6 @@
 //
 //  MatchLifecycleCoordinator.swift
-//  RefWatchWatchOS
+//  RefZoneWatchOS
 //
 //  Description: Central coordinator controlling the high-level match lifecycle
 //  (start → setup → running → halftime → second-half kickoff → finished).

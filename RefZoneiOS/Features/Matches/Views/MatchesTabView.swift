@@ -1,6 +1,6 @@
 //
 //  MatchesTabView.swift
-//  RefWatchiOS
+//  RefZoneiOS
 //
 //  Hub for iOS match flow: start a match and browse history.
 //

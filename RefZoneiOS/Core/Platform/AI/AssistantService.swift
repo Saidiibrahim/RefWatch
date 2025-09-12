@@ -1,6 +1,6 @@
 //
 //  AssistantService.swift
-//  RefWatchiOS
+//  RefZoneiOS
 //
 
 import Foundation

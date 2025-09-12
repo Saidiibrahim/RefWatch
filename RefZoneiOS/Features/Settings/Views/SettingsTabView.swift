@@ -1,6 +1,6 @@
 //
 //  SettingsTabView.swift
-//  RefWatchiOS
+//  RefZoneiOS
 //
 //  Placeholder for app settings & sync controls
 //

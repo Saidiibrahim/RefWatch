@@ -1,6 +1,6 @@
 //
 //  SelectionListView.swift
-//  RefWatchWatchOS
+//  RefZoneWatchOS
 //
 //  Description: Generic selection list component for enum-based options
 //  Rule Applied: State management, Code Structure, Swift Best Practices

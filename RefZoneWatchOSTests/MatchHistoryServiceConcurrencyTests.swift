@@ -1,6 +1,6 @@
 //
 //  MatchHistoryServiceConcurrencyTests.swift
-//  RefWatch Watch AppTests
+//  RefZone Watch AppTests
 //
 
 import Foundation

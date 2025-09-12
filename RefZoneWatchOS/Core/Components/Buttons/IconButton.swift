@@ -1,6 +1,6 @@
 //
 //  IconButton.swift
-//  RefWatchWatchOS
+//  RefZoneWatchOS
 //
 //  Description: Circular icon button for quick actions
 //

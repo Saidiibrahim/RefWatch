@@ -1,6 +1,6 @@
 //
 //  IOSConnectivitySyncClient.swift
-//  RefWatchiOS
+//  RefZoneiOS
 //
 //  iOS WatchConnectivity receiver for completed match snapshots.
 //

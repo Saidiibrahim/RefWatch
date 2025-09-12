@@ -1,6 +1,6 @@
 //
 //  ScheduledMatch.swift
-//  RefWatchiOS
+//  RefZoneiOS
 //
 //  Lightweight model for upcoming/today matches shown in the Matches tab.
 //
@@ -20,4 +20,3 @@ struct ScheduledMatch: Identifiable, Codable, Hashable {
         self.kickoff = kickoff
     }
 }
-

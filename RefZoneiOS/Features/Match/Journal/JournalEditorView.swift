@@ -1,6 +1,6 @@
 //
 //  JournalEditorView.swift
-//  RefWatchiOS
+//  RefZoneiOS
 //
 
 import SwiftUI
@@ -103,4 +103,3 @@ struct JournalEditorView: View {
         JournalEditorView(matchId: UUID())
     }
 }
-

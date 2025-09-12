@@ -1,6 +1,6 @@
 //
 //  WCSessioning.swift
-//  RefWatchWatchOS
+//  RefZoneWatchOS
 //
 //  Lightweight wrapper over WCSession to enable dependency injection in tests.
 //

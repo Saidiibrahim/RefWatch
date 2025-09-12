@@ -1,6 +1,6 @@
 //
 //  ConnectivityClient.swift
-//  RefWatchiOS
+//  RefZoneiOS
 //
 //  Very thin WatchConnectivity façade with graceful no-op fallback.
 //  For this scaffold it exposes booleans and stubs used by the UI.

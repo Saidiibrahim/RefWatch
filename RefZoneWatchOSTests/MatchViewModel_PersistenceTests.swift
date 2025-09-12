@@ -1,6 +1,6 @@
 //
 //  MatchViewModel_PersistenceTests.swift
-//  RefWatch Watch AppTests
+//  RefZone Watch AppTests
 //
 
 import Foundation

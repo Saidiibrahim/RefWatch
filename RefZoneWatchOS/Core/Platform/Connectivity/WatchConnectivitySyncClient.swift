@@ -1,6 +1,6 @@
 //
 //  WatchConnectivitySyncClient.swift
-//  RefWatchWatchOS
+//  RefZoneWatchOS
 //
 //  watchOS implementation to export completed matches to the paired iPhone.
 //

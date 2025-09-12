@@ -1,6 +1,6 @@
 //
 //  ClerkAuth.swift
-//  RefWatchiOS
+//  RefZoneiOS
 //
 //  Adapter that maps Clerk's user/session to the app's vendor-neutral
 //  AuthenticationProviding protocol. Kept intentionally tiny and stateless;
