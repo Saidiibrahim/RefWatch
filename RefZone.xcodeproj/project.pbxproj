@@ -79,6 +79,7 @@
 		96B8126E2E67CDA400B23EC0 /* RefZoneiOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = RefZoneiOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		96B8129E2E67CDA500B23EC0 /* RefZoneiOSTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RefZoneiOSTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		96B812AE2E67CDA500B23EC0 /* RefZoneiOSUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RefZoneiOSUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		96B8C0DE2E67CDA500B23EC0 /* RefZoneiOS/Config/Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = RefZoneiOS/Config/Secrets.xcconfig; sourceTree = "<group>"; };
 		9AF0AAA11D00000000000001 /* RefZoneWatchOS/Core/Services/TimerManager/TimerManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RefZoneWatchOS/Core/Services/TimerManager/TimerManager.swift; sourceTree = "<group>"; };
 		9AF0AAA11D00000000000002 /* RefZoneWatchOS/Core/Services/MatchHistory/MatchHistoryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RefZoneWatchOS/Core/Services/MatchHistory/MatchHistoryService.swift; sourceTree = "<group>"; };
 		9AF0AAA11D00000000000003 /* RefZoneWatchOS/Core/Services/PenaltyManager/PenaltyManaging.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RefZoneWatchOS/Core/Services/PenaltyManager/PenaltyManaging.swift; sourceTree = "<group>"; };
@@ -95,7 +96,7 @@
 		9AF0AAA11D0000000000000E /* RefZoneWatchOS/Core/Protocols/HapticsProviding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RefZoneWatchOS/Core/Protocols/HapticsProviding.swift; sourceTree = "<group>"; };
 		9AF0AAA11D0000000000000F /* RefZoneWatchOS/Core/Protocols/PersistenceProviding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RefZoneWatchOS/Core/Protocols/PersistenceProviding.swift; sourceTree = "<group>"; };
 		9AF0AAA11D00000000000010 /* RefZoneWatchOS/Core/Protocols/ConnectivitySyncProviding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RefZoneWatchOS/Core/Protocols/ConnectivitySyncProviding.swift; sourceTree = "<group>"; };
-        96B8C0DE2E67CDA500B23EC0 /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = RefZoneiOS/Config/Secrets.xcconfig; sourceTree = "<group>"; };
+		9AF0AAA11D00000000000011 /* RefZoneWatchOS/Core/Components/TimerFaces/ProStoppageFace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RefZoneWatchOS/Core/Components/TimerFaces/ProStoppageFace.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -205,6 +206,7 @@
 				9AF0AAA01D00000000000001 /* Shared */,
 				96FEE6032E72E22A00EDD7BD /* Frameworks */,
 				964A4D6C2D32234A00D08376 /* Products */,
+				966BE9822E7543C80052A937 /* Recovered References */,
 			);
 			sourceTree = "<group>";
 		};
@@ -219,6 +221,14 @@
 				96B812AE2E67CDA500B23EC0 /* RefZoneiOSUITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		966BE9822E7543C80052A937 /* Recovered References */ = {
+			isa = PBXGroup;
+			children = (
+				96B8C0DE2E67CDA500B23EC0 /* RefZoneiOS/Config/Secrets.xcconfig */,
+			);
+			name = "Recovered References";
 			sourceTree = "<group>";
 		};
 		96FEE6032E72E22A00EDD7BD /* Frameworks */ = {
@@ -247,6 +257,7 @@
 				9AF0AAA11D0000000000000F /* RefZoneWatchOS/Core/Protocols/PersistenceProviding.swift */,
 				9AF0AAA11D00000000000010 /* RefZoneWatchOS/Core/Protocols/ConnectivitySyncProviding.swift */,
 				9AF0AAA11D0000000000000D /* RefZoneWatchOS/Features/Match/ViewModels/MatchViewModel.swift */,
+				9AF0AAA11D00000000000011 /* RefZoneWatchOS/Core/Components/TimerFaces/ProStoppageFace.swift */,
 			);
 			name = Shared;
 			sourceTree = "<group>";
@@ -878,45 +889,45 @@
 			name = Release;
 		};
 		96B812772E67CDA500B23EC0 /* Debug */ = {
-		isa = XCBuildConfiguration;
-		baseConfigurationReference = 96B8C0DE2E67CDA500B23EC0 /* Secrets.xcconfig */;
-		buildSettings = {
-			ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-			ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-			CODE_SIGN_ENTITLEMENTS = RefZoneiOS/RefZoneiOS.entitlements;
-			CODE_SIGN_STYLE = Automatic;
-			CURRENT_PROJECT_VERSION = 1;
-			DEVELOPMENT_TEAM = 6NV7X5BLU7;
-			ENABLE_PREVIEWS = YES;
-			GENERATE_INFOPLIST_FILE = NO;
-			INFOPLIST_FILE = RefZoneiOS/Info.plist;
-			INFOPLIST_KEY_CFBundleDisplayName = RefZone;
-			INFOPLIST_KEY_OPENAI_API_KEY = "$(OPENAI_API_KEY)";
-			INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
-			INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-			INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-			INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-			INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-			INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.IbrahimSaidi.RefZone;
-			IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-			LD_RUNPATH_SEARCH_PATHS = (
-				"$(inherited)",
-				"@executable_path/Frameworks",
-			);
-			MARKETING_VERSION = 1.0;
-			PRODUCT_BUNDLE_IDENTIFIER = com.IbrahimSaidi.RefZone;
-			PRODUCT_NAME = "$(TARGET_NAME)";
-			SDKROOT = iphoneos;
-			STRING_CATALOG_GENERATE_SYMBOLS = YES;
-			SWIFT_APPROACHABLE_CONCURRENCY = YES;
-			SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
-			SWIFT_EMIT_LOC_STRINGS = YES;
-			SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-			SWIFT_VERSION = 5.0;
-			TARGETED_DEVICE_FAMILY = "1,2";
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 96B8C0DE2E67CDA500B23EC0 /* RefZoneiOS/Config/Secrets.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = RefZoneiOS/RefZoneiOS.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 6NV7X5BLU7;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = RefZoneiOS/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = RefZone;
+				INFOPLIST_KEY_OPENAI_API_KEY = "$(OPENAI_API_KEY)";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.IbrahimSaidi.RefZone;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.IbrahimSaidi.RefZone;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
 		};
-		name = Debug;
-	};
 		96B812782E67CDA500B23EC0 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
