@@ -50,7 +50,6 @@
             ReferencedContainer = "container:RefZone.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
-      
    </LaunchAction>
    <ProfileAction
       buildConfiguration = "Release"
