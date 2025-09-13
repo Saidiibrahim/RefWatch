@@ -9,7 +9,8 @@ public enum TimerFaceFactory {
         switch style {
         case .standard:
             StandardTimerFace(model: model)
+        case .proStoppage:
+            ProStoppageFace(model: model)
         }
     }
 }
-
