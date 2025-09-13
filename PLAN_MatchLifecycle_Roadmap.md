@@ -38,25 +38,25 @@ Follow-up commit addressing review feedback
 
 Key files changed/added/deleted (v1)
 - Model/VM:
-  - `RefWatchWatchOS/Features/Match/Models/Match.swift`
-  - `RefWatchWatchOS/Features/Match/ViewModels/MatchViewModel.swift`
+  - `RefZoneWatchOS/Features/Match/Models/Match.swift`
+  - `RefZoneWatchOS/Features/Match/ViewModels/MatchViewModel.swift`
 - Events (canonical types, flows):
-  - `RefWatchWatchOS/Features/Events/Models/MatchEventRecord.swift` (already present; used)
-  - `RefWatchWatchOS/Features/Events/Views/GoalTypeSelectionView.swift`
-  - `RefWatchWatchOS/Features/Events/Views/PlayerNumberInputView.swift`
-  - `RefWatchWatchOS/Features/Events/Views/CardEventFlow.swift`
-  - `RefWatchWatchOS/Features/Events/Views/CardRecipientSelectionView.swift`
-  - `RefWatchWatchOS/Features/Events/Views/CardReasonSelectionView.swift`
-  - `RefWatchWatchOS/Features/Events/ViewModels/CardEventCoordinator.swift`
+  - `RefZoneWatchOS/Features/Events/Models/MatchEventRecord.swift` (already present; used)
+  - `RefZoneWatchOS/Features/Events/Views/GoalTypeSelectionView.swift`
+  - `RefZoneWatchOS/Features/Events/Views/PlayerNumberInputView.swift`
+  - `RefZoneWatchOS/Features/Events/Views/CardEventFlow.swift`
+  - `RefZoneWatchOS/Features/Events/Views/CardRecipientSelectionView.swift`
+  - `RefZoneWatchOS/Features/Events/Views/CardReasonSelectionView.swift`
+  - `RefZoneWatchOS/Features/Events/ViewModels/CardEventCoordinator.swift`
 - UI polish and routing:
-  - `RefWatchWatchOS/Features/Match/Views/MatchKickOffView.swift`
-  - `RefWatchWatchOS/Features/Timer/Views/FullTimeView.swift`
-  - `RefWatchWatchOS/Features/Match/Views/StartMatchScreen.swift`
+  - `RefZoneWatchOS/Features/Match/Views/MatchKickOffView.swift`
+  - `RefZoneWatchOS/Features/Timer/Views/FullTimeView.swift`
+  - `RefZoneWatchOS/Features/Match/Views/StartMatchScreen.swift`
 - Deleted legacy/unused:
-  - `RefWatchWatchOS/Features/Events/Models/MatchEvent.swift` (deleted)
-  - `RefWatchWatchOS/Core/Services/TimerService/TimerService.swift` (deleted)
-  - `RefWatchWatchOS/Core/Services/MatchStateService/MatchStateService.swift` (deleted)
-  - `RefWatchWatchOS/Features/MatchSetup/Views/StartMatchDetailsView.swift` (deleted)
+  - `RefZoneWatchOS/Features/Events/Models/MatchEvent.swift` (deleted)
+  - `RefZoneWatchOS/Core/Services/TimerService/TimerService.swift` (deleted)
+  - `RefZoneWatchOS/Core/Services/MatchStateService/MatchStateService.swift` (deleted)
+  - `RefZoneWatchOS/Features/MatchSetup/Views/StartMatchDetailsView.swift` (deleted)
 
 Manual QA done for v1 (high level)
 - Kickoff shows correct per‑period durations for 40/45/50‑minute setups.
@@ -68,8 +68,8 @@ Manual QA done for v1 (high level)
 - Selecting a saved match routes to kickoff.
 
 Build & Test commands
-- Build: `xcodebuild -project RefWatch.xcodeproj -scheme "RefWatch Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)' build`
-- Test: `xcodebuild test -project RefWatch.xcodeproj -scheme "RefWatch Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)'`
+- Build: `xcodebuild -project RefZone.xcodeproj -scheme "RefZone Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)' build`
+- Test: `xcodebuild test -project RefZone.xcodeproj -scheme "RefZone Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)'`
 
 ---
 
@@ -95,8 +95,8 @@ Manual QA done for v2 (high level)
 - Defensive guards prevent nil‑timer crashes and divide‑by‑zero in per‑period computations.
 
 Key files changed/added (v2)
-- Guards: `RefWatchWatchOS/Features/Match/ViewModels/MatchViewModel.swift`, `RefWatchWatchOS/Features/Match/Views/MatchKickOffView.swift`
-- Tests: `RefWatchWatchOSTests/MatchViewModel_TimeConversionTests.swift`, `RefWatchWatchOSTests/MatchViewModel_KickoffAlternationTests.swift`, `RefWatchWatchOSTests/MatchViewModel_EventsAndStoppageTests.swift`
+- Guards: `RefZoneWatchOS/Features/Match/ViewModels/MatchViewModel.swift`, `RefZoneWatchOS/Features/Match/Views/MatchKickOffView.swift`
+- Tests: `RefZoneWatchOSTests/MatchViewModel_TimeConversionTests.swift`, `RefZoneWatchOSTests/MatchViewModel_KickoffAlternationTests.swift`, `RefZoneWatchOSTests/MatchViewModel_EventsAndStoppageTests.swift`
 
 ---
 
@@ -141,8 +141,8 @@ PR v2 (Completed) ✅ — Tests + Defensive Hardening
   - All tests pass locally and in CI.
   - No per‑tick logs in release; no timer crashes due to nil unwrapping.
 - Suggested Files:
-  - `RefWatchWatchOSTests/*` (new tests)
-  - `RefWatchWatchOS/Features/Match/ViewModels/MatchViewModel.swift` (small guards only)
+- `RefZoneWatchOSTests/*` (new tests)
+  - `RefZoneWatchOS/Features/Match/ViewModels/MatchViewModel.swift` (small guards only)
 
 ---
 
@@ -155,7 +155,7 @@ Branch and PR
 
 Delivered in v3
 - TimerManager Service:
-- Added `RefWatchWatchOS/Core/Services/TimerManager/TimerManager.swift` (@Observable) managing:
+- Added `RefZoneWatchOS/Core/Services/TimerManager/TimerManager.swift` (@Observable) managing:
     - Period tick (match elapsed, period elapsed, period countdown).
     - Stoppage accumulation across pauses with formatted `+mm:ss`.
     - Half-time elapsed tracking with haptic at configured threshold.
@@ -164,8 +164,8 @@ Delivered in v3
   - Delegates timer/stoppage/halftime responsibilities to `TimerManager` while preserving public API and behavior.
   - Removed unused legacy start-time assignments and updated debug log.
 - Tests:
-- Added `RefWatchWatchOSTests/TimerManagerTests.swift` (per-period label calc, safety/idempotency cases).
-- Added `RefWatchWatchOSTests/TestTimeHelpers.swift` (mm:ss parsing helper).
+- Added `RefZoneWatchOSTests/TimerManagerTests.swift` (per-period label calc, safety/idempotency cases).
+- Added `RefZoneWatchOSTests/TestTimeHelpers.swift` (mm:ss parsing helper).
 - Review Follow-ups:
   - Guard comment explaining single period timer; note about potential repeated halftime haptic (behavior unchanged by design).
 
@@ -276,7 +276,7 @@ PR v6.1 — Data Security, Export, and History UX
   - `Core/Services/MatchHistory/MatchHistoryService.swift` (size reporting, export, optional integrity logging)
   - `Features/Match/ViewModels/MatchViewModel.swift` (bridges for export + filtering)
   - `Features/Match/Views/MatchHistoryView.swift` (search/filter controls in a compact watch‑friendly UI; export trigger in overflow menu)
-- `RefWatchWatchOSTests/*` (export success test using temp dir; size reporting tests)
+- `RefZoneWatchOSTests/*` (export success test using temp dir; size reporting tests)
 
 PR v7 — Docs + Cleanup
 - Goals:
@@ -301,8 +301,8 @@ PR v7 — Docs + Cleanup
 ## Build, Test, and Verification
 
 Commands
-- Build: `xcodebuild -project RefWatch.xcodeproj -scheme "RefWatch Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)' build`
-- Test: `xcodebuild test -project RefWatch.xcodeproj -scheme "RefWatch Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)'`
+- Build: `xcodebuild -project RefZone.xcodeproj -scheme "RefZone Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)' build`
+- Test: `xcodebuild test -project RefZone.xcodeproj -scheme "RefZone Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)'`
 
 Manual QA Checklist (baseline)
 - Kickoff per‑period duration matches configuration (40/45/50 minutes).
