@@ -16,6 +16,18 @@ public struct ProStoppageFace: View {
         .accessibilityIdentifier("proStoppageFace")
     }
 
+    // MARK: - Constants
+    private enum Constants {
+        static let prominentFontSize: CGFloat = 36
+        static let iconSize: CGFloat = 44
+        static let verticalSpacing: CGFloat = 6
+        static let rowValueFontSize: CGFloat = 18
+        static let stoppageFontSize: CGFloat = 16
+        static let halfTimeLargeFontSize: CGFloat = 48
+        static let halfTimeVerticalPadding: CGFloat = 40
+        static let contentVerticalPadding: CGFloat = 8
+    }
+
     // MARK: - Subviews
     @ViewBuilder
     private var halfTimeView: some View {
@@ -24,7 +36,7 @@ public struct ProStoppageFace: View {
             IconButton(
                 icon: "checkmark.circle.fill",
                 color: Color.green,
-                size: 44,
+                size: Constants.iconSize,
                 action: {
                     WKInterfaceDevice.current().play(.start)
                     model.startHalfTimeManually()
@@ -34,19 +46,19 @@ public struct ProStoppageFace: View {
             Spacer()
         } else {
             Text(model.halfTimeElapsed)
-                .font(.system(size: 48, weight: .bold, design: .rounded))
+                .font(.system(size: Constants.halfTimeLargeFontSize, weight: .bold, design: .rounded))
                 .monospacedDigit()
                 .foregroundColor(.white)
-                .padding(.vertical, 40)
+                .padding(.vertical, Constants.halfTimeVerticalPadding)
         }
     }
 
     @ViewBuilder
     private var runningMatchView: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: Constants.verticalSpacing) {
             // Prominent per-period context: time remaining in current period
             Text(model.periodTimeRemaining)
-                .font(.system(size: 36, weight: .bold, design: .rounded))
+                .font(.system(size: Constants.prominentFontSize, weight: .bold, design: .rounded))
                 .monospacedDigit()
 
             // Elapsed row (total match time)
@@ -55,7 +67,7 @@ public struct ProStoppageFace: View {
                     .foregroundColor(.gray)
                 Spacer()
                 Text(model.matchTime)
-                    .font(.system(size: 18, weight: .medium, design: .rounded))
+                    .font(.system(size: Constants.rowValueFontSize, weight: .medium, design: .rounded))
                     .monospacedDigit()
             }
 
@@ -65,12 +77,12 @@ public struct ProStoppageFace: View {
                     .foregroundColor(.gray)
                 Spacer()
                 Text("+\(model.formattedStoppageTime)")
-                    .font(.system(size: 16, weight: .medium, design: .rounded))
+                    .font(.system(size: Constants.stoppageFontSize, weight: .medium, design: .rounded))
                     .monospacedDigit()
                     .foregroundColor(model.isInStoppage ? .orange : .gray)
             }
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, Constants.contentVerticalPadding)
         .onTapGesture {
             WKInterfaceDevice.current().play(.click)
             if model.isPaused { model.resumeMatch() } else { model.pauseMatch() }
@@ -78,3 +90,14 @@ public struct ProStoppageFace: View {
     }
 }
 
+#Preview {
+    let vm = MatchViewModel(haptics: WatchHaptics())
+    vm.isHalfTime = false
+    vm.isPaused = true
+    vm.currentPeriod = 1
+    vm.matchTime = "23:45"
+    vm.periodTimeRemaining = "21:15"
+    vm.formattedStoppageTime = "02:10"
+    vm.isInStoppage = true
+    return ProStoppageFace(model: vm)
+}
