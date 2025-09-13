@@ -9,13 +9,13 @@ Status: Working plan for introducing swappable timer faces to the watchOS app.
 - Default face is visually identical to current UX ("Standard").
 
 ## Current Status
-- PR1 (Architecture + Standard face) is OPEN.
+- PR1 (Architecture + Standard face) is MERGED to main (v0.5.1).
   - Branch: `feature/watchos-timer-faces`
   - PR: https://github.com/Saidiibrahim/RefWatch/pull/20
 
 ## PR Breakdown
 
-### PR1 — Timer Faces Architecture (OPEN)
+### PR1 — Timer Faces Architecture (MERGED)
 - Branch: `feature/watchos-timer-faces`
 - Commits: 5 (landed in branch)
 - Scope:
@@ -31,10 +31,10 @@ Status: Working plan for introducing swappable timer faces to the watchOS app.
   - Tests compile and pass.
 - Risk: Low (UI extraction only).
 
-### PR2 — Settings Toggle For Timer Face (STACKED)
+### PR2 — Settings Toggle For Timer Face
 - Branch: `feature/watchos-timer-face-settings`
-- Base: `feature/watchos-timer-faces` (stacked while PR1 is open)
-- Commits: ~3–4
+- Base: `main`
+- Commits: ~4
 - Scope:
   - Add `TimerSettingsView` under `RefZoneWatchOS/Features/Settings/Views/` with a Picker over `TimerFaceStyle.allCases`.
   - Add a row in Settings root: "Timer Face" → navigates to picker.
@@ -92,12 +92,9 @@ Status: Working plan for introducing swappable timer faces to the watchOS app.
 - Risk: Low.
 
 ## Sequencing & Stacking
-- Preferred while PR1 is open: stack PR2 on PR1
-  - Create branch: `git checkout -b feature/watchos-timer-face-settings origin/feature/watchos-timer-faces`
-  - Push and open PR with base set to `feature/watchos-timer-faces`.
-- After PR1 merges:
-  - Rebase PR2 onto `main`: `git fetch origin && git checkout feature/watchos-timer-face-settings && git rebase origin/main`
-  - Change PR base to `main`.
+- PR1 merged: develop PR2 off `main`.
+  - Create branch: `git checkout -b feature/watchos-timer-face-settings`
+  - Push and open PR with base set to `main`.
 
 ## Acceptance Criteria (Global)
 - Default face is Standard with zero behavior change.
