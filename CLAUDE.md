@@ -11,29 +11,29 @@ RefWatch is a multi-platform app (watchOS + iOS) designed for football/soccer re
 ### Building the Project
 ```bash
 # Build the Watch app
-xcodebuild -project RefWatch.xcodeproj -scheme "RefWatch Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)' build
+xcodebuild -project RefZone.xcodeproj -scheme "RefZone Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)' build
 
 # Build the iOS app
-xcodebuild -project RefWatch.xcodeproj -scheme "RefWatch iOS App" -destination 'platform=iOS Simulator,name=iPhone 15' build
+xcodebuild -project RefZone.xcodeproj -scheme "RefZoneiOS" -destination 'platform=iOS Simulator,name=iPhone 15' build
 
 # Build all targets (schemes must be shared)
-xcodebuild -project RefWatch.xcodeproj build
+xcodebuild -project RefZone.xcodeproj build
 ```
 
 ### Running Tests
 ```bash
 # Run watchOS unit tests
-xcodebuild -project RefWatch.xcodeproj -scheme "RefWatch Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)' test
+xcodebuild -project RefZone.xcodeproj -scheme "RefZone Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)' test
 
 # (When present) Run iOS unit tests
-xcodebuild -project RefWatch.xcodeproj -scheme "RefWatch iOS App" -destination 'platform=iOS Simulator,name=iPhone 15' test
+xcodebuild -project RefZone.xcodeproj -scheme "RefZoneiOS" -destination 'platform=iOS Simulator,name=iPhone 15' test
 ```
 
 ### Development
-- Open `RefWatch.xcodeproj` in Xcode
+- Open `RefZone.xcodeproj` in Xcode
 - Select a scheme:
-  - watchOS: "RefWatch Watch App" → Apple Watch simulator
-  - iOS: "RefWatch iOS App" → iPhone simulator
+  - watchOS: "RefZone Watch App" → Apple Watch simulator
+  - iOS: "RefZoneiOS" → iPhone simulator
 - Build and run with ⌘+R
 
 ## Architecture & Code Structure
@@ -42,7 +42,7 @@ xcodebuild -project RefWatch.xcodeproj -scheme "RefWatch iOS App" -destination '
 The repository follows a feature‑first architecture with clear separation of concerns. There are two app folders and a shared pool of sources compiled into both targets.
 
 ```
-RefWatchWatchOS/
+RefZoneWatchOS/
 ├── App/                    # Entry point and root configuration
 ├── Core/                   # Shared components and services
 │   ├── Components/         # Reusable UI components
@@ -54,7 +54,7 @@ RefWatchWatchOS/
     ├── Settings/          # App preferences
     ├── TeamManagement/    # Team and officials management
     └── Timer/             # Match timing functionality
-RefWatchiOS/
+RefZoneiOS/
 ├── App/                   # Entry, router, tabs (MainTabView)
 ├── Core/
 │   ├── DesignSystem/      # Theme, palettes, shared modifiers
@@ -143,7 +143,7 @@ Uses a sophisticated coordinator pattern:
 
 - **watchOS**: target 11.2+, WatchKit haptics; avoid per‑tick logs; keep timer scheduling in `.common` and UI updates on main thread.
 - **Development Team**: 6NV7X5BLU7
-- **Bundle ID**: com.IbrahimSaidi.RefWatch.watchkitapp
+- **Bundle ID**: com.IbrahimSaidi.RefZone.watchkitapp
 - **Interface Orientations**: Portrait and Portrait Upside Down
 - **Deployment**: Watch-only app (WKWatchOnly = YES)
 
@@ -154,7 +154,7 @@ Uses a sophisticated coordinator pattern:
 1. **Feature Development**: Create new features in each app’s `Features/` directory following MVVM (Models/ViewModels/Views).
 2. **Shared Code**: Prefer sharing via Target Membership first; keep shared sources UI‑agnostic (no WatchKit/UIKit). Use adapter protocols (`HapticsProviding`, `PersistenceProviding`, `ConnectivitySyncProviding`).
 3. **Business Logic**: Implement services in `Core/Services/` (watch) and platform adapters under each app’s `Core/Platform/`.
-4. **Testing**: Write unit tests under `RefWatchWatchOSTests/` (and future iOS tests). Keep package‑ready boundaries for a future `RefWatchCore` SPM.
+4. **Testing**: Write unit tests under `RefZoneWatchOSTests/` (and future iOS tests). Keep package‑ready boundaries for a future `RefWatchCore` SPM.
 
 ## Important Notes
 

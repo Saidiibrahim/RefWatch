@@ -165,10 +165,10 @@ This document lays out a phased, multi‑PR plan to integrate modern watchOS cap
 ## Build, Test, and Verification
 
 - Build
-  - `xcodebuild -project RefWatch.xcodeproj -scheme "RefWatch Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)' build`
+  - `xcodebuild -project RefZone.xcodeproj -scheme "RefZone Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)' build`
 
 - Test
-  - `xcodebuild test -project RefWatch.xcodeproj -scheme "RefWatch Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)'`
+  - `xcodebuild test -project RefZone.xcodeproj -scheme "RefZone Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)'`
 
 - Manual QA Checklist (baseline)
   - Start → Kickoff → Pause/Resume; stoppage accumulates and resets per period.
@@ -192,5 +192,4 @@ This document lays out a phased, multi‑PR plan to integrate modern watchOS cap
 - Proceed in order: W1 → W2 → W3 → W4. Each PR should include device‑based manual QA notes when Health/Routes are touched.
 - Keep `MatchLifecycleCoordinator` authoritative for routing; avoid state duplication in VM where possible.
 - If end‑of‑match navigation regresses, verify finalize flow and consider a NavigationPath fallback.
-
 

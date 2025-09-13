@@ -36,7 +36,7 @@ Status: Working plan for introducing swappable timer faces to the watchOS app.
 - Base: `feature/watchos-timer-faces` (stacked while PR1 is open)
 - Commits: ~3–4
 - Scope:
-  - Add `TimerSettingsView` under `RefWatchWatchOS/Features/Settings/Views/` with a Picker over `TimerFaceStyle.allCases`.
+  - Add `TimerSettingsView` under `RefZoneWatchOS/Features/Settings/Views/` with a Picker over `TimerFaceStyle.allCases`.
   - Add a row in Settings root: "Timer Face" → navigates to picker.
   - Bind to `@AppStorage("timer_face_style")`; default `.standard`.
 - Acceptance:

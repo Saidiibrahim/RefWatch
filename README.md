@@ -1,4 +1,4 @@
-# RefWatch Watch App
+# RefZone Watch App
 
 A WatchOS app designed for football/soccer referees to manage matches efficiently.
 
@@ -33,3 +33,11 @@ A WatchOS app designed for football/soccer referees to manage matches efficientl
 - SwiftUI
 - WatchOS
 - MVVM Architecture
+
+## Local Secrets (Debug only)
+
+- The app reads `OPENAI_API_KEY` from the process environment in Debug builds only (see `RefZoneiOS/Core/Platform/AI/Secrets.swift`).
+- Do not commit secrets to schemes or source. Options for local setup:
+  - Add `OPENAI_API_KEY` to your user (unshared) Xcode scheme under Run → Arguments → Environment Variables.
+  - Or export it in your shell before launching from Xcode: `export OPENAI_API_KEY=...`.
+- A template exists at `RefZoneiOS/Config/Secrets.example.xcconfig` for team guidance; `Secrets.xcconfig` is gitignored.
