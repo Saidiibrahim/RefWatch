@@ -3,6 +3,7 @@
 
 import SwiftUI
 import WatchKit
+import RefWatchCore
 
 public struct ProStoppageFace: View {
     let model: TimerFaceModel
@@ -91,13 +92,5 @@ public struct ProStoppageFace: View {
 }
 
 #Preview {
-    let vm = MatchViewModel(haptics: WatchHaptics())
-    vm.isHalfTime = false
-    vm.isPaused = true
-    vm.currentPeriod = 1
-    vm.matchTime = "23:45"
-    vm.periodTimeRemaining = "21:15"
-    vm.formattedStoppageTime = "02:10"
-    vm.isInStoppage = true
-    return ProStoppageFace(model: vm)
+    ProStoppageFace(model: MatchViewModel(haptics: WatchHaptics()))
 }
