@@ -69,3 +69,9 @@ fastlane/test_output
 
 # Local secrets (iOS)
 RefZoneiOS/Config/Secrets.xcconfig
+
+# Local Xcode build outputs (do not commit)
+build/
+RefWatchCore/build/
+*.xcresult
+DerivedData/
