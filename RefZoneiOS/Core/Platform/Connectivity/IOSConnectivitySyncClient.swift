@@ -10,6 +10,7 @@ import RefWatchCore
 #if canImport(WatchConnectivity)
 import WatchConnectivity
 #endif
+import OSLog
 
 extension Notification.Name {
     static let matchHistoryDidChange = Notification.Name("MatchHistoryDidChange")
@@ -68,9 +69,11 @@ final class IOSConnectivitySyncClient: NSObject {
             // Attach owner id if missing on the main actor (ClerkAuth accesses @MainActor values)
             let snapshot = match.attachingOwnerIfMissing(using: auth)
             do { try history.save(snapshot) } catch {
-                #if DEBUG
-                print("DEBUG: Failed to save synced snapshot: \(error)")
-                #endif
+                AppLog.history.error("Failed to save synced snapshot: \(error.localizedDescription, privacy: .public)")
+                NotificationCenter.default.post(name: .syncNonrecoverableError, object: nil, userInfo: [
+                    "error": "save failed",
+                    "context": "ios.connectivity.saveHistory"
+                ])
             }
             NotificationCenter.default.post(name: .matchHistoryDidChange, object: nil)
         }

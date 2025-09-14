@@ -18,6 +18,8 @@ struct RefZoneiOSApp: App {
     private let modelContainer: ModelContainer?
     private let historyStore: MatchHistoryStoring
     private let journalStore: JournalEntryStoring
+    private let scheduleStore: ScheduleStoring
+    private let teamStore: TeamLibraryStoring
 
     private let clerk = Clerk.shared
     @State private var matchVM: MatchViewModel
@@ -35,7 +37,16 @@ struct RefZoneiOSApp: App {
         // 1) On-disk SwiftData (preferred): full persistence, query performance, and indexing.
         // 2) In-memory SwiftData: avoids startup crash if persistent container fails; keeps app usable.
         // 3) JSON store: final safety net to ensure critical features continue to work.
-        let schema = Schema([CompletedMatchRecord.self, JournalEntryRecord.self])
+        let schema = Schema([
+            CompletedMatchRecord.self,
+            JournalEntryRecord.self,
+            // Teams + Library
+            TeamRecord.self,
+            PlayerRecord.self,
+            TeamOfficialRecord.self,
+            // Schedule
+            ScheduledMatchRecord.self
+        ])
         let auth = ClerkAuth()
         let result = ModelContainerFactory.makeStore(builder: Self.containerBuilder, schema: schema, auth: auth)
         // Build dependencies as locals first to avoid capturing `self` in escaping autoclosures
@@ -44,23 +55,31 @@ struct RefZoneiOSApp: App {
         let vm = MatchViewModel(history: store, haptics: IOSHaptics())
         let controller = ConnectivitySyncController(history: store, auth: auth)
         let jStore: JournalEntryStoring
+        let schedStore: ScheduleStoring
+        let tStore: TeamLibraryStoring
         if let container {
             jStore = SwiftDataJournalStore(container: container, auth: auth)
+            schedStore = SwiftDataScheduleStore(container: container, importJSONOnFirstRun: true)
+            tStore = SwiftDataTeamLibraryStore(container: container)
         } else {
             jStore = InMemoryJournalStore()
+            schedStore = ScheduleService()
+            tStore = InMemoryTeamLibraryStore()
         }
 
         // Assign to stored properties/wrappers
         self.modelContainer = container
         self.historyStore = store
         self.journalStore = jStore
+        self.scheduleStore = schedStore
+        self.teamStore = tStore
         _matchVM = State(initialValue: vm)
         _syncController = StateObject(wrappedValue: controller)
     }
 
     var body: some Scene {
         WindowGroup {
-            MainTabView(matchViewModel: matchVM, historyStore: historyStore)
+            MainTabView(matchViewModel: matchVM, historyStore: historyStore, scheduleStore: scheduleStore, teamStore: teamStore)
                 .environmentObject(router)
                 .environmentObject(syncDiagnostics)
                 .environment(\.clerk, clerk)

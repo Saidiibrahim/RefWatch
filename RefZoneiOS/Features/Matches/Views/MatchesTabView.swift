@@ -14,13 +14,15 @@ struct MatchesTabView: View {
     @Environment(\.journalStore) private var journalStore
     let matchViewModel: MatchViewModel
     let historyStore: MatchHistoryStoring
+    let scheduleStore: ScheduleStoring
+    let teamStore: TeamLibraryStoring
     @State private var path: [Route] = []
     enum Route: Hashable { case setup, timer, historyList, scheduleSetup(ScheduledMatch) }
     @State private var recent: [CompletedMatch] = []
     @State private var today: [ScheduledMatch] = []
     @State private var upcoming: [ScheduledMatch] = []
-    private let scheduleStore = ScheduleService()
     @State private var lastNeedingJournal: CompletedMatch? = nil
+    @State private var showingAddUpcoming = false
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -116,6 +118,9 @@ struct MatchesTabView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { path.append(.historyList) } label: { Label("History", systemImage: "clock") }
                 }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { showingAddUpcoming = true } label: { Label("Add Upcoming", systemImage: "calendar.badge.plus") }
+                }
             }
             .onAppear {
                 refreshRecentAndPrompt()
@@ -125,6 +130,11 @@ struct MatchesTabView: View {
                 today = all.filter { cal.isDate($0.kickoff, inSameDayAs: now) }
                 upcoming = all.filter { $0.kickoff > cal.startOfDay(for: now).addingTimeInterval(24*60*60) }
                     .sorted(by: { $0.kickoff < $1.kickoff })
+            }
+            .sheet(isPresented: $showingAddUpcoming) {
+                UpcomingMatchEditorView(scheduleStore: scheduleStore, teamStore: teamStore) {
+                    refreshSchedule()
+                }
             }
             .onChange(of: matchViewModel.matchCompleted) { completed in
                 if completed { refreshRecentAndPrompt() }
@@ -159,8 +169,13 @@ struct MatchesTabView: View {
 }
 #if DEBUG
 #Preview {
-    MatchesTabView(matchViewModel: MatchViewModel(haptics: NoopHaptics()), historyStore: MatchHistoryService())
-        .environmentObject(AppRouter.preview())
+    MatchesTabView(
+        matchViewModel: MatchViewModel(haptics: NoopHaptics()),
+        historyStore: MatchHistoryService(),
+        scheduleStore: ScheduleService(),
+        teamStore: InMemoryTeamLibraryStore()
+    )
+    .environmentObject(AppRouter.preview())
 }
 #endif
  
@@ -197,5 +212,13 @@ private extension MatchesTabView {
         } else {
             lastNeedingJournal = nil
         }
+    }
+    func refreshSchedule() {
+        let all = scheduleStore.loadAll()
+        let now = Date()
+        let cal = Calendar.current
+        today = all.filter { cal.isDate($0.kickoff, inSameDayAs: now) }
+        upcoming = all.filter { $0.kickoff > cal.startOfDay(for: now).addingTimeInterval(24*60*60) }
+            .sorted(by: { $0.kickoff < $1.kickoff })
     }
 }
