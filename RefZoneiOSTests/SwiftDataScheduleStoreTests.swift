@@ -3,6 +3,7 @@ import XCTest
 import SwiftData
 @testable import RefZoneiOS
 
+@MainActor
 final class SwiftDataScheduleStoreTests: XCTestCase {
 
     func makeMemoryContainer() throws -> ModelContainer {
@@ -61,4 +62,3 @@ final class SwiftDataScheduleStoreTests: XCTestCase {
 }
 
 #endif
-
