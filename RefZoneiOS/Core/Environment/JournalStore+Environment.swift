@@ -9,7 +9,7 @@ import SwiftUI
 import RefWatchCore
 
 private struct JournalStoreKey: EnvironmentKey {
-    static let defaultValue: JournalEntryStoring = InMemoryJournalStore()
+    @MainActor static var defaultValue: JournalEntryStoring { InMemoryJournalStore() }
 }
 
 extension EnvironmentValues {
@@ -18,3 +18,5 @@ extension EnvironmentValues {
         set { self[JournalStoreKey.self] = newValue }
     }
 }
+
+// Noop fallback no longer needed as we rely on @MainActor default builder.
