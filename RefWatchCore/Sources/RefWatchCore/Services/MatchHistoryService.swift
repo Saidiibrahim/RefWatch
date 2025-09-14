@@ -97,21 +97,41 @@ public final class MatchHistoryService: MatchHistoryStoring {
         if !fm.fileExists(atPath: fileURL.path) {
             return []
         }
-        let data = try Data(contentsOf: fileURL)
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        return try decoder.decode([CompletedMatch].self, from: data)
+        do {
+            let data = try Data(contentsOf: fileURL)
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            return try decoder.decode([CompletedMatch].self, from: data)
+        } catch {
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(name: .syncNonrecoverableError, object: nil, userInfo: [
+                    "error": "history load failed",
+                    "context": "core.history.loadFromDisk"
+                ])
+            }
+            throw error
+        }
     }
 
     private func saveToDisk(_ items: [CompletedMatch]) throws {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted]
         encoder.dateEncodingStrategy = .iso8601
-        let data = try encoder.encode(items)
-        // Atomic write
-        try data.write(to: fileURL, options: .atomic)
-        // Re-apply file protection and backup exclusion after atomic replace
-        applyProtectionAndExclusion()
+        do {
+            let data = try encoder.encode(items)
+            // Atomic write
+            try data.write(to: fileURL, options: .atomic)
+            // Re-apply file protection and backup exclusion after atomic replace
+            applyProtectionAndExclusion()
+        } catch {
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(name: .syncNonrecoverableError, object: nil, userInfo: [
+                    "error": "history save failed",
+                    "context": "core.history.saveToDisk"
+                ])
+            }
+            throw error
+        }
     }
 
     /// Applies data protection and excludes file from backup. Best-effort; logs in DEBUG on failure.

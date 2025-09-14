@@ -6,7 +6,10 @@
 //
 
 import Foundation
+import OSLog
+import RefWatchCore
 
+@MainActor
 protocol ScheduleStoring {
     func loadAll() -> [ScheduledMatch]
     func save(_ item: ScheduledMatch)
@@ -14,6 +17,7 @@ protocol ScheduleStoring {
     func wipeAll()
 }
 
+@MainActor
 final class ScheduleService: ScheduleStoring {
     private let fileURL: URL
     private let queue = DispatchQueue(label: "ScheduleService", attributes: .concurrent)
@@ -66,6 +70,14 @@ final class ScheduleService: ScheduleStoring {
             let enc = JSONEncoder(); enc.outputFormatting = [.prettyPrinted]; enc.dateEncodingStrategy = .iso8601
             let data = try enc.encode(items)
             try data.write(to: fileURL, options: .atomic)
-        } catch { /* best-effort */ }
+        } catch {
+            AppLog.schedule.error("Failed to persist scheduled matches: \(error.localizedDescription, privacy: .public)")
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(name: .syncNonrecoverableError, object: nil, userInfo: [
+                    "error": "schedule persist failed",
+                    "context": "ios.schedule.persist"
+                ])
+            }
+        }
     }
 }

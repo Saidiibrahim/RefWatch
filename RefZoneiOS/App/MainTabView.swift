@@ -12,10 +12,12 @@ struct MainTabView: View {
     @EnvironmentObject private var router: AppRouter
     let matchViewModel: MatchViewModel
     let historyStore: MatchHistoryStoring
+    let scheduleStore: ScheduleStoring
+    let teamStore: TeamLibraryStoring
 
     var body: some View {
         TabView(selection: $router.selectedTab) {
-            MatchesTabView(matchViewModel: matchViewModel, historyStore: historyStore)
+            MatchesTabView(matchViewModel: matchViewModel, historyStore: historyStore, scheduleStore: scheduleStore, teamStore: teamStore)
                 .tabItem { Label("Matches", systemImage: "sportscourt") }
                 .tag(AppRouter.Tab.matches)
 
@@ -27,7 +29,7 @@ struct MainTabView: View {
                 .tabItem { Label("Assistant", systemImage: "brain.head.profile") }
                 .tag(AppRouter.Tab.assistant)
 
-            SettingsTabView(historyStore: historyStore)
+            SettingsTabView(historyStore: historyStore, scheduleStore: scheduleStore, teamStore: teamStore)
                 .tabItem { Label("Settings", systemImage: "gear") }
                 .tag(AppRouter.Tab.settings)
         }
@@ -37,7 +39,12 @@ struct MainTabView: View {
 
 #if DEBUG
 #Preview {
-    MainTabView(matchViewModel: MatchViewModel(haptics: NoopHaptics()), historyStore: MatchHistoryService())
+    MainTabView(
+        matchViewModel: MatchViewModel(haptics: NoopHaptics()),
+        historyStore: MatchHistoryService(),
+        scheduleStore: ScheduleService(),
+        teamStore: InMemoryTeamLibraryStore()
+    )
         .environmentObject(AppRouter.preview())
 }
 #endif
