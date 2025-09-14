@@ -92,6 +92,21 @@ public final class TimerManager: @unchecked Sendable { // @Observable in app; ob
         }
         // Mark stoppage active and start displaying it
         lastSnapshot.isInStoppage = true
+        // While paused, keep the elapsed match clock updating. Compute an
+        // immediate matchTime snapshot so UI reflects a coherent state.
+        if let match = activeMatch, let start = periodStartTime {
+            let now = Date()
+            let periodElapsed = now.timeIntervalSince(start)
+            // Sum durations of all prior periods
+            var priorDurations: TimeInterval = 0
+            if activePeriod > 1 {
+                for i in 1..<(activePeriod) {
+                    priorDurations += perPeriodDurationSeconds(for: match, currentPeriod: i)
+                }
+            }
+            let totalMatchElapsed = priorDurations + periodElapsed
+            lastSnapshot.matchTime = formatMMSS(totalMatchElapsed)
+        }
         startStoppageTimer()
         // Emit immediate tick with latest state
         DispatchQueue.main.async { onTick(self.lastSnapshot) }
@@ -115,6 +130,30 @@ public final class TimerManager: @unchecked Sendable { // @Observable in app; ob
 
         // Resume the period ticking (do not change periodStartTime)
         startPeriodTimer()
+    }
+
+    // MARK: - Stoppage While Running
+    /// Begins stoppage display/accumulation while keeping the period timer running.
+    /// Does not alter `periodStartTime` or stop the period timer.
+    public func beginStoppageWhileRunning(onTick: @escaping (Snapshot) -> Void) {
+        self.onTick = onTick
+        if stoppageStartTime == nil { stoppageStartTime = Date() }
+        lastSnapshot.isInStoppage = true
+        startStoppageTimer()
+        DispatchQueue.main.async { onTick(self.lastSnapshot) }
+    }
+
+    /// Ends stoppage display/accumulation while keeping the period timer running.
+    public func endStoppageWhileRunning(onTick: @escaping (Snapshot) -> Void) {
+        self.onTick = onTick
+        if let start = stoppageStartTime {
+            stoppageAccumulated += Date().timeIntervalSince(start)
+        }
+        stoppageStartTime = nil
+        stopStoppageTimer()
+        lastSnapshot.isInStoppage = false
+        lastSnapshot.formattedStoppageTime = formatMMSS(stoppageAccumulated)
+        DispatchQueue.main.async { onTick(self.lastSnapshot) }
     }
 
     /// Clears stoppage for a fresh period and resets stoppage display.
@@ -232,6 +271,18 @@ public final class TimerManager: @unchecked Sendable { // @Observable in app; ob
             if let start = self.stoppageStartTime {
                 let current = self.stoppageAccumulated + now.timeIntervalSince(start)
                 self.lastSnapshot.formattedStoppageTime = self.formatMMSS(current)
+                // If the period timer is paused, keep matchTime ticking by computing it here.
+                if self.periodTimer == nil, let match = self.activeMatch, let pStart = self.periodStartTime {
+                    let periodElapsed = now.timeIntervalSince(pStart)
+                    var priorDurations: TimeInterval = 0
+                    if self.activePeriod > 1 {
+                        for i in 1..<(self.activePeriod) {
+                            priorDurations += self.perPeriodDurationSeconds(for: match, currentPeriod: i)
+                        }
+                    }
+                    let totalMatchElapsed = priorDurations + periodElapsed
+                    self.lastSnapshot.matchTime = self.formatMMSS(totalMatchElapsed)
+                }
                 if let onTick = self.onTick {
                     DispatchQueue.main.async { onTick(self.lastSnapshot) }
                 }
@@ -280,4 +331,3 @@ public final class TimerManager: @unchecked Sendable { // @Observable in app; ob
         return String(format: "%02d:%02d", mm, ss)
     }
 }
-

@@ -195,6 +195,8 @@ public final class MatchViewModel {
         isPaused = true
         timerManager.pause { [weak self] snap in
             guard let self = self else { return }
+            // Ensure the elapsed match time continues to reflect current time while paused
+            self.matchTime = snap.matchTime
             self.formattedStoppageTime = snap.formattedStoppageTime
             self.isInStoppage = snap.isInStoppage
         }
@@ -207,6 +209,24 @@ public final class MatchViewModel {
             self.matchTime = snap.matchTime
             self.periodTime = snap.periodTime
             self.periodTimeRemaining = snap.periodTimeRemaining
+            self.formattedStoppageTime = snap.formattedStoppageTime
+            self.isInStoppage = snap.isInStoppage
+        }
+    }
+
+    // MARK: - Stoppage While Running (faces may use these)
+    public func beginStoppage() {
+        // Do not change isPaused; keep main period/elapsed timers running
+        timerManager.beginStoppageWhileRunning { [weak self] snap in
+            guard let self = self else { return }
+            self.formattedStoppageTime = snap.formattedStoppageTime
+            self.isInStoppage = snap.isInStoppage
+        }
+    }
+
+    public func endStoppage() {
+        timerManager.endStoppageWhileRunning { [weak self] snap in
+            guard let self = self else { return }
             self.formattedStoppageTime = snap.formattedStoppageTime
             self.isInStoppage = snap.isInStoppage
         }
@@ -552,6 +572,12 @@ public final class MatchViewModel {
             } catch {
                 lastPersistenceError = error.localizedDescription
                 haptics.play(.failure)
+                DispatchQueue.main.async {
+                    NotificationCenter.default.post(name: .syncNonrecoverableError, object: nil, userInfo: [
+                        "error": "history save failed",
+                        "context": "core.finalizeMatch.save"
+                    ])
+                }
             }
         }
         timerManager.stopAll()
