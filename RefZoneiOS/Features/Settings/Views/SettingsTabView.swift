@@ -2,15 +2,18 @@
 //  SettingsTabView.swift
 //  RefZoneiOS
 //
-//  Placeholder for app settings & sync controls
+//  Settings tab for account, defaults, sync, and data management
 //
 
 import SwiftUI
 import RefWatchCore
 import Clerk
+import OSLog
 
 struct SettingsTabView: View {
     let historyStore: MatchHistoryStoring
+    var scheduleStore: ScheduleStoring? = nil
+    var teamStore: TeamLibraryStoring? = nil
     @EnvironmentObject private var syncDiagnostics: SyncDiagnosticsCenter
     @Environment(\.clerk) private var clerk
     @State private var defaultPeriod: Int = 45
@@ -19,6 +22,8 @@ struct SettingsTabView: View {
     @State private var showingInfoAlert = false
     @State private var infoMessage: String = ""
     @State private var activeSheet: ActiveSheet? = nil
+    @State private var connectivityStatusValue: String = "Unavailable"
+    @State private var showWipeConfirm: Bool = false
 
     var body: some View {
         NavigationStack {
@@ -53,7 +58,11 @@ struct SettingsTabView: View {
                 }
                 Section("Library") {
                     NavigationLink {
-                        LibrarySettingsView()
+                        if let teamStore {
+                            LibrarySettingsView(teamStore: teamStore)
+                        } else {
+                            LibrarySettingsView(teamStore: InMemoryTeamLibraryStore())
+                        }
                     } label: {
                         Label("View Library", systemImage: "books.vertical")
                     }
@@ -92,20 +101,19 @@ struct SettingsTabView: View {
                 }
 
                 Section("Sync") {
-                    LabeledContent("Watch", value: "Connected • Placeholder")
-                    Button { } label: { Label("Resync Now", systemImage: "arrow.clockwise") }
+                    LabeledContent("Watch", value: connectivityStatusValue)
+                    Button {
+                        AppLog.connectivity.info("User requested resync from Settings")
+                    } label: { Label("Resync Now", systemImage: "arrow.clockwise") }
                 }
 
                 Section("Data") {
-                    Button(role: .destructive) { wipeHistory() } label: { Label("Wipe Local Data", systemImage: "trash") }
+                    Button(role: .destructive) {
+                        AppLog.history.info("Prompting user to confirm local data wipe")
+                        showWipeConfirm = true
+                    } label: { Label("Wipe Local Data", systemImage: "trash") }
                 }
 
-                #if DEBUG
-                Section("Debug") {
-                    Button { seedDemoHistory() } label: { Label("Seed Demo History", systemImage: "sparkles") }
-                    Button { seedDemoSchedule() } label: { Label("Seed Demo Schedule", systemImage: "calendar.badge.plus") }
-                }
-                #endif
             }
             .navigationTitle("Settings")
             .sheet(item: $activeSheet) { sheet in
@@ -127,6 +135,19 @@ struct SettingsTabView: View {
             } message: {
                 Text(infoMessage)
             }
+            .confirmationDialog(
+                "Wipe Local Data?",
+                isPresented: $showWipeConfirm,
+                titleVisibility: .visible
+            ) {
+                Button("Wipe Local Data", role: .destructive) {
+                    wipeHistory()
+                }
+                Button("Cancel", role: .cancel) { }
+            } message: {
+                Text("This will permanently remove completed matches and your scheduled matches stored locally on this iPhone. This action cannot be undone.")
+            }
+            .onAppear { refreshConnectivityStatus() }
         }
     }
 }
@@ -139,57 +160,38 @@ private extension SettingsTabView {
     func wipeHistory() {
         do {
             try historyStore.wipeAll()
-            let schedule = ScheduleService()
-            schedule.wipeAll()
+            scheduleStore?.wipeAll()
+            AppLog.history.info("Wiped local data: history + schedule")
             infoMessage = "Local match history wiped."
             showingInfoAlert = true
         } catch {
+            AppLog.history.error("Failed to wipe data: \(error.localizedDescription, privacy: .public)")
             infoMessage = "Failed to wipe data: \(error.localizedDescription)"
             showingInfoAlert = true
         }
     }
 
-    func seedDemoHistory() {
-        let samples: [(String, String, Int, Int)] = [
-            ("Leeds United", "Newcastle United", 2, 1),
-            ("Arsenal", "Chelsea", 1, 1),
-            ("Barcelona", "Real Madrid", 3, 2),
-            ("Bayern", "Dortmund", 0, 0),
-            ("Inter", "Milan", 4, 3)
-        ]
-        var saved = 0
-        for s in samples {
-            let m = Match(homeTeam: s.0, awayTeam: s.1)
-            var final = m
-            final.homeScore = s.2
-            final.awayScore = s.3
-            let snapshot = CompletedMatch(match: final, events: [])
-            do { try historyStore.save(snapshot); saved += 1 } catch { }
+    func refreshConnectivityStatus() {
+        #if canImport(WatchConnectivity)
+        let client = ConnectivityClient.shared
+        if !client.isSupported {
+            connectivityStatusValue = "Unavailable"
+        } else if !client.isPaired {
+            connectivityStatusValue = "Not Paired"
+        } else if !client.isWatchAppInstalled {
+            connectivityStatusValue = "App Not Installed"
+        } else if client.isReachable {
+            connectivityStatusValue = "Connected"
+        } else {
+            connectivityStatusValue = "Paired"
         }
-        infoMessage = "Seeded \(saved) demo matches."
-        showingInfoAlert = true
-    }
-
-    func seedDemoSchedule() {
-        let store = ScheduleService()
-        store.wipeAll()
-        let cal = Calendar.current
-        let now = Date()
-        let today10 = cal.date(bySettingHour: 10, minute: 0, second: 0, of: now) ?? now
-        let tomorrow12 = cal.date(byAdding: .day, value: 1, to: cal.date(bySettingHour: 12, minute: 0, second: 0, of: now) ?? now) ?? now
-        let saturday14 = cal.nextDate(after: now, matching: DateComponents(hour: 14, weekday: 7), matchingPolicy: .nextTimePreservingSmallerComponents) ?? now
-        let items = [
-            ScheduledMatch(homeTeam: "U16 Boys", awayTeam: "Rivals", kickoff: today10),
-            ScheduledMatch(homeTeam: "U18 Girls", awayTeam: "City", kickoff: tomorrow12),
-            ScheduledMatch(homeTeam: "U14 Boys", awayTeam: "United", kickoff: saturday14),
-        ]
-        items.forEach { store.save($0) }
-        infoMessage = "Seeded demo schedule (Today + Upcoming)."
-        showingInfoAlert = true
+        #else
+        connectivityStatusValue = "Unavailable"
+        #endif
     }
 }
 
 #Preview {
-    SettingsTabView(historyStore: MatchHistoryService())
+    SettingsTabView(historyStore: MatchHistoryService(), scheduleStore: ScheduleService(), teamStore: InMemoryTeamLibraryStore())
         .environmentObject(SyncDiagnosticsCenter())
 }
