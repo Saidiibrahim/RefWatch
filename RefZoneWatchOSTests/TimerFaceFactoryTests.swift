@@ -22,4 +22,16 @@ final class TimerFaceFactoryTests: XCTestCase {
         _ = { () -> Any in view }()
         XCTAssertTrue(true)
     }
+
+    func testFactory_returnsView_forProStoppageFace() {
+        // Given
+        let vm = MatchViewModel(haptics: WatchHaptics())
+
+        // When
+        let view = TimerFaceFactory.view(for: .proStoppage, model: vm)
+
+        // Then - compile/runtime sanity check by wrapping into Any
+        _ = { () -> Any in view }()
+        XCTAssertTrue(true)
+    }
 }

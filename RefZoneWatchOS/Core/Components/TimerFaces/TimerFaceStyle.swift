@@ -5,12 +5,14 @@ import Foundation
 
 public enum TimerFaceStyle: String, CaseIterable, Identifiable {
     case standard
+    case proStoppage
 
     public var id: String { rawValue }
 
     public var displayName: String {
         switch self {
         case .standard: return "Standard"
+        case .proStoppage: return "Pro Stoppage"
         }
     }
 

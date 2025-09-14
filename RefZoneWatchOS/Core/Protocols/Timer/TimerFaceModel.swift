@@ -37,6 +37,10 @@ public protocol TimerFaceModelActions: AnyObject {
     func pauseMatch()
     func resumeMatch()
     func startHalfTimeManually()
+    /// Start stoppage while the main period timer continues running.
+    func beginStoppage()
+    /// End stoppage and accumulate the time; main period timer keeps running.
+    func endStoppage()
 }
 
 /// Convenience composition for faces.
