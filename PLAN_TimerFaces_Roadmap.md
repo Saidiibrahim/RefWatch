@@ -31,7 +31,7 @@ Status: Working plan for introducing swappable timer faces to the watchOS app.
   - Tests compile and pass.
 - Risk: Low (UI extraction only).
 
-### PR2 — Settings Toggle For Timer Face
+### PR2 — Settings Toggle For Timer Face(MERGED)
 - Branch: `feature/watchos-timer-face-settings`
 - Base: `main`
 - Commits: ~4
