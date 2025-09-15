@@ -8,7 +8,7 @@ struct RectangularView: View {
       VStack(alignment: .leading, spacing: 2) {
         Text(state?.periodLabel ?? "Match")
           .font(.system(size: 12, weight: .medium))
-          .foregroundStyle(.white)
+          .foregroundStyle(.primary)
 
         if let s = state, let end = s.expectedPeriodEnd, s.isPaused == false {
           // Running timer
@@ -21,8 +21,9 @@ struct RectangularView: View {
             .font(.system(size: 20, weight: .semibold, design: .rounded))
             .monospacedDigit()
         } else {
-          Text("—:—")
-            .font(.system(size: 20, weight: .semibold, design: .rounded))
+          Text("No Active Match")
+            .font(.system(size: 14, weight: .medium, design: .rounded))
+            .foregroundStyle(.secondary)
         }
 
         // Bottom strip: score + stoppage/paused indicators

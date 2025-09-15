@@ -21,8 +21,11 @@ struct CircularView: View {
           .font(.system(size: 16, weight: .semibold, design: .rounded))
           .monospacedDigit()
       } else {
-        Text("—:—")
-          .font(.system(size: 16, weight: .semibold, design: .rounded))
+        Text("No Active Match")
+          .font(.system(size: 10, weight: .semibold, design: .rounded))
+          .multilineTextAlignment(.center)
+          .minimumScaleFactor(0.6)
+          .foregroundStyle(.secondary)
       }
     }
   }
