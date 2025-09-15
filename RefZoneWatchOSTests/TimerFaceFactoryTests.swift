@@ -1,5 +1,6 @@
 import XCTest
 @testable import RefZone_Watch_App
+import RefWatchCore
 
 @MainActor
 final class TimerFaceFactoryTests: XCTestCase {
@@ -29,6 +30,20 @@ final class TimerFaceFactoryTests: XCTestCase {
 
         // When
         let view = TimerFaceFactory.view(for: .proStoppage, model: vm)
+
+        // Then - compile/runtime sanity check by wrapping into Any
+        _ = { () -> Any in view }()
+        XCTAssertTrue(true)
+    }
+
+    func testFace_allowsHapticsEnvironmentInjection() {
+        // Given
+        let vm = MatchViewModel(haptics: WatchHaptics())
+
+        // When
+        let view = TimerFaceFactory
+            .view(for: .standard, model: vm)
+            .environment(\.haptics, NoopHaptics())
 
         // Then - compile/runtime sanity check by wrapping into Any
         _ = { () -> Any in view }()
