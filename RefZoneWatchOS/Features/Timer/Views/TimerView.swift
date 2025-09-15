@@ -54,6 +54,7 @@ struct TimerView: View {
                 
                 // Main content: render selected timer face
                 TimerFaceFactory.view(for: faceStyle, model: model)
+                    .hapticsProvider(WatchHaptics())
         }
         .accessibilityIdentifier("timerArea")
         .padding(.top)
