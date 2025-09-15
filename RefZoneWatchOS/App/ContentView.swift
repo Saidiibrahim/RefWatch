@@ -105,10 +105,21 @@ struct ContentView: View {
         }
         .environment(settingsViewModel)
         .onOpenURL { url in
-            // Deep link from Smart Stack widget into TimerView
+            // Deep link from Smart Stack widget
             guard url.scheme == "refzone" else { return }
             if url.host == "timer" {
-                lifecycle.goToSetup()
+                // Route into the Timer surface when a match is active; otherwise land on start
+                if matchViewModel.isMatchInProgress || matchViewModel.isHalfTime || matchViewModel.penaltyShootoutActive {
+                    lifecycle.goToSetup() // MatchSetupView hosts TimerView in the middle tab
+                } else if matchViewModel.waitingForSecondHalfStart {
+                    lifecycle.goToKickoffSecond()
+                } else if matchViewModel.waitingForET1Start {
+                    lifecycle.goToKickoffETFirst()
+                } else if matchViewModel.waitingForET2Start {
+                    lifecycle.goToKickoffETSecond()
+                } else {
+                    lifecycle.resetToStart()
+                }
             }
         }
         .onChange(of: matchViewModel.matchCompleted) { completed, _ in

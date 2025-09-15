@@ -31,7 +31,6 @@ final class LiveActivityStateStore {
     do {
       let data = try encoder.encode(state)
       defaults.set(data, forKey: LiveActivityState.storeKeyV1)
-      defaults.synchronize()
     } catch {
       #if DEBUG
       print("LiveActivityStateStore.write encoding failed: \(error)")
@@ -55,6 +54,5 @@ final class LiveActivityStateStore {
   func clear() {
     guard let defaults else { return }
     defaults.removeObject(forKey: LiveActivityState.storeKeyV1)
-    defaults.synchronize()
   }
 }
