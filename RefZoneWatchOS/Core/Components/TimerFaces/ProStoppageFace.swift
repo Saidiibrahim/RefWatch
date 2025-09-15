@@ -125,5 +125,7 @@ public struct ProStoppageFace: View {
 }
 
 #Preview {
-    ProStoppageFace(model: MatchViewModel(haptics: WatchHaptics()))
+    // Use NoopHaptics for previews to avoid platform haptic dependencies
+    ProStoppageFace(model: MatchViewModel(haptics: NoopHaptics()))
+        .hapticsProvider(NoopHaptics())
 }

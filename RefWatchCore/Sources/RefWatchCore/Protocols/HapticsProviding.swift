@@ -7,6 +7,8 @@
 
 import Foundation
 
+/// Semantic haptic events used across platforms. Implementations map these
+/// to the closest native feedback for the target platform.
 public enum HapticEvent {
     // Generic results
     case success
@@ -24,7 +26,9 @@ public enum HapticEvent {
     case start
 }
 
+/// Provides platform-agnostic haptic feedback
 public protocol HapticsProviding {
+    /// Triggers haptic feedback for the specified event
     func play(_ event: HapticEvent)
 }
 
