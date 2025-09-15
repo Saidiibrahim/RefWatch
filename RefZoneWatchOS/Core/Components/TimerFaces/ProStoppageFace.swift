@@ -2,10 +2,10 @@
 // Advanced timer face emphasizing per-period context and stoppage
 
 import SwiftUI
-import WatchKit
 import RefWatchCore
 
 public struct ProStoppageFace: View {
+    @Environment(\.haptics) private var haptics
     let model: TimerFaceModel
 
     public init(model: TimerFaceModel) { self.model = model }
@@ -47,7 +47,7 @@ public struct ProStoppageFace: View {
                     color: Color.green,
                     size: max(32, Constants.iconSize * scale),
                     action: {
-                        WKInterfaceDevice.current().play(.start)
+                        haptics.play(.resume)
                         model.startHalfTimeManually()
                     }
                 )
@@ -108,7 +108,7 @@ public struct ProStoppageFace: View {
             .frame(maxWidth: .infinity)
             .contentShape(Rectangle())
             .onTapGesture {
-                WKInterfaceDevice.current().play(.click)
+                haptics.play(.tap)
                 // Only allow manual stoppage toggling while the period is running.
                 guard model.isPaused == false else { return }
                 if model.isInStoppage { model.endStoppage() } else { model.beginStoppage() }
@@ -118,12 +118,14 @@ public struct ProStoppageFace: View {
         .padding(.bottom, Constants.bottomInsetBase * scale)
         // Main face tap toggles pause/resume like the Standard face
         .onTapGesture {
-            WKInterfaceDevice.current().play(.click)
+            haptics.play(.tap)
             if model.isPaused { model.resumeMatch() } else { model.pauseMatch() }
         }
     }
 }
 
 #Preview {
-    ProStoppageFace(model: MatchViewModel(haptics: WatchHaptics()))
+    // Use NoopHaptics for previews to avoid platform haptic dependencies
+    ProStoppageFace(model: MatchViewModel(haptics: NoopHaptics()))
+        .hapticsProvider(NoopHaptics())
 }

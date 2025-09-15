@@ -8,25 +8,33 @@ import UIKit
 import RefWatchCore
 
 struct IOSHaptics: HapticsProviding {
-    private let successGen = UINotificationFeedbackGenerator()
-    private let warningGen = UINotificationFeedbackGenerator()
-    private let errorGen = UINotificationFeedbackGenerator()
+    // Reuse generators to avoid unnecessary allocations; prepare to reduce latency.
+    private let notificationGen = UINotificationFeedbackGenerator()
     private let impact = UIImpactFeedbackGenerator(style: .light)
+
+    init() {
+        // Preparing upfront helps minimize latency for the first haptic
+        notificationGen.prepare()
+        impact.prepare()
+    }
 
     func play(_ event: HapticEvent) {
         switch event {
         case .success:
-            successGen.notificationOccurred(.success)
+            notificationGen.notificationOccurred(.success)
         case .failure:
-            errorGen.notificationOccurred(.error)
+            notificationGen.notificationOccurred(.error)
         case .warning:
-            warningGen.notificationOccurred(.warning)
-        case .notification:
-            successGen.notificationOccurred(.success)
-        case .click:
+            notificationGen.notificationOccurred(.warning)
+
+        case .tap, .click:
             impact.impactOccurred()
-        case .start:
+        case .pause:
+            impact.impactOccurred(intensity: 0.6)
+        case .resume, .start:
             impact.impactOccurred(intensity: 0.9)
+        case .notify:
+            notificationGen.notificationOccurred(.success)
         }
     }
 }

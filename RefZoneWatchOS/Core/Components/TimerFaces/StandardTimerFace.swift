@@ -2,9 +2,9 @@
 // Extracted central timer UI matching current behavior
 
 import SwiftUI
-import WatchKit
 
 public struct StandardTimerFace: View {
+    @Environment(\.haptics) private var haptics
     let model: TimerFaceModel
 
     public init(model: TimerFaceModel) { self.model = model }
@@ -25,7 +25,7 @@ public struct StandardTimerFace: View {
                 color: Color.green,
                 size: 44,
                 action: {
-                    WKInterfaceDevice.current().play(.start)
+                    haptics.play(.resume)
                     model.startHalfTimeManually()
                 }
             )
@@ -61,9 +61,8 @@ public struct StandardTimerFace: View {
         }
         .padding(.vertical, 8)
         .onTapGesture {
-            WKInterfaceDevice.current().play(.click)
+            haptics.play(.tap)
             if model.isPaused { model.resumeMatch() } else { model.pauseMatch() }
         }
     }
 }
-
