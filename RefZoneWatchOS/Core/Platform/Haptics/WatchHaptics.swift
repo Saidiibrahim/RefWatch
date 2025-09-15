@@ -7,21 +7,32 @@ import Foundation
 import WatchKit
 import RefWatchCore
 
+/// watchOS implementation mapping semantic events to WKInterfaceDevice patterns.
+/// Mappings aim to preserve prior UX:
+/// - `.tap` uses `.click` for lightweight feedback
+/// - `.pause` uses `.stop` to indicate a hold
+/// - `.resume` uses `.start` to mirror the previous start haptic
+/// - `.notify` uses `.notification` for a prominent cue
 struct WatchHaptics: HapticsProviding {
     func play(_ event: HapticEvent) {
         switch event {
+        // Generic results
         case .success:
             WKInterfaceDevice.current().play(.success)
         case .failure:
             WKInterfaceDevice.current().play(.failure)
         case .warning:
             WKInterfaceDevice.current().play(.retry)
-        case .notification:
-            WKInterfaceDevice.current().play(.notification)
-        case .click:
+
+        // User feedback (faces preferred)
+        case .tap, .click:
             WKInterfaceDevice.current().play(.click)
-        case .start:
+        case .pause:
+            WKInterfaceDevice.current().play(.stop)
+        case .resume, .start:
             WKInterfaceDevice.current().play(.start)
+        case .notify:
+            WKInterfaceDevice.current().play(.notification)
         }
     }
 }
