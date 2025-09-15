@@ -10,28 +10,13 @@ struct TimerView: View {
     let lifecycle: MatchLifecycleCoordinator
     @State private var showingActionSheet = false
     @State private var pendingRouteToChooseFirstKicker = false
+    @State private var livePublisher = LiveActivityStatePublisher(reloadKind: "RefZoneWidgets")
     @Environment(\.dismiss) private var dismiss
     // Persist selected timer face
     @AppStorage("timer_face_style") private var timerFaceStyleRaw: String = TimerFaceStyle.standard.rawValue
     private var faceStyle: TimerFaceStyle { TimerFaceStyle.parse(raw: timerFaceStyleRaw) }
     
-    private var periodLabel: String {
-        if model.isHalfTime && !model.waitingForHalfTimeStart {
-            return "Half Time"
-        } else if model.waitingForHalfTimeStart {
-            return "Half Time"
-        } else if model.waitingForSecondHalfStart {
-            return "Second Half"
-        } else {
-            switch model.currentPeriod {
-            case 1: return "First Half"
-            case 2: return "Second Half"
-            case 3: return "Extra Time 1"
-            case 4: return "Extra Time 2"
-            default: return "Penalties"
-            }
-        }
-    }
+    private var periodLabel: String { PeriodLabelFormatter.label(for: model) }
     
     var body: some View {
         VStack(spacing: 8) {
@@ -58,6 +43,9 @@ struct TimerView: View {
         }
         .accessibilityIdentifier("timerArea")
         .padding(.top)
+        .onAppear {
+            publishLiveActivityState()
+        }
         .onLongPressGesture(minimumDuration: 0.8) {
             // Allow long press when match is running or during half-time
             if model.isMatchInProgress || model.isHalfTime {
@@ -91,15 +79,20 @@ struct TimerView: View {
             if isFT && !model.matchCompleted && lifecycle.state != .idle {
                 lifecycle.goToFinished()
             }
+            // Publish end state when full time
+            if isFT { livePublisher.end() }
         }
         .onChange(of: model.waitingForSecondHalfStart) { waiting in
             if waiting { lifecycle.goToKickoffSecond() }
+            publishLiveActivityState()
         }
         .onChange(of: model.waitingForET1Start) { waiting in
             if waiting { lifecycle.goToKickoffETFirst() }
+            publishLiveActivityState()
         }
         .onChange(of: model.waitingForET2Start) { waiting in
             if waiting { lifecycle.goToKickoffETSecond() }
+            publishLiveActivityState()
         }
         .onChange(of: model.waitingForPenaltiesStart) { waiting in
             #if DEBUG
@@ -112,10 +105,38 @@ struct TimerView: View {
                     lifecycle.goToChoosePenaltyFirstKicker()
                 }
             }
+            publishLiveActivityState()
         }
+        // Publishing hooks for key transitions
+        .onChange(of: model.isMatchInProgress) { _ in publishLiveActivityState() }
+        .onChange(of: model.isPaused) { _ in publishLiveActivityState() }
+        .onChange(of: model.isHalfTime) { _ in publishLiveActivityState() }
+        .onChange(of: model.isInStoppage) { _ in publishLiveActivityState() }
+        .onChange(of: model.currentPeriod) { _ in publishLiveActivityState() }
+        .onChange(of: model.penaltyShootoutActive) { _ in publishLiveActivityState() }
+        .onChange(of: model.currentMatch?.homeScore ?? 0) { _ in publishLiveActivityState() }
+        .onChange(of: model.currentMatch?.awayScore ?? 0) { _ in publishLiveActivityState() }
     }
     
     // MARK: - Faces are rendered above; no state-specific views here.
+}
+
+// MARK: - LiveActivity Publishing
+
+private extension TimerView {
+    func publishLiveActivityState() {
+        guard let state = livePublisher.deriveState(from: model) else { return }
+        if model.isMatchInProgress || model.isHalfTime || model.penaltyShootoutActive {
+            // Start or update depending on whether a state exists already.
+            // For simplicity, treat as update every time; start() behaves the same.
+            livePublisher.update(state: state)
+        } else if model.isFullTime || model.matchCompleted {
+            livePublisher.end()
+        } else {
+            // No active match; clear state
+            livePublisher.end()
+        }
+    }
 }
 
 // MARK: - Supporting Views

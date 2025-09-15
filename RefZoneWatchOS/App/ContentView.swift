@@ -21,7 +21,7 @@ struct ContentView: View {
                 case .idle:
                     VStack(spacing: 16) {
                         // Inline header under the system clock
-                        Text("RefWatch")
+                        Text("RefZone")
                             .font(.headline)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.horizontal)
@@ -104,6 +104,13 @@ struct ContentView: View {
             }
         }
         .environment(settingsViewModel)
+        .onOpenURL { url in
+            // Deep link from Smart Stack widget into TimerView
+            guard url.scheme == "refzone" else { return }
+            if url.host == "timer" {
+                lifecycle.goToSetup()
+            }
+        }
         .onChange(of: matchViewModel.matchCompleted) { completed, _ in
             #if DEBUG
             print("DEBUG: ContentView.onChange matchCompleted=\(completed) state=\(lifecycle.state)")

@@ -1,6 +1,6 @@
 # Live Activities Roadmap (watchOS)
 
-Status: Working plan to add a Live Activity–style, always-current timer surface on Apple Watch via WidgetKit (Smart Stack) with optional ActivityKit bridging on supported platforms.
+Status: PR1 complete; PR2 implemented and pending minor polish (deep link route to Timer and neutral empty state). PR3–PR6 not started.
 
 ## Context & Goals
 - Provide a continuously updating timer surface on Apple Watch that remains glanceable in the Smart Stack and resilient to app foreground/background transitions.
@@ -9,13 +9,18 @@ Status: Working plan to add a Live Activity–style, always-current timer surfac
 - Ensure the surface is up-to-date using dynamic timer rendering (`Text(timerInterval:)`) and minimal shared state persisted via an App Group.
 
 ## Current Status
-- No existing `ActivityKit` or `WidgetKit` integration in the repo.
+- WidgetKit Smart Stack extension and App Group store implemented on watchOS.
 - Core pieces to leverage:
   - `RefWatchCore/Sources/RefWatchCore/Services/TimerManager.swift` (tick snapshots and period boundaries)
   - `RefWatchCore/Sources/RefWatchCore/ViewModels/MatchViewModel.swift` (authoritative match state and transitions)
   - `RefZoneWatchOS/Features/Timer/Views/TimerView.swift` (host screen)
   - `RefZoneWatchOS/Core/Platform/Connectivity/WatchConnectivitySyncClient.swift` (paired-device messaging, extendable later)
-- No App Group configured yet for sharing state to a widget extension on watchOS.
+- App Group configured for watch+widget handoff: `group.refzone.shared`.
+
+### PR Progress Snapshot
+- PR1 — Foundations: Completed in this branch (model, store, publisher, entitlements, and unit test).
+- PR2 — Widget Extension: Implemented (rectangular + circular, dynamic timer, deep link). Minor polish remaining: route deep link into Timer surface when a match is active; add a neutral “No Active Match” state.
+- PR3–PR6: Not started.
 
 ## PR Breakdown
 
@@ -27,7 +32,7 @@ Status: Working plan to add a Live Activity–style, always-current timer surfac
   - Add a small shared model for the widget/live surface, e.g., `LiveActivityState` (period label, match start/end timestamps, paused flag, stoppage active, home/away abbreviations and scores).
   - Add a protocol in watchOS core: `Core/Protocols/LiveActivity/LiveActivityPublishing.swift`:
     - `start(state:)`, `update(state:)`, `end()`; platform-specific implementations later.
-  - Add a watch implementation to persist the latest state to App Group UserDefaults (suite name placeholder: `group.refwatch.shared`). File: `RefZoneWatchOS/Core/Services/LiveActivity/LiveActivityStateStore.swift`.
+  - Add a watch implementation to persist the latest state to App Group UserDefaults (suite name placeholder: `group.refzone.shared`). File: `RefZoneWatchOS/Core/Services/LiveActivity/LiveActivityStateStore.swift`.
     - API: `write(_:)`, `read()`, `clear()`; serialization via `Codable` JSON under a single key.
   - Integrate minimal state publishing hooks in a non-invasive way:
     - On match start/pause/resume/period change/end, derive `LiveActivityState` from `MatchViewModel` and write it to the store.
@@ -178,7 +183,7 @@ Status: Working plan to add a Live Activity–style, always-current timer surfac
 // NOTE: Do not implement in code yet. This is a planning aid only.
 
 /// Storage hints (when implemented):
-/// - App Group suite: "group.refwatch.shared"
+/// - App Group suite: "group.refzone.shared"
 /// - Store key:      "liveActivity.state.v1"
 struct LiveActivityState: Codable, Equatable {
     // MARK: - Schema & Identity
@@ -252,7 +257,7 @@ struct LiveActivityState: Codable, Equatable {
 
 ```swift
 // Storage (App Group)
-// suite: "group.refwatch.shared"
+// suite: "group.refzone.shared"
 // key:   "liveActivity.state.v1"
 
 extension LiveActivityState {
