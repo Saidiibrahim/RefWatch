@@ -154,6 +154,7 @@
 			membershipExceptions = (
 				Core/Services/LiveActivity/LiveActivityState.swift,
 				Core/Services/LiveActivity/LiveActivityStateStore.swift,
+				Core/Services/Formatting/PeriodLabelFormatter.swift,
 			);
 			target = 96BBA3692E77BF06000A67FC /* RefZoneWidgetsExtension */;
 		};
