@@ -10,18 +10,23 @@ import RefWatchCore
 struct WatchHaptics: HapticsProviding {
     func play(_ event: HapticEvent) {
         switch event {
+        // Generic results
         case .success:
             WKInterfaceDevice.current().play(.success)
         case .failure:
             WKInterfaceDevice.current().play(.failure)
         case .warning:
             WKInterfaceDevice.current().play(.retry)
-        case .notification:
-            WKInterfaceDevice.current().play(.notification)
-        case .click:
+
+        // User feedback (faces preferred)
+        case .tap, .click:
             WKInterfaceDevice.current().play(.click)
-        case .start:
+        case .pause:
+            WKInterfaceDevice.current().play(.stop)
+        case .resume, .start:
             WKInterfaceDevice.current().play(.start)
+        case .notify:
+            WKInterfaceDevice.current().play(.notification)
         }
     }
 }

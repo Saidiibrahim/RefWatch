@@ -21,12 +21,15 @@ struct IOSHaptics: HapticsProviding {
             errorGen.notificationOccurred(.error)
         case .warning:
             warningGen.notificationOccurred(.warning)
-        case .notification:
-            successGen.notificationOccurred(.success)
-        case .click:
+
+        case .tap, .click:
             impact.impactOccurred()
-        case .start:
+        case .pause:
+            impact.impactOccurred(intensity: 0.6)
+        case .resume, .start:
             impact.impactOccurred(intensity: 0.9)
+        case .notify:
+            successGen.notificationOccurred(.success)
         }
     }
 }

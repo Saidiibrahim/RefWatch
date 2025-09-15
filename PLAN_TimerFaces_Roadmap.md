@@ -46,7 +46,7 @@ Status: Working plan for introducing swappable timer faces to the watchOS app.
   - Unit: AppStorage default + round‑trip set/get for face style.
 - Risk: Low (isolated to Settings).
 
-### PR3 — Pro Stoppage Face (ADVANCED)
+### PR3 — Pro Stoppage Face (MERGED)
 - Branch: `feature/watchos-timer-face-pro`
 - Base: `main` (after PR1 merges) or stack on PR2 if preferred
 - Commits: ~4–6
