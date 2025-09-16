@@ -27,15 +27,46 @@ struct RectangularView: View {
         }
 
         // Bottom strip: score + stoppage/paused indicators
-        HStack(spacing: 6) {
-          Text("\(state?.homeAbbr ?? "HOM") \(state?.homeScore ?? 0)")
-          Text("•")
-          Text("\(state?.awayScore ?? 0) \(state?.awayAbbr ?? "AWA")")
-          if state?.isPaused == true { Image(systemName: "pause.fill") }
-          if state?.isInStoppage == true { Image(systemName: "stopwatch") }
+        VStack(alignment: .leading, spacing: 4) {
+          HStack(spacing: 6) {
+            Text("\(state?.homeAbbr ?? "HOM") \(state?.homeScore ?? 0)")
+            Text("•")
+            Text("\(state?.awayScore ?? 0) \(state?.awayAbbr ?? "AWA")")
+            if state?.isPaused == true { Image(systemName: "pause.fill") }
+            if state?.isInStoppage == true { Image(systemName: "stopwatch") }
+          }
+          .font(.system(size: 11, weight: .regular))
+          .foregroundStyle(.secondary)
+
+          if #available(watchOS 10.0, *), showActions {
+            HStack(spacing: 6) {
+              if state?.canPause == true {
+                Button(intent: PauseMatchIntent()) {
+                  Image(systemName: "pause.circle")
+                }
+              } else if state?.canResume == true {
+                Button(intent: ResumeMatchIntent()) {
+                  Image(systemName: "play.circle")
+                }
+              }
+
+              if state?.canStartHalfTime == true {
+                Button(intent: StartHalfTimeIntent()) {
+                  Image(systemName: "clock.arrow.circlepath")
+                }
+              }
+
+              if state?.canStartSecondHalf == true {
+                Button(intent: StartSecondHalfIntent()) {
+                  Image(systemName: "flag.checkered")
+                }
+              }
+            }
+            .font(.system(size: 13, weight: .medium))
+            .tint(.accentColor)
+            .buttonStyle(.borderless)
+          }
         }
-        .font(.system(size: 11, weight: .regular))
-        .foregroundStyle(.secondary)
       }
 
       Spacer(minLength: 0)
@@ -47,5 +78,10 @@ struct RectangularView: View {
     let mm = total / 60
     let ss = total % 60
     return String(format: "%02d:%02d", mm, ss)
+  }
+
+  private var showActions: Bool {
+    guard let state else { return false }
+    return state.canPause || state.canResume || state.canStartHalfTime || state.canStartSecondHalf
   }
 }

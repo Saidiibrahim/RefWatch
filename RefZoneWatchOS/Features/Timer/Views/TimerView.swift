@@ -11,7 +11,9 @@ struct TimerView: View {
     @State private var showingActionSheet = false
     @State private var pendingRouteToChooseFirstKicker = false
     @State private var livePublisher = LiveActivityStatePublisher(reloadKind: "RefZoneWidgets")
+    private let commandHandler = LiveActivityCommandHandler()
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
     // Persist selected timer face
     @AppStorage("timer_face_style") private var timerFaceStyleRaw: String = TimerFaceStyle.standard.rawValue
     private var faceStyle: TimerFaceStyle { TimerFaceStyle.parse(raw: timerFaceStyleRaw) }
@@ -45,6 +47,7 @@ struct TimerView: View {
         .padding(.top)
         .onAppear {
             publishLiveActivityState()
+            processPendingWidgetCommand()
         }
         .onLongPressGesture(minimumDuration: 0.8) {
             // Allow long press when match is running or during half-time
@@ -116,6 +119,11 @@ struct TimerView: View {
         .onChange(of: model.penaltyShootoutActive) { _ in publishLiveActivityState() }
         .onChange(of: model.currentMatch?.homeScore ?? 0) { _ in publishLiveActivityState() }
         .onChange(of: model.currentMatch?.awayScore ?? 0) { _ in publishLiveActivityState() }
+        .onChange(of: scenePhase) { newPhase in
+            if newPhase == .active {
+                processPendingWidgetCommand()
+            }
+        }
     }
     
     // MARK: - Faces are rendered above; no state-specific views here.
@@ -125,17 +133,12 @@ struct TimerView: View {
 
 private extension TimerView {
     func publishLiveActivityState() {
-        guard let state = livePublisher.deriveState(from: model) else { return }
-        if model.isMatchInProgress || model.isHalfTime || model.penaltyShootoutActive {
-            // Start or update depending on whether a state exists already.
-            // For simplicity, treat as update every time; start() behaves the same.
-            livePublisher.update(state: state)
-        } else if model.isFullTime || model.matchCompleted {
-            livePublisher.end()
-        } else {
-            // No active match; clear state
-            livePublisher.end()
-        }
+        livePublisher.publish(for: model)
+    }
+
+    func processPendingWidgetCommand() {
+        guard commandHandler.processPendingCommand(model: model) != nil else { return }
+        publishLiveActivityState()
     }
 }
 
