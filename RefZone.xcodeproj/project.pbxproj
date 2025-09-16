@@ -149,6 +149,13 @@
 			);
 			target = 96B8126D2E67CDA400B23EC0 /* RefZoneiOS */;
 		};
+		968464EF2E790779000F4ACD /* Exceptions for "RefZoneiOS" folder in "RefZoneWidgetsExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				AppIcon.icon,
+			);
+			target = 96BBA3692E77BF06000A67FC /* RefZoneWidgetsExtension */;
+		};
 		96BBA37D2E77BF08000A67FC /* Exceptions for "RefZoneWidgets" folder in "RefZoneWidgetsExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -205,6 +212,7 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				966D6DDC2E6E6E630086E820 /* Exceptions for "RefZoneiOS" folder in "RefZoneiOS" target */,
+				968464EF2E790779000F4ACD /* Exceptions for "RefZoneiOS" folder in "RefZoneWidgetsExtension" target */,
 			);
 			path = RefZoneiOS;
 			sourceTree = "<group>";
@@ -903,14 +911,7 @@
 				);
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = RefZone;
-				INFOPLIST_KEY_CFBundleURLTypes = (
-					{
-						CFBundleURLName = refzone;
-						CFBundleURLSchemes = (
-							refzone
-						);
-					}
-				);
+				INFOPLIST_KEY_CFBundleURLTypes = "{\n    CFBundleURLName = refzone;\n    CFBundleURLSchemes =     (\n        refzone\n    );\n}";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.IbrahimSaidi.RefZone;
 				INFOPLIST_KEY_WKWatchOnly = NO;
@@ -966,14 +967,7 @@
 				);
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = RefZone;
-				INFOPLIST_KEY_CFBundleURLTypes = (
-					{
-						CFBundleURLName = refzone;
-						CFBundleURLSchemes = (
-							refzone
-						);
-					}
-				);
+				INFOPLIST_KEY_CFBundleURLTypes = "{\n    CFBundleURLName = refzone;\n    CFBundleURLSchemes =     (\n        refzone\n    );\n}";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.IbrahimSaidi.RefZone;
 				INFOPLIST_KEY_WKWatchOnly = NO;
