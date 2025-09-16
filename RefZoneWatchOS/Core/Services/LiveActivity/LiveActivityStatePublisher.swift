@@ -68,11 +68,30 @@ final class LiveActivityStatePublisher: LiveActivityPublishing {
       expectedPeriodEnd: expectedEnd,
       elapsedAtPause: elapsedAtPause,
       stoppageAccumulated: stoppageAccumulated,
+      canPause: model.isMatchInProgress && model.isPaused == false,
+      canResume: model.isMatchInProgress && model.isPaused,
+      canStartHalfTime: model.waitingForHalfTimeStart,
+      canStartSecondHalf: model.waitingForSecondHalfStart,
       lastUpdated: now
     )
   }
 
   // MARK: - Helpers
+
+  func publish(for model: MatchViewModel) {
+    guard let state = deriveState(from: model) else {
+      end()
+      return
+    }
+
+    if model.isMatchInProgress || model.isHalfTime || model.penaltyShootoutActive {
+      update(state: state)
+    } else if model.isFullTime || model.matchCompleted {
+      end()
+    } else {
+      end()
+    }
+  }
 
   private func reload() {
     if let kind = reloadKind { WidgetCenter.shared.reloadTimelines(ofKind: kind) }
@@ -85,4 +104,3 @@ final class LiveActivityStatePublisher: LiveActivityPublishing {
     return TimeInterval(mm * 60 + ss)
   }
 }
-
