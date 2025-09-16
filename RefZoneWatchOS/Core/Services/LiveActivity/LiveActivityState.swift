@@ -38,6 +38,12 @@ struct LiveActivityState: Codable, Equatable {
   // MARK: - Stoppage
   var stoppageAccumulated: TimeInterval
 
+  // MARK: - Widget Actions
+  var canPause: Bool = false
+  var canResume: Bool = false
+  var canStartHalfTime: Bool = false
+  var canStartSecondHalf: Bool = false
+
   // MARK: - Meta
   var lastUpdated: Date
 }
@@ -45,4 +51,3 @@ struct LiveActivityState: Codable, Equatable {
 extension LiveActivityState {
   static let storeKeyV1 = "liveActivity.state.v1"
 }
-

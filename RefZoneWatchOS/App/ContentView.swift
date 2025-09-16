@@ -13,6 +13,8 @@ struct ContentView: View {
     @State private var settingsViewModel = SettingsViewModel()
     @State private var lifecycle = MatchLifecycleCoordinator()
     @State private var showPersistenceError = false
+    private let commandHandler = LiveActivityCommandHandler()
+    private let livePublisher = LiveActivityStatePublisher(reloadKind: "RefZoneWidgets")
     
     var body: some View {
         NavigationStack {
@@ -120,6 +122,7 @@ struct ContentView: View {
                 } else {
                     lifecycle.resetToStart()
                 }
+                consumeWidgetCommand()
             }
         }
         .onChange(of: matchViewModel.matchCompleted) { completed, _ in
@@ -150,4 +153,11 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
+}
+
+private extension ContentView {
+    func consumeWidgetCommand() {
+        guard commandHandler.processPendingCommand(model: matchViewModel) != nil else { return }
+        livePublisher.publish(for: matchViewModel)
+    }
 }
