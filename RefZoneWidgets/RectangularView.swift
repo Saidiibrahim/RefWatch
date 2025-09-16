@@ -1,4 +1,5 @@
 import SwiftUI
+import AppIntents
 
 struct RectangularView: View {
   let state: LiveActivityState?

@@ -22,7 +22,8 @@ extension MatchControlAppIntent {
     LiveActivityCommandStore().write(Self.command)
     WidgetCenter.shared.reloadTimelines(ofKind: "RefZoneWidgets")
     if let url = URL(string: "refzone://timer?action=\(Self.deepLinkAction)") {
-      return .result(opening: url)
+      let openURLIntent = OpenURLIntent(url)
+      return .result(opensIntent: openURLIntent)
     }
     return .result()
   }
