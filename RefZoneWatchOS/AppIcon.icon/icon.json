@@ -6,8 +6,10 @@
     {
       "layers" : [
         {
-          "image-name" : "referee_cards_whistle.svg",
-          "name" : "referee_cards_whistle"
+          "blend-mode" : "normal",
+          "fill" : "automatic",
+          "image-name" : "refzone-cards-transparent.svg",
+          "name" : "refzone-cards-transparent"
         }
       ],
       "shadow" : {
