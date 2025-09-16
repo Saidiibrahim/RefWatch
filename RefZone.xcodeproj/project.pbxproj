@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		9654C2452E78EB46001941F3 /* RefWatchCore in Frameworks */ = {isa = PBXBuildFile; productRef = 9654C2442E78EB46001941F3 /* RefWatchCore */; };
 		966D6DD62E6E5BBE0086E820 /* Clerk in Frameworks */ = {isa = PBXBuildFile; productRef = 966D6DD52E6E5BBE0086E820 /* Clerk */; };
 		96BBA36C2E77BF07000A67FC /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 96BBA36B2E77BF07000A67FC /* WidgetKit.framework */; };
 		96BBA36E2E77BF07000A67FC /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 96BBA36D2E77BF07000A67FC /* SwiftUI.framework */; };
@@ -138,13 +139,27 @@
 		966D6DDC2E6E6E630086E820 /* Exceptions for "RefZoneiOS" folder in "RefZoneiOS" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				AGENTS.md,
+				Config/AGENTS.md,
+				Core/AGENTS.md,
+				Core/Persistence/SwiftData/AGENTS.md,
+				Core/Platform/AI/AGENTS.md,
+				Features/AGENTS.md,
 				Info.plist,
 			);
 			target = 96B8126D2E67CDA400B23EC0 /* RefZoneiOS */;
 		};
+		968464EF2E790779000F4ACD /* Exceptions for "RefZoneiOS" folder in "RefZoneWidgetsExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				AppIcon.icon,
+			);
+			target = 96BBA3692E77BF06000A67FC /* RefZoneWidgetsExtension */;
+		};
 		96BBA37D2E77BF08000A67FC /* Exceptions for "RefZoneWidgets" folder in "RefZoneWidgetsExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				AGENTS.md,
 				Info.plist,
 			);
 			target = 96BBA3692E77BF06000A67FC /* RefZoneWidgetsExtension */;
@@ -152,11 +167,24 @@
 		96BBA38A2E77C208000A67FC /* Exceptions for "RefZoneWatchOS" folder in "RefZoneWidgetsExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				Core/Services/Formatting/PeriodLabelFormatter.swift,
+				Core/Services/LiveActivity/LiveActivityCommand.swift,
+				Core/Services/LiveActivity/LiveActivityCommandStore.swift,
 				Core/Services/LiveActivity/LiveActivityState.swift,
 				Core/Services/LiveActivity/LiveActivityStateStore.swift,
-				Core/Services/Formatting/PeriodLabelFormatter.swift,
 			);
 			target = 96BBA3692E77BF06000A67FC /* RefZoneWidgetsExtension */;
+		};
+		96F8A7F52E8E8A550097BE8C /* Exceptions for "RefZoneWatchOS" folder in "RefZone Watch App" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				AGENTS.md,
+				Core/AGENTS.md,
+				Core/Components/TimerFaces/AGENTS.md,
+				Core/Platform/AGENTS.md,
+				Features/AGENTS.md,
+			);
+			target = 964A4D702D32234A00D08376 /* RefZone Watch App */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -164,6 +192,7 @@
 		964A4D752D32234A00D08376 /* RefZoneWatchOS */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
+				96F8A7F52E8E8A550097BE8C /* Exceptions for "RefZoneWatchOS" folder in "RefZone Watch App" target */,
 				96BBA38A2E77C208000A67FC /* Exceptions for "RefZoneWatchOS" folder in "RefZoneWidgetsExtension" target */,
 			);
 			path = RefZoneWatchOS;
@@ -183,6 +212,7 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				966D6DDC2E6E6E630086E820 /* Exceptions for "RefZoneiOS" folder in "RefZoneiOS" target */,
+				968464EF2E790779000F4ACD /* Exceptions for "RefZoneiOS" folder in "RefZoneWidgetsExtension" target */,
 			);
 			path = RefZoneiOS;
 			sourceTree = "<group>";
@@ -259,6 +289,7 @@
 			files = (
 				96BBA36E2E77BF07000A67FC /* SwiftUI.framework in Frameworks */,
 				96BBA36C2E77BF07000A67FC /* WidgetKit.framework in Frameworks */,
+				9654C2452E78EB46001941F3 /* RefWatchCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -511,6 +542,7 @@
 			);
 			name = RefZoneWidgetsExtension;
 			packageProductDependencies = (
+				9654C2442E78EB46001941F3 /* RefWatchCore */,
 			);
 			productName = RefZoneWidgetsExtension;
 			productReference = 96BBA36A2E77BF06000A67FC /* RefZoneWidgetsExtension.appex */;
@@ -563,8 +595,8 @@
 			mainGroup = 964A4D642D32234A00D08376;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				96F51E912E6852D400C27CF8 /* XCLocalSwiftPackageReference "RefWatchCore" */,
 				966D6DD42E6E5BBE0086E820 /* XCRemoteSwiftPackageReference "clerk-ios" */,
+				9654C2432E78EB35001941F3 /* XCLocalSwiftPackageReference "RefWatchCore" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 964A4D6C2D32234A00D08376 /* Products */;
@@ -879,17 +911,10 @@
 				);
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = RefZone;
+				INFOPLIST_KEY_CFBundleURLTypes = "{\n    CFBundleURLName = refzone;\n    CFBundleURLSchemes =     (\n        refzone\n    );\n}";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.IbrahimSaidi.RefZone;
 				INFOPLIST_KEY_WKWatchOnly = NO;
-				INFOPLIST_KEY_CFBundleURLTypes = (
-					{
-						CFBundleURLName = refzone;
-						CFBundleURLSchemes = (
-							refzone,
-						);
-					},
-				);
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -942,17 +967,10 @@
 				);
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = RefZone;
+				INFOPLIST_KEY_CFBundleURLTypes = "{\n    CFBundleURLName = refzone;\n    CFBundleURLSchemes =     (\n        refzone\n    );\n}";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.IbrahimSaidi.RefZone;
 				INFOPLIST_KEY_WKWatchOnly = NO;
-				INFOPLIST_KEY_CFBundleURLTypes = (
-					{
-						CFBundleURLName = refzone;
-						CFBundleURLSchemes = (
-							refzone,
-						);
-					},
-				);
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -1355,7 +1373,7 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		96F51E912E6852D400C27CF8 /* XCLocalSwiftPackageReference "RefWatchCore" */ = {
+		9654C2432E78EB35001941F3 /* XCLocalSwiftPackageReference "RefWatchCore" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = RefWatchCore;
 		};
@@ -1373,6 +1391,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		9654C2442E78EB46001941F3 /* RefWatchCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9654C2432E78EB35001941F3 /* XCLocalSwiftPackageReference "RefWatchCore" */;
+			productName = RefWatchCore;
+		};
 		966D6DD52E6E5BBE0086E820 /* Clerk */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 966D6DD42E6E5BBE0086E820 /* XCRemoteSwiftPackageReference "clerk-ios" */;
