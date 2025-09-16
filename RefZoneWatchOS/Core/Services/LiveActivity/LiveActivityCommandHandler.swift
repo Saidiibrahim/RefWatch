@@ -33,25 +33,38 @@ final class LiveActivityCommandHandler {
     self.store = store
   }
 
+  /// Consumes the most recent widget-issued command and forwards it to the
+  /// provided model when the transition is valid. Returns `nil` when no action
+  /// was performed so the caller can skip redundant UI updates.
   @discardableResult
   func processPendingCommand(model: MatchCommandHandling) -> LiveActivityCommand? {
     guard let envelope = store.consume() else { return nil }
+
+    var didHandle = false
 
     switch envelope.command {
     case .pause:
       if model.isMatchInProgress && model.isPaused == false {
         model.pauseMatch()
+        didHandle = true
       }
     case .resume:
       if model.isMatchInProgress && model.isPaused {
         model.resumeMatch()
+        didHandle = true
       }
     case .startHalfTime:
-      model.startHalfTimeManually()
+      if model.waitingForHalfTimeStart {
+        model.startHalfTimeManually()
+        didHandle = true
+      }
     case .startSecondHalf:
-      model.startSecondHalfManually()
+      if model.waitingForSecondHalfStart {
+        model.startSecondHalfManually()
+        didHandle = true
+      }
     }
 
-    return envelope.command
+    return didHandle ? envelope.command : nil
   }
 }
