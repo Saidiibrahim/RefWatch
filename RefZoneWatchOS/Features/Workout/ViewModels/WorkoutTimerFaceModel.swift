@@ -68,7 +68,8 @@ final class WorkoutTimerFaceModel: TimerFaceModel {
   }
 
   private func configureInitialState() {
-    isMatchInProgress = session.state == .active
+    isMatchInProgress = session.state == .active || session.state == .paused
+    isPaused = session.state == .paused
     if session.state == .ended || session.state == .aborted {
       timer?.invalidate()
       timer = nil

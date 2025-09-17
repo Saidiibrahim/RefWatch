@@ -69,5 +69,9 @@
     <string>RefZone uses speech recognition to convert your voice to text for the Assistant.</string>
     <key>NSMicrophoneUsageDescription</key>
     <string>RefZone needs microphone access to capture your voice for the Assistant.</string>
+    <key>NSHealthShareUsageDescription</key>
+    <string>RefZone needs access to read your health data to provide accurate workout tracking and analysis.</string>
+    <key>NSHealthUpdateUsageDescription</key>
+    <string>RefZone needs access to write workout data including distance, heart rate, and energy information.</string>
 </dict>
 </plist>

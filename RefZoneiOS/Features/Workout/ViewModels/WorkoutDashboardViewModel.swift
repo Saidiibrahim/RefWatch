@@ -1,5 +1,6 @@
 import Foundation
 import RefWorkoutCore
+import Combine
 
 @MainActor
 final class WorkoutDashboardViewModel: ObservableObject {

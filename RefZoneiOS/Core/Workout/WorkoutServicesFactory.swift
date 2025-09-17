@@ -9,6 +9,10 @@ enum IOSWorkoutServicesFactory {
       return WorkoutServices.inMemoryStub()
     }
 
+    guard #available(iOS 17.0, *) else {
+      return WorkoutServices.inMemoryStub()
+    }
+
     let healthStore = HKHealthStore()
     let authorization = IOSHealthKitWorkoutAuthorizationManager(healthStore: healthStore)
     let tracker = IOSHealthKitWorkoutTracker(healthStore: healthStore)
