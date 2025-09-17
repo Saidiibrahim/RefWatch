@@ -14,13 +14,13 @@
 _Phases mirror the design plan; update checkboxes as work completes._
 
 ### Phase 1 – Finalize tokens & component metrics *(in progress)*
-- [ ] Add Football SA-derived palette constants in `ColorTokens` and document contrast ratios.
-- [ ] Extend `TypographyTokens` with `timerPrimary`, `timerSecondary`, `cardHeadline`, and `cardMeta` roles using scaled fonts.
-- [ ] Expose `ComponentStyles.cardCornerRadius`, `cardShadow`, `listVerticalSpacing`, and ensure spacing tokens cover the navigation card layout blueprint.
-- [ ] Capture previews demonstrating the new tokens in isolation (no surface rewrites yet).
+- [x] Add Football SA-derived palette constants in `ColorTokens` and document contrast ratios.
+- [x] Extend `TypographyTokens` with `timerPrimary`, `timerSecondary`, `cardHeadline`, and `cardMeta` roles using scaled fonts.
+- [x] Expose `ComponentStyles.cardCornerRadius`, `cardShadow`, `listVerticalSpacing`, and ensure spacing tokens cover the navigation card layout blueprint.
+- [x] Capture previews demonstrating the new tokens in isolation (no surface rewrites yet).
 
 ### Phase 2 – Theme core match surfaces *(no layout change)*
-- [ ] Refactor `TimerView`, `TimerFaceFactory`, `StandardTimerFace`, and penalty flows to adopt palette/typography tokens while keeping full-bleed interactions.
+- [x] Refactor `TimerView`, `TimerFaceFactory`, `StandardTimerFace`, and penalty flows to adopt palette/typography tokens while keeping full-bleed interactions.
 - [ ] Audit overlays, progress indicators, and alerts to confirm state colors read correctly under motion and ambient lighting.
 - [ ] Run visual QA on 41mm + 45mm simulators; log issues in this plan for follow-up.
 
@@ -38,3 +38,4 @@ _Phases mirror the design plan; update checkboxes as work completes._
 - watchOS sandbox build issues (clang cache) still block local `swift build`; rerun outside sandbox to verify once palette code lands.
 - Brand assets may update with precise hex values; keep palette definitions centralized to minimize churn.
 - Ensure match-critical surfaces remain performant when color updates occur (watch out for expensive gradients or animations tied to theme changes).
+- Confirm the Pro Stoppage face typography scaling on 41mm hardware—`scaleEffect` keeps tokens aligned, but extreme content sizes may need bespoke sizing.

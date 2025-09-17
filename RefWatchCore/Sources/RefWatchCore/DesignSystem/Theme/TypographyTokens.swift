@@ -16,17 +16,17 @@ public struct TypographyScale {
     public let iconSecondary: Font
 
     public init(
-        timerPrimary: Font = .system(size: 52, weight: .bold, design: .rounded),
-        timerSecondary: Font = .system(size: 24, weight: .semibold, design: .rounded),
-        timerTertiary: Font = .system(size: 18, weight: .medium, design: .rounded),
-        heroTitle: Font = .system(size: 24, weight: .semibold, design: .rounded),
-        heroSubtitle: Font = .system(size: 18, weight: .medium, design: .rounded),
-        cardHeadline: Font = .system(size: 22, weight: .semibold),
-        cardMeta: Font = .system(size: 15, weight: .medium),
+        timerPrimary: Font = roundedFont(size: 52, weight: .bold, textStyle: .largeTitle, monospaced: true),
+        timerSecondary: Font = roundedFont(size: 24, weight: .semibold, textStyle: .title3, monospaced: true),
+        timerTertiary: Font = roundedFont(size: 18, weight: .medium, textStyle: .headline, monospaced: true),
+        heroTitle: Font = roundedFont(size: 24, weight: .semibold, textStyle: .title2),
+        heroSubtitle: Font = roundedFont(size: 18, weight: .medium, textStyle: .title3),
+        cardHeadline: Font = roundedFont(size: 22, weight: .semibold, textStyle: .title3),
+        cardMeta: Font = roundedFont(size: 15, weight: .medium, textStyle: .subheadline),
         body: Font = .body,
         label: Font = .headline,
         caption: Font = .footnote,
-        button: Font = .system(size: 16, weight: .medium),
+        button: Font = roundedFont(size: 16, weight: .medium, textStyle: .callout),
         iconAccent: Font = .system(size: 18, weight: .semibold),
         iconSecondary: Font = .system(size: 12, weight: .semibold)
     ) {
@@ -48,4 +48,16 @@ public struct TypographyScale {
 
 public extension TypographyScale {
     static var standard: TypographyScale { TypographyScale() }
+}
+
+@usableFromInline
+func roundedFont(
+    size: CGFloat,
+    weight: Font.Weight,
+    textStyle: Font.TextStyle,
+    monospaced: Bool = false
+) -> Font {
+    var font = Font.system(textStyle, design: .rounded).weight(weight)
+    if monospaced { font = font.monospacedDigit() }
+    return font
 }

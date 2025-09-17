@@ -6,6 +6,7 @@ public struct SpacingScale {
     public let m: CGFloat
     public let l: CGFloat
     public let xl: CGFloat
+    /// Default vertical spacing used for stacked card lists (navigation blueprint).
     public let stackSpacing: CGFloat
 
     public init(
@@ -23,6 +24,13 @@ public struct SpacingScale {
         self.xl = xl
         self.stackSpacing = stackSpacing
     }
+
+    /// Convenience aliases that mirror the layout blueprint naming.
+    public var stackXS: CGFloat { xs }
+    public var stackSM: CGFloat { s }
+    public var stackMD: CGFloat { stackSpacing }
+    public var stackLG: CGFloat { l }
+    public var stackXL: CGFloat { xl }
 }
 
 public extension SpacingScale {

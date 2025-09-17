@@ -6,6 +6,7 @@ import RefWatchCore
 
 public struct ProStoppageFace: View {
     @Environment(\.haptics) private var haptics
+    @Environment(\.theme) private var theme
     let model: TimerFaceModel
 
     public init(model: TimerFaceModel) { self.model = model }
@@ -44,23 +45,23 @@ public struct ProStoppageFace: View {
                 Spacer()
                 IconButton(
                     icon: "checkmark.circle.fill",
-                    color: Color.green,
+                    color: theme.colors.matchPositive,
                     size: max(32, Constants.iconSize * scale),
                     action: {
                         haptics.play(.resume)
                         model.startHalfTimeManually()
                     }
                 )
-                .padding(.bottom, 16 * scale)
+                .padding(.bottom, theme.spacing.m * scale)
                 Spacer()
             } else {
                 Text(model.halfTimeElapsed)
-                    .font(.system(size: Constants.halfTimeLargeFontBase * scale, weight: .bold, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundColor(.white)
+                    .font(theme.typography.timerPrimary)
+                    .foregroundStyle(theme.colors.textPrimary)
                     .padding(.vertical, Constants.halfTimeVerticalPaddingBase * scale)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
+                    .scaleEffect(scale, anchor: .center)
             }
         }
     }
@@ -71,20 +72,22 @@ public struct ProStoppageFace: View {
         return VStack(spacing: Constants.verticalSpacingBase * scale) {
             // Prominent per-period context: time remaining in current period
             Text(model.periodTimeRemaining)
-                .font(.system(size: Constants.prominentFontBase * scale, weight: .bold, design: .rounded))
-                .monospacedDigit()
+                .font(theme.typography.timerPrimary)
+                .foregroundStyle(theme.colors.textPrimary)
+                .scaleEffect(scale, anchor: .center)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
 
             // Elapsed row (total match time)
             HStack {
                 Text("Elapsed")
-                    .font(.footnote)
-                    .foregroundColor(.gray)
+                    .font(theme.typography.caption)
+                    .foregroundStyle(theme.colors.textSecondary)
                 Spacer()
                 Text(model.matchTime)
-                    .font(.system(size: Constants.rowValueFontBase * scale, weight: .medium, design: .rounded))
-                    .monospacedDigit()
+                    .font(theme.typography.timerSecondary)
+                    .foregroundStyle(theme.colors.textPrimary)
+                    .scaleEffect(scale * 0.9, anchor: .center)
                     .lineLimit(1)
                     .minimumScaleFactor(0.85)
             }
@@ -94,13 +97,13 @@ public struct ProStoppageFace: View {
             // Stoppage row (dedicated tap target to toggle stoppage while running)
             HStack {
                 Text("Stoppage")
-                    .font(.footnote)
-                    .foregroundColor(.gray)
+                    .font(theme.typography.caption)
+                    .foregroundStyle(theme.colors.textSecondary)
                 Spacer()
                 Text("+\(model.formattedStoppageTime)")
-                    .font(.system(size: Constants.stoppageFontBase * scale, weight: .medium, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundColor(model.isInStoppage ? .orange : .gray)
+                    .font(theme.typography.timerTertiary)
+                    .foregroundStyle(model.isInStoppage ? theme.colors.matchWarning : theme.colors.textSecondary)
+                    .scaleEffect(scale * 0.85, anchor: .center)
                     .lineLimit(1)
                     .minimumScaleFactor(0.85)
             }

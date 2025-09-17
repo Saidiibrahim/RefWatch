@@ -26,7 +26,7 @@ struct StartMatchScreen: View {
                 } label: {
                     MenuCard(
                         title: "Select Match",
-                        subtitle: "Choose from recent fixtures",
+                        subtitle: nil,
                         icon: "folder",
                         tint: theme.colors.accentSecondary,
                         accessoryIcon: "chevron.forward",
@@ -47,7 +47,7 @@ struct StartMatchScreen: View {
                 } label: {
                     MenuCard(
                         title: "Create Match",
-                        subtitle: "Set duration, periods, and extras",
+                        subtitle: nil,
                         icon: "plus.circle.fill",
                         tint: theme.colors.textInverted,
                         accessoryIcon: "chevron.forward",
