@@ -599,6 +599,9 @@ public final class MatchViewModel {
     // MARK: - History Bridges
     @MainActor public func loadCompletedMatches() -> [CompletedMatch] { (try? history.loadAll()) ?? [] }
     @MainActor public func loadRecentCompletedMatches(limit: Int = 50) -> [CompletedMatch] { history.loadRecent(limit) }
+    @MainActor public func latestCompletedMatchSummary() -> CompletedMatchSummary? {
+        history.loadRecent(1).first.map { CompletedMatchSummary(match: $0) }
+    }
     @MainActor public func deleteCompletedMatch(id: UUID) { try? history.delete(id: id) }
 
     // MARK: - Penalty Manager Wiring
