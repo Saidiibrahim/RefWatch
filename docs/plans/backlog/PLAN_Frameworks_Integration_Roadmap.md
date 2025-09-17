@@ -41,7 +41,7 @@ This document lays out a phased, multi‑PR plan to integrate modern watchOS cap
   - `Core/Services/Workout/WorkoutSessionManager.swift`
   - `App/Complications/*` (WidgetKit extensions, timelines, providers)
   - `App/AppIntents/PauseResumeMatchIntent.swift`
-  - Light edits in `MatchViewModel.swift`, `TimerManager.swift`, `ContentView.swift`
+  - Light edits in `MatchViewModel.swift`, `TimerManager.swift`, `MatchRootView.swift`
 
 - Manual QA (device recommended)
   - Start match → lock/dim screen → verify timer continuity and periodic heart‑rate samples (if enabled).
@@ -192,4 +192,3 @@ This document lays out a phased, multi‑PR plan to integrate modern watchOS cap
 - Proceed in order: W1 → W2 → W3 → W4. Each PR should include device‑based manual QA notes when Health/Routes are touched.
 - Keep `MatchLifecycleCoordinator` authoritative for routing; avoid state duplication in VM where possible.
 - If end‑of‑match navigation regresses, verify finalize flow and consider a NavigationPath fallback.
-

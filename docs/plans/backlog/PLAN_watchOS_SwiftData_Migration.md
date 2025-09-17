@@ -61,7 +61,7 @@
 - Construct the watch `SwiftDataMatchHistoryStore` with the container; pass into `MatchViewModel(history: store, haptics: WatchHaptics(), connectivity: WatchConnectivitySyncClient())`.
 - Location:
   - Model + store: `RefZoneWatchOS/Core/Persistence/SwiftData/` (new folder).
-  - App entry wiring: `RefZoneWatchOS/App/ContentView.swift` or app `@main` entry depending on current composition.
+  - App entry wiring: `RefZoneWatchOS/App/MatchRootView.swift` or app `@main` entry depending on current composition.
 
 ## WatchConnectivity (Unchanged)
 - Keep `WatchConnectivitySyncClient` as-is. VM continues to send snapshots on finalize.

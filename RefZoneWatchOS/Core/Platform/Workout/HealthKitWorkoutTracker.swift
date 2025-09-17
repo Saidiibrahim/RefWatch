@@ -174,35 +174,57 @@ final class HealthKitWorkoutTracker: NSObject, WorkoutSessionTracking, @unchecke
 }
 
 extension HealthKitWorkoutTracker: HKWorkoutSessionDelegate {
-  func workoutSession(_ workoutSession: HKWorkoutSession, didChangeTo toState: HKWorkoutSessionState, from fromState: HKWorkoutSessionState, date: Date) {
-    guard let managed = managedSession(for: workoutSession) else { return }
+  nonisolated func workoutSession(_ workoutSession: HKWorkoutSession, didChangeTo toState: HKWorkoutSessionState, from fromState: HKWorkoutSessionState, date: Date) {
+    Task { @MainActor in
+      guard let managed = self.managedSession(for: workoutSession) else { return }
 
-    switch toState {
-    case .running:
-      managed.model.markActive(startedAt: date)
-    case .ended:
-      managed.model.complete(at: date)
-    case .stopped:
-      managed.model.abort(at: date)
-    case .notStarted, .paused, .prepared:
-      break
-    @unknown default:
-      break
+      switch toState {
+      case .running:
+        managed.model.markActive(startedAt: date)
+      case .ended:
+        managed.model.complete(at: date)
+      case .stopped:
+        managed.model.abort(at: date)
+      case .notStarted, .paused, .prepared:
+        break
+      @unknown default:
+        break
+      }
     }
   }
 
-  func workoutSession(_ workoutSession: HKWorkoutSession, didFailWithError error: Error) {
-    guard let managed = managedSession(for: workoutSession) else { return }
-    managed.model.abort(at: Date())
-    activeSessions.removeValue(forKey: managed.model.id)
+  nonisolated func workoutSession(_ workoutSession: HKWorkoutSession, didFailWithError error: Error) {
+    Task { @MainActor in
+      guard let managed = self.managedSession(for: workoutSession) else { return }
+      managed.model.abort(at: Date())
+      self.activeSessions.removeValue(forKey: managed.model.id)
+    }
   }
 }
 
 extension HealthKitWorkoutTracker: HKLiveWorkoutBuilderDelegate {
-  func workoutBuilder(_ workoutBuilder: HKLiveWorkoutBuilder, didCollectDataOf collectedTypes: Set<HKSampleType>) {}
-  func workoutBuilder(_ workoutBuilder: HKLiveWorkoutBuilder, didCollectEvent workoutEvent: HKWorkoutEvent) {}
-  func workoutBuilderDidCollectData(_ workoutBuilder: HKLiveWorkoutBuilder) {}
-  func workoutBuilderDidFinishCollection(_ workoutBuilder: HKLiveWorkoutBuilder) {}
+  nonisolated func workoutBuilder(_ workoutBuilder: HKLiveWorkoutBuilder, didCollectDataOf collectedTypes: Set<HKSampleType>) {}
+
+  nonisolated func workoutBuilderDidCollectEvent(_ workoutBuilder: HKLiveWorkoutBuilder) {
+    Task { @MainActor in
+      guard
+        let session = workoutBuilder.workoutSession,
+        let managed = self.managedSession(for: session),
+        let hkEvent = workoutBuilder.workoutEvents.last
+      else {
+        return
+      }
+
+      let timestamp = hkEvent.dateInterval.start
+      let payload = ["type": hkEvent.type.refIdentifier]
+      let domainEvent = WorkoutEvent.custom(name: "healthKitEvent", payload: payload, timestamp: timestamp)
+      managed.events.append(domainEvent)
+    }
+  }
+
+  nonisolated func workoutBuilderDidCollectData(_ workoutBuilder: HKLiveWorkoutBuilder) {}
+  nonisolated func workoutBuilderDidCollectMetrics(_ workoutBuilder: HKLiveWorkoutBuilder) {}
+  nonisolated func workoutBuilderDidFinishCollection(_ workoutBuilder: HKLiveWorkoutBuilder) {}
 }
 
 private final class ManagedSession {
@@ -218,6 +240,31 @@ private final class ManagedSession {
     self.builder = builder
     self.model = model
     self.events = []
+  }
+}
+
+private extension HKWorkoutEventType {
+  var refIdentifier: String {
+    switch self {
+    case .pause:
+      return "pause"
+    case .resume:
+      return "resume"
+    case .lap:
+      return "lap"
+    case .marker:
+      return "marker"
+    case .motionPaused:
+      return "motionPaused"
+    case .motionResumed:
+      return "motionResumed"
+    case .segment:
+      return "segment"
+    case .pauseOrResumeRequest:
+      return "pauseOrResumeRequest"
+    @unknown default:
+      return "unknown"
+    }
   }
 }
 #endif

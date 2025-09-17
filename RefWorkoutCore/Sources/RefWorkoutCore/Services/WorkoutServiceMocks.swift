@@ -19,6 +19,7 @@ public final class WorkoutAuthorizationManagerStub: WorkoutAuthorizationManaging
 public actor WorkoutSessionTrackerStub: WorkoutSessionTracking {
   public private(set) var sessions: [UUID: WorkoutSession] = [:]
   public private(set) var events: [UUID: [WorkoutEvent]] = [:]
+  public private(set) var pausedSessions: Set<UUID> = []
 
   public init() {}
 
@@ -40,12 +41,14 @@ public actor WorkoutSessionTrackerStub: WorkoutSessionTracking {
     guard var session = sessions[id] else { return }
     session.state = .active
     sessions[id] = session
+    pausedSessions.insert(id)
   }
 
   public func resumeSession(id: UUID) async throws {
     guard var session = sessions[id] else { return }
     session.state = .active
     sessions[id] = session
+    pausedSessions.remove(id)
   }
 
   public func endSession(id: UUID, at date: Date) async throws -> WorkoutSession {
@@ -54,6 +57,7 @@ public actor WorkoutSessionTrackerStub: WorkoutSessionTracking {
     }
     session.complete(at: date)
     sessions[id] = session
+    pausedSessions.remove(id)
     return session
   }
 

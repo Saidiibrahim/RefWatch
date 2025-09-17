@@ -5,89 +5,84 @@ import RefWorkoutCore
 struct AppRootView: View {
   @EnvironmentObject private var appModeController: AppModeController
   @Environment(\.workoutServices) private var workoutServices
-  @State private var showModePicker = false
   @State private var workoutViewID = UUID()
+  @State private var showModeSwitcher = false
+  @State private var didPresentInitialSwitcher = false
 
   var body: some View {
-    ZStack(alignment: .topTrailing) {
-      Group {
-        switch appModeController.currentMode {
-        case .match:
-          ContentView()
-        case .workout:
-          WorkoutRootView(
-            services: workoutServices,
-            appModeController: appModeController
-          )
-          .id(workoutViewID)
-        }
-      }
-
-      ModeSwitcherButton(currentMode: appModeController.currentMode) {
-        showModePicker = true
-      }
-      .padding(.top, 8)
-      .padding(.trailing, 8)
-    }
-    .sheet(isPresented: $showModePicker) {
-      NavigationStack {
-        ModePickerSheet(isPresented: $showModePicker)
-          .environmentObject(appModeController)
+    Group {
+      switch appModeController.currentMode {
+      case .match:
+        MatchRootView()
+      case .workout:
+        WorkoutRootView(
+          services: workoutServices,
+          appModeController: appModeController
+        )
+        .id(workoutViewID)
       }
     }
+    .environment(\.modeSwitcherPresentation, $showModeSwitcher)
     .onChange(of: appModeController.currentMode) { mode in
       if mode == .workout {
         workoutViewID = UUID()
       }
     }
-  }
-}
-
-private struct ModeSwitcherButton: View {
-  let currentMode: AppMode
-  let action: () -> Void
-
-  var body: some View {
-    Button(action: action) {
-      Label(currentMode.displayName, systemImage: currentMode.systemImageName)
-        .labelStyle(.iconOnly)
-        .padding(8)
-        .background(.ultraThinMaterial, in: Circle())
-    }
-    .buttonStyle(.plain)
-  }
-}
-
-private struct ModePickerSheet: View {
-  @EnvironmentObject private var appModeController: AppModeController
-  @Binding var isPresented: Bool
-
-  var body: some View {
-    List(AppMode.allCases, id: \.self) { mode in
-      Button {
-        appModeController.select(mode)
-        isPresented = false
-      } label: {
-        HStack {
-          Image(systemName: mode.systemImageName)
-            .foregroundColor(.accentColor)
-          VStack(alignment: .leading) {
-            Text(mode.displayName)
-            Text(mode.tagline)
-              .font(.caption2)
-              .foregroundStyle(.secondary)
+    .onAppear(perform: presentSwitcherIfNeeded)
+    .fullScreenCover(isPresented: $showModeSwitcher) {
+      ModeSwitcherView(
+        lastSelectedMode: appModeController.hasPersistedSelection ? appModeController.currentMode : nil,
+        allowDismiss: appModeController.hasPersistedSelection,
+        onSelect: { mode in
+          appModeController.select(mode)
+          if mode == .workout {
+            workoutViewID = UUID()
           }
-          Spacer()
-          if appModeController.currentMode == mode {
-            Image(systemName: "checkmark")
-              .foregroundStyle(.secondary)
-          }
+          showModeSwitcher = false
+        },
+        onDismiss: {
+          showModeSwitcher = false
         }
-        .padding(.vertical, 4)
-      }
-      .buttonStyle(.plain)
+      )
+      .environmentObject(appModeController)
     }
-    .listStyle(.carousel)
-    .navigationTitle("Choose Mode")
   }
+}
+
+private extension AppRootView {
+  func presentSwitcherIfNeeded() {
+    guard !didPresentInitialSwitcher else { return }
+    didPresentInitialSwitcher = true
+
+    if !appModeController.hasPersistedSelection {
+      showModeSwitcher = true
+    }
+  }
+}
+
+#Preview("Match Mode") {
+  let controller = AppModeController()
+  controller.select(.match, persist: false)
+  
+  return AppRootView()
+    .environmentObject(controller)
+    .workoutServices(.inMemoryStub())
+}
+
+#Preview("Workout Mode") {
+  let controller = AppModeController()
+  controller.select(.workout, persist: false)
+  
+  return AppRootView()
+    .environmentObject(controller)
+    .workoutServices(.inMemoryStub())
+}
+
+#Preview("No Selection (Shows Switcher)") {
+  let controller = AppModeController()
+  // Don't set a selection to trigger the switcher
+  
+  return AppRootView()
+    .environmentObject(controller)
+    .workoutServices(.inMemoryStub())
 }

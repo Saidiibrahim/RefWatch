@@ -22,14 +22,15 @@ struct WorkoutHomeView: View {
       }
 
       if let lastCompleted {
-        Section("Last session") {
-          VStack(alignment: .leading, spacing: 4) {
+        Section("Recent") {
+          VStack(alignment: .leading, spacing: 6) {
             Text(lastCompleted.title)
               .font(.headline)
             Text(summary(for: lastCompleted))
               .font(.caption2)
               .foregroundStyle(.secondary)
           }
+          .padding(.vertical, 2)
         }
       }
 
@@ -38,12 +39,12 @@ struct WorkoutHomeView: View {
           Button {
             onQuickStart(kind)
           } label: {
-            HStack {
+            HStack(spacing: 12) {
               Image(systemName: icon(for: kind))
                 .foregroundColor(.accentColor)
-              VStack(alignment: .leading) {
+              VStack(alignment: .leading, spacing: 2) {
                 Text(kind.displayName)
-                Text("Metric tracking enabled")
+                Text(quickStartSubtitle(for: kind))
                   .font(.caption2)
                   .foregroundStyle(.secondary)
               }
@@ -62,7 +63,20 @@ struct WorkoutHomeView: View {
 
       Section("Presets") {
         if presets.isEmpty {
-          Button("Load presets", action: onReload)
+          VStack(alignment: .leading, spacing: 8) {
+            if isBusy {
+              ProgressView()
+                .progressViewStyle(.circular)
+            } else {
+              Text("No presets found")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+              Button("Load example presets", action: onReload)
+                .disabled(isBusy)
+            }
+          }
+          .frame(maxWidth: .infinity, alignment: .center)
+          .padding(.vertical, 6)
         } else {
           ForEach(presets) { preset in
             Button {
@@ -190,6 +204,25 @@ private extension WorkoutHomeView {
       return "whistle"
     case .custom:
       return "star"
+    }
+  }
+
+  func quickStartSubtitle(for kind: WorkoutKind) -> String {
+    switch kind {
+    case .outdoorRun, .indoorRun:
+      return "Auto-pause + splits"
+    case .outdoorWalk:
+      return "Distance & pace logging"
+    case .indoorCycle:
+      return "Cadence ready"
+    case .strength:
+      return "Supersets tracking"
+    case .mobility:
+      return "Guided intervals"
+    case .refereeDrill:
+      return "Match sprint repeats"
+    case .custom:
+      return "Build your own"
     }
   }
 }

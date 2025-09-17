@@ -919,6 +919,8 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = RefZone;
 				INFOPLIST_KEY_CFBundleURLTypes = "{\n    CFBundleURLName = refzone;\n    CFBundleURLSchemes =     (\n        refzone\n    );\n}";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "RefZone needs access to read your health data to provide accurate workout tracking and analysis.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "RefZone needs access to write workout data including distance, heart rate, and energy information.";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.IbrahimSaidi.RefZone;
 				INFOPLIST_KEY_WKWatchOnly = NO;
@@ -975,6 +977,8 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = RefZone;
 				INFOPLIST_KEY_CFBundleURLTypes = "{\n    CFBundleURLName = refzone;\n    CFBundleURLSchemes =     (\n        refzone\n    );\n}";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "RefZone needs access to read your health data to provide accurate workout tracking and analysis.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "RefZone needs access to write workout data including distance, heart rate, and energy information.";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.IbrahimSaidi.RefZone;
 				INFOPLIST_KEY_WKWatchOnly = NO;

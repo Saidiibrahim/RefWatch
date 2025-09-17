@@ -3,13 +3,35 @@ import RefWorkoutCore
 
 struct WorkoutSessionHostView: View {
   let session: WorkoutSession
+  let isPaused: Bool
   let isEnding: Bool
+  let onPause: () -> Void
+  let onResume: () -> Void
   let onEnd: () -> Void
+
+  @State private var timerModel: WorkoutTimerFaceModel
+
+  init(
+    session: WorkoutSession,
+    isPaused: Bool,
+    isEnding: Bool,
+    onPause: @escaping () -> Void,
+    onResume: @escaping () -> Void,
+    onEnd: @escaping () -> Void
+  ) {
+    self.session = session
+    self.isPaused = isPaused
+    self.isEnding = isEnding
+    self.onPause = onPause
+    self.onResume = onResume
+    self.onEnd = onEnd
+    _timerModel = State(initialValue: WorkoutTimerFaceModel(session: session, onPause: onPause, onResume: onResume))
+  }
 
   var body: some View {
     List {
       Section {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 10) {
           Text(session.title)
             .font(.headline)
           if let preset = session.presetId {
@@ -17,12 +39,15 @@ struct WorkoutSessionHostView: View {
               .font(.caption2)
               .foregroundStyle(.secondary)
           }
-          TimelineView(.periodic(from: session.startedAt, by: 1)) { context in
-            Text(elapsedString(asOf: context.date))
-              .font(.system(.title3, design: .rounded, weight: .semibold))
-          }
+          TimerFaceFactory.view(for: .standard, model: timerModel)
+            .hapticsProvider(WatchHaptics())
+            .padding(.vertical, 4)
         }
         .padding(.vertical, 4)
+      }
+
+      if hasMetrics {
+        metricsSection
       }
 
       if !session.segments.isEmpty {
@@ -53,7 +78,22 @@ struct WorkoutSessionHostView: View {
         }
       }
 
-      Section {
+      Section("Controls") {
+        Button {
+          if isPaused {
+            timerModel.resumeMatch()
+          } else {
+            timerModel.pauseMatch()
+          }
+        } label: {
+          HStack {
+            Text(isPaused ? "Resume" : "Pause")
+            Spacer()
+            Image(systemName: isPaused ? "play.fill" : "pause.fill")
+          }
+        }
+        .disabled(isEnding)
+
         Button(role: .destructive) {
           onEnd()
         } label: {
@@ -67,21 +107,57 @@ struct WorkoutSessionHostView: View {
       }
     }
     .listStyle(.carousel)
+    .onAppear {
+      timerModel.updatePauseState(isPaused)
+    }
+    .onChange(of: session) { newValue in
+      timerModel.updateSession(newValue)
+    }
+    .onChange(of: isPaused) { paused in
+      timerModel.updatePauseState(paused)
+    }
   }
 }
 
 private extension WorkoutSessionHostView {
-  func elapsedString(asOf date: Date) -> String {
-    let duration = session.elapsedDuration(asOf: date)
-    return formatDuration(duration)
+  var metricsSection: some View {
+    Section("Metrics") {
+      if let duration = session.summary.duration ?? session.totalDuration {
+        metricRow(title: "Duration", value: formatDuration(duration))
+      }
+      if let distance = session.summary.totalDistance {
+        metricRow(title: "Distance", value: formatDistance(distance))
+      }
+      if let averageHR = session.summary.averageHeartRate {
+        metricRow(title: "Avg HR", value: String(format: "%.0f bpm", averageHR))
+      }
+      if let maxHR = session.summary.maximumHeartRate {
+        metricRow(title: "Max HR", value: String(format: "%.0f bpm", maxHR))
+      }
+    }
+  }
+
+  func metricRow(title: String, value: String) -> some View {
+    HStack {
+      Text(title)
+      Spacer()
+      Text(value)
+        .foregroundStyle(.secondary)
+    }
+    .padding(.vertical, 2)
+  }
+
+  var hasMetrics: Bool {
+    let duration = session.summary.duration ?? session.totalDuration
+    return duration != nil || session.summary.totalDistance != nil || session.summary.averageHeartRate != nil || session.summary.maximumHeartRate != nil
   }
 
   func formatDuration(_ interval: TimeInterval) -> String {
     let formatter = DateComponentsFormatter()
-    formatter.unitsStyle = .positional
-    formatter.allowedUnits = [.hour, .minute, .second]
-    formatter.zeroFormattingBehavior = [.pad]
-    return formatter.string(from: interval) ?? "00:00"
+    formatter.unitsStyle = .abbreviated
+    formatter.allowedUnits = [.hour, .minute]
+    formatter.zeroFormattingBehavior = [.dropAll]
+    return formatter.string(from: interval) ?? "0m"
   }
 
   func formatDistance(_ meters: Double) -> String {
