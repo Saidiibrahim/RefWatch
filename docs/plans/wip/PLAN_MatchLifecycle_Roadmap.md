@@ -198,7 +198,7 @@ Branch and PR
 
 Delivered in v4
 - Lifecycle & Routing:
-  - Added lifecycle states for Extra Time halves and Penalties; coordinator + ContentView route to ET1/ET2 kickoff and Penalty Shootout.
+  - Added lifecycle states for Extra Time halves and Penalties; coordinator + MatchRootView route to ET1/ET2 kickoff and Penalty Shootout.
 - UI:
   - Extended `MatchKickOffView` for ET1/ET2 with correct default second‑half kickers.
   - Added `PenaltyShootoutView` with per‑round dots, active team highlight, first‑kicker prompt, and “End Shootout” gating; fixed `.sheet` chaining.

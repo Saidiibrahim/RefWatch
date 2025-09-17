@@ -5,13 +5,14 @@ This module serves as the entry point and root configuration of the RefWatch Wat
 ## Purpose
 
 - Contains the app's entry point (`RefWatchApp.swift`)
-- Manages root-level navigation and initial view setup (`ContentView.swift`)
+- Manages root-level navigation and initial view setup (`AppRootView.swift`, `MatchRootView.swift`)
 - Houses app-wide configuration and initialization logic
 
 ## Key Components
 
 - `RefWatchApp.swift`: The main app delegate and entry point
-- `ContentView.swift`: The root view of the application
+- `AppRootView.swift`: Coordinates mode switching between Match and Workout flows
+- `MatchRootView.swift`: The root view for the Match experience
 
 ## Guidelines
 

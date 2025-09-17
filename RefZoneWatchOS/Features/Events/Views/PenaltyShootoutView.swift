@@ -105,7 +105,7 @@ struct PenaltyShootoutView: View {
             .padding(.top, 8)
             .padding(.bottom, 28)
         }
-        // First-kicker prompt handled at ContentView level before routing
+        // First-kicker prompt handled at MatchRootView level before routing
     }
 
     

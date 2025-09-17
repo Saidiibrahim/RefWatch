@@ -1,16 +1,17 @@
 //
-//  ContentView.swift
+//  MatchRootView.swift
 //  RefereeAssistant
 //
-//  Description: The Welcome page with two main options: "Start Match" and "Settings".
+//  Description: The Match mode home with quick actions and lifecycle routing.
 //
 
 import SwiftUI
 import RefWatchCore
 
-struct ContentView: View {
+struct MatchRootView: View {
     @Environment(\.theme) private var theme
     @EnvironmentObject private var appModeController: AppModeController
+    @Environment(\.modeSwitcherPresentation) private var modeSwitcherPresentation
     @State private var matchViewModel = MatchViewModel(haptics: WatchHaptics(), connectivity: WatchConnectivitySyncClient())
     @State private var settingsViewModel = SettingsViewModel()
     @State private var lifecycle = MatchLifecycleCoordinator()
@@ -29,9 +30,11 @@ struct ContentView: View {
                         quickActionsSection
                     }
                     .listStyle(.carousel)
+                    .scrollContentBackground(.hidden)
                     .scrollIndicators(.hidden)
                     .scenePadding(.horizontal)
-                    .padding(.top, theme.spacing.xs)
+                    .padding(.vertical, theme.components.listVerticalSpacing)
+                    .background(theme.colors.backgroundPrimary)
                 case .kickoffFirstHalf:
                     MatchKickOffView(
                         matchViewModel: matchViewModel,
@@ -79,11 +82,23 @@ struct ContentView: View {
                     )
                 }
             }
+            .navigationTitle("Match")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    if lifecycle.state == .idle {
+                        Button {
+                            modeSwitcherPresentation.wrappedValue = true
+                        } label: {
+                            Image(systemName: "chevron.backward")
+                        }
+                    }
+                }
+            }
         }
         .environment(settingsViewModel)
+        .background(theme.colors.backgroundPrimary.ignoresSafeArea())
         .task {
             latestSummary = matchViewModel.latestCompletedMatchSummary()
-            appModeController.select(.match, persist: false)
         }
         .onOpenURL { url in
             // Deep link from Smart Stack widget
@@ -106,7 +121,7 @@ struct ContentView: View {
         }
         .onChange(of: matchViewModel.matchCompleted) { completed, _ in
             #if DEBUG
-            print("DEBUG: ContentView.onChange matchCompleted=\(completed) state=\(lifecycle.state)")
+            print("DEBUG: MatchRootView.onChange matchCompleted=\(completed) state=\(lifecycle.state)")
             #endif
             // Defensive fallback to guarantee return to idle after finalize
             if completed && lifecycle.state != .idle {
@@ -119,7 +134,7 @@ struct ContentView: View {
         }
         .onChange(of: lifecycle.state) { newState in
             #if DEBUG
-            print("DEBUG: ContentView.onChange lifecycle.state=\(newState)")
+            print("DEBUG: MatchRootView.onChange lifecycle.state=\(newState)")
             #endif
             if newState != .idle {
                 appModeController.overrideForActiveSession(.match)
@@ -137,10 +152,10 @@ struct ContentView: View {
 }
 
 #Preview {
-    ContentView()
+    MatchRootView()
 }
 
-private extension ContentView {
+private extension MatchRootView {
     @ViewBuilder
     var heroSection: some View {
         Section {
@@ -163,7 +178,7 @@ private extension ContentView {
             } label: {
                 QuickActionLabel(
                     title: "History",
-                    subtitle: historyQuickActionSubtitle,
+                    subtitle: nil,
                     icon: "clock.arrow.circlepath",
                     tint: theme.colors.accentPrimary
                 )
@@ -177,7 +192,7 @@ private extension ContentView {
             } label: {
                 QuickActionLabel(
                     title: "Settings",
-                    subtitle: "Teams, alerts, and presets",
+                    subtitle: nil,
                     icon: "gear",
                     tint: theme.colors.accentMuted
                 )
@@ -193,23 +208,61 @@ private extension ContentView {
         livePublisher.publish(for: matchViewModel)
     }
 
-    func historySubtitle(for summary: CompletedMatchSummary) -> String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .short
-        let relative = formatter.localizedString(for: summary.completedAt, relativeTo: Date())
-        return relative
-    }
 
-    var historyQuickActionSubtitle: String {
-        guard let summary = latestSummary else { return "Review completed matches" }
-        return "Last: \(summary.scoreline) · \(historySubtitle(for: summary))"
-    }
 
     var quickActionInsets: EdgeInsets {
-        let vertical = theme.spacing.xs
-        return EdgeInsets(top: vertical, leading: 0, bottom: vertical, trailing: 0)
+        let vertical = theme.components.listRowVerticalInset
+        let horizontal = theme.components.cardHorizontalPadding
+        return EdgeInsets(top: vertical, leading: horizontal, bottom: vertical, trailing: horizontal)
     }
 
+}
+
+enum ThemeCardRole {
+    case primary
+    case secondary
+    case positive
+    case destructive
+}
+
+struct ThemeCardSurfaceStyle {
+    let background: Color
+    let outline: Color?
+    let titleColor: Color
+    let subtitleColor: Color
+}
+
+func surfaceStyle(for role: ThemeCardRole, theme: AnyTheme) -> ThemeCardSurfaceStyle {
+    switch role {
+    case .primary:
+        return ThemeCardSurfaceStyle(
+            background: theme.colors.accentPrimary,
+            outline: nil,
+            titleColor: theme.colors.textPrimary,
+            subtitleColor: theme.colors.textPrimary.opacity(0.8)
+        )
+    case .secondary:
+        return ThemeCardSurfaceStyle(
+            background: theme.colors.backgroundElevated,
+            outline: theme.colors.outlineMuted,
+            titleColor: theme.colors.textPrimary,
+            subtitleColor: theme.colors.textSecondary
+        )
+    case .positive:
+        return ThemeCardSurfaceStyle(
+            background: theme.colors.matchPositive,
+            outline: nil,
+            titleColor: theme.colors.textInverted,
+            subtitleColor: theme.colors.textInverted.opacity(0.8)
+        )
+    case .destructive:
+        return ThemeCardSurfaceStyle(
+            background: theme.colors.matchCritical,
+            outline: nil,
+            titleColor: theme.colors.textPrimary,
+            subtitleColor: theme.colors.textPrimary.opacity(0.84)
+        )
+    }
 }
 
 private struct StartMatchHeroCard: View {
@@ -217,12 +270,13 @@ private struct StartMatchHeroCard: View {
 
     var body: some View {
         MenuCard(
-            title: "Start Match",
+            title: "Start",
             subtitle: nil,
             icon: "flag.checkered",
-            tint: theme.colors.accentPrimary,
+            tint: theme.colors.accentSecondary,
             accessoryIcon: "chevron.forward",
-            minHeight: 92
+            minHeight: 92,
+            role: .primary
         )
     }
 }
@@ -231,7 +285,7 @@ private struct QuickActionLabel: View {
     @Environment(\.theme) private var theme
 
     let title: String
-    let subtitle: String
+    let subtitle: String?
     let icon: String
     let tint: Color
 
@@ -242,12 +296,13 @@ private struct QuickActionLabel: View {
             icon: icon,
             tint: tint,
             accessoryIcon: "chevron.forward",
-            minHeight: 92
+            minHeight: 92,
+            role: .secondary
         )
     }
 }
 
-private struct MenuCard: View {
+struct MenuCard: View {
     @Environment(\.theme) private var theme
 
     let title: String
@@ -256,53 +311,120 @@ private struct MenuCard: View {
     let tint: Color
     let accessoryIcon: String?
     let minHeight: CGFloat
+    let role: ThemeCardRole
 
     var body: some View {
-        HStack(spacing: theme.spacing.m) {
-            ZStack {
-                RoundedRectangle(cornerRadius: theme.components.controlCornerRadius, style: .continuous)
-                    .fill(tint.opacity(0.25))
-                    .frame(width: 40, height: 40)
-                Image(systemName: icon)
-                    .font(theme.typography.iconAccent)
-                    .foregroundStyle(theme.colors.textInverted)
-            }
+        let styling = surfaceStyle(for: role, theme: theme)
+        let titleFont = dynamicTitleFont
 
-            VStack(alignment: .leading, spacing: subtitleSpacing) {
-                Text(title)
-                    .font(theme.typography.label)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.85)
-                    .layoutPriority(1)
+        ThemeCardContainer(role: role, minHeight: minHeight) {
+            HStack(spacing: theme.spacing.s) { // Reduced from theme.spacing.m for more text space
+                ZStack {
+                    RoundedRectangle(cornerRadius: theme.components.controlCornerRadius, style: .continuous)
+                        .fill(iconBackgroundColor)
+                        .frame(width: 36, height: 36) // Reduced from 40x40 to give more text space
+                    Image(systemName: icon)
+                        .font(theme.typography.iconAccent)
+                        .foregroundStyle(styling.titleColor)
+                }
 
-                if let subtitle, !subtitle.isEmpty {
-                    Text(subtitle)
-                        .font(theme.typography.caption)
-                        .foregroundStyle(theme.colors.textSecondary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.75)
+                VStack(alignment: .leading, spacing: subtitleSpacing) {
+                    Text(title)
+                        .font(titleFont)
+                        .foregroundStyle(styling.titleColor)
+                        .lineLimit(subtitle == nil ? 1 : 2) // Single line when no subtitle, 2 lines when subtitle exists
+                        .minimumScaleFactor(subtitle == nil ? 0.55 : 0.65) // More aggressive scaling when no subtitle
+                        .layoutPriority(1)
+
+                    if let subtitle, !subtitle.isEmpty {
+                        Text(subtitle)
+                            .font(theme.typography.cardMeta)
+                            .foregroundStyle(styling.subtitleColor)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.60) // Reduced from 0.75 for better subtitle visibility
+                    }
+                }
+
+                Spacer(minLength: theme.spacing.s)
+
+                if let accessoryIcon {
+                    Image(systemName: accessoryIcon)
+                        .font(theme.typography.iconSecondary)
+                        .foregroundStyle(styling.subtitleColor)
                 }
             }
-
-            Spacer()
-
-            if let accessoryIcon {
-                Image(systemName: accessoryIcon)
-                    .font(theme.typography.iconSecondary)
-                    .foregroundStyle(theme.colors.textSecondary)
-            }
         }
-        .padding(.vertical, theme.spacing.s)
-        .padding(.horizontal, theme.spacing.m)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .frame(minHeight: minHeight, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: theme.components.cardCornerRadius, style: .continuous)
-                .fill(theme.colors.surfaceOverlay)
-        )
     }
 
     private var subtitleSpacing: CGFloat {
         subtitle?.isEmpty == false ? theme.spacing.xs : 0
+    }
+
+    private var dynamicTitleFont: Font {
+        // For cards without subtitles, we can be more generous with title space
+        if subtitle == nil {
+            // No subtitle, so we can use larger text and allow more scaling
+            // Ensure consistent bold weight for all card titles
+            return theme.typography.cardHeadline.weight(.semibold)
+        } else {
+            // Has subtitle, use smaller font for longer titles
+            if title.count > 8 {
+                return theme.typography.cardMeta.weight(.semibold)
+            } else {
+                return theme.typography.cardHeadline.weight(.semibold)
+            }
+        }
+    }
+
+    private var iconBackgroundColor: Color {
+        switch role {
+        case .primary:
+            return tint.opacity(0.28)
+        case .secondary:
+            return tint.opacity(0.22)
+        case .positive:
+            return tint.opacity(0.16)
+        case .destructive:
+            return tint.opacity(0.24)
+        }
+    }
+}
+
+struct ThemeCardContainer<Content: View>: View {
+    @Environment(\.theme) private var theme
+
+    let role: ThemeCardRole
+    let minHeight: CGFloat
+    let content: Content
+
+    init(role: ThemeCardRole, minHeight: CGFloat = 0, @ViewBuilder content: () -> Content) {
+        self.role = role
+        self.minHeight = minHeight
+        self.content = content()
+    }
+
+    var body: some View {
+        let styling = surfaceStyle(for: role, theme: theme)
+
+        content
+            .padding(.vertical, theme.spacing.m)
+            .padding(.horizontal, theme.components.cardHorizontalPadding)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(minHeight: minHeight, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: theme.components.cardCornerRadius, style: .continuous)
+                    .fill(styling.background)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: theme.components.cardCornerRadius, style: .continuous)
+                            .stroke(styling.outline ?? .clear, lineWidth: styling.outline == nil ? 0 : 1)
+                    )
+            )
+            .shadow(
+                color: Color.black.opacity(theme.components.cardShadowOpacity),
+                radius: theme.components.cardShadowRadius,
+                x: 0,
+                y: theme.components.cardShadowYOffset
+            )
+            .contentShape(RoundedRectangle(cornerRadius: theme.components.cardCornerRadius, style: .continuous))
     }
 }

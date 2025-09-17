@@ -5,6 +5,7 @@ import RefWorkoutCore
 struct WorkoutRootView: View {
   @StateObject private var viewModel: WorkoutModeViewModel
   @State private var presentError = false
+  @Environment(\.modeSwitcherPresentation) private var modeSwitcherPresentation
 
   init(services: WorkoutServices, appModeController: AppModeController) {
     _viewModel = StateObject(wrappedValue: WorkoutModeViewModel(services: services, appModeController: appModeController))
@@ -16,7 +17,10 @@ struct WorkoutRootView: View {
         if let session = viewModel.activeSession {
           WorkoutSessionHostView(
             session: session,
+            isPaused: viewModel.isActiveSessionPaused,
             isEnding: viewModel.isPerformingAction,
+            onPause: viewModel.pauseActiveSession,
+            onResume: viewModel.resumeActiveSession,
             onEnd: viewModel.endActiveSession
           )
         } else {
@@ -28,12 +32,24 @@ struct WorkoutRootView: View {
             onRequestAccess: viewModel.requestAuthorization,
             onStartPreset: viewModel.startPreset,
             onQuickStart: viewModel.quickStart,
-            onReload: viewModel.reloadPresets
+            onReload: viewModel.reloadContent
           )
         }
       }
       .navigationTitle("Workout")
-      .toolbar { ToolbarItem(placement: .cancellationAction) { EmptyView() } }
+      .toolbar {
+        ToolbarItem(placement: .cancellationAction) {
+          if viewModel.activeSession == nil {
+            Button {
+              modeSwitcherPresentation.wrappedValue = true
+            } label: {
+              Label("Switch", systemImage: "arrow.triangle.2.circlepath")
+                .labelStyle(.iconOnly)
+            }
+            .disabled(viewModel.isPerformingAction)
+          }
+        }
+      }
     }
     .task {
       await viewModel.bootstrap()

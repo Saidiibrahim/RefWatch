@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 - watchOS (primary)
-  - `RefZoneWatchOS/App`: App entry (`RefWatchApp.swift`, `ContentView.swift`).
+  - `RefZoneWatchOS/App`: App entry (`RefWatchApp.swift`, `AppRootView.swift`, `MatchRootView.swift`).
   - `RefZoneWatchOS/Core`: Reusable components and services (`TimerManager`, `MatchHistoryService`, `PenaltyManager`, protocols, platform adapters like `WatchHaptics`).
   - `RefZoneWatchOS/Features`: Feature-first MVVM folders (`MatchSetup`, `Match`, `Events`, `Timer`, `Settings`, `TeamManagement`) with `Views/Models/ViewModels`.
   - `RefZoneWatchOS/Assets.xcassets`, `Preview Content`.

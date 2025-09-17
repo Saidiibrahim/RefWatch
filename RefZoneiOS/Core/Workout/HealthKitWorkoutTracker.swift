@@ -199,10 +199,27 @@ extension IOSHealthKitWorkoutTracker: HKWorkoutSessionDelegate {
 }
 
 extension IOSHealthKitWorkoutTracker: HKLiveWorkoutBuilderDelegate {
-  func workoutBuilder(_ workoutBuilder: HKLiveWorkoutBuilder, didCollectDataOf collectedTypes: Set<HKSampleType>) {}
-  func workoutBuilder(_ workoutBuilder: HKLiveWorkoutBuilder, didCollectEvent workoutEvent: HKWorkoutEvent) {}
-  func workoutBuilderDidCollectData(_ workoutBuilder: HKLiveWorkoutBuilder) {}
-  func workoutBuilderDidFinishCollection(_ workoutBuilder: HKLiveWorkoutBuilder) {}
+  nonisolated func workoutBuilder(_ workoutBuilder: HKLiveWorkoutBuilder, didCollectDataOf collectedTypes: Set<HKSampleType>) {}
+
+  nonisolated func workoutBuilderDidCollectEvent(_ workoutBuilder: HKLiveWorkoutBuilder) {
+    Task { @MainActor in
+      guard
+        let session = workoutBuilder.workoutSession,
+        let managed = self.managedSession(for: session),
+        let hkEvent = workoutBuilder.workoutEvents.last
+      else {
+        return
+      }
+
+      let timestamp = hkEvent.dateInterval.start
+      let payload = ["type": hkEvent.type.refIdentifier]
+      let domainEvent = WorkoutEvent.custom(name: "healthKitEvent", payload: payload, timestamp: timestamp)
+      managed.events.append(domainEvent)
+    }
+  }
+
+  nonisolated func workoutBuilderDidCollectData(_ workoutBuilder: HKLiveWorkoutBuilder) {}
+  nonisolated func workoutBuilderDidFinishCollection(_ workoutBuilder: HKLiveWorkoutBuilder) {}
 }
 
 private final class ManagedSession {
@@ -218,6 +235,31 @@ private final class ManagedSession {
     self.builder = builder
     self.model = model
     self.events = []
+  }
+}
+
+private extension HKWorkoutEventType {
+  var refIdentifier: String {
+    switch self {
+    case .pause:
+      return "pause"
+    case .resume:
+      return "resume"
+    case .lap:
+      return "lap"
+    case .marker:
+      return "marker"
+    case .motionPaused:
+      return "motionPaused"
+    case .motionResumed:
+      return "motionResumed"
+    case .segment:
+      return "segment"
+    case .pauseOrResumeRequest:
+      return "pauseOrResumeRequest"
+    @unknown default:
+      return "unknown"
+    }
   }
 }
 #endif
