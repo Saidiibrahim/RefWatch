@@ -13,21 +13,22 @@ struct PenaltyFirstKickerView: View {
     let matchViewModel: MatchViewModel
     let lifecycle: MatchLifecycleCoordinator
     @State private var isRouting = false
+    @Environment(\.theme) private var theme
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: theme.spacing.l) {
 
             // Buttons
-            HStack(spacing: 12) {
-                firstKickerButton(title: matchViewModel.homeTeamDisplayName, side: .home, color: .blue)
-                firstKickerButton(title: matchViewModel.awayTeamDisplayName, side: .away, color: .red)
+            HStack(spacing: theme.spacing.m) {
+                firstKickerButton(title: matchViewModel.homeTeamDisplayName, side: .home, color: theme.colors.accentPrimary)
+                firstKickerButton(title: matchViewModel.awayTeamDisplayName, side: .away, color: theme.colors.accentMuted)
             }
-            .padding(.horizontal)
+            .padding(.horizontal, theme.components.cardHorizontalPadding)
 
             Spacer()
         }
-        .padding(.top)
-        .background(Color.black)
+        .padding(.top, theme.spacing.l)
+        .background(theme.colors.backgroundPrimary.ignoresSafeArea())
         .navigationTitle("First Kicker")
     }
 
@@ -53,11 +54,11 @@ struct PenaltyFirstKickerView: View {
             }
         }) {
             Text(title)
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundColor(.white)
+                .font(theme.typography.cardHeadline)
+                .foregroundStyle(theme.colors.textInverted)
                 .frame(maxWidth: .infinity)
-                .frame(height: 44)
-                .background(RoundedRectangle(cornerRadius: 10).fill(color))
+                .frame(height: theme.components.buttonHeight / 1.6)
+                .background(RoundedRectangle(cornerRadius: theme.components.cardCornerRadius, style: .continuous).fill(color))
         }
         .buttonStyle(.plain)
         .disabled(isRouting)

@@ -13,6 +13,7 @@ struct MatchActionsSheet: View {
     let matchViewModel: MatchViewModel
     var lifecycle: MatchLifecycleCoordinator? = nil
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.theme) private var theme
     
     // State for controlling navigation destinations
     @State private var showingMatchLogs = false
@@ -21,33 +22,33 @@ struct MatchActionsSheet: View {
     
     var body: some View {
         // Two equal columns with compact spacing to fit on one screen
-        let columns = Array(repeating: GridItem(.flexible(), spacing: 10), count: 2)
-        
+        let columns = Array(repeating: GridItem(.flexible(), spacing: theme.spacing.m), count: 2)
+
         NavigationStack {
             GeometryReader { proxy in
-                let hPadding: CGFloat = 10
-                let colSpacing: CGFloat = 10
+                let hPadding = theme.components.cardHorizontalPadding
+                let colSpacing = theme.spacing.m
                 let cellWidth = (proxy.size.width - (hPadding * 2) - colSpacing) / 2
-                
+
                 ScrollView(.vertical) {
-                    VStack(spacing: 12) {
+                    VStack(spacing: theme.spacing.l) {
                         // Top row: two primary actions
-                        LazyVGrid(columns: columns, alignment: .center, spacing: 12) {
+                        LazyVGrid(columns: columns, alignment: .center, spacing: theme.spacing.l) {
                             // Match Log
                             ActionGridItem(
                                 title: "Match Log",
                                 icon: "list.bullet",
-                                color: .blue,
+                                color: theme.colors.accentSecondary,
                                 showBackground: false // Remove background for Match Actions sheet
                             ) {
                                 showingMatchLogs = true
                             }
-                            
+
                             // Options
                             ActionGridItem(
                                 title: "Options",
                                 icon: "ellipsis.circle",
-                                color: .gray,
+                                color: theme.colors.accentMuted,
                                 showBackground: false // Remove background for Match Actions sheet
                             ) {
                                 showingOptions = true
@@ -61,7 +62,7 @@ struct MatchActionsSheet: View {
                                 ActionGridItem(
                                     title: "End Half",
                                     icon: "checkmark.circle",
-                                    color: .green,
+                                    color: theme.colors.matchPositive,
                                     expandHorizontally: false,
                                     showBackground: false // Remove background for Match Actions sheet
                                 ) {
@@ -77,7 +78,7 @@ struct MatchActionsSheet: View {
                                 ActionGridItem(
                                     title: "End Half",
                                     icon: "checkmark.circle",
-                                    color: .green,
+                                    color: theme.colors.matchPositive,
                                     expandHorizontally: false,
                                     showBackground: false // Remove background for Match Actions sheet
                                 ) {
@@ -94,7 +95,9 @@ struct MatchActionsSheet: View {
                 }
             }
             .navigationTitle("Match Actions")
+            .background(theme.colors.backgroundPrimary)
         }
+        .tint(theme.colors.accentSecondary)
         .sheet(isPresented: $showingMatchLogs) {
             MatchLogsView(matchViewModel: matchViewModel)
         }
@@ -122,6 +125,7 @@ struct MatchActionsSheet: View {
                 : "Are you sure you want to 'End Half'?"
             )
         }
+        .background(theme.colors.backgroundPrimary.ignoresSafeArea())
     }
 }
 

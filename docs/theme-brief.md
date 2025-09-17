@@ -35,6 +35,7 @@ _Current theme relies on system colors and ad-hoc `Color.*` values. Below highli
 - Most match-critical states use pure system greens/reds/yellows; they lack defined dark-mode/contrast variants.
 - Neutral backgrounds mix white/black/gray with varying opacities, which will render inconsistently against watch complications and in different display modes.
 - No persistent tokens for divider strokes, overlays, or gradients; each view creates its own values.
+- Shared palette tokens now live in `RefWatchCore/DesignSystem/Theme/ColorTokens.swift` (`footballSA`), and `ThemeTokenPreview` provides a quick visual QA reference inside Xcode previews.
 
 ## Typography audit (Feb 2025)
 
@@ -51,6 +52,7 @@ _Current theme relies on system colors and ad-hoc `Color.*` values. Below highli
 - Timer typography already leans on rounded bold digits, aligned with quick readability. These should be formalized as `theme.typography.timerMain`, etc.
 - Body copy varies between `.body`, `.headline`, and explicit font sizes; we should standardize on semantic roles (headline, label, meta) to ease scaling.
 - No documented approach for dynamic type scaling—should adopt `FontMetrics` on watchOS where sensible and ensure iOS uses `.scaledFont` wrappers.
+- `TypographyScale` now exposes timer/card styles via scaled rounded fonts (see `TypographyTokens.swift`), so consuming views simply apply the semantic role to benefit from Dynamic Type.
 
 ## Theming principles to adopt
 1. **Semantic tokens first** – replace raw colors/fonts with descriptive tokens (`matchPositive`, `stateWarning`, `labelSecondary`).

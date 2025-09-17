@@ -2,9 +2,11 @@
 // Extracted central timer UI matching current behavior
 
 import SwiftUI
+import RefWatchCore
 
 public struct StandardTimerFace: View {
     @Environment(\.haptics) private var haptics
+    @Environment(\.theme) private var theme
     let model: TimerFaceModel
 
     public init(model: TimerFaceModel) { self.model = model }
@@ -22,44 +24,41 @@ public struct StandardTimerFace: View {
             Spacer()
             IconButton(
                 icon: "checkmark.circle.fill",
-                color: Color.green,
+                color: theme.colors.matchPositive,
                 size: 44,
                 action: {
                     haptics.play(.resume)
                     model.startHalfTimeManually()
                 }
             )
-            .padding(.bottom, 20)
+            .padding(.bottom, theme.spacing.l)
             Spacer()
         } else {
             Text(model.halfTimeElapsed)
-                .font(.system(size: 48, weight: .bold, design: .rounded))
-                .monospacedDigit()
-                .foregroundColor(.white)
-                .padding(.vertical, 40)
+                .font(theme.typography.timerPrimary)
+                .foregroundStyle(theme.colors.textPrimary)
+                .padding(.vertical, theme.spacing.xl)
         }
     }
 
     @ViewBuilder
     private var runningMatchView: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: theme.spacing.xs) {
             Text(model.matchTime)
-                .font(.system(size: 36, weight: .bold, design: .rounded))
-                .monospacedDigit()
+                .font(theme.typography.timerPrimary)
+                .foregroundStyle(theme.colors.textPrimary)
 
             Text(model.periodTimeRemaining)
-                .font(.system(size: 20, weight: .medium, design: .rounded))
-                .monospacedDigit()
-                .foregroundColor(.gray)
+                .font(theme.typography.timerSecondary)
+                .foregroundStyle(theme.colors.textSecondary)
 
             if model.isInStoppage {
                 Text("+\(model.formattedStoppageTime)")
-                    .font(.system(size: 16, weight: .medium, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundColor(.orange)
+                    .font(theme.typography.timerTertiary)
+                    .foregroundStyle(theme.colors.matchWarning)
             }
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, theme.spacing.s)
         .onTapGesture {
             haptics.play(.tap)
             if model.isPaused { model.resumeMatch() } else { model.pauseMatch() }
