@@ -9,16 +9,26 @@ public struct ComponentStyles {
     public let heroCardCornerRadius: CGFloat
     public let heroCardHorizontalPadding: CGFloat
     public let heroCardVerticalPadding: CGFloat
+    public let cardShadowRadius: CGFloat
+    public let cardShadowYOffset: CGFloat
+    public let cardShadowOpacity: Double
+    public let listVerticalSpacing: CGFloat
+    public let cardHorizontalPadding: CGFloat
 
     public init(
-        cardCornerRadius: CGFloat = 12,
+        cardCornerRadius: CGFloat = 20,
         chipCornerRadius: CGFloat = 8,
         controlCornerRadius: CGFloat = 10,
         buttonHeight: CGFloat = 48,
         listRowVerticalInset: CGFloat = 4,
         heroCardCornerRadius: CGFloat = 20,
         heroCardHorizontalPadding: CGFloat = 16,
-        heroCardVerticalPadding: CGFloat = 18
+        heroCardVerticalPadding: CGFloat = 18,
+        cardShadowRadius: CGFloat = 12,
+        cardShadowYOffset: CGFloat = 4,
+        cardShadowOpacity: Double = 0.25,
+        listVerticalSpacing: CGFloat = 8,
+        cardHorizontalPadding: CGFloat = 12
     ) {
         self.cardCornerRadius = cardCornerRadius
         self.chipCornerRadius = chipCornerRadius
@@ -28,6 +38,11 @@ public struct ComponentStyles {
         self.heroCardCornerRadius = heroCardCornerRadius
         self.heroCardHorizontalPadding = heroCardHorizontalPadding
         self.heroCardVerticalPadding = heroCardVerticalPadding
+        self.cardShadowRadius = cardShadowRadius
+        self.cardShadowYOffset = cardShadowYOffset
+        self.cardShadowOpacity = cardShadowOpacity
+        self.listVerticalSpacing = listVerticalSpacing
+        self.cardHorizontalPadding = cardHorizontalPadding
     }
 }
 

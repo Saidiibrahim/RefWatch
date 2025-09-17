@@ -24,7 +24,7 @@ _Current theme relies on system colors and ad-hoc `Color.*` values. Below highli
 | --- | --- | --- | --- |
 | Match start hero gradient | `Color.blue`, `Color.green` | watchOS Start match | `RefZoneWatchOS/Features/Match/Views/StartMatchScreen.swift`
 | Kickoff selection | `Color.green`, `Color.gray` | watchOS kickoff | `RefZoneWatchOS/Features/Match/Views/MatchKickOffView.swift`
-| Quick action tint | `.blue`, `.gray` | watchOS home | `RefZoneWatchOS/App/ContentView.swift`
+| Quick action tint | `.blue`, `.gray` | watchOS home | `RefZoneWatchOS/App/MatchRootView.swift`
 | Penalty shootout states | `Color.green`, `Color.orange`, `Color.red`, `Color.gray`, `Color.white.opacity` | watchOS penalties | `RefZoneWatchOS/Features/Events/Views/PenaltyShootoutView.swift`
 | Full-time screen | `Color.black`, `Color.green`, `Color.gray.opacity` | watchOS timer | `RefZoneWatchOS/Features/Timer/Views/FullTimeView.swift`
 | Timer faces | hard-coded greens/oranges | watchOS timer component | `RefZoneWatchOS/Core/Components/TimerFaces/*`
@@ -40,7 +40,7 @@ _Current theme relies on system colors and ad-hoc `Color.*` values. Below highli
 
 | Context | Font usage | Reference |
 | --- | --- | --- |
-| ContentView hero | `.title2.semibold`, `.system(size: 18, weight: .semibold)`, `.headline`, `.footnote` | `RefZoneWatchOS/App/ContentView.swift`
+| MatchRootView hero | `.title2.semibold`, `.system(size: 18, weight: .semibold)`, `.headline`, `.footnote` | `RefZoneWatchOS/App/MatchRootView.swift`
 | Timer faces | `.system(size: 48/36/20, weight: .bold/medium, design: .rounded)` | `RefZoneWatchOS/Core/Components/TimerFaces/StandardTimerFace.swift`
 | Score displays | `.system(size: 14/24, weight: .medium/.bold)` | `RefZoneWatchOS/Core/Components/ScoreDisplayView.swift`
 | Penalty flows | `.system(size: 13-18, weight: .semibold/.bold)` | `RefZoneWatchOS/Features/Events/Views/PenaltyShootoutView.swift`
@@ -60,6 +60,5 @@ _Current theme relies on system colors and ad-hoc `Color.*` values. Below highli
 
 ## Next implementation steps
 - Codify shared tokens and Theme protocol (see implementation tasks in repo).
-- Gradually refactor watchOS views (starting with `ContentView`) to consume theme tokens.
+- Gradually refactor watchOS views (starting with `MatchRootView`) to consume theme tokens.
 - Mirror the approach in iOS once shared scaffolding is stable.
-

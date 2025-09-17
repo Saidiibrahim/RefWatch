@@ -1,6 +1,6 @@
 import Foundation
 
-public enum AppMode: String, CaseIterable, Codable, Identifiable, Sendable {
+public enum AppMode: String, CaseIterable, Codable, Identifiable, Sendable, Hashable {
   case match
   case workout
 
