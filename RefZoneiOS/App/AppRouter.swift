@@ -10,7 +10,7 @@ import Combine
 
 final class AppRouter: ObservableObject {
     enum Tab: Int, CaseIterable, Hashable {
-        case matches, trends, assistant, settings
+        case matches, workout, trends, assistant, settings
     }
 
     @Published var selectedTab: Tab = .matches

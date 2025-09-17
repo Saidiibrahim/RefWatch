@@ -7,9 +7,11 @@
 
 import SwiftUI
 import RefWatchCore
+import RefWorkoutCore
 
 struct MainTabView: View {
     @EnvironmentObject private var router: AppRouter
+    @Environment(\.workoutServices) private var workoutServices
     let matchViewModel: MatchViewModel
     let historyStore: MatchHistoryStoring
     let scheduleStore: ScheduleStoring
@@ -20,6 +22,10 @@ struct MainTabView: View {
             MatchesTabView(matchViewModel: matchViewModel, historyStore: historyStore, scheduleStore: scheduleStore, teamStore: teamStore)
                 .tabItem { Label("Matches", systemImage: "sportscourt") }
                 .tag(AppRouter.Tab.matches)
+
+            WorkoutDashboardView(services: workoutServices)
+                .tabItem { Label("Workout", systemImage: "figure.run") }
+                .tag(AppRouter.Tab.workout)
 
             TrendsTabView()
                 .tabItem { Label("Trends", systemImage: "chart.line.uptrend.xyaxis") }
@@ -46,5 +52,6 @@ struct MainTabView: View {
         teamStore: InMemoryTeamLibraryStore()
     )
         .environmentObject(AppRouter.preview())
+        .workoutServices(.inMemoryStub())
 }
 #endif
