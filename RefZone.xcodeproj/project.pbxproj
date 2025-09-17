@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		7BEAA61A255544BFAD7DA0CA /* RefWorkoutCore in Frameworks */ = {isa = PBXBuildFile; productRef = 18DCFE891B8C4879B96A0263 /* RefWorkoutCore */; };
 		9654C2452E78EB46001941F3 /* RefWatchCore in Frameworks */ = {isa = PBXBuildFile; productRef = 9654C2442E78EB46001941F3 /* RefWatchCore */; };
 		966D6DD62E6E5BBE0086E820 /* Clerk in Frameworks */ = {isa = PBXBuildFile; productRef = 966D6DD52E6E5BBE0086E820 /* Clerk */; };
 		96BBA36C2E77BF07000A67FC /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 96BBA36B2E77BF07000A67FC /* WidgetKit.framework */; };
@@ -20,6 +21,7 @@
 		96F51E952E68530000C27CF8 /* RefWatchCore in Frameworks */ = {isa = PBXBuildFile; productRef = 96F51E942E68530000C27CF8 /* RefWatchCore */; };
 		96FEE6042E72E22A00EDD7BD /* RefZone Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 964A4D712D32234A00D08376 /* RefZone Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		9AF0AAB21D00000000000012 /* (null) in Sources */ = {isa = PBXBuildFile; };
+		D4AE10A877A7463C927BA283 /* RefWorkoutCore in Frameworks */ = {isa = PBXBuildFile; productRef = 47EA131A5D1744F5B9E3B2B9 /* RefWorkoutCore */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -242,6 +244,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D4AE10A877A7463C927BA283 /* RefWorkoutCore in Frameworks */,
 				96F51E932E6852D400C27CF8 /* RefWatchCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -266,6 +269,7 @@
 			files = (
 				966D6DD62E6E5BBE0086E820 /* Clerk in Frameworks */,
 				96F51E952E68530000C27CF8 /* RefWatchCore in Frameworks */,
+				7BEAA61A255544BFAD7DA0CA /* RefWorkoutCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -405,6 +409,7 @@
 			name = "RefZone Watch App";
 			packageProductDependencies = (
 				96F51E922E6852D400C27CF8 /* RefWatchCore */,
+				47EA131A5D1744F5B9E3B2B9 /* RefWorkoutCore */,
 			);
 			productName = "RefZone Watch App";
 			productReference = 964A4D712D32234A00D08376 /* RefZone Watch App.app */;
@@ -478,6 +483,7 @@
 			packageProductDependencies = (
 				96F51E942E68530000C27CF8 /* RefWatchCore */,
 				966D6DD52E6E5BBE0086E820 /* Clerk */,
+				18DCFE891B8C4879B96A0263 /* RefWorkoutCore */,
 			);
 			productName = RefZoneiOS;
 			productReference = 96B8126E2E67CDA400B23EC0 /* RefZoneiOS.app */;
@@ -597,6 +603,7 @@
 			packageReferences = (
 				966D6DD42E6E5BBE0086E820 /* XCRemoteSwiftPackageReference "clerk-ios" */,
 				9654C2432E78EB35001941F3 /* XCLocalSwiftPackageReference "RefWatchCore" */,
+				301489DC0AD2441AAE57AA1D /* XCLocalSwiftPackageReference "RefWorkoutCore" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 964A4D6C2D32234A00D08376 /* Products */;
@@ -1373,6 +1380,10 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
+		301489DC0AD2441AAE57AA1D /* XCLocalSwiftPackageReference "RefWorkoutCore" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = RefWorkoutCore;
+		};
 		9654C2432E78EB35001941F3 /* XCLocalSwiftPackageReference "RefWatchCore" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = RefWatchCore;
@@ -1391,6 +1402,15 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		18DCFE891B8C4879B96A0263 /* RefWorkoutCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = RefWorkoutCore;
+		};
+		47EA131A5D1744F5B9E3B2B9 /* RefWorkoutCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 301489DC0AD2441AAE57AA1D /* XCLocalSwiftPackageReference "RefWorkoutCore" */;
+			productName = RefWorkoutCore;
+		};
 		9654C2442E78EB46001941F3 /* RefWatchCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 9654C2432E78EB35001941F3 /* XCLocalSwiftPackageReference "RefWatchCore" */;
