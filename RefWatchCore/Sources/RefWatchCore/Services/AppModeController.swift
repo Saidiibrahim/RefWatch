@@ -4,6 +4,7 @@ import Foundation
 @MainActor
 public final class AppModeController: ObservableObject {
   @Published public private(set) var currentMode: AppMode
+  @Published public private(set) var hasPersistedSelection: Bool
 
   private let defaults: UserDefaults
   private let storageKey: String
@@ -15,19 +16,25 @@ public final class AppModeController: ObservableObject {
     if let stored = defaults.string(forKey: storageKey),
        let mode = AppMode(rawValue: stored) {
       currentMode = mode
+      hasPersistedSelection = true
     } else {
       currentMode = .match
+      hasPersistedSelection = false
     }
   }
 
   public func select(_ mode: AppMode, persist: Bool = true) {
     guard currentMode != mode else {
-      if persist { defaults.set(mode.rawValue, forKey: storageKey) }
+      if persist {
+        defaults.set(mode.rawValue, forKey: storageKey)
+        hasPersistedSelection = true
+      }
       return
     }
     currentMode = mode
     if persist {
       defaults.set(mode.rawValue, forKey: storageKey)
+      hasPersistedSelection = true
     }
   }
 
@@ -46,5 +53,6 @@ public final class AppModeController: ObservableObject {
   public func reset() {
     defaults.removeObject(forKey: storageKey)
     currentMode = .match
+    hasPersistedSelection = false
   }
 }

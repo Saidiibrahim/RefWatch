@@ -4,7 +4,7 @@
 - Implemented shared theming scaffolding and wired the watch entry screen into it.
   - `docs/theme-brief.md:1` captures the product brief plus current color/typography audits so future contributors can align on intent before coding changes.
   - `RefWatchCore/Sources/RefWatchCore/DesignSystem/Theme/Theme.swift:3` together with `ColorTokens.swift:3`, `TypographyTokens.swift:3`, `SpacingTokens.swift:3`, and `ComponentStyles.swift:3` introduces a reusable token-based theme (including environment support via `AnyTheme`) that both targets can import.
-  - `RefZoneWatchOS/App/ContentView.swift:11` now injects `@Environment(\.theme)` and routes hero + quick actions through semantic colors, typography, spacing, and component metrics; helper views such as `StartMatchHeroCard` and `QuickActionLabel` pull from the new tokens to eliminate hard-coded styling.
+  - `RefZoneWatchOS/App/MatchRootView.swift:11` now injects `@Environment(\.theme)` and routes hero + quick actions through semantic colors, typography, spacing, and component metrics; helper views such as `StartMatchHeroCard` and `QuickActionLabel` pull from the new tokens to eliminate hard-coded styling.
 
 ## Reference material
 - `docs/watchos-theme-alignment-plan.md` – design blueprint aligning the rollout with watchOS HIG guidance, palette mapping, and phased roadmap.
@@ -38,4 +38,3 @@ _Phases mirror the design plan; update checkboxes as work completes._
 - watchOS sandbox build issues (clang cache) still block local `swift build`; rerun outside sandbox to verify once palette code lands.
 - Brand assets may update with precise hex values; keep palette definitions centralized to minimize churn.
 - Ensure match-critical surfaces remain performant when color updates occur (watch out for expensive gradients or animations tied to theme changes).
-
