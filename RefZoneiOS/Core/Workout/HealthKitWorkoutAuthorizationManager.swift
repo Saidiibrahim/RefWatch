@@ -3,6 +3,7 @@ import Foundation
 import HealthKit
 import RefWorkoutCore
 
+@available(iOS 17.0, *)
 @MainActor
 final class IOSHealthKitWorkoutAuthorizationManager: WorkoutAuthorizationManaging, @unchecked Sendable {
   private let healthStore: HKHealthStore
@@ -84,7 +85,16 @@ final class IOSHealthKitWorkoutAuthorizationManager: WorkoutAuthorizationManagin
     readTypes.contains { objectType in
       guard let quantityType = objectType as? HKQuantityType else { return false }
       let status = healthStore.authorizationStatus(for: quantityType)
-      return status != .sharingAuthorized
+      switch status {
+      case .sharingAuthorized:
+        return false
+      case .sharingDenied:
+        return true
+      case .notDetermined:
+        return false
+      @unknown default:
+        return true
+      }
     }
   }
 }

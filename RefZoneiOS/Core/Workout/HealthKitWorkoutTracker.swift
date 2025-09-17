@@ -3,10 +3,12 @@ import Foundation
 import HealthKit
 import RefWorkoutCore
 
+@available(iOS 17.0, *)
 @MainActor
 final class IOSHealthKitWorkoutTracker: NSObject, WorkoutSessionTracking, @unchecked Sendable {
   private let healthStore: HKHealthStore
   private var activeSessions: [UUID: ManagedSession] = [:]
+  private var sessionLookup: [ObjectIdentifier: UUID] = [:]
 
   init(healthStore: HKHealthStore = HKHealthStore()) {
     self.healthStore = healthStore
@@ -19,54 +21,101 @@ final class IOSHealthKitWorkoutTracker: NSObject, WorkoutSessionTracking, @unche
     }
 
     let hkConfiguration = try makeWorkoutConfiguration(for: configuration.kind)
-    let session = try HKWorkoutSession(healthStore: healthStore, configuration: hkConfiguration)
-    let builder = session.associatedWorkoutBuilder()
-    builder.dataSource = HKLiveWorkoutDataSource(healthStore: healthStore, workoutConfiguration: hkConfiguration)
-    builder.delegate = self
-    session.delegate = self
+    
+    if #available(iOS 26.0, *) {
+      // Use new HKLiveWorkoutBuilder API for iOS 26.0+
+      let session = try HKWorkoutSession(healthStore: healthStore, configuration: hkConfiguration)
+      let builder = session.associatedWorkoutBuilder()
+      builder.dataSource = HKLiveWorkoutDataSource(healthStore: healthStore, workoutConfiguration: hkConfiguration)
+      builder.delegate = self
+      session.delegate = self
 
-    let startDate = Date()
-    var workoutSession = WorkoutSession(
-      state: .active,
-      kind: configuration.kind,
-      title: configuration.title,
-      startedAt: startDate,
-      segments: configuration.segments,
-      presetId: configuration.presetId,
-      metadata: configuration.metadata
-    )
+      let startDate = Date()
+      var workoutSession = WorkoutSession(
+        state: .active,
+        kind: configuration.kind,
+        title: configuration.title,
+        startedAt: startDate,
+        segments: configuration.segments,
+        presetId: configuration.presetId,
+        metadata: configuration.metadata
+      )
 
-    session.startActivity(with: startDate)
+      session.startActivity(with: startDate)
 
-    try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-      builder.beginCollection(withStart: startDate) { [weak self] success, error in
-        Task { @MainActor in
-          guard success, error == nil else {
-            continuation.resume(throwing: error ?? WorkoutSessionError.collectionBeginFailed)
-            return
+      try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+        builder.beginCollection(withStart: startDate) { [weak self] success, error in
+          Task { @MainActor in
+            guard success, error == nil else {
+              session.end()
+              continuation.resume(throwing: error ?? WorkoutSessionError.collectionBeginFailed)
+              return
+            }
+            let managed = ManagedSession(configuration: configuration, session: session, builder: builder, model: workoutSession)
+            self?.activeSessions[workoutSession.id] = managed
+            self?.sessionLookup[ObjectIdentifier(session)] = workoutSession.id
+            continuation.resume(returning: ())
           }
-          let managed = ManagedSession(configuration: configuration, session: session, builder: builder, model: workoutSession)
-          self?.activeSessions[workoutSession.id] = managed
-          continuation.resume(returning: ())
         }
       }
-    }
 
-    return workoutSession
+      return workoutSession
+    } else {
+      // Use legacy approach for iOS 17.0-25.x
+      let builder = HKWorkoutBuilder(healthStore: healthStore, configuration: hkConfiguration, device: nil)
+      // HKWorkoutBuilder on iOS doesn't expose delegate hooks, so we only keep a reference for summary data.
+      
+      let startDate = Date()
+      var workoutSession = WorkoutSession(
+        state: .active,
+        kind: configuration.kind,
+        title: configuration.title,
+        startedAt: startDate,
+        segments: configuration.segments,
+        presetId: configuration.presetId,
+        metadata: configuration.metadata
+      )
+
+      try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+        builder.beginCollection(withStart: startDate) { [weak self] success, error in
+          Task { @MainActor in
+            guard success, error == nil else {
+              continuation.resume(throwing: error ?? WorkoutSessionError.collectionBeginFailed)
+              return
+            }
+            let managed = ManagedSession(configuration: configuration, session: nil, builder: builder, model: workoutSession)
+            self?.activeSessions[workoutSession.id] = managed
+            continuation.resume(returning: ())
+          }
+        }
+      }
+
+      return workoutSession
+    }
   }
 
   func pauseSession(id: UUID) async throws {
     guard let managed = activeSessions[id] else {
       throw WorkoutSessionError.sessionNotFound
     }
-    managed.session.pause()
+    if let session = managed.session {
+      session.pause()
+    } else {
+      // For legacy builder-only approach, we just mark the model as paused
+      managed.model.pause()
+    }
   }
 
   func resumeSession(id: UUID) async throws {
     guard let managed = activeSessions[id] else {
       throw WorkoutSessionError.sessionNotFound
     }
-    managed.session.resume()
+    if let session = managed.session {
+      session.resume()
+    } else {
+      // For legacy builder-only approach, we just mark the model as active
+      managed.model.markActive(startedAt: Date())
+    }
   }
 
   func endSession(id: UUID, at date: Date) async throws -> WorkoutSession {
@@ -74,39 +123,108 @@ final class IOSHealthKitWorkoutTracker: NSObject, WorkoutSessionTracking, @unche
       throw WorkoutSessionError.sessionNotFound
     }
 
-    managed.session.end()
-
-    try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-      managed.builder.endCollection(withEnd: date) { success, error in
-        Task { @MainActor in
-          guard success, error == nil else {
-            continuation.resume(throwing: error ?? WorkoutSessionError.collectionEndFailed)
-            return
-          }
-          continuation.resume(returning: ())
-        }
-      }
+    if let session = managed.session {
+      session.end()
     }
 
-    let workout = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<HKWorkout, Error>) in
-      managed.builder.finishWorkout { workout, error in
-        Task { @MainActor in
-          if let error {
-            continuation.resume(throwing: error)
-          } else if let workout {
-            continuation.resume(returning: workout)
-          } else {
-            continuation.resume(throwing: WorkoutSessionError.finishFailed)
+    // Handle both builder types for endCollection
+    if #available(iOS 26.0, *), let liveBuilder = managed.builder as? HKLiveWorkoutBuilder {
+      try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+        liveBuilder.endCollection(withEnd: date) { success, error in
+          Task { @MainActor in
+            guard success, error == nil else {
+              continuation.resume(throwing: error ?? WorkoutSessionError.collectionEndFailed)
+              return
+            }
+            continuation.resume(returning: ())
           }
         }
       }
-    }
 
-    var model = managed.model
-    model.complete(at: date)
-    updateSummary(&model, using: workout, builder: managed.builder)
-    activeSessions.removeValue(forKey: id)
-    return model
+      // Handle finishWorkout for live builder
+      let workout = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<HKWorkout, Error>) in
+        liveBuilder.finishWorkout { workout, error in
+          Task { @MainActor in
+            if let error {
+              continuation.resume(throwing: error)
+            } else if let workout {
+              continuation.resume(returning: workout)
+            } else {
+              continuation.resume(throwing: WorkoutSessionError.finishFailed)
+            }
+          }
+        }
+      }
+
+      var model = managed.model
+      model.complete(at: date)
+      updateSummary(&model, using: workout, builder: managed.builder)
+      activeSessions.removeValue(forKey: id)
+      if let session = managed.session {
+        sessionLookup.removeValue(forKey: ObjectIdentifier(session))
+      }
+      return model
+    } else if let legacyBuilder = managed.builder as? HKWorkoutBuilder {
+      // Handle legacy HKWorkoutBuilder
+      try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+        legacyBuilder.endCollection(withEnd: date) { success, error in
+          Task { @MainActor in
+            guard success, error == nil else {
+              continuation.resume(throwing: error ?? WorkoutSessionError.collectionEndFailed)
+              return
+            }
+            continuation.resume(returning: ())
+          }
+        }
+      }
+
+      let workout = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<HKWorkout, Error>) in
+        legacyBuilder.finishWorkout { workout, error in
+          Task { @MainActor in
+            if let error {
+              continuation.resume(throwing: error)
+            } else if let workout {
+              continuation.resume(returning: workout)
+            } else {
+              continuation.resume(throwing: WorkoutSessionError.finishFailed)
+            }
+          }
+        }
+      }
+
+      var model = managed.model
+      model.complete(at: date)
+      updateSummary(&model, using: workout, builder: managed.builder)
+      activeSessions.removeValue(forKey: id)
+      return model
+    } else {
+      // For sessions without any builder, create a simple workout manually
+      var model = managed.model
+      model.complete(at: date)
+      
+      // Create a basic workout for legacy sessions
+      let workout = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<HKWorkout, Error>) in
+        let workoutActivityType: HKWorkoutActivityType
+        do {
+          workoutActivityType = try makeWorkoutConfiguration(for: model.kind).activityType
+        } catch {
+          workoutActivityType = .other
+        }
+        let workout = HKWorkout(
+          activityType: workoutActivityType,
+          start: model.startedAt,
+          end: date
+        )
+        continuation.resume(returning: workout)
+      }
+      
+      updateSummaryLegacy(&model, using: workout)
+      activeSessions.removeValue(forKey: id)
+      if let session = managed.session {
+        sessionLookup.removeValue(forKey: ObjectIdentifier(session))
+      }
+      return model
+    }
   }
 
   func recordEvent(_ event: WorkoutEvent, sessionId: UUID) async {
@@ -114,7 +232,7 @@ final class IOSHealthKitWorkoutTracker: NSObject, WorkoutSessionTracking, @unche
     managed.events.append(event)
   }
 
-  private func updateSummary(_ session: inout WorkoutSession, using workout: HKWorkout, builder: HKLiveWorkoutBuilder) {
+  private func updateSummary(_ session: inout WorkoutSession, using workout: HKWorkout, builder: Any?) {
     session.summary.duration = workout.endDate.timeIntervalSince(workout.startDate)
     if let distance = workout.totalDistance?.doubleValue(for: HKUnit.meter()) {
       session.summary.totalDistance = distance
@@ -123,16 +241,38 @@ final class IOSHealthKitWorkoutTracker: NSObject, WorkoutSessionTracking, @unche
       session.summary.activeEnergy = energy
     }
 
-    if let heartRateType = HKQuantityType.quantityType(forIdentifier: .heartRate),
-       let stats = builder.statistics(for: heartRateType) {
-      let heartUnit = HKUnit.count().unitDivided(by: HKUnit.minute())
-      if let average = stats.averageQuantity()?.doubleValue(for: heartUnit) {
-        session.summary.averageHeartRate = average
-      }
-      if let maximum = stats.maximumQuantity()?.doubleValue(for: heartUnit) {
-        session.summary.maximumHeartRate = maximum
+    // Handle statistics from builder if available
+    if let builder = builder {
+      var statistics: HKStatistics?
+      if let heartRateType = HKQuantityType.quantityType(forIdentifier: .heartRate) {
+        if #available(iOS 26.0, *), let liveBuilder = builder as? HKLiveWorkoutBuilder {
+          statistics = liveBuilder.statistics(for: heartRateType)
+        } else if let legacyBuilder = builder as? HKWorkoutBuilder {
+          statistics = legacyBuilder.statistics(for: heartRateType)
+        }
+        
+        if let stats = statistics {
+          let heartUnit = HKUnit.count().unitDivided(by: HKUnit.minute())
+          if let average = stats.averageQuantity()?.doubleValue(for: heartUnit) {
+            session.summary.averageHeartRate = average
+          }
+          if let maximum = stats.maximumQuantity()?.doubleValue(for: heartUnit) {
+            session.summary.maximumHeartRate = maximum
+          }
+        }
       }
     }
+  }
+
+  private func updateSummaryLegacy(_ session: inout WorkoutSession, using workout: HKWorkout) {
+    session.summary.duration = workout.endDate.timeIntervalSince(workout.startDate)
+    if let distance = workout.totalDistance?.doubleValue(for: HKUnit.meter()) {
+      session.summary.totalDistance = distance
+    }
+    if let energy = workout.totalEnergyBurned?.doubleValue(for: HKUnit.kilocalorie()) {
+      session.summary.activeEnergy = energy
+    }
+    // Note: Heart rate data would require separate HealthKit queries for legacy sessions
   }
 
   private func makeWorkoutConfiguration(for kind: WorkoutKind) throws -> HKWorkoutConfiguration {
@@ -169,7 +309,8 @@ final class IOSHealthKitWorkoutTracker: NSObject, WorkoutSessionTracking, @unche
   }
 
   private func managedSession(for workoutSession: HKWorkoutSession) -> ManagedSession? {
-    activeSessions.values.first { $0.session === workoutSession }
+    guard let modelId = sessionLookup[ObjectIdentifier(workoutSession)] else { return nil }
+    return activeSessions[modelId]
   }
 }
 
@@ -180,11 +321,13 @@ extension IOSHealthKitWorkoutTracker: HKWorkoutSessionDelegate {
     switch toState {
     case .running:
       managed.model.markActive(startedAt: date)
+    case .paused:
+      managed.model.pause()
     case .ended:
       managed.model.complete(at: date)
     case .stopped:
       managed.model.abort(at: date)
-    case .notStarted, .paused, .prepared:
+    case .notStarted, .prepared:
       break
     @unknown default:
       break
@@ -195,9 +338,12 @@ extension IOSHealthKitWorkoutTracker: HKWorkoutSessionDelegate {
     guard let managed = managedSession(for: workoutSession) else { return }
     managed.model.abort(at: Date())
     activeSessions.removeValue(forKey: managed.model.id)
+    sessionLookup.removeValue(forKey: ObjectIdentifier(workoutSession))
   }
 }
 
+// MARK: - HKLiveWorkoutBuilderDelegate (iOS 26.0+)
+@available(iOS 26.0, *)
 extension IOSHealthKitWorkoutTracker: HKLiveWorkoutBuilderDelegate {
   nonisolated func workoutBuilder(_ workoutBuilder: HKLiveWorkoutBuilder, didCollectDataOf collectedTypes: Set<HKSampleType>) {}
 
@@ -224,12 +370,12 @@ extension IOSHealthKitWorkoutTracker: HKLiveWorkoutBuilderDelegate {
 
 private final class ManagedSession {
   let configuration: WorkoutSessionConfiguration
-  let session: HKWorkoutSession
-  let builder: HKLiveWorkoutBuilder
+  let session: HKWorkoutSession? // Can be nil for legacy HKWorkoutBuilder-only approach
+  let builder: Any? // Can be HKLiveWorkoutBuilder or HKWorkoutBuilder for legacy sessions
   var model: WorkoutSession
   var events: [WorkoutEvent]
 
-  init(configuration: WorkoutSessionConfiguration, session: HKWorkoutSession, builder: HKLiveWorkoutBuilder, model: WorkoutSession) {
+  init(configuration: WorkoutSessionConfiguration, session: HKWorkoutSession?, builder: Any?, model: WorkoutSession) {
     self.configuration = configuration
     self.session = session
     self.builder = builder

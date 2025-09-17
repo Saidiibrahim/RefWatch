@@ -26,6 +26,7 @@ public struct WorkoutSession: Identifiable, Codable, Hashable, Sendable {
   public enum State: String, Codable, Sendable {
     case planned
     case active
+    case paused
     case ended
     case aborted
   }
@@ -86,7 +87,7 @@ public struct WorkoutSession: Identifiable, Codable, Hashable, Sendable {
   }
 
   public var isActive: Bool {
-    state == .active
+    state == .active || state == .paused
   }
 
   public var isCompleted: Bool {
@@ -102,7 +103,7 @@ public struct WorkoutSession: Identifiable, Codable, Hashable, Sendable {
     switch state {
     case .planned:
       return 0
-    case .active:
+    case .active, .paused:
       return max(0, date.timeIntervalSince(startedAt))
     case .ended, .aborted:
       return totalDuration ?? 0
@@ -132,6 +133,12 @@ public struct WorkoutSession: Identifiable, Codable, Hashable, Sendable {
       self.endedAt = date
     }
     self.state = .aborted
+    return self
+  }
+
+  @discardableResult
+  public mutating func pause() -> WorkoutSession {
+    self.state = .paused
     return self
   }
 }

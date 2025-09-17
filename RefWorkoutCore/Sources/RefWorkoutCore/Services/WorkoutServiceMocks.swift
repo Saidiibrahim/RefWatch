@@ -39,14 +39,14 @@ public actor WorkoutSessionTrackerStub: WorkoutSessionTracking {
 
   public func pauseSession(id: UUID) async throws {
     guard var session = sessions[id] else { return }
-    session.state = .active
+    session.pause()
     sessions[id] = session
     pausedSessions.insert(id)
   }
 
   public func resumeSession(id: UUID) async throws {
     guard var session = sessions[id] else { return }
-    session.state = .active
+    session.markActive()
     sessions[id] = session
     pausedSessions.remove(id)
   }

@@ -7,6 +7,7 @@ import RefWorkoutCore
 final class HealthKitWorkoutTracker: NSObject, WorkoutSessionTracking, @unchecked Sendable {
   private let healthStore: HKHealthStore
   private var activeSessions: [UUID: ManagedSession] = [:]
+  private var sessionLookup: [ObjectIdentifier: UUID] = [:]
 
   init(healthStore: HKHealthStore = HKHealthStore()) {
     self.healthStore = healthStore
@@ -42,11 +43,13 @@ final class HealthKitWorkoutTracker: NSObject, WorkoutSessionTracking, @unchecke
       builder.beginCollection(withStart: startDate) { [weak self] success, error in
         Task { @MainActor in
           guard success, error == nil else {
+            session.end()
             continuation.resume(throwing: error ?? WorkoutSessionError.collectionBeginFailed)
             return
           }
           let managed = ManagedSession(configuration: configuration, session: session, builder: builder, model: workoutSession)
           self?.activeSessions[workoutSession.id] = managed
+          self?.sessionLookup[ObjectIdentifier(session)] = workoutSession.id
           continuation.resume(returning: ())
         }
       }
@@ -106,6 +109,7 @@ final class HealthKitWorkoutTracker: NSObject, WorkoutSessionTracking, @unchecke
     model.complete(at: date)
     updateSummary(&model, using: workout, builder: managed.builder)
     activeSessions.removeValue(forKey: id)
+    sessionLookup.removeValue(forKey: ObjectIdentifier(managed.session))
     return model
   }
 
@@ -169,7 +173,8 @@ final class HealthKitWorkoutTracker: NSObject, WorkoutSessionTracking, @unchecke
   }
 
   private func managedSession(for workoutSession: HKWorkoutSession) -> ManagedSession? {
-    activeSessions.values.first { $0.session === workoutSession }
+    guard let modelId = sessionLookup[ObjectIdentifier(workoutSession)] else { return nil }
+    return activeSessions[modelId]
   }
 }
 
@@ -181,11 +186,13 @@ extension HealthKitWorkoutTracker: HKWorkoutSessionDelegate {
       switch toState {
       case .running:
         managed.model.markActive(startedAt: date)
+      case .paused:
+        managed.model.pause()
       case .ended:
         managed.model.complete(at: date)
       case .stopped:
         managed.model.abort(at: date)
-      case .notStarted, .paused, .prepared:
+      case .notStarted, .prepared:
         break
       @unknown default:
         break
@@ -198,6 +205,7 @@ extension HealthKitWorkoutTracker: HKWorkoutSessionDelegate {
       guard let managed = self.managedSession(for: workoutSession) else { return }
       managed.model.abort(at: Date())
       self.activeSessions.removeValue(forKey: managed.model.id)
+      self.sessionLookup.removeValue(forKey: ObjectIdentifier(workoutSession))
     }
   }
 }

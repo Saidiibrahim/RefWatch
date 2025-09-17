@@ -53,6 +53,10 @@ final class RefWorkoutCoreTests: XCTestCase {
     XCTAssertEqual(session.state, .active)
     XCTAssertEqual(session.elapsedDuration(asOf: activeStart.addingTimeInterval(300)), 300, accuracy: 0.001)
 
+    session.pause()
+    XCTAssertTrue(session.isActive)
+    XCTAssertEqual(session.state, .paused)
+
     let completionDate = activeStart.addingTimeInterval(900)
     session.complete(at: completionDate)
     XCTAssertTrue(session.isCompleted)

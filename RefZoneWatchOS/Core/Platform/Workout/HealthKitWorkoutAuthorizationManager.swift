@@ -84,7 +84,16 @@ final class HealthKitWorkoutAuthorizationManager: WorkoutAuthorizationManaging, 
     readTypes.contains { objectType in
       guard let quantityType = objectType as? HKQuantityType else { return false }
       let status = healthStore.authorizationStatus(for: quantityType)
-      return status != .sharingAuthorized
+      switch status {
+      case .sharingAuthorized:
+        return false
+      case .sharingDenied:
+        return true
+      case .notDetermined:
+        return false
+      @unknown default:
+        return true
+      }
     }
   }
 }
