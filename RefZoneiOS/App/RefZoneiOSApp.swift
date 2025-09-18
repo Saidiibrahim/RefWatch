@@ -16,6 +16,7 @@ import Clerk
 struct RefZoneiOSApp: App {
     @StateObject private var router = AppRouter()
     @StateObject private var appModeController = AppModeController()
+    @StateObject private var themeManager = ThemeManager()
     // Built once during app init to avoid lazy/self init ordering issues
     private let modelContainer: ModelContainer?
     private let historyStore: MatchHistoryStoring
@@ -86,9 +87,11 @@ struct RefZoneiOSApp: App {
                 .environmentObject(router)
                 .environmentObject(syncDiagnostics)
                 .environmentObject(appModeController)
+                .environmentObject(themeManager)
                 .environment(\.clerk, clerk)
                 .environment(\.journalStore, journalStore)
                 .workoutServices(workoutServices)
+                .theme(themeManager.theme)
                 .task {
                     if let key = Bundle.main.object(forInfoDictionaryKey: "ClerkPublishableKey") as? String, !key.isEmpty {
                         clerk.configure(publishableKey: key)

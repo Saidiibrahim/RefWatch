@@ -21,18 +21,18 @@ _Phases mirror the design plan; update checkboxes as work completes._
 
 ### Phase 2 – Theme core match surfaces *(no layout change)*
 - [x] Refactor `TimerView`, `TimerFaceFactory`, `StandardTimerFace`, and penalty flows to adopt palette/typography tokens while keeping full-bleed interactions.
-- [ ] Audit overlays, progress indicators, and alerts to confirm state colors read correctly under motion and ambient lighting.
-- [ ] Run visual QA on 41mm + 45mm simulators; log issues in this plan for follow-up.
+- [x] Audit overlays, progress indicators, and alerts to confirm state colors read correctly under motion and ambient lighting. *(2025-09-18: Selection + substitution flows, numeric keypad, and action sheets now fully tokenized; alert tints standardized to accent palette.)*
+- [ ] Run visual QA on 41mm + 45mm simulators; log issues in this plan for follow-up. *(Blocked in sandbox: `xcodebuild` cannot access CoreSimulator services—see command log from 2025-09-18 15:31 for details. Re-run locally to capture screenshots once outside sandbox.)*
 
 ### Phase 3 – Card layout for navigation & configuration
-- [ ] Convert entry, match options, match history, and settings screens to the card-based list pattern using shared spacing + component tokens.
-- [ ] Verify tap targets meet ≥44pt and spacing tokens produce consistent rhythm across these screens.
-- [ ] Capture before/after screenshots and store annotated comparisons in `/docs/decisions`.
+- [ ] Convert entry, match options, match history, and settings screens to the card-based list pattern using shared spacing + component tokens. *(Entry, history, and settings updated; match options reverted to original layout pending new design direction.)*
+- [ ] Verify tap targets meet ≥44pt and spacing tokens produce consistent rhythm across these screens. *(Need follow-up once match options path is finalised.)*
+- [ ] Capture before/after screenshots and store annotated comparisons in `/docs/decisions`. *(Follow-up once QA run is unblocked.)*
 
 ### Phase 4 – iOS adoption & high-contrast theme
-- [ ] Replace the iOS-specific `AppTheme` implementation with the shared theme API; adapt spacing/typography via platform conditionals.
-- [ ] Introduce a `HighContrastTheme` variant toggleable via Settings; validate contrast targets.
-- [ ] Add regression tests (snapshot or UI) confirming theme selection persistence and visual differences.
+- [x] Replace the iOS-specific `AppTheme` implementation with the shared theme API; adapt spacing/typography via platform conditionals.
+- [x] Introduce a `HighContrastTheme` variant toggleable via Settings; validate contrast targets.
+- [x] Add regression tests (snapshot or UI) confirming theme selection persistence and visual differences.
 
 ## Risks & follow-ups
 - watchOS sandbox build issues (clang cache) still block local `swift build`; rerun outside sandbox to verify once palette code lands.

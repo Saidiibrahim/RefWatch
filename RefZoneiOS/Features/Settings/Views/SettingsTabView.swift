@@ -15,6 +15,7 @@ struct SettingsTabView: View {
     var scheduleStore: ScheduleStoring? = nil
     var teamStore: TeamLibraryStoring? = nil
     @EnvironmentObject private var syncDiagnostics: SyncDiagnosticsCenter
+    @EnvironmentObject private var themeManager: ThemeManager
     @Environment(\.clerk) private var clerk
     @State private var defaultPeriod: Int = 45
     @State private var extraTime: Bool = false
@@ -98,6 +99,18 @@ struct SettingsTabView: View {
                     Stepper(value: $penaltyRounds, in: 3...10) {
                         LabeledContent("Penalty Rounds", value: "\(penaltyRounds)")
                     }
+                }
+
+                Section("Appearance") {
+                    Picker("Theme", selection: Binding(
+                        get: { themeManager.variant },
+                        set: { themeManager.apply($0) }
+                    )) {
+                        ForEach(ThemeVariant.allCases) { variant in
+                            Text(variant.displayName).tag(variant)
+                        }
+                    }
+                    .pickerStyle(.segmented)
                 }
 
                 Section("Sync") {
