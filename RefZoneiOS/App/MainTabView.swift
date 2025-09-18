@@ -12,6 +12,7 @@ import RefWorkoutCore
 struct MainTabView: View {
     @EnvironmentObject private var router: AppRouter
     @Environment(\.workoutServices) private var workoutServices
+    @Environment(\.theme) private var theme
     let matchViewModel: MatchViewModel
     let historyStore: MatchHistoryStoring
     let scheduleStore: ScheduleStoring
@@ -39,7 +40,7 @@ struct MainTabView: View {
                 .tabItem { Label("Settings", systemImage: "gear") }
                 .tag(AppRouter.Tab.settings)
         }
-        .tint(AppTheme.primaryAccent)
+        .tint(theme.colors.accentSecondary)
     }
 }
 
