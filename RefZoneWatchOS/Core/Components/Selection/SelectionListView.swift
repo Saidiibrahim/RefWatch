@@ -7,13 +7,16 @@
 //
 
 import SwiftUI
+import RefWatchCore
 
 /// Generic selection list for enum-based options
 struct SelectionListView<T>: View where T: Hashable {
-    let title: String
-    let options: [T]
-    let formatter: (T) -> String
-    let onSelect: (T) -> Void
+  @Environment(\.theme) private var theme
+
+  let title: String
+  let options: [T]
+  let formatter: (T) -> String
+  let onSelect: (T) -> Void
     
     // Optional customization - using enum for list style
     let useCarouselStyle: Bool
@@ -46,49 +49,51 @@ struct SelectionListView<T>: View where T: Hashable {
         self.onSelect = onSelect
     }
     
-    var body: some View {
-        Group {
-            if useCarouselStyle {
-                List {
-                    ForEach(options, id: \.self) { option in
-                        SelectionButton(
-                            text: formatter(option),
-                            action: { onSelect(option) }
-                        )
-                    }
-                }
-                .listStyle(.carousel)
-            } else {
-                List {
-                    ForEach(options, id: \.self) { option in
-                        SelectionButton(
-                            text: formatter(option),
-                            action: { onSelect(option) }
-                        )
-                    }
-                }
-                .listStyle(.plain)
-            }
-        }
-        .navigationTitle(title)
+  var body: some View {
+    listWithStyle
+      .scrollContentBackground(.hidden)
+      .padding(.vertical, theme.components.listRowVerticalInset)
+      .background(theme.colors.backgroundPrimary)
+      .navigationTitle(title)
+  }
+
+  @ViewBuilder
+  private var listWithStyle: some View {
+    if useCarouselStyle {
+      listContent
+        .listStyle(.carousel)
+    } else {
+      listContent
+        .listStyle(.plain)
     }
-}
+  }
 
-// MARK: - Supporting Views
-
-/// Individual selection button component
-private struct SelectionButton: View {
-    let text: String
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            Text(text)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .foregroundColor(.primary)
+  private var listContent: some View {
+    List {
+      ForEach(options, id: \.self) { option in
+        Button(action: { onSelect(option) }) {
+          ThemeCardContainer(role: .secondary, minHeight: theme.components.buttonHeight) {
+            Text(formatter(option))
+              .font(theme.typography.cardHeadline)
+              .foregroundStyle(theme.colors.textPrimary)
+              .frame(maxWidth: .infinity, alignment: .leading)
+          }
         }
         .buttonStyle(.plain)
+        .listRowInsets(rowInsets)
+        .listRowBackground(Color.clear)
+      }
     }
+  }
+
+  private var rowInsets: EdgeInsets {
+    EdgeInsets(
+      top: theme.components.listRowVerticalInset,
+      leading: 0,
+      bottom: theme.components.listRowVerticalInset,
+      trailing: 0
+    )
+  }
 }
 
 // MARK: - Preview Support
@@ -100,11 +105,12 @@ private enum SampleOption: String, CaseIterable {
 }
 
 #Preview {
-    NavigationStack {
-        SelectionListView<SampleOption>(
-            title: "Sample Selection"
-        ) { option in
-            print("Selected: \(option.rawValue)")
-        }
+  NavigationStack {
+    SelectionListView<SampleOption>(
+      title: "Sample Selection"
+    ) { option in
+      print("Selected: \(option.rawValue)")
     }
+  }
+  .theme(DefaultTheme())
 }

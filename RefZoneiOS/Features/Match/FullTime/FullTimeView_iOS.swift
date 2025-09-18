@@ -12,22 +12,23 @@ import RefWatchCore
 struct FullTimeView_iOS: View {
     let matchViewModel: MatchViewModel
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.theme) private var theme
     @State private var showingConfirm = false
     @State private var showingSaveError = false
     @State private var saveErrorMessage: String = ""
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: AppTheme.Spacing.xl) {
-                VStack(spacing: AppTheme.Spacing.s - 2) {
+            VStack(spacing: theme.spacing.xl) {
+                VStack(spacing: theme.spacing.s - 2) {
                     Text(currentTime)
-                        .font(AppTheme.Typography.subheader)
+                        .font(theme.typography.heroSubtitle)
                         .foregroundStyle(.secondary)
                     Text("full_time_title")
-                        .font(AppTheme.Typography.header)
+                        .font(theme.typography.heroTitle)
                 }
 
-                HStack(spacing: AppTheme.Spacing.l) {
+                HStack(spacing: theme.spacing.l) {
                     teamBox(name: matchViewModel.homeTeamDisplayName,
                             score: matchViewModel.currentMatch?.homeScore ?? 0)
                     teamBox(name: matchViewModel.awayTeamDisplayName,
@@ -41,13 +42,13 @@ struct FullTimeView_iOS: View {
                     showingConfirm = true
                 } label: {
                     Label(LocalizedStringKey("end_match_cta"), systemImage: "checkmark.circle.fill")
-                        .font(AppTheme.Typography.header)
+                        .font(theme.typography.heroTitle)
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
                 .padding(.horizontal)
             }
-            .padding(.top, AppTheme.Spacing.l)
+            .padding(.top, theme.spacing.l)
             .navigationTitle("full_time_title")
             .navigationBarTitleDisplayMode(.inline)
             .alert("end_match_alert_title", isPresented: $showingConfirm) {
@@ -77,17 +78,18 @@ struct FullTimeView_iOS: View {
     }
 
     private func teamBox(name: String, score: Int) -> some View {
-        VStack(spacing: 8) {
+        VStack(spacing: theme.spacing.s) {
             Text(name)
-                .font(AppTheme.Typography.header)
+                .font(theme.typography.heroSubtitle)
             Text("\(score)")
-                .font(AppTheme.Typography.scoreXL)
+                .font(theme.typography.timerPrimary)
                 .monospacedDigit()
         }
         .frame(maxWidth: .infinity)
         .padding()
         .background(
-            RoundedRectangle(cornerRadius: AppTheme.Corners.m).fill(Color(.secondarySystemBackground))
+            RoundedRectangle(cornerRadius: theme.components.cardCornerRadius)
+                .fill(theme.colors.backgroundElevated)
         )
     }
 }
