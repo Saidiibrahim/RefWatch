@@ -47,7 +47,9 @@ final class IOSHealthKitWorkoutTracker: NSObject, WorkoutSessionTracking, @unche
         builder.beginCollection(withStart: startDate) { [weak self] success, error in
           Task { @MainActor in
             guard success, error == nil else {
+              session.stopActivity(with: Date())
               session.end()
+              builder.discardWorkout()
               continuation.resume(throwing: error ?? WorkoutSessionError.collectionBeginFailed)
               return
             }

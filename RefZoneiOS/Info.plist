@@ -70,8 +70,8 @@
     <key>NSMicrophoneUsageDescription</key>
     <string>RefZone needs microphone access to capture your voice for the Assistant.</string>
     <key>NSHealthShareUsageDescription</key>
-    <string>RefZone needs access to read your health data to provide accurate workout tracking and analysis.</string>
+    <string>RefZone reads workout metrics like heart rate, distance, and energy to power live officiating insights and history.</string>
     <key>NSHealthUpdateUsageDescription</key>
-    <string>RefZone needs access to write workout data including distance, heart rate, and energy information.</string>
+    <string>RefZone saves the workouts you record during matches so they appear in the Health app.</string>
 </dict>
 </plist>

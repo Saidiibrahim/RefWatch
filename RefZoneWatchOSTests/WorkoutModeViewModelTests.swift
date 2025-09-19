@@ -40,6 +40,69 @@ final class WorkoutModeViewModelTests: XCTestCase {
     XCTAssertFalse(viewModel.isActiveSessionPaused)
   }
 
+  func testMarkSegmentRecordsLap() async throws {
+    let services = WorkoutServices.inMemoryStub(presets: [WorkoutModeBootstrap.samplePreset])
+    let tracker = services.sessionTracker as? WorkoutSessionTrackerStub
+    let viewModel = makeViewModel(services: services)
+
+    await viewModel.bootstrap()
+    viewModel.quickStart(.outdoorRun)
+
+    await waitFor { viewModel.activeSession != nil }
+    XCTAssertEqual(viewModel.lapCount, 0)
+
+    viewModel.markSegment()
+
+    await waitFor { viewModel.lapCount == 1 }
+    XCTAssertEqual(viewModel.lapCount, 1)
+    XCTAssertFalse(viewModel.isRecordingSegment)
+
+    if let tracker {
+      let sessionID = try XCTUnwrap(viewModel.activeSession?.id)
+      let storedEvents = await tracker.events
+      let laps = storedEvents[sessionID] ?? []
+      XCTAssertEqual(laps.count, 1)
+      if let first = laps.first {
+        if case let .lap(index, _) = first {
+          XCTAssertEqual(index, 1)
+        } else {
+          XCTFail("Expected lap event")
+        }
+      } else {
+        XCTFail("Expected lap event")
+      }
+    } else {
+      XCTFail("Expected WorkoutSessionTrackerStub")
+    }
+  }
+
+  func testMarkSegmentIgnoresRapidDoubleTap() async throws {
+    let services = WorkoutServices.inMemoryStub(presets: [WorkoutModeBootstrap.samplePreset])
+    let tracker = services.sessionTracker as? WorkoutSessionTrackerStub
+    let viewModel = makeViewModel(services: services)
+
+    await viewModel.bootstrap()
+    viewModel.quickStart(.outdoorRun)
+
+    await waitFor { viewModel.activeSession != nil }
+
+    viewModel.markSegment()
+    viewModel.markSegment()
+
+    await waitFor { viewModel.lapCount == 1 }
+    XCTAssertEqual(viewModel.lapCount, 1)
+    XCTAssertFalse(viewModel.isRecordingSegment)
+
+    if let tracker {
+      let sessionID = try XCTUnwrap(viewModel.activeSession?.id)
+      let storedEvents = await tracker.events
+      let laps = storedEvents[sessionID] ?? []
+      XCTAssertEqual(laps.count, 1)
+    } else {
+      XCTFail("Expected WorkoutSessionTrackerStub")
+    }
+  }
+
   private func makeViewModel(services: WorkoutServices) -> WorkoutModeViewModel {
     let suiteName = "WorkoutModeViewModelTests.\(UUID().uuidString)"
     let defaults = UserDefaults(suiteName: suiteName) ?? .standard

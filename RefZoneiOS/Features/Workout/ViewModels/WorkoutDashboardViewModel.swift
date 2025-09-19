@@ -26,7 +26,9 @@ final class WorkoutDashboardViewModel: ObservableObject {
   }
 
   func load() {
-    Task { await refresh() }
+    Task { @MainActor in
+      await self.refresh()
+    }
   }
 
   func refresh() async {
@@ -41,19 +43,21 @@ final class WorkoutDashboardViewModel: ObservableObject {
   }
 
   func requestAuthorization() {
-    Task {
+    Task { @MainActor in
       do {
-        let status = try await services.authorizationManager.requestAuthorization()
-        authorization = status
-        errorMessage = nil
+        let status = try await self.services.authorizationManager.requestAuthorization()
+        self.authorization = status
+        self.errorMessage = nil
       } catch {
-        errorMessage = error.localizedDescription
+        self.errorMessage = error.localizedDescription
       }
     }
   }
 
   func reloadPresets() {
-    Task { await loadPresets(force: true) }
+    Task { @MainActor in
+      await self.loadPresets(force: true)
+    }
   }
 
   private func loadAuthorization() async {

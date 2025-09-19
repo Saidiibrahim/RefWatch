@@ -17,6 +17,7 @@ public final class MatchViewModel {
     public internal(set) var currentMatch: Match?
     public private(set) var savedMatches: [Match]
     private let history: MatchHistoryStoring
+    private let backgroundRuntimeManager: BackgroundRuntimeManaging?
     
     public var newMatch: Match
     public var isMatchInProgress: Bool = false
@@ -113,11 +114,18 @@ public final class MatchViewModel {
 
     // MARK: - Initialization
     @MainActor
-    public init(history: MatchHistoryStoring, penaltyManager: PenaltyManaging = PenaltyManager(), haptics: HapticsProviding = NoopHaptics(), connectivity: ConnectivitySyncProviding? = nil) {
+    public init(
+        history: MatchHistoryStoring,
+        penaltyManager: PenaltyManaging = PenaltyManager(),
+        haptics: HapticsProviding = NoopHaptics(),
+        connectivity: ConnectivitySyncProviding? = nil,
+        backgroundRuntimeManager: BackgroundRuntimeManaging? = nil
+    ) {
         self.history = history
         self.penaltyManager = penaltyManager
         self.haptics = haptics
         self.connectivity = connectivity
+        self.backgroundRuntimeManager = backgroundRuntimeManager
         self.savedMatches = [
             Match(homeTeam: "Leeds United", awayTeam: "Newcastle United")
         ]
@@ -126,13 +134,18 @@ public final class MatchViewModel {
 
     // Convenience initializers to preserve previous call sites
     @MainActor
-    public convenience init(haptics: HapticsProviding = NoopHaptics()) {
-        self.init(history: MatchHistoryService(), penaltyManager: PenaltyManager(), haptics: haptics, connectivity: nil)
-    }
-
-    @MainActor
-    public convenience init(haptics: HapticsProviding = NoopHaptics(), connectivity: ConnectivitySyncProviding?) {
-        self.init(history: MatchHistoryService(), penaltyManager: PenaltyManager(), haptics: haptics, connectivity: connectivity)
+    public convenience init(
+        haptics: HapticsProviding = NoopHaptics(),
+        backgroundRuntime: BackgroundRuntimeManaging? = nil,
+        connectivity: ConnectivitySyncProviding? = nil
+    ) {
+        self.init(
+            history: MatchHistoryService(),
+            penaltyManager: PenaltyManager(),
+            haptics: haptics,
+            connectivity: connectivity,
+            backgroundRuntimeManager: backgroundRuntime
+        )
     }
     
     // MARK: - Match Management
@@ -148,7 +161,7 @@ public final class MatchViewModel {
     
     // MARK: - Timer Control
     public func startMatch() {
-        guard let _ = currentMatch else { return }
+        guard currentMatch != nil else { return }
         
         if !isMatchInProgress {
             isMatchInProgress = true
@@ -159,6 +172,7 @@ public final class MatchViewModel {
                 currentMatch = m
             }
             if let match = currentMatch {
+                refreshRuntimeSession(with: match)
                 self.periodTimeRemaining = timerManager.configureInitialPeriodLabel(match: match, currentPeriod: currentPeriod)
             }
             stoppageTimer?.invalidate(); stoppageTimer = nil
@@ -193,6 +207,7 @@ public final class MatchViewModel {
     
     public func pauseMatch() {
         isPaused = true
+        backgroundRuntimeManager?.notifyPause()
         timerManager.pause { [weak self] snap in
             guard let self = self else { return }
             // Ensure the elapsed match time continues to reflect current time while paused
@@ -204,6 +219,7 @@ public final class MatchViewModel {
     
     public func resumeMatch() {
         isPaused = false
+        backgroundRuntimeManager?.notifyResume()
         timerManager.resume { [weak self] snap in
             guard let self = self else { return }
             self.matchTime = snap.matchTime
@@ -246,6 +262,7 @@ public final class MatchViewModel {
         
         if let match = currentMatch {
             self.periodTimeRemaining = timerManager.configureInitialPeriodLabel(match: match, currentPeriod: currentPeriod)
+            refreshRuntimeSession(with: match)
             timerManager.startPeriod(
                 match: match,
                 currentPeriod: currentPeriod,
@@ -311,6 +328,7 @@ public final class MatchViewModel {
         timerManager.stopAll()
         timer = nil
         stoppageTimer = nil
+        backgroundRuntimeManager?.end(reason: .completed)
     }
     
     // MARK: - Match Statistics
@@ -446,6 +464,7 @@ public final class MatchViewModel {
         stoppageTimer = nil
         if let match = currentMatch {
             currentPeriod = max(1, match.numberOfPeriods) + (match.hasExtraTime ? 2 : 0) + 1
+            refreshRuntimeSession(with: match)
         } else {
             currentPeriod = 5
         }
@@ -467,6 +486,7 @@ public final class MatchViewModel {
         timer = nil
         stoppageTimer = nil
         isFullTime = true
+        backgroundRuntimeManager?.end(reason: .completed)
     }
 
     public func setPenaltyFirstKicker(_ team: TeamSide) {
@@ -530,6 +550,7 @@ public final class MatchViewModel {
         waitingForPenaltiesStart = false
         isFullTime = false
         matchCompleted = false
+        backgroundRuntimeManager?.end(reason: .reset)
         
         if let match = currentMatch {
             periodTimeRemaining = timerManager.configureInitialPeriodLabel(match: match, currentPeriod: 1)
@@ -642,6 +663,7 @@ public final class MatchViewModel {
         recordMatchEvent(.periodStart(currentPeriod))
         if let match = currentMatch {
             self.periodTimeRemaining = timerManager.configureInitialPeriodLabel(match: match, currentPeriod: currentPeriod)
+            refreshRuntimeSession(with: match)
             timerManager.startPeriod(
                 match: match,
                 currentPeriod: currentPeriod,
@@ -674,6 +696,7 @@ public final class MatchViewModel {
         formattedStoppageTime = "00:00"
         recordMatchEvent(.periodStart(currentPeriod))
         self.periodTimeRemaining = timerManager.configureInitialPeriodLabel(match: match, currentPeriod: currentPeriod)
+        refreshRuntimeSession(with: match)
         timerManager.startPeriod(
             match: match,
             currentPeriod: currentPeriod,
@@ -705,6 +728,7 @@ public final class MatchViewModel {
         formattedStoppageTime = "00:00"
         recordMatchEvent(.periodStart(currentPeriod))
         self.periodTimeRemaining = timerManager.configureInitialPeriodLabel(match: match, currentPeriod: currentPeriod)
+        refreshRuntimeSession(with: match)
         timerManager.startPeriod(
             match: match,
             currentPeriod: currentPeriod,
@@ -730,8 +754,35 @@ public final class MatchViewModel {
         halfTimeElapsed = "00:00"
         waitingForSecondHalfStart = true
     }
-    
+
+    // MARK: - Background Runtime Support
+    private func refreshRuntimeSession(with match: Match) {
+        backgroundRuntimeManager?.begin(
+            kind: .match,
+            title: matchDisplayTitle(for: match),
+            metadata: matchMetadata(for: match)
+        )
+    }
+
+    private func matchDisplayTitle(for match: Match) -> String {
+        let home = match.homeTeam.isEmpty ? "Home" : match.homeTeam
+        let away = match.awayTeam.isEmpty ? "Away" : match.awayTeam
+        return "\(home) vs \(away)"
+    }
+
+    private func matchMetadata(for match: Match) -> [String: String] {
+        var data: [String: String] = [
+            "matchId": match.id.uuidString,
+            "homeTeam": match.homeTeam,
+            "awayTeam": match.awayTeam
+        ]
+        data["currentPeriod"] = String(currentPeriod)
+        data["hasExtraTime"] = match.hasExtraTime ? "true" : "false"
+        return data
+    }
+
     deinit {
+        backgroundRuntimeManager?.end(reason: .reset)
         timerManager.stopAll()
         timer?.invalidate()
         stoppageTimer?.invalidate()

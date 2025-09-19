@@ -185,6 +185,7 @@
 				Core/Components/TimerFaces/AGENTS.md,
 				Core/Platform/AGENTS.md,
 				Features/AGENTS.md,
+				App/RefZoneWatchApp-Info.plist,
 			);
 			target = 964A4D702D32234A00D08376 /* RefZone Watch App */;
 		};
@@ -886,6 +887,8 @@
 		964A4D982D32234B00D08376 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "RefZoneWatchOS/App/RefZoneWatchApp-Info.plist";
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "RefZone Watch App.entitlements";
@@ -916,14 +919,6 @@
 					"DateFormatter+Common.swift",
 					README.md,
 				);
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = RefZone;
-				INFOPLIST_KEY_CFBundleURLTypes = "{\n    CFBundleURLName = refzone;\n    CFBundleURLSchemes =     (\n        refzone\n    );\n}";
-				INFOPLIST_KEY_NSHealthShareUsageDescription = "RefZone needs access to read your health data to provide accurate workout tracking and analysis.";
-				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "RefZone needs access to write workout data including distance, heart rate, and energy information.";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
-				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.IbrahimSaidi.RefZone;
-				INFOPLIST_KEY_WKWatchOnly = NO;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -944,6 +939,8 @@
 		964A4D992D32234B00D08376 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "RefZoneWatchOS/App/RefZoneWatchApp-Info.plist";
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "RefZone Watch App.entitlements";
@@ -974,14 +971,6 @@
 					"DateFormatter+Common.swift",
 					README.md,
 				);
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = RefZone;
-				INFOPLIST_KEY_CFBundleURLTypes = "{\n    CFBundleURLName = refzone;\n    CFBundleURLSchemes =     (\n        refzone\n    );\n}";
-				INFOPLIST_KEY_NSHealthShareUsageDescription = "RefZone needs access to read your health data to provide accurate workout tracking and analysis.";
-				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "RefZone needs access to write workout data including distance, heart rate, and energy information.";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
-				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.IbrahimSaidi.RefZone;
-				INFOPLIST_KEY_WKWatchOnly = NO;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",

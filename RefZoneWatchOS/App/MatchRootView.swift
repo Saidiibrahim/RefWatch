@@ -12,13 +12,31 @@ struct MatchRootView: View {
     @Environment(\.theme) private var theme
     @EnvironmentObject private var appModeController: AppModeController
     @Environment(\.modeSwitcherPresentation) private var modeSwitcherPresentation
-    @State private var matchViewModel = MatchViewModel(haptics: WatchHaptics(), connectivity: WatchConnectivitySyncClient())
-    @State private var settingsViewModel = SettingsViewModel()
-    @State private var lifecycle = MatchLifecycleCoordinator()
+    @State private var backgroundRuntimeController: BackgroundRuntimeSessionController
+    @State private var matchViewModel: MatchViewModel
+    @State private var settingsViewModel: SettingsViewModel
+    @State private var lifecycle: MatchLifecycleCoordinator
     @State private var showPersistenceError = false
     @State private var latestSummary: CompletedMatchSummary?
     private let commandHandler = LiveActivityCommandHandler()
     private let livePublisher = LiveActivityStatePublisher(reloadKind: "RefZoneWidgets")
+    
+    @MainActor
+    init(matchViewModel: MatchViewModel? = nil) {
+        let runtimeController = BackgroundRuntimeSessionController()
+        _backgroundRuntimeController = State(initialValue: runtimeController)
+        if let matchViewModel {
+            _matchViewModel = State(initialValue: matchViewModel)
+        } else {
+            _matchViewModel = State(initialValue: MatchViewModel(
+                haptics: WatchHaptics(),
+                backgroundRuntime: runtimeController,
+                connectivity: WatchConnectivitySyncClient()
+            ))
+        }
+        _settingsViewModel = State(initialValue: SettingsViewModel())
+        _lifecycle = State(initialValue: MatchLifecycleCoordinator())
+    }
     
     var body: some View {
         NavigationStack {
