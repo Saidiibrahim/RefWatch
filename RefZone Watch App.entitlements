@@ -6,6 +6,10 @@
 	<true/>
 	<key>com.apple.developer.healthkit.background-delivery</key>
 	<true/>
+	<key>com.apple.developer.watchkit.background-mode</key>
+	<array>
+		<string>workout-processing</string>
+	</array>
 	<key>com.apple.security.application-groups</key>
 	<array>
 		<string>group.refzone.shared</string>

@@ -9,6 +9,8 @@ final class WorkoutModeViewModel: ObservableObject {
   @Published private(set) var activeSession: WorkoutSession?
   @Published private(set) var lastCompletedSession: WorkoutSession?
   @Published private(set) var isActiveSessionPaused = false
+  @Published private(set) var lapCount = 0
+  @Published private(set) var isRecordingSegment = false
   @Published var errorMessage: String?
   @Published var isPerformingAction = false
 
@@ -31,23 +33,24 @@ final class WorkoutModeViewModel: ObservableObject {
   }
 
   func requestAuthorization() {
-    Task {
+    Task { @MainActor in
+      self.isPerformingAction = true
+      defer { self.isPerformingAction = false }
       do {
-        isPerformingAction = true
-        let status = try await services.authorizationManager.requestAuthorization()
-        authorization = status
-        errorMessage = nil
+        let status = try await self.services.authorizationManager.requestAuthorization()
+        self.authorization = status
+        self.errorMessage = nil
       } catch {
-        errorMessage = error.localizedDescription
+        self.errorMessage = error.localizedDescription
       }
-      isPerformingAction = false
     }
   }
 
   func startPreset(_ preset: WorkoutPreset) {
-    Task {
+    Task { @MainActor in
+      self.isPerformingAction = true
+      defer { self.isPerformingAction = false }
       do {
-        isPerformingAction = true
         let configuration = WorkoutSessionConfiguration(
           kind: preset.kind,
           presetId: preset.id,
@@ -55,97 +58,140 @@ final class WorkoutModeViewModel: ObservableObject {
           segments: preset.segments,
           metadata: ["source": "preset"]
         )
-        let session = try await services.sessionTracker.startSession(configuration: configuration)
-        activeSession = session
-        isActiveSessionPaused = false
-        appModeController.select(.workout)
-        errorMessage = nil
+        let session = try await self.services.sessionTracker.startSession(configuration: configuration)
+        self.activeSession = session
+        self.isActiveSessionPaused = false
+        self.lapCount = 0
+        self.isRecordingSegment = false
+        self.appModeController.select(.workout)
+        self.errorMessage = nil
       } catch {
-        errorMessage = error.localizedDescription
+        self.errorMessage = error.localizedDescription
       }
-      isPerformingAction = false
     }
   }
 
   func quickStart(kind: WorkoutKind) {
-    Task {
+    Task { @MainActor in
+      self.isPerformingAction = true
+      defer { self.isPerformingAction = false }
       do {
-        isPerformingAction = true
         let configuration = WorkoutSessionConfiguration(
           kind: kind,
           title: kind.displayName,
           metadata: ["source": "quick_start"]
         )
-        let session = try await services.sessionTracker.startSession(configuration: configuration)
-        activeSession = session
-        isActiveSessionPaused = false
-        appModeController.select(.workout)
-        errorMessage = nil
+        let session = try await self.services.sessionTracker.startSession(configuration: configuration)
+        self.activeSession = session
+        self.isActiveSessionPaused = false
+        self.lapCount = 0
+        self.isRecordingSegment = false
+        self.appModeController.select(.workout)
+        self.errorMessage = nil
       } catch {
-        errorMessage = error.localizedDescription
+        self.errorMessage = error.localizedDescription
       }
-      isPerformingAction = false
     }
   }
 
   func endActiveSession() {
     guard let sessionID = activeSession?.id else { return }
-    Task {
+    Task { @MainActor in
+      self.isPerformingAction = true
+      defer { self.isPerformingAction = false }
       do {
-        isPerformingAction = true
-        let finished = try await services.sessionTracker.endSession(id: sessionID, at: Date())
-        try await services.historyStore.saveSession(finished)
-        lastCompletedSession = finished
-        activeSession = nil
-        isActiveSessionPaused = false
-        errorMessage = nil
+        let finished = try await self.services.sessionTracker.endSession(id: sessionID, at: Date())
+        try await self.services.historyStore.saveSession(finished)
+        self.lastCompletedSession = finished
+        self.activeSession = nil
+        self.isActiveSessionPaused = false
+        self.lapCount = 0
+        self.isRecordingSegment = false
+        self.errorMessage = nil
       } catch {
-        errorMessage = error.localizedDescription
+        self.errorMessage = error.localizedDescription
       }
-      isPerformingAction = false
+    }
+  }
+
+  /// Ends the active session without persisting it so the user can immediately start a new workout type.
+  func abandonActiveSession() {
+    guard let sessionID = activeSession?.id else { return }
+    Task { @MainActor in
+      self.isPerformingAction = true
+      defer { self.isPerformingAction = false }
+      do {
+        _ = try await self.services.sessionTracker.endSession(id: sessionID, at: Date())
+        self.activeSession = nil
+        self.isActiveSessionPaused = false
+        self.lapCount = 0
+        self.isRecordingSegment = false
+        self.errorMessage = nil
+      } catch {
+        self.errorMessage = error.localizedDescription
+      }
+    }
+  }
+
+  func markSegment() {
+    guard let sessionID = activeSession?.id else { return }
+    guard !isRecordingSegment else { return }
+
+    isRecordingSegment = true
+
+    Task { @MainActor in
+      defer { self.isRecordingSegment = false }
+
+      let nextIndex = self.lapCount + 1
+      await self.services.sessionTracker.recordEvent(
+        .lap(index: nextIndex, timestamp: Date()),
+        sessionId: sessionID
+      )
+      self.lapCount = nextIndex
+      self.errorMessage = nil
     }
   }
 
   func reloadPresets() {
-    Task {
-      await loadPresets()
+    Task { @MainActor in
+      await self.loadPresets()
     }
   }
 
   func reloadContent() {
-    Task {
-      await loadPresets()
-      await loadHistory()
+    Task { @MainActor in
+      await self.loadPresets()
+      await self.loadHistory()
     }
   }
 
   func pauseActiveSession() {
     guard let sessionID = activeSession?.id else { return }
-    Task {
+    Task { @MainActor in
+      self.isPerformingAction = true
+      defer { self.isPerformingAction = false }
       do {
-        isPerformingAction = true
-        try await services.sessionTracker.pauseSession(id: sessionID)
-        isActiveSessionPaused = true
-        errorMessage = nil
+        try await self.services.sessionTracker.pauseSession(id: sessionID)
+        self.isActiveSessionPaused = true
+        self.errorMessage = nil
       } catch {
-        errorMessage = error.localizedDescription
+        self.errorMessage = error.localizedDescription
       }
-      isPerformingAction = false
     }
   }
 
   func resumeActiveSession() {
     guard let sessionID = activeSession?.id else { return }
-    Task {
+    Task { @MainActor in
+      self.isPerformingAction = true
+      defer { self.isPerformingAction = false }
       do {
-        isPerformingAction = true
-        try await services.sessionTracker.resumeSession(id: sessionID)
-        isActiveSessionPaused = false
-        errorMessage = nil
+        try await self.services.sessionTracker.resumeSession(id: sessionID)
+        self.isActiveSessionPaused = false
+        self.errorMessage = nil
       } catch {
-        errorMessage = error.localizedDescription
+        self.errorMessage = error.localizedDescription
       }
-      isPerformingAction = false
     }
   }
 
