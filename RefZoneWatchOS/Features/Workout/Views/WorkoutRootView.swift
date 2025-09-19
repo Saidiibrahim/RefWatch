@@ -6,6 +6,7 @@ struct WorkoutRootView: View {
   @StateObject private var viewModel: WorkoutModeViewModel
   @State private var presentError = false
   @Environment(\.modeSwitcherPresentation) private var modeSwitcherPresentation
+  @Environment(\.theme) private var theme
 
   init(services: WorkoutServices, appModeController: AppModeController) {
     _viewModel = StateObject(wrappedValue: WorkoutModeViewModel(services: services, appModeController: appModeController))
@@ -19,9 +20,13 @@ struct WorkoutRootView: View {
             session: session,
             isPaused: viewModel.isActiveSessionPaused,
             isEnding: viewModel.isPerformingAction,
+            isRecordingSegment: viewModel.isRecordingSegment,
+            lapCount: viewModel.lapCount,
             onPause: viewModel.pauseActiveSession,
             onResume: viewModel.resumeActiveSession,
-            onEnd: viewModel.endActiveSession
+            onEnd: viewModel.endActiveSession,
+            onMarkSegment: viewModel.markSegment,
+            onRequestNewSession: viewModel.abandonActiveSession
           )
         } else {
           WorkoutHomeView(
@@ -38,12 +43,22 @@ struct WorkoutRootView: View {
       }
       .navigationTitle("Workout")
       .toolbar {
-        ToolbarItem(placement: .cancellationAction) {
-          if viewModel.activeSession == nil {
+        if viewModel.activeSession == nil {
+          ToolbarItem(placement: .cancellationAction) {
             Button {
               modeSwitcherPresentation.wrappedValue = true
             } label: {
-              Label("Switch", systemImage: "arrow.triangle.2.circlepath")
+              Label("Back", systemImage: "chevron.backward")
+                .labelStyle(.titleAndIcon)
+            }
+            .disabled(viewModel.isPerformingAction)
+          }
+
+          ToolbarItem(placement: .primaryAction) {
+            Button {
+              viewModel.reloadContent()
+            } label: {
+              Label("Refresh", systemImage: "arrow.triangle.2.circlepath")
                 .labelStyle(.iconOnly)
             }
             .disabled(viewModel.isPerformingAction)
@@ -51,6 +66,7 @@ struct WorkoutRootView: View {
         }
       }
     }
+    .background(theme.colors.backgroundPrimary.ignoresSafeArea())
     .task {
       await viewModel.bootstrap()
     }

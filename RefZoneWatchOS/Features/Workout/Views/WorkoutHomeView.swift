@@ -1,4 +1,5 @@
 import SwiftUI
+import RefWatchCore
 import RefWorkoutCore
 
 struct WorkoutHomeView: View {
@@ -11,6 +12,8 @@ struct WorkoutHomeView: View {
   let onQuickStart: (WorkoutKind) -> Void
   let onReload: () -> Void
 
+  @Environment(\.theme) private var theme
+
   private var quickStartKinds: [WorkoutKind] {
     [.outdoorRun, .outdoorWalk, .strength, .mobility]
   }
@@ -18,19 +21,23 @@ struct WorkoutHomeView: View {
   var body: some View {
     List {
       if authorization.state != .authorized {
-        authorizationSection
+        Section("Permissions") {
+          WorkoutPermissionsCard(
+            message: authorizationMessage,
+            buttonTitle: authorizationButtonTitle,
+            isBusy: isBusy,
+            onRequestAccess: onRequestAccess
+          )
+          .listRowInsets(cardInsets)
+          .listRowBackground(Color.clear)
+        }
       }
 
       if let lastCompleted {
         Section("Recent") {
-          VStack(alignment: .leading, spacing: 6) {
-            Text(lastCompleted.title)
-              .font(.headline)
-            Text(summary(for: lastCompleted))
-              .font(.caption2)
-              .foregroundStyle(.secondary)
-          }
-          .padding(.vertical, 2)
+          WorkoutSummaryCard(session: lastCompleted, summary: summary(for: lastCompleted))
+            .listRowInsets(cardInsets)
+            .listRowBackground(Color.clear)
         }
       }
 
@@ -39,92 +46,57 @@ struct WorkoutHomeView: View {
           Button {
             onQuickStart(kind)
           } label: {
-            HStack(spacing: 12) {
-              Image(systemName: icon(for: kind))
-                .foregroundColor(.accentColor)
-              VStack(alignment: .leading, spacing: 2) {
-                Text(kind.displayName)
-                Text(quickStartSubtitle(for: kind))
-                  .font(.caption2)
-                  .foregroundStyle(.secondary)
-              }
-              Spacer()
-              if isBusy {
-                ProgressView()
-                  .progressViewStyle(.circular)
-              }
-            }
-            .padding(.vertical, 4)
+            WorkoutQuickStartCard(
+              title: kind.displayName,
+              subtitle: quickStartSubtitle(for: kind),
+              icon: icon(for: kind),
+              isBusy: isBusy
+            )
           }
           .buttonStyle(.plain)
           .disabled(isBusy)
+          .listRowInsets(cardInsets)
+          .listRowBackground(Color.clear)
         }
       }
 
       Section("Presets") {
         if presets.isEmpty {
-          VStack(alignment: .leading, spacing: 8) {
-            if isBusy {
-              ProgressView()
-                .progressViewStyle(.circular)
-            } else {
-              Text("No presets found")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-              Button("Load example presets", action: onReload)
-                .disabled(isBusy)
-            }
-          }
-          .frame(maxWidth: .infinity, alignment: .center)
-          .padding(.vertical, 6)
+          WorkoutEmptyPresetsCard(isBusy: isBusy, onReload: onReload)
+            .listRowInsets(cardInsets)
+            .listRowBackground(Color.clear)
         } else {
           ForEach(presets) { preset in
             Button {
               onStartPreset(preset)
             } label: {
-              VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                  Text(preset.title)
-                    .font(.headline)
-                  Spacer()
-                  if isBusy {
-                    ProgressView()
-                      .progressViewStyle(.circular)
-                  }
-                }
-                Text(presetSummary(preset))
-                  .font(.caption2)
-                  .foregroundStyle(.secondary)
-              }
-              .padding(.vertical, 4)
+              WorkoutPresetCard(
+                title: preset.title,
+                subtitle: presetSummary(preset),
+                isBusy: isBusy
+              )
             }
             .buttonStyle(.plain)
             .disabled(isBusy)
+            .listRowInsets(cardInsets)
+            .listRowBackground(Color.clear)
           }
         }
       }
     }
     .listStyle(.carousel)
+    .scrollContentBackground(.hidden)
+    .scenePadding(.horizontal)
+    .padding(.vertical, theme.components.listVerticalSpacing)
+    .background(theme.colors.backgroundPrimary)
   }
 }
 
 private extension WorkoutHomeView {
-  var authorizationSection: some View {
-    Section("Permissions") {
-      VStack(alignment: .leading, spacing: 6) {
-        Text(authorizationMessage)
-          .font(.caption)
-        Button(action: onRequestAccess) {
-          if isBusy {
-            ProgressView()
-          } else {
-            Text(authorizationButtonTitle)
-          }
-        }
-        .disabled(isBusy)
-      }
-      .padding(.vertical, 4)
-    }
+  var cardInsets: EdgeInsets {
+    let vertical = theme.components.listRowVerticalInset
+    let horizontal = theme.components.cardHorizontalPadding
+    return EdgeInsets(top: vertical, leading: horizontal, bottom: vertical, trailing: horizontal)
   }
 
   var authorizationMessage: String {
@@ -225,4 +197,263 @@ private extension WorkoutHomeView {
       return "Build your own"
     }
   }
+}
+
+private struct WorkoutQuickStartCard: View {
+  @Environment(\.theme) private var theme
+  let title: String
+  let subtitle: String
+  let icon: String
+  let isBusy: Bool
+
+  var body: some View {
+    ThemeCardContainer(role: .secondary, minHeight: 80) {
+      HStack(spacing: theme.spacing.s) {
+        WorkoutCardIcon(symbol: icon, tint: theme.colors.accentSecondary)
+
+        VStack(alignment: .leading, spacing: theme.spacing.xs) {
+          Text(title)
+            .font(theme.typography.cardHeadline)
+            .foregroundStyle(theme.colors.textPrimary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.75)
+
+          Text(subtitle)
+            .font(theme.typography.cardMeta)
+            .foregroundStyle(theme.colors.textSecondary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.75)
+        }
+
+        Spacer(minLength: theme.spacing.s)
+
+        if isBusy {
+          ProgressView()
+            .progressViewStyle(.circular)
+            .tint(theme.colors.textSecondary)
+        } else {
+          Image(systemName: "chevron.forward")
+            .font(theme.typography.iconSecondary)
+            .foregroundStyle(theme.colors.textSecondary)
+        }
+      }
+    }
+  }
+}
+
+private struct WorkoutPresetCard: View {
+  @Environment(\.theme) private var theme
+  let title: String
+  let subtitle: String
+  let isBusy: Bool
+
+  var body: some View {
+    ThemeCardContainer(role: .secondary, minHeight: 80) {
+      HStack(spacing: theme.spacing.s) {
+        VStack(alignment: .leading, spacing: theme.spacing.xs) {
+          Text(title)
+            .font(theme.typography.cardHeadline)
+            .foregroundStyle(theme.colors.textPrimary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.75)
+
+          if !subtitle.isEmpty {
+            Text(subtitle)
+              .font(theme.typography.cardMeta)
+              .foregroundStyle(theme.colors.textSecondary)
+              .lineLimit(1)
+              .minimumScaleFactor(0.75)
+          }
+        }
+
+        Spacer(minLength: theme.spacing.s)
+
+        if isBusy {
+          ProgressView()
+            .progressViewStyle(.circular)
+            .tint(theme.colors.textSecondary)
+        } else {
+          Image(systemName: "chevron.forward")
+            .font(theme.typography.iconSecondary)
+            .foregroundStyle(theme.colors.textSecondary)
+        }
+      }
+    }
+  }
+}
+
+private struct WorkoutSummaryCard: View {
+  @Environment(\.theme) private var theme
+  let session: WorkoutSession
+  let summary: String
+
+  var body: some View {
+    ThemeCardContainer(role: .secondary, minHeight: 72) {
+      VStack(alignment: .leading, spacing: theme.spacing.xs) {
+        Text(session.title)
+          .font(theme.typography.cardHeadline)
+          .foregroundStyle(theme.colors.textPrimary)
+          .lineLimit(1)
+          .minimumScaleFactor(0.75)
+
+        if !summary.isEmpty {
+          Text(summary)
+            .font(theme.typography.cardMeta)
+            .foregroundStyle(theme.colors.textSecondary)
+        }
+      }
+    }
+  }
+}
+
+private struct WorkoutPermissionsCard: View {
+  @Environment(\.theme) private var theme
+  let message: String
+  let buttonTitle: String
+  let isBusy: Bool
+  let onRequestAccess: () -> Void
+
+  var body: some View {
+    ThemeCardContainer(role: .secondary) {
+      VStack(alignment: .leading, spacing: theme.spacing.m) {
+        Text(message)
+          .font(theme.typography.cardMeta)
+          .foregroundStyle(theme.colors.textSecondary)
+          .multilineTextAlignment(.leading)
+
+        Button(action: onRequestAccess) {
+          if isBusy {
+            ProgressView()
+              .progressViewStyle(.circular)
+          } else {
+            Text(buttonTitle)
+              .font(theme.typography.button)
+          }
+        }
+        .buttonStyle(.borderedProminent)
+        .tint(theme.colors.accentSecondary)
+        .controlSize(.large)
+        .disabled(isBusy)
+      }
+    }
+  }
+}
+
+private struct WorkoutEmptyPresetsCard: View {
+  @Environment(\.theme) private var theme
+  let isBusy: Bool
+  let onReload: () -> Void
+
+  var body: some View {
+    ThemeCardContainer(role: .secondary) {
+      VStack(alignment: .leading, spacing: theme.spacing.m) {
+        Text("No presets found")
+          .font(theme.typography.cardMeta)
+          .foregroundStyle(theme.colors.textSecondary)
+
+        Button(action: onReload) {
+          if isBusy {
+            ProgressView()
+              .progressViewStyle(.circular)
+          } else {
+            Text("Load example presets")
+              .font(theme.typography.button)
+          }
+        }
+        .buttonStyle(.bordered)
+        .tint(theme.colors.accentSecondary)
+        .controlSize(.large)
+        .disabled(isBusy)
+      }
+      .frame(maxWidth: .infinity, alignment: .leading)
+    }
+  }
+}
+
+private struct WorkoutCardIcon: View {
+  @Environment(\.theme) private var theme
+  let symbol: String
+  let tint: Color
+
+  var body: some View {
+    ZStack {
+      RoundedRectangle(cornerRadius: theme.components.controlCornerRadius, style: .continuous)
+        .fill(tint.opacity(0.22))
+        .frame(width: 36, height: 36)
+
+      Image(systemName: symbol)
+        .font(theme.typography.iconAccent)
+        .foregroundStyle(theme.colors.textPrimary)
+    }
+  }
+}
+
+#Preview("Workout Home") {
+  WorkoutHomeView(
+    authorization: WorkoutAuthorizationStatus(state: .authorized),
+    presets: WorkoutHomePreviewData.presets,
+    lastCompleted: WorkoutHomePreviewData.lastCompleted,
+    isBusy: false,
+    onRequestAccess: {},
+    onStartPreset: { _ in },
+    onQuickStart: { _ in },
+    onReload: {}
+  )
+  .theme(DefaultTheme())
+}
+
+#Preview("Workout Home – Permissions") {
+  WorkoutHomeView(
+    authorization: WorkoutAuthorizationStatus(state: .notDetermined),
+    presets: [],
+    lastCompleted: nil,
+    isBusy: false,
+    onRequestAccess: {},
+    onStartPreset: { _ in },
+    onQuickStart: { _ in },
+    onReload: {}
+  )
+  .theme(DefaultTheme())
+}
+
+private enum WorkoutHomePreviewData {
+  static let lastCompleted: WorkoutSession = .init(
+    state: .ended,
+    kind: .outdoorWalk,
+    title: "Outdoor Walk",
+    startedAt: Date().addingTimeInterval(-2_400),
+    endedAt: Date().addingTimeInterval(-300),
+    segments: [
+      WorkoutSegment(name: "Warm-up", purpose: .warmup, plannedDuration: 300, plannedDistance: 0.4),
+      WorkoutSegment(name: "Intervals", purpose: .work, plannedDuration: 1_200, plannedDistance: 2.0)
+    ],
+    summary: .init(
+      averageHeartRate: 118,
+      maximumHeartRate: 152,
+      totalDistance: 3_500,
+      duration: 1_800
+    )
+  )
+
+  static let presets: [WorkoutPreset] = [
+    WorkoutPreset(
+      title: "Tempo Intervals",
+      kind: .refereeDrill,
+      segments: [
+        WorkoutSegment(name: "Build", purpose: .warmup, plannedDuration: 300, plannedDistance: 0.5),
+        WorkoutSegment(name: "Tempo", purpose: .work, plannedDuration: 600, plannedDistance: 1.6,
+                       target: .init(intensityZone: .tempo)),
+        WorkoutSegment(name: "Recover", purpose: .recovery, plannedDuration: 300, plannedDistance: 0.5)
+      ]
+    ),
+    WorkoutPreset(
+      title: "Match Sprint Repeats",
+      kind: .refereeDrill,
+      segments: [
+        WorkoutSegment(name: "Sprints", purpose: .work, plannedDuration: 420, plannedDistance: 1.2,
+                       target: .init(intensityZone: .anaerobic)),
+        WorkoutSegment(name: "Jog", purpose: .recovery, plannedDuration: 300, plannedDistance: 0.6)
+      ]
+    )
+  ]
 }

@@ -1,112 +1,82 @@
 import SwiftUI
+import MediaPlayer
+import _WatchKit_SwiftUI
+import RefWatchCore
 import RefWorkoutCore
 
 struct WorkoutSessionHostView: View {
   let session: WorkoutSession
   let isPaused: Bool
   let isEnding: Bool
+  let isRecordingSegment: Bool
+  let lapCount: Int
   let onPause: () -> Void
   let onResume: () -> Void
   let onEnd: () -> Void
+  let onMarkSegment: () -> Void
+  let onRequestNewSession: () -> Void
 
   @State private var timerModel: WorkoutTimerFaceModel
+  @State private var tabSelection: WorkoutSessionTab = .metrics
+  @State private var showShareComingSoon = false
+  @Environment(\.theme) private var theme
 
   init(
     session: WorkoutSession,
     isPaused: Bool,
     isEnding: Bool,
+    isRecordingSegment: Bool,
+    lapCount: Int,
+    initialTab: WorkoutSessionTab = .metrics,
     onPause: @escaping () -> Void,
     onResume: @escaping () -> Void,
-    onEnd: @escaping () -> Void
+    onEnd: @escaping () -> Void,
+    onMarkSegment: @escaping () -> Void,
+    onRequestNewSession: @escaping () -> Void
   ) {
     self.session = session
     self.isPaused = isPaused
     self.isEnding = isEnding
+    self.isRecordingSegment = isRecordingSegment
+    self.lapCount = lapCount
     self.onPause = onPause
     self.onResume = onResume
     self.onEnd = onEnd
+    self.onMarkSegment = onMarkSegment
+    self.onRequestNewSession = onRequestNewSession
     _timerModel = State(initialValue: WorkoutTimerFaceModel(session: session, onPause: onPause, onResume: onResume))
+    _tabSelection = State(initialValue: initialTab)
   }
 
   var body: some View {
-    List {
-      Section {
-        VStack(alignment: .leading, spacing: 10) {
-          Text(session.title)
-            .font(.headline)
-          if let preset = session.presetId {
-            Text("Preset #\(preset.uuidString.prefix(6))")
-              .font(.caption2)
-              .foregroundStyle(.secondary)
-          }
-          TimerFaceFactory.view(for: .standard, model: timerModel)
-            .hapticsProvider(WatchHaptics())
-            .padding(.vertical, 4)
-        }
-        .padding(.vertical, 4)
-      }
+    TabView(selection: $tabSelection) {
+      WorkoutSessionControlsPage(
+        session: session,
+        timerModel: timerModel,
+        isPaused: isPaused,
+        isEnding: isEnding,
+        isRecordingSegment: isRecordingSegment,
+        lapCount: lapCount,
+        onMarkSegment: onMarkSegment,
+        onEnd: onEnd,
+        onRequestNewSession: onRequestNewSession,
+        onShare: { showShareComingSoon = true }
+      )
+      .tag(WorkoutSessionTab.controls)
 
-      if hasMetrics {
-        metricsSection
-      }
+      WorkoutSessionMainPage(
+        session: session,
+        metrics: primaryMetrics,
+        timerModel: timerModel
+      )
+      .tag(WorkoutSessionTab.metrics)
 
-      if !session.segments.isEmpty {
-        Section("Segments") {
-          ForEach(session.segments) { segment in
-            VStack(alignment: .leading, spacing: 4) {
-              Text(segment.name)
-              HStack(spacing: 8) {
-                if let duration = segment.plannedDuration {
-                  Text(formatDuration(duration))
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                }
-                if let distance = segment.plannedDistance {
-                  Text(formatDistance(distance))
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                }
-                if let zone = segment.target?.intensityZone {
-                  Text(zone.displayName)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                }
-              }
-            }
-            .padding(.vertical, 4)
-          }
-        }
-      }
-
-      Section("Controls") {
-        Button {
-          if isPaused {
-            timerModel.resumeMatch()
-          } else {
-            timerModel.pauseMatch()
-          }
-        } label: {
-          HStack {
-            Text(isPaused ? "Resume" : "Pause")
-            Spacer()
-            Image(systemName: isPaused ? "play.fill" : "pause.fill")
-          }
-        }
-        .disabled(isEnding)
-
-        Button(role: .destructive) {
-          onEnd()
-        } label: {
-          if isEnding {
-            ProgressView()
-          } else {
-            Text("End Session")
-          }
-        }
-        .disabled(isEnding)
-      }
+      WorkoutSessionMediaPage(kind: session.kind)
+        .tag(WorkoutSessionTab.media)
     }
-    .listStyle(.carousel)
+    .tabViewStyle(.page(indexDisplayMode: .automatic))
+    .indexViewStyle(.page)
+    .background(theme.colors.backgroundPrimary.ignoresSafeArea())
     .onAppear {
       timerModel.updatePauseState(isPaused)
     }
@@ -116,51 +86,465 @@ struct WorkoutSessionHostView: View {
     .onChange(of: isPaused) { paused in
       timerModel.updatePauseState(paused)
     }
+    .alert("Coming Soon", isPresented: $showShareComingSoon) {
+      Button("OK", role: .cancel) {
+        showShareComingSoon = false
+      }
+    } message: {
+      Text("Sharing workouts is coming soon.")
+    }
   }
 }
 
-private extension WorkoutSessionHostView {
-  var metricsSection: some View {
-    Section("Metrics") {
-      if let duration = session.summary.duration ?? session.totalDuration {
-        metricRow(title: "Duration", value: formatDuration(duration))
-      }
-      if let distance = session.summary.totalDistance {
-        metricRow(title: "Distance", value: formatDistance(distance))
-      }
-      if let averageHR = session.summary.averageHeartRate {
-        metricRow(title: "Avg HR", value: String(format: "%.0f bpm", averageHR))
-      }
-      if let maxHR = session.summary.maximumHeartRate {
-        metricRow(title: "Max HR", value: String(format: "%.0f bpm", maxHR))
-      }
-    }
+private struct WorkoutSessionMainPage: View {
+  let session: WorkoutSession
+  let metrics: [WorkoutPrimaryMetric]
+  @Environment(\.theme) private var theme
+  @Bindable private var timerModel: WorkoutTimerFaceModel
+
+  init(session: WorkoutSession, metrics: [WorkoutPrimaryMetric], timerModel: WorkoutTimerFaceModel) {
+    self.session = session
+    self.metrics = metrics
+    _timerModel = Bindable(timerModel)
   }
 
-  func metricRow(title: String, value: String) -> some View {
-    HStack {
-      Text(title)
+  var body: some View {
+    VStack(alignment: .leading, spacing: theme.spacing.s) {
+      HStack(alignment: .center, spacing: theme.spacing.xs) {
+        WorkoutGlyph(kind: session.kind)
+
+        VStack(alignment: .leading, spacing: theme.spacing.xs) {
+          Text(session.title)
+            .font(theme.typography.cardHeadline)
+            .foregroundStyle(theme.colors.textPrimary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+
+          Text(session.kind.displayName.uppercased())
+            .font(theme.typography.label)
+            .foregroundStyle(theme.colors.textSecondary)
+        }
+
+        Spacer(minLength: theme.spacing.xs)
+
+        Text(timerModel.isPaused ? "Paused" : "Active")
+          .font(theme.typography.label)
+          .foregroundStyle(timerModel.isPaused ? theme.colors.matchWarning : theme.colors.accentSecondary)
+      }
+
+      WorkoutPrimaryTimerView(timerModel: timerModel)
+        .hapticsProvider(WatchHaptics())
+
+      VStack(spacing: theme.spacing.xs) {
+        ForEach(metrics) { metric in
+          WorkoutPrimaryMetricView(metric: metric)
+        }
+      }
+      .frame(maxWidth: .infinity, alignment: .leading)
+    }
+    .padding(.horizontal, theme.spacing.s)
+    .padding(.top, theme.spacing.s)
+    .padding(.bottom, theme.spacing.xs)
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    .background(theme.colors.backgroundPrimary.ignoresSafeArea())
+  }
+}
+
+private struct WorkoutSessionControlsPage: View {
+  @Environment(\.theme) private var theme
+  @Bindable private var timerModel: WorkoutTimerFaceModel
+  let session: WorkoutSession
+  let isPaused: Bool
+  let isEnding: Bool
+  let isRecordingSegment: Bool
+  let lapCount: Int
+  let onMarkSegment: () -> Void
+  let onEnd: () -> Void
+  let onRequestNewSession: () -> Void
+  let onShare: () -> Void
+
+  init(
+    session: WorkoutSession,
+    timerModel: WorkoutTimerFaceModel,
+    isPaused: Bool,
+    isEnding: Bool,
+    isRecordingSegment: Bool,
+    lapCount: Int,
+    onMarkSegment: @escaping () -> Void,
+    onEnd: @escaping () -> Void,
+    onRequestNewSession: @escaping () -> Void,
+    onShare: @escaping () -> Void
+  ) {
+    self.session = session
+    _timerModel = Bindable(timerModel)
+    self.isPaused = isPaused
+    self.isEnding = isEnding
+    self.isRecordingSegment = isRecordingSegment
+    self.lapCount = lapCount
+    self.onMarkSegment = onMarkSegment
+    self.onEnd = onEnd
+    self.onRequestNewSession = onRequestNewSession
+    self.onShare = onShare
+  }
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: theme.spacing.s) {
+      controlsHeader
+
+      LazyVGrid(columns: controlColumns, spacing: theme.spacing.xs) {
+        WorkoutControlTile(
+          title: isPaused ? "Resume" : "Pause",
+          systemImage: isPaused ? "play.fill" : "pause.fill",
+          tint: theme.colors.matchWarning,
+          foreground: theme.colors.backgroundPrimary,
+          isDisabled: isEnding,
+          style: tileStyle,
+          action: {
+            if isPaused {
+              timerModel.resumeMatch()
+            } else {
+              timerModel.pauseMatch()
+            }
+          }
+        )
+
+        WorkoutControlTile(
+          title: "Segment",
+          systemImage: "flag.checkered",
+          tint: theme.colors.matchPositive,
+          foreground: theme.colors.backgroundPrimary,
+          badgeText: lapCount > 0 ? "\(lapCount)" : nil,
+          isDisabled: isEnding || isRecordingSegment,
+          isLoading: isRecordingSegment,
+          style: tileStyle,
+          action: onMarkSegment
+        )
+
+        WorkoutControlTile(
+          title: "End",
+          systemImage: "xmark",
+          tint: theme.colors.matchCritical,
+          foreground: theme.colors.backgroundPrimary,
+          isDisabled: isEnding,
+          style: tileStyle,
+          action: onEnd
+        )
+
+        WorkoutControlTile(
+          title: "New",
+          systemImage: "plus",
+          tint: theme.colors.accentSecondary,
+          foreground: theme.colors.backgroundPrimary,
+          isDisabled: isEnding,
+          style: tileStyle,
+          action: onRequestNewSession
+        )
+
+        WorkoutControlTile(
+          title: "Share",
+          systemImage: "square.and.arrow.up",
+          tint: theme.colors.accentPrimary,
+          foreground: theme.colors.backgroundPrimary,
+          isDisabled: isEnding,
+          style: tileStyle,
+          action: onShare
+        )
+
+        WorkoutControlTilePlaceholder(style: tileStyle)
+      }
+
       Spacer()
-      Text(value)
-        .foregroundStyle(.secondary)
     }
-    .padding(.vertical, 2)
+    .padding(.horizontal, theme.spacing.s)
+    .padding(.top, theme.spacing.m)
+    .padding(.bottom, theme.spacing.xs)
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    .background(theme.colors.backgroundPrimary.ignoresSafeArea())
   }
 
-  var hasMetrics: Bool {
-    let duration = session.summary.duration ?? session.totalDuration
-    return duration != nil || session.summary.totalDistance != nil || session.summary.averageHeartRate != nil || session.summary.maximumHeartRate != nil
+  private var controlColumns: [GridItem] {
+    [GridItem(.flexible(), spacing: theme.spacing.xs), GridItem(.flexible(), spacing: theme.spacing.xs)]
   }
 
-  func formatDuration(_ interval: TimeInterval) -> String {
-    let formatter = DateComponentsFormatter()
-    formatter.unitsStyle = .abbreviated
-    formatter.allowedUnits = [.hour, .minute]
-    formatter.zeroFormattingBehavior = [.dropAll]
-    return formatter.string(from: interval) ?? "0m"
+  private var controlsHeader: some View {
+    VStack(alignment: .leading, spacing: theme.spacing.xs) {
+      Text(session.title)
+        .font(theme.typography.cardHeadline)
+        .foregroundStyle(theme.colors.textPrimary)
+        .lineLimit(1)
+        .minimumScaleFactor(0.8)
+
+      Text(timerModel.isPaused ? "Workout paused" : "Workout active")
+        .font(theme.typography.cardMeta)
+        .foregroundStyle(timerModel.isPaused ? theme.colors.matchWarning : theme.colors.textSecondary)
+    }
   }
 
-  func formatDistance(_ meters: Double) -> String {
-    String(format: "%.1f km", meters / 1000)
+  private var tileStyle: WorkoutControlTile.Style {
+    var style = WorkoutControlTile.Style()
+    style.circleDiameter = 44
+    style.iconSize = 19
+    style.titleFont = .system(size: 13, weight: .medium, design: .rounded)
+    style.titleColor = theme.colors.textPrimary
+    style.verticalSpacing = theme.spacing.xs
+    style.tileVerticalPadding = theme.spacing.xs * 0.3
+    style.badgeFont = .system(size: 11, weight: .semibold, design: .rounded)
+    style.badgeHorizontalPadding = 4
+    style.badgeVerticalPadding = 3
+    style.preferredHeight = style.circleDiameter + (style.verticalSpacing ?? theme.spacing.xs) + 24 + (style.tileVerticalPadding ?? theme.spacing.xs * 0.3) * 2
+    return style
   }
+}
+
+private struct WorkoutSessionMediaPage: View {
+  @Environment(\.theme) private var theme
+  let kind: WorkoutKind
+
+  var body: some View {
+    VStack(spacing: 0) {
+      if #available(watchOS 10.0, *) {
+        NowPlayingView()
+          .accentColor(theme.colors.accentPrimary)
+          .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+      } else {
+        VStack(spacing: theme.spacing.s) {
+          Image(systemName: "music.note")
+            .font(.system(size: 40))
+            .foregroundStyle(theme.colors.accentSecondary)
+
+          Text("Requires watchOS 10 or later")
+            .font(theme.typography.cardMeta)
+            .foregroundStyle(theme.colors.textSecondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+      }
+    }
+    .padding(.horizontal, theme.spacing.m)
+    .padding(.top, theme.spacing.l)
+    .padding(.bottom, theme.spacing.m)
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    .background(theme.colors.backgroundPrimary.ignoresSafeArea())
+  }
+}
+
+enum WorkoutSessionTab: Hashable {
+  case metrics
+  case controls
+  case media
+}
+
+private extension WorkoutSessionHostView {
+  var primaryMetrics: [WorkoutPrimaryMetric] {
+    let energy = formattedActiveEnergy(session.summary.activeEnergy)
+    let heartRate = formattedHeartRate(session.summary.averageHeartRate)
+    let distance = formattedDistance(session.summary.totalDistance)
+
+    return [
+      WorkoutPrimaryMetric(title: "Active Energy", value: energy.value, unit: energy.unit),
+      WorkoutPrimaryMetric(title: "Heart Rate", value: heartRate.value, unit: heartRate.unit),
+      WorkoutPrimaryMetric(title: "Distance", value: distance.value, unit: distance.unit)
+    ]
+  }
+
+  func formattedActiveEnergy(_ kilocalories: Double?) -> (value: String, unit: String?) {
+    guard let kilocalories else { return ("--", nil) }
+    let kilojoules = kilocalories * 4.184
+    return (kilojoules.formatted(.number.precision(.fractionLength(0))), "kJ")
+  }
+
+  func formattedHeartRate(_ rate: Double?) -> (value: String, unit: String?) {
+    guard let rate else { return ("--", nil) }
+    return (Int(rate.rounded()).formatted(), "bpm")
+  }
+
+  func formattedDistance(_ meters: Double?) -> (value: String, unit: String?) {
+    guard let meters else { return ("--", nil) }
+    if meters >= 1000 {
+      let kilometres = meters / 1000
+      return (String(format: "%.1f", kilometres), "km")
+    } else {
+      return (Int(meters.rounded()).formatted(), "m")
+    }
+  }
+}
+
+private struct WorkoutPrimaryMetric: Identifiable {
+  let id = UUID()
+  let title: String
+  let value: String
+  let unit: String?
+}
+
+private struct WorkoutPrimaryMetricView: View {
+  @Environment(\.theme) private var theme
+  let metric: WorkoutPrimaryMetric
+
+  var body: some View {
+    HStack(alignment: .lastTextBaseline, spacing: theme.spacing.xs) {
+      HStack(alignment: .lastTextBaseline, spacing: theme.spacing.xs) {
+        Text(metric.value)
+          .font(.system(size: 30, weight: .semibold, design: .rounded).monospacedDigit())
+          .foregroundStyle(theme.colors.textPrimary)
+          .lineLimit(1)
+          .minimumScaleFactor(0.7)
+          .layoutPriority(1)
+
+        if let unit = metric.unit {
+          Text(unit.uppercased())
+            .font(theme.typography.cardMeta)
+            .foregroundStyle(theme.colors.textSecondary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+        }
+      }
+
+      Spacer()
+
+      Text(metric.title.uppercased())
+        .font(theme.typography.cardMeta)
+        .foregroundStyle(theme.colors.textSecondary)
+        .multilineTextAlignment(.trailing)
+        .lineLimit(1)
+        .minimumScaleFactor(0.7)
+    }
+  }
+}
+
+private struct WorkoutPrimaryTimerView: View {
+  @Environment(\.theme) private var theme
+  @Environment(\.haptics) private var haptics
+  @Bindable var timerModel: WorkoutTimerFaceModel
+
+  init(timerModel: WorkoutTimerFaceModel) {
+    _timerModel = Bindable(timerModel)
+  }
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: theme.spacing.xs) {
+      Text(timerModel.matchTime)
+        .font(theme.typography.timerPrimary)
+        .foregroundStyle(timerModel.isPaused ? theme.colors.textSecondary : theme.colors.accentSecondary)
+    }
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .padding(.vertical, theme.spacing.s)
+    .contentShape(Rectangle())
+    .onTapGesture {
+      haptics.play(.tap)
+      if timerModel.isPaused {
+        timerModel.resumeMatch()
+      } else {
+        timerModel.pauseMatch()
+      }
+    }
+  }
+}
+
+private struct WorkoutGlyph: View {
+  @Environment(\.theme) private var theme
+  let kind: WorkoutKind
+
+  var body: some View {
+    Circle()
+      .fill(theme.colors.backgroundSecondary)
+      .frame(width: 48, height: 48)
+      .overlay(
+        Image(systemName: iconName)
+          .font(.system(size: 22, weight: .semibold))
+          .foregroundStyle(theme.colors.accentSecondary)
+      )
+  }
+
+  private var iconName: String {
+    switch kind {
+    case .outdoorRun, .indoorRun:
+      return "figure.run"
+    case .outdoorWalk:
+      return "figure.walk"
+    case .indoorCycle:
+      return "bicycle"
+    case .strength:
+      return "dumbbell"
+    case .mobility:
+      return "figure.cooldown"
+    case .refereeDrill:
+      return "whistle"
+    case .custom:
+      return "star"
+    }
+  }
+}
+
+#Preview("Workout Session") {
+  WorkoutSessionHostView(
+    session: WorkoutSessionPreviewData.active,
+    isPaused: false,
+    isEnding: false,
+    isRecordingSegment: false,
+    lapCount: 2,
+    initialTab: .metrics,
+    onPause: {},
+    onResume: {},
+    onEnd: {},
+    onMarkSegment: {},
+    onRequestNewSession: {}
+  )
+  .theme(DefaultTheme())
+}
+
+#Preview("Workout Session – Paused") {
+  WorkoutSessionHostView(
+    session: WorkoutSessionPreviewData.active,
+    isPaused: true,
+    isEnding: false,
+    isRecordingSegment: false,
+    lapCount: 0,
+    initialTab: .controls,
+    onPause: {},
+    onResume: {},
+    onEnd: {},
+    onMarkSegment: {},
+    onRequestNewSession: {}
+  )
+  .theme(DefaultTheme())
+}
+
+#Preview("Workout Session – Media") {
+  WorkoutSessionHostView(
+    session: WorkoutSessionPreviewData.active,
+    isPaused: false,
+    isEnding: false,
+    isRecordingSegment: false,
+    lapCount: 1,
+    initialTab: .media,
+    onPause: {},
+    onResume: {},
+    onEnd: {},
+    onMarkSegment: {},
+    onRequestNewSession: {}
+  )
+  .theme(DefaultTheme())
+}
+
+private enum WorkoutSessionPreviewData {
+  static let segments: [WorkoutSegment] = [
+    WorkoutSegment(name: "Warm-up", purpose: .warmup, plannedDuration: 300, plannedDistance: 0.4),
+    WorkoutSegment(name: "Tempo", purpose: .work, plannedDuration: 900, plannedDistance: 2.4,
+                   target: .init(intensityZone: .tempo)),
+    WorkoutSegment(name: "Cooldown", purpose: .cooldown, plannedDuration: 300, plannedDistance: 0.6)
+  ]
+
+  static let active: WorkoutSession = .init(
+    state: .active,
+    kind: .outdoorRun,
+    title: "Outdoor Run",
+    startedAt: Date().addingTimeInterval(-1_200),
+    segments: segments,
+    summary: .init(
+      averageHeartRate: 134,
+      maximumHeartRate: 168,
+      totalDistance: 4_200,
+      duration: 1_200
+    ),
+    presetId: UUID()
+  )
 }
