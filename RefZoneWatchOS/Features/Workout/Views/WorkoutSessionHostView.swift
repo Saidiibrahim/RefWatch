@@ -298,25 +298,26 @@ private struct WorkoutSessionControlsPage: View {
 
 private struct WorkoutSessionMediaPage: View {
   @Environment(\.theme) private var theme
+  @Environment(\.scenePhase) private var scenePhase
   let kind: WorkoutKind
 
-  var body: some View {
-    VStack(spacing: 0) {
-      if #available(watchOS 10.0, *) {
-        NowPlayingView()
-          .accentColor(theme.colors.accentPrimary)
-          .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-      } else {
-        VStack(spacing: theme.spacing.s) {
-          Image(systemName: "music.note")
-            .font(.system(size: 40))
-            .foregroundStyle(theme.colors.accentSecondary)
+  @State private var viewModelReference: WorkoutSessionMediaViewModel
+  @Bindable private var viewModel: WorkoutSessionMediaViewModel
+  private let haptics = WatchHaptics()
 
-          Text("Requires watchOS 10 or later")
-            .font(theme.typography.cardMeta)
-            .foregroundStyle(theme.colors.textSecondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+  init(kind: WorkoutKind) {
+    self.kind = kind
+    let model = WorkoutSessionMediaViewModel()
+    _viewModelReference = State(initialValue: model)
+    _viewModel = Bindable(model)
+  }
+
+  var body: some View {
+    Group {
+      if #available(watchOS 10.0, *) {
+        content
+      } else {
+        legacyFallback
       }
     }
     .padding(.horizontal, theme.spacing.m)
@@ -324,6 +325,201 @@ private struct WorkoutSessionMediaPage: View {
     .padding(.bottom, theme.spacing.m)
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     .background(theme.colors.backgroundPrimary.ignoresSafeArea())
+    .onAppear { viewModelReference.activate() }
+    .onDisappear { viewModelReference.deactivate() }
+    .onChange(of: scenePhase) { phase in
+      guard phase == .active else { return }
+      viewModelReference.refresh()
+    }
+  }
+
+  @ViewBuilder
+  private var content: some View {
+    VStack(spacing: theme.spacing.m) {
+      header
+
+      artworkTile
+        .frame(maxWidth: .infinity)
+
+      labels
+
+      Spacer(minLength: theme.spacing.l)
+
+      transportControls
+    }
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+  }
+
+  private var legacyFallback: some View {
+    VStack(spacing: theme.spacing.s) {
+      Image(systemName: "music.note")
+        .font(.system(size: 40))
+        .foregroundStyle(theme.colors.accentSecondary)
+
+      Text("Requires watchOS 10 or later")
+        .font(theme.typography.cardMeta)
+        .foregroundStyle(theme.colors.textSecondary)
+    }
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+  }
+
+  private var header: some View {
+    HStack {
+      Spacer()
+
+      routeIndicator
+    }
+  }
+
+  private var routeIndicator: some View {
+    let background = viewModel.isUsingExternalRoute ? theme.colors.accentPrimary.opacity(0.16) : theme.colors.backgroundElevated
+    let foreground = viewModel.isUsingExternalRoute ? theme.colors.accentPrimary : theme.colors.textSecondary
+
+    return VStack {
+      Image(systemName: viewModel.routeGlyphName)
+        .font(.system(size: 18, weight: .semibold))
+        .foregroundStyle(foreground)
+        .padding(10)
+        .background(
+          Circle()
+            .fill(background)
+        )
+    }
+    .accessibilityLabel(Text(viewModel.routeDescription))
+  }
+
+  private var artworkTile: some View {
+    let cornerRadius: CGFloat = 22
+    let size: CGFloat = 120
+
+    return ZStack {
+      RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        .fill(LinearGradient(colors: [theme.colors.backgroundElevated, theme.colors.backgroundElevated.opacity(0.7)], startPoint: .topLeading, endPoint: .bottomTrailing))
+        .overlay(
+          RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            .stroke(theme.colors.surfaceOverlay, lineWidth: 1)
+        )
+
+#if canImport(UIKit)
+      if let artwork = viewModel.artworkImage {
+        Image(uiImage: artwork)
+          .resizable()
+          .scaledToFill()
+          .frame(width: size, height: size)
+          .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+      } else {
+        placeholderIcon(size: size)
+      }
+#else
+      placeholderIcon(size: size)
+#endif
+    }
+    .frame(width: size, height: size)
+  }
+
+  @ViewBuilder
+  private func placeholderIcon(size: CGFloat) -> some View {
+    ZStack {
+      RoundedRectangle(cornerRadius: 18, style: .continuous)
+        .fill(theme.colors.backgroundElevated.opacity(0.6))
+
+      Image(systemName: "applewatch")
+        .font(.system(size: size * 0.32, weight: .medium))
+        .foregroundStyle(theme.colors.accentSecondary)
+    }
+    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+  }
+
+  private var labels: some View {
+    VStack(spacing: theme.spacing.xs) {
+      Text(viewModel.title)
+        .font(.system(size: 20, weight: .semibold, design: .rounded))
+        .foregroundStyle(theme.colors.textPrimary)
+        .lineLimit(1)
+        .minimumScaleFactor(0.8)
+
+      Text(viewModel.controlsAvailable ? viewModel.subtitle : "Connect to iPhone to control Music")
+        .font(theme.typography.cardMeta)
+        .foregroundStyle(theme.colors.textSecondary)
+        .lineLimit(1)
+        .minimumScaleFactor(0.8)
+    }
+    .frame(maxWidth: .infinity)
+  }
+
+  private var transportControls: some View {
+    HStack(spacing: theme.spacing.l) {
+      transportButton(
+        systemName: "backward.fill",
+        diameter: 44,
+        isDisabled: !viewModel.controlsAvailable || !viewModel.canSkipBackward,
+        action: {
+          haptics.play(.tap)
+          viewModelReference.skipBackward()
+        }
+      )
+
+      transportButton(
+        systemName: viewModel.isPlaying ? "pause.fill" : "play.fill",
+        diameter: 56,
+        isDisabled: !viewModel.controlsAvailable,
+        tint: theme.colors.accentPrimary,
+        foreground: theme.colors.textInverted,
+        action: {
+          haptics.play(viewModel.isPlaying ? .pause : .resume)
+          viewModelReference.togglePlayPause()
+        }
+      )
+
+      transportButton(
+        systemName: "forward.fill",
+        diameter: 44,
+        isDisabled: !viewModel.controlsAvailable || !viewModel.canSkipForward,
+        action: {
+          haptics.play(.tap)
+          viewModelReference.skipForward()
+        }
+      )
+    }
+  }
+
+  private func transportButton(
+    systemName: String,
+    diameter: CGFloat,
+    isDisabled: Bool,
+    tint: Color? = nil,
+    foreground: Color? = nil,
+    action: @escaping () -> Void
+  ) -> some View {
+    Button(action: action) {
+      Image(systemName: systemName)
+        .font(.system(size: diameter * 0.34, weight: .semibold))
+        .frame(width: diameter, height: diameter)
+        .foregroundStyle(foreground ?? theme.colors.textPrimary)
+        .background(
+          Circle()
+            .fill(tint ?? theme.colors.backgroundElevated)
+        )
+    }
+    .buttonStyle(.plain)
+    .disabled(isDisabled)
+    .opacity(isDisabled ? 0.4 : 1)
+    .accessibilityLabel(accessibilityLabel(for: systemName))
+  }
+
+  private func accessibilityLabel(for systemName: String) -> Text {
+    switch systemName {
+    case "backward.fill":
+      return Text("Skip backward")
+    case "forward.fill":
+      return Text("Skip forward")
+    case "play.fill":
+      return Text("Play")
+    case "pause.fill":
+      return Text("Pause")
+    default:
+      return Text(systemName)
+    }
   }
 }
 
