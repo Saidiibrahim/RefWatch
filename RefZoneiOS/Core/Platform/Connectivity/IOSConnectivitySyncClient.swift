@@ -33,13 +33,15 @@ extension Notification.Name {
 final class IOSConnectivitySyncClient: NSObject {
     private let history: MatchHistoryStoring
     private let auth: AuthenticationProviding
+    private let mediaHandler: WorkoutMediaCommandHandling?
     #if canImport(WatchConnectivity)
     private let queue = DispatchQueue(label: "IOSConnectivitySyncClient.decode")
     #endif
 
-    init(history: MatchHistoryStoring, auth: AuthenticationProviding) {
+    init(history: MatchHistoryStoring, auth: AuthenticationProviding, mediaHandler: WorkoutMediaCommandHandling? = nil) {
         self.history = history
         self.auth = auth
+        self.mediaHandler = mediaHandler
         super.init()
     }
 
@@ -100,44 +102,71 @@ extension IOSConnectivitySyncClient: WCSessionDelegate {
 
     /// Handles immediate messages. Decodes off the main thread and merges on main.
     func session(_ session: WCSession, didReceiveMessage message: [String : Any]) {
-        guard let type = message["type"] as? String, type == "completedMatch" else { return }
-        guard let data = message["data"] as? Data else {
-            DispatchQueue.main.async {
-                NotificationCenter.default.post(name: .syncNonrecoverableError, object: nil, userInfo: ["error": "missing data", "context": "ios.didReceiveMessage.payload"])
-            }
-            return
-        }
-        queue.async { [weak self] in
-            let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .iso8601
-            guard let match = try? decoder.decode(CompletedMatch.self, from: data) else {
+        guard let type = message["type"] as? String else { return }
+
+        switch type {
+        case "completedMatch":
+            guard let data = message["data"] as? Data else {
                 DispatchQueue.main.async {
-                    NotificationCenter.default.post(name: .syncNonrecoverableError, object: nil, userInfo: ["error": "decode failed", "context": "ios.didReceiveMessage.decode"])
+                    NotificationCenter.default.post(name: .syncNonrecoverableError, object: nil, userInfo: ["error": "missing data", "context": "ios.didReceiveMessage.payload"])
                 }
                 return
             }
-            self?.handleCompletedMatch(match)
+            queue.async { [weak self] in
+                let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .iso8601
+                guard let match = try? decoder.decode(CompletedMatch.self, from: data) else {
+                    DispatchQueue.main.async {
+                        NotificationCenter.default.post(name: .syncNonrecoverableError, object: nil, userInfo: ["error": "decode failed", "context": "ios.didReceiveMessage.decode"])
+                    }
+                    return
+                }
+                self?.handleCompletedMatch(match)
+            }
+
+        case "mediaCommand":
+            handleMediaCommandPayload(message)
+
+        default:
+            break
         }
     }
 
     /// Handles background transfers. Decodes off the main thread and merges on main.
     func session(_ session: WCSession, didReceiveUserInfo userInfo: [String : Any] = [:]) {
-        guard let type = userInfo["type"] as? String, type == "completedMatch" else { return }
-        guard let data = userInfo["data"] as? Data else {
-            DispatchQueue.main.async {
-                NotificationCenter.default.post(name: .syncNonrecoverableError, object: nil, userInfo: ["error": "missing data", "context": "ios.didReceiveUserInfo.payload"])
-            }
-            return
-        }
-        queue.async { [weak self] in
-            let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .iso8601
-            guard let match = try? decoder.decode(CompletedMatch.self, from: data) else {
+        guard let type = userInfo["type"] as? String else { return }
+
+        switch type {
+        case "completedMatch":
+            guard let data = userInfo["data"] as? Data else {
                 DispatchQueue.main.async {
-                    NotificationCenter.default.post(name: .syncNonrecoverableError, object: nil, userInfo: ["error": "decode failed", "context": "ios.didReceiveUserInfo.decode"])
+                    NotificationCenter.default.post(name: .syncNonrecoverableError, object: nil, userInfo: ["error": "missing data", "context": "ios.didReceiveUserInfo.payload"])
                 }
                 return
             }
-            self?.handleCompletedMatch(match)
+            queue.async { [weak self] in
+                let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .iso8601
+                guard let match = try? decoder.decode(CompletedMatch.self, from: data) else {
+                    DispatchQueue.main.async {
+                        NotificationCenter.default.post(name: .syncNonrecoverableError, object: nil, userInfo: ["error": "decode failed", "context": "ios.didReceiveUserInfo.decode"])
+                    }
+                    return
+                }
+                self?.handleCompletedMatch(match)
+            }
+
+        case "mediaCommand":
+            handleMediaCommandPayload(userInfo)
+
+        default:
+            break
         }
+    }
+    private func handleMediaCommandPayload(_ payload: [String: Any]) {
+        guard let rawValue = payload["command"] as? String, let command = WorkoutMediaCommand(rawValue: rawValue) else {
+            AppLog.connectivity.error("Received malformed media command payload")
+            return
+        }
+        mediaHandler?.handle(command)
     }
 }
 #endif
