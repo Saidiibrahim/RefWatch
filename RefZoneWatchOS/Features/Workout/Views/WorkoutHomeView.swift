@@ -314,28 +314,41 @@ private struct WorkoutPermissionsCard: View {
   let onRequestAccess: () -> Void
 
   var body: some View {
-    ThemeCardContainer(role: .secondary) {
-      VStack(alignment: .leading, spacing: theme.spacing.m) {
-        Text(message)
-          .font(theme.typography.cardMeta)
-          .foregroundStyle(theme.colors.textSecondary)
-          .multilineTextAlignment(.leading)
+    Button(action: onRequestAccess) {
+      ThemeCardContainer(role: .secondary) {
+        VStack(alignment: .leading, spacing: theme.spacing.m) {
+          Text(message)
+            .font(theme.typography.cardMeta)
+            .foregroundStyle(theme.colors.textSecondary)
+            .multilineTextAlignment(.leading)
 
-        Button(action: onRequestAccess) {
-          if isBusy {
-            ProgressView()
-              .progressViewStyle(.circular)
-          } else {
+          if !buttonTitle.isEmpty {
             Text(buttonTitle)
               .font(theme.typography.button)
+              .foregroundStyle(theme.colors.textInverted)
+              .frame(maxWidth: .infinity)
+              .padding(.vertical, theme.spacing.s)
+              .background(
+                RoundedRectangle(cornerRadius: theme.components.controlCornerRadius, style: .continuous)
+                  .fill(theme.colors.accentSecondary)
+              )
           }
         }
-        .buttonStyle(.borderedProminent)
-        .tint(theme.colors.accentSecondary)
-        .controlSize(.large)
-        .disabled(isBusy)
+      }
+      .overlay {
+        if isBusy {
+          RoundedRectangle(cornerRadius: theme.components.cardCornerRadius, style: .continuous)
+            .fill(theme.colors.surfaceOverlay)
+            .overlay(
+              ProgressView()
+                .progressViewStyle(.circular)
+                .tint(theme.colors.textPrimary)
+            )
+        }
       }
     }
+    .buttonStyle(.plain)
+    .disabled(isBusy)
   }
 }
 

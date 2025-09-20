@@ -20,6 +20,7 @@ enum DemoStates {
       expectedPeriodEnd: now.addingTimeInterval(600),
       elapsedAtPause: nil,
       stoppageAccumulated: 0,
+      canPause: true,
       lastUpdated: now
     )
   }()
@@ -40,6 +41,7 @@ enum DemoStates {
       expectedPeriodEnd: nil,
       elapsedAtPause: 1234,
       stoppageAccumulated: 42,
+      canResume: true,
       lastUpdated: now
     )
   }()
