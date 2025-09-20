@@ -181,11 +181,11 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				AGENTS.md,
+				"App/RefZoneWatchApp-Info.plist",
 				Core/AGENTS.md,
 				Core/Components/TimerFaces/AGENTS.md,
 				Core/Platform/AGENTS.md,
 				Features/AGENTS.md,
-				App/RefZoneWatchApp-Info.plist,
 			);
 			target = 964A4D702D32234A00D08376 /* RefZone Watch App */;
 		};
@@ -605,6 +605,7 @@
 				966D6DD42E6E5BBE0086E820 /* XCRemoteSwiftPackageReference "clerk-ios" */,
 				9654C2432E78EB35001941F3 /* XCLocalSwiftPackageReference "RefWatchCore" */,
 				301489DC0AD2441AAE57AA1D /* XCLocalSwiftPackageReference "RefWorkoutCore" */,
+				96123ED72E7D96CD00204DCB /* XCRemoteSwiftPackageReference "supabase-swift" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 964A4D6C2D32234A00D08376 /* Products */;
@@ -887,8 +888,6 @@
 		964A4D982D32234B00D08376 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = "RefZoneWatchOS/App/RefZoneWatchApp-Info.plist";
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "RefZone Watch App.entitlements";
@@ -919,11 +918,13 @@
 					"DateFormatter+Common.swift",
 					README.md,
 				);
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "RefZoneWatchOS/App/RefZoneWatchApp-Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 0.9.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.IbrahimSaidi.RefZone.watchkitapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -939,8 +940,6 @@
 		964A4D992D32234B00D08376 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = "RefZoneWatchOS/App/RefZoneWatchApp-Info.plist";
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "RefZone Watch App.entitlements";
@@ -971,11 +970,13 @@
 					"DateFormatter+Common.swift",
 					README.md,
 				);
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "RefZoneWatchOS/App/RefZoneWatchApp-Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 0.9.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.IbrahimSaidi.RefZone.watchkitapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -1095,7 +1096,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 0.9.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.IbrahimSaidi.RefZone;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
@@ -1111,6 +1112,7 @@
 		};
 		96B812782E67CDA500B23EC0 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 96B8C0DE2E67CDA500B23EC0 /* RefZoneiOS/Config/Secrets.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -1122,6 +1124,7 @@
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = RefZoneiOS/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = RefZone;
+				INFOPLIST_KEY_OPENAI_API_KEY = "$(OPENAI_API_KEY)";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -1133,7 +1136,8 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 0.9.0;
+				ONLY_ACTIVE_ARCH = NO;
 				PRODUCT_BUNDLE_IDENTIFIER = com.IbrahimSaidi.RefZone;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
@@ -1384,6 +1388,14 @@
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		96123ED72E7D96CD00204DCB /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/supabase/supabase-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.5.1;
+			};
+		};
 		966D6DD42E6E5BBE0086E820 /* XCRemoteSwiftPackageReference "clerk-ios" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/clerk/clerk-ios";

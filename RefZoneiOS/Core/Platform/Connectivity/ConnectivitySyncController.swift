@@ -17,7 +17,8 @@ final class ConnectivitySyncController: ObservableObject {
     private let client: IOSConnectivitySyncClient
 
     init(history: MatchHistoryStoring, auth: AuthenticationProviding) {
-        self.client = IOSConnectivitySyncClient(history: history, auth: auth)
+        let mediaHandler = SystemMusicMediaCommandHandler()
+        self.client = IOSConnectivitySyncClient(history: history, auth: auth, mediaHandler: mediaHandler)
     }
 
     func start() {
