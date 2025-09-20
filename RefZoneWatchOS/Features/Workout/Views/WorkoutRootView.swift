@@ -49,7 +49,7 @@ struct WorkoutRootView: View {
               modeSwitcherPresentation.wrappedValue = true
             } label: {
               Label("Back", systemImage: "chevron.backward")
-                .labelStyle(.titleAndIcon)
+                .labelStyle(.iconOnly)
             }
             .disabled(viewModel.isPerformingAction)
           }
