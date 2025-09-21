@@ -82,7 +82,13 @@ final class WatchMediaCommandClient: NSObject, WorkoutMediaCommandSending {
 
   private static func isSessionAvailable(_ session: WCSession) -> Bool {
     guard session.activationState == .activated else { return false }
-    return session.isPaired && session.isCompanionAppInstalled
+    #if os(iOS)
+    return session.isPaired && session.isWatchAppInstalled
+    #else
+    // On watchOS the app can only run when paired, so we just verify the
+    // companion installation state.
+    return session.isCompanionAppInstalled
+    #endif
   }
   #endif
 }
@@ -109,7 +115,5 @@ extension WatchMediaCommandClient: WCSessionDelegate {
     dispatchAvailability()
   }
 
-  func sessionDidBecomeInactive(_ session: WCSession) { }
-  func sessionDidDeactivate(_ session: WCSession) { }
 }
 #endif
