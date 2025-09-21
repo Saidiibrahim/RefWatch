@@ -19,6 +19,7 @@ struct MatchTimerView: View {
     @State private var kickoffDefaultET2: TeamSide? = nil
     @State private var chainToPenaltyShootout = false
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.theme) private var theme
 
     private var periodLabel: String {
         if matchViewModel.isHalfTime && !matchViewModel.waitingForHalfTimeStart {
@@ -39,11 +40,11 @@ struct MatchTimerView: View {
     }
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: theme.spacing.l) {
             // Header
             HStack {
                 Text(periodLabel)
-                    .font(.headline)
+                    .font(theme.typography.heroSubtitle)
                 Spacer()
             }
             .padding(.horizontal)
@@ -57,19 +58,19 @@ struct MatchTimerView: View {
             )
 
             // Timers
-            VStack(spacing: 4) {
+            VStack(spacing: theme.spacing.xs) {
                 Text(matchViewModel.matchTime)
-                    .font(AppTheme.Typography.timerXL)
+                    .font(theme.typography.timerPrimary)
                     .monospacedDigit()
                     .accessibilityIdentifier("timerArea")
                 Text(matchViewModel.periodTimeRemaining)
-                    .font(AppTheme.Typography.timerSub)
-                    .foregroundStyle(.secondary)
+                    .font(theme.typography.timerSecondary)
+                    .foregroundStyle(theme.colors.textSecondary)
                     .monospacedDigit()
                 if matchViewModel.isInStoppage {
                     Text("+\(matchViewModel.formattedStoppageTime)")
-                        .font(AppTheme.Typography.timerStoppage)
-                        .foregroundStyle(.orange)
+                        .font(theme.typography.timerTertiary)
+                        .foregroundStyle(theme.colors.matchWarning)
                         .monospacedDigit()
                 }
             }
@@ -91,7 +92,7 @@ struct MatchTimerView: View {
             List {
                 let items = Array(matchViewModel.matchEvents.suffix(25).reversed())
                 ForEach(items) { event in
-                    HStack(spacing: 12) {
+                    HStack(spacing: theme.spacing.m) {
                         Image(systemName: icon(for: event))
                             .foregroundStyle(color(for: event))
                         VStack(alignment: .leading, spacing: 2) {
@@ -100,10 +101,10 @@ struct MatchTimerView: View {
                                     .font(.caption).monospacedDigit().bold()
                                 Spacer()
                                 Text(event.periodDisplayName)
-                                    .font(.caption2).foregroundStyle(.secondary)
+                                    .font(.caption2).foregroundStyle(theme.colors.textSecondary)
                             }
                             if let team = event.teamDisplayName {
-                                Text(team).font(.caption2).foregroundStyle(.secondary)
+                                Text(team).font(.caption2).foregroundStyle(theme.colors.textSecondary)
                             }
                             Text(event.displayDescription).font(.caption)
                         }
@@ -208,21 +209,23 @@ struct MatchTimerView: View {
 
     private func color(for event: MatchEventRecord) -> Color {
         switch event.eventType {
-        case .goal: return .green
-        case .card(let details): return details.cardType == .yellow ? .yellow : .red
-        case .substitution: return .blue
-        case .kickOff, .periodStart: return .green
-        case .halfTime: return .orange
-        case .periodEnd, .matchEnd: return .red
-        case .penaltiesStart: return .orange
-        case .penaltyAttempt(let details): return details.result == .scored ? .green : .red
-        case .penaltiesEnd: return .green
+        case .goal: return theme.colors.matchPositive
+        case .card(let details):
+            return details.cardType == .yellow ? theme.colors.matchNeutral : theme.colors.matchCritical
+        case .substitution: return theme.colors.accentSecondary
+        case .kickOff, .periodStart: return theme.colors.matchPositive
+        case .halfTime: return theme.colors.matchWarning
+        case .periodEnd, .matchEnd: return theme.colors.matchCritical
+        case .penaltiesStart: return theme.colors.accentMuted
+        case .penaltyAttempt(let details):
+            return details.result == .scored ? theme.colors.matchPositive : theme.colors.matchCritical
+        case .penaltiesEnd: return theme.colors.matchPositive
         }
     }
 
     @ViewBuilder
     private var controlButtons: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: theme.spacing.m) {
             if !matchViewModel.isMatchInProgress {
                 Button("Start") { matchViewModel.startMatch() }
             } else if matchViewModel.isPaused {
@@ -232,11 +235,13 @@ struct MatchTimerView: View {
             }
         }
         .buttonStyle(.borderedProminent)
+        .tint(theme.colors.accentSecondary)
         .padding(.horizontal)
 
         if matchViewModel.waitingForHalfTimeStart {
             Button("Start Half‑time") { matchViewModel.startHalfTimeManually() }
                 .buttonStyle(.bordered)
+                .tint(theme.colors.accentSecondary)
                 .padding(.horizontal)
         }
     }
@@ -274,12 +279,13 @@ private extension MatchTimerView {
     }
     @ViewBuilder
     var halfTimeSection: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: theme.spacing.s) {
             Text(matchViewModel.halfTimeElapsed)
-                .font(.system(size: 40, weight: .bold, design: .rounded))
+                .font(theme.typography.timerPrimary)
                 .monospacedDigit()
             Button("End Half‑time") { showEndHalfTimeConfirm = true }
                 .buttonStyle(.borderedProminent)
+                .tint(theme.colors.accentSecondary)
         }
         .padding(.horizontal)
         .confirmationDialog("", isPresented: $showEndHalfTimeConfirm, titleVisibility: .hidden) {

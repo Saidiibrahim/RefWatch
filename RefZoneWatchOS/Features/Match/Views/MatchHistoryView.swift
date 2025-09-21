@@ -8,172 +8,286 @@
 import SwiftUI
 import RefWatchCore
 
+private let matchHistoryDateFormatter: DateFormatter = {
+  let formatter = DateFormatter()
+  formatter.dateStyle = .short
+  formatter.timeStyle = .short
+  return formatter
+}()
+
 struct MatchHistoryView: View {
-    let matchViewModel: MatchViewModel
-    @State private var items: [CompletedMatch] = []
-    @Environment(\.scenePhase) private var scenePhase
+  let matchViewModel: MatchViewModel
+  @State private var items: [CompletedMatch] = []
+  @Environment(\.scenePhase) private var scenePhase
+  @Environment(\.theme) private var theme
 
-    var body: some View {
-        List {
-            if items.isEmpty {
-                VStack(spacing: 8) {
-                    Image(systemName: "clock")
-                        .font(.system(size: 28))
-                        .foregroundColor(.gray)
-                    Text("No Completed Matches")
-                        .font(.headline)
-                        .foregroundColor(.secondary)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .listRowBackground(Color.clear)
-            } else {
-                ForEach(items) { item in
-                    NavigationLink(destination: MatchHistoryDetailView(snapshot: item)) {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("\(item.match.homeTeam) vs \(item.match.awayTeam)")
-                                    .font(.system(size: 16, weight: .medium))
-                                    .foregroundColor(.primary)
-                                Text(format(date: item.completedAt))
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                            Spacer()
-                            Text("\(item.match.homeScore) - \(item.match.awayScore)")
-                                .font(.system(size: 16, weight: .bold))
-                                .foregroundColor(.primary)
-                        }
-                    }
-                }
-                .onDelete(perform: delete)
-            }
+  var body: some View {
+    List {
+      if items.isEmpty {
+        emptyState
+      } else {
+        ForEach(items) { item in
+          NavigationLink(destination: MatchHistoryDetailView(snapshot: item)) {
+            MatchHistoryRow(snapshot: item)
+          }
+          .buttonStyle(.plain)
+          .listRowInsets(rowInsets)
+          .listRowBackground(Color.clear)
         }
-        .listStyle(.carousel)
-        .navigationTitle("History")
-        .onAppear(perform: reload)
-        .onChange(of: scenePhase) { phase, _ in
-            if phase == .active { reload() }
-        }
+        .onDelete(perform: delete)
+      }
     }
-
-    private func reload() {
-        items = matchViewModel.loadRecentCompletedMatches()
+    .listStyle(.carousel)
+    .scrollContentBackground(.hidden)
+    .padding(.vertical, theme.components.listRowVerticalInset)
+    .background(theme.colors.backgroundPrimary)
+    .navigationTitle("History")
+    .onAppear(perform: reload)
+    .onChange(of: scenePhase) { phase, _ in
+      if phase == .active { reload() }
     }
+  }
 
-    private func delete(at offsets: IndexSet) {
-        for index in offsets {
-            let id = items[index].id
-            matchViewModel.deleteCompletedMatch(id: id)
-        }
-        reload()
+  private func reload() {
+    items = matchViewModel.loadRecentCompletedMatches()
+  }
+
+  private func delete(at offsets: IndexSet) {
+    for index in offsets {
+      let id = items[index].id
+      matchViewModel.deleteCompletedMatch(id: id)
     }
+    reload()
+  }
 
-    private static let dateFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateStyle = .short
-        f.timeStyle = .short
-        return f
-    }()
+  private var emptyState: some View {
+    VStack(spacing: theme.spacing.m) {
+      Image(systemName: "clock")
+        .font(theme.typography.iconAccent)
+        .foregroundStyle(theme.colors.textSecondary)
 
-    private func format(date: Date) -> String {
-        Self.dateFormatter.string(from: date)
+      Text("No Completed Matches")
+        .font(theme.typography.cardHeadline)
+        .foregroundStyle(theme.colors.textPrimary)
+
+      Text("Matches you finish will appear here")
+        .font(theme.typography.cardMeta)
+        .foregroundStyle(theme.colors.textSecondary)
     }
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .listRowInsets(rowInsets)
+    .listRowBackground(Color.clear)
+  }
+
+  private var rowInsets: EdgeInsets {
+    EdgeInsets(
+      top: theme.components.listRowVerticalInset,
+      leading: theme.components.cardHorizontalPadding,
+      bottom: theme.components.listRowVerticalInset,
+      trailing: theme.components.cardHorizontalPadding
+    )
+  }
+
 }
 
 struct MatchHistoryDetailView: View {
     let snapshot: CompletedMatch
 
+    @Environment(\.theme) private var theme
+
     var body: some View {
-        VStack(spacing: 8) {
-            // Header scores
-            HStack(spacing: 12) {
-                VStack(spacing: 4) {
-                    Text(snapshot.match.homeTeam)
-                        .font(.system(size: 14, weight: .bold))
-                    Text("\(snapshot.match.homeScore)")
-                        .font(.system(size: 22, weight: .bold))
+        ScrollView {
+            VStack(spacing: theme.spacing.l) {
+                ThemeCardContainer(role: .secondary) {
+                    HStack(spacing: theme.spacing.l) {
+                        teamScoreColumn(name: snapshot.match.homeTeam, score: snapshot.match.homeScore)
+                        Divider()
+                            .overlay(theme.colors.outlineMuted)
+                        teamScoreColumn(name: snapshot.match.awayTeam, score: snapshot.match.awayScore)
+                    }
+                    .padding(.vertical, theme.spacing.m)
                 }
-                .frame(maxWidth: .infinity)
 
-                VStack(spacing: 4) {
-                    Text(snapshot.match.awayTeam)
-                        .font(.system(size: 14, weight: .bold))
-                    Text("\(snapshot.match.awayScore)")
-                        .font(.system(size: 22, weight: .bold))
-                }
-                .frame(maxWidth: .infinity)
-            }
-            .padding(.vertical, 6)
+                ThemeCardContainer(role: .secondary) {
+                    VStack(alignment: .leading, spacing: theme.spacing.m) {
+                        Text("Timeline")
+                            .font(theme.typography.cardHeadline)
+                            .foregroundStyle(theme.colors.textPrimary)
 
-            // Events list
-            List {
-                ForEach(snapshot.events.reversed()) { event in
-                    HStack(alignment: .top, spacing: 8) {
-                        Image(systemName: icon(for: event))
-                            .foregroundColor(color(for: event))
-                            .frame(width: 18)
-                        VStack(alignment: .leading, spacing: 2) {
-                            HStack {
-                                Text(event.matchTime)
-                                    .font(.system(size: 12, weight: .bold, design: .monospaced))
-                                Spacer()
-                                Text(event.periodDisplayName)
-                                    .font(.caption2)
-                                    .foregroundColor(.secondary)
-                            }
-                            if let team = event.teamDisplayName {
-                                Text(team)
-                                    .font(.caption2)
-                                    .foregroundColor(.secondary)
-                            }
-                            Text(event.displayDescription)
-                                .font(.caption)
-                                .foregroundColor(.primary)
-                                .lineLimit(2)
+                        ForEach(snapshot.events.reversed()) { event in
+                            MatchEventDetailRow(event: event)
                         }
                     }
-                    .padding(.vertical, 2)
+                    .padding(.vertical, theme.spacing.m)
                 }
             }
-            .listStyle(.carousel)
+            .padding(.horizontal, theme.components.cardHorizontalPadding)
+            .padding(.vertical, theme.components.listRowVerticalInset)
         }
+        .background(theme.colors.backgroundPrimary.ignoresSafeArea())
         .navigationTitle("Details")
     }
 
-    private func icon(for event: MatchEventRecord) -> String {
-        switch event.eventType {
-        case .goal: return "soccerball"
-        case .card(let details):
-            return details.cardType == .yellow ? "square.fill" : "square.fill"
-        case .substitution: return "arrow.up.arrow.down"
-        case .kickOff: return "play.circle"
-        case .periodStart: return "play.circle.fill"
-        case .halfTime: return "pause.circle"
-        case .periodEnd: return "stop.circle"
-        case .matchEnd: return "stop.circle.fill"
-        case .penaltiesStart: return "flag"
-        case .penaltyAttempt(let details):
-            return details.result == .scored ? "checkmark.circle" : "xmark.circle"
-        case .penaltiesEnd: return "flag.checkered"
-        }
-    }
+    private func teamScoreColumn(name: String, score: Int) -> some View {
+        VStack(spacing: theme.spacing.xs) {
+            Text(name)
+                .font(theme.typography.cardMeta)
+                .foregroundStyle(theme.colors.textSecondary)
 
-    private func color(for event: MatchEventRecord) -> Color {
-        switch event.eventType {
-        case .goal: return .green
-        case .card(let details): return details.cardType == .yellow ? .yellow : .red
-        case .substitution: return .blue
-        case .kickOff, .periodStart: return .green
-        case .halfTime: return .orange
-        case .periodEnd, .matchEnd: return .red
-        case .penaltiesStart: return .orange
-        case .penaltyAttempt(let details): return details.result == .scored ? .green : .red
-        case .penaltiesEnd: return .green
+            Text("\(score)")
+                .font(theme.typography.timerSecondary)
+                .foregroundStyle(theme.colors.textPrimary)
         }
+        .frame(maxWidth: .infinity)
     }
 }
 
 #Preview {
     let vm = MatchViewModel(haptics: WatchHaptics())
     return NavigationStack { MatchHistoryView(matchViewModel: vm) }
+      .theme(DefaultTheme())
+}
+
+private struct MatchHistoryRow: View {
+  let snapshot: CompletedMatch
+  @Environment(\.theme) private var theme
+
+  var body: some View {
+    ThemeCardContainer(role: .secondary, minHeight: 72) {
+      HStack(spacing: theme.spacing.m) {
+        VStack(alignment: .leading, spacing: theme.spacing.xs) {
+          Text("\(snapshot.match.homeTeam) vs \(snapshot.match.awayTeam)")
+            .font(theme.typography.cardHeadline)
+            .foregroundStyle(theme.colors.textPrimary)
+
+          Text(dateText)
+            .font(theme.typography.cardMeta)
+            .foregroundStyle(theme.colors.textSecondary)
+        }
+
+        Spacer(minLength: theme.spacing.m)
+
+        ScoreBadge(home: snapshot.match.homeScore, away: snapshot.match.awayScore)
+      }
+    }
+  }
+
+  private var dateText: String {
+    matchHistoryDateFormatter.string(from: snapshot.completedAt)
+  }
+}
+
+private struct ScoreBadge: View {
+  @Environment(\.theme) private var theme
+
+  let home: Int
+  let away: Int
+
+  var body: some View {
+    HStack(spacing: theme.spacing.xs) {
+      Text("\(home)")
+      Text("-")
+      Text("\(away)")
+    }
+    .font(theme.typography.cardHeadline.monospacedDigit())
+    .foregroundStyle(theme.colors.textPrimary)
+    .padding(.horizontal, theme.spacing.s)
+    .padding(.vertical, theme.spacing.xs)
+    .background(
+      Capsule(style: .continuous)
+        .fill(theme.colors.surfaceOverlay)
+    )
+  }
+}
+
+private struct MatchEventDetailRow: View {
+  let event: MatchEventRecord
+  @Environment(\.theme) private var theme
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: theme.spacing.xs) {
+      HStack {
+        Text(event.matchTime)
+          .font(theme.typography.cardMeta.monospacedDigit())
+          .foregroundStyle(theme.colors.textPrimary)
+
+        Spacer()
+
+        Text(event.periodDisplayName)
+          .font(theme.typography.caption)
+          .foregroundStyle(theme.colors.textSecondary)
+      }
+
+      HStack(alignment: .top, spacing: theme.spacing.s) {
+        Image(systemName: icon)
+          .font(theme.typography.iconAccent)
+          .foregroundStyle(color)
+          .frame(width: 22, height: 22)
+
+        VStack(alignment: .leading, spacing: theme.spacing.xs) {
+          if let team = event.teamDisplayName {
+            Text(team)
+              .font(theme.typography.cardMeta)
+              .foregroundStyle(theme.colors.textSecondary)
+          }
+
+          Text(event.displayDescription)
+            .font(theme.typography.caption)
+            .foregroundStyle(theme.colors.textPrimary)
+            .fixedSize(horizontal: false, vertical: true)
+        }
+      }
+    }
+    .padding(.vertical, theme.spacing.xs)
+  }
+
+  private var icon: String {
+    switch event.eventType {
+    case .goal:
+      return "soccerball"
+    case .card(let details):
+      return "square.fill"
+    case .substitution:
+      return "arrow.up.arrow.down"
+    case .kickOff:
+      return "play.circle"
+    case .periodStart:
+      return "play.circle.fill"
+    case .halfTime:
+      return "pause.circle"
+    case .periodEnd:
+      return "stop.circle"
+    case .matchEnd:
+      return "stop.circle.fill"
+    case .penaltiesStart:
+      return "flag"
+    case .penaltyAttempt(let details):
+      return details.result == .scored ? "checkmark.circle" : "xmark.circle"
+    case .penaltiesEnd:
+      return "flag.checkered"
+    }
+  }
+
+  private var color: Color {
+    switch event.eventType {
+    case .goal:
+      return theme.colors.matchPositive
+    case .card(let details):
+      return details.cardType == .yellow ? theme.colors.matchWarning : theme.colors.matchCritical
+    case .substitution:
+      return theme.colors.accentSecondary
+    case .kickOff, .periodStart:
+      return theme.colors.accentSecondary
+    case .halfTime:
+      return theme.colors.matchNeutral
+    case .periodEnd, .matchEnd:
+      return theme.colors.matchCritical
+    case .penaltiesStart:
+      return theme.colors.matchWarning
+    case .penaltyAttempt(let details):
+      return details.result == .scored ? theme.colors.matchPositive : theme.colors.matchCritical
+    case .penaltiesEnd:
+      return theme.colors.matchPositive
+    }
+  }
 }

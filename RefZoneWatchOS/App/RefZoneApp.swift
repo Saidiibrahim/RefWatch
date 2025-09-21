@@ -6,12 +6,19 @@
 //
 
 import SwiftUI
+import RefWatchCore
+import RefWorkoutCore
 
 @main
 struct RefZone_Watch_AppApp: App {
+    @StateObject private var appModeController = AppModeController()
+    private let workoutServices = WorkoutServicesFactory.makeDefault()
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            AppRootView()
+                .environmentObject(appModeController)
+                .workoutServices(workoutServices)
         }
     }
 }

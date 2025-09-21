@@ -12,6 +12,7 @@ import RefWatchCore
 struct MatchLogsView: View {
     let matchViewModel: MatchViewModel
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.theme) private var theme
     
     var body: some View {
         NavigationStack {
@@ -19,20 +20,20 @@ struct MatchLogsView: View {
                 // Event list
                 if matchViewModel.matchEvents.isEmpty {
                     // Empty state
-                    VStack(spacing: 12) {
+                    VStack(spacing: theme.spacing.m) {
                         Image(systemName: "list.bullet")
-                            .font(.system(size: 32))
-                            .foregroundColor(.gray)
-                        
+                            .font(theme.typography.iconAccent)
+                            .foregroundStyle(theme.colors.textSecondary)
+
                         Text("No Events Yet")
-                            .font(.headline)
-                            .foregroundColor(.gray)
-                        
+                            .font(theme.typography.cardHeadline)
+                            .foregroundStyle(theme.colors.textPrimary)
+
                         Text("Match events will appear here as they occur")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                            .font(theme.typography.caption)
+                            .foregroundStyle(theme.colors.textSecondary)
                             .multilineTextAlignment(.center)
-                            .padding(.horizontal)
+                            .padding(.horizontal, theme.components.cardHorizontalPadding)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
@@ -44,86 +45,91 @@ struct MatchLogsView: View {
                         }
                     }
                     .listStyle(.carousel)
+                    .scrollContentBackground(.hidden)
+                    .background(Color.clear)
                 }
             }
             .navigationTitle("Match Log")
+            .background(theme.colors.backgroundPrimary)
         }
+        .background(theme.colors.backgroundPrimary.ignoresSafeArea())
     }
 }
 
 /// Individual match event row view
 private struct MatchEventRowView: View {
     let event: MatchEventRecord
+    @Environment(\.theme) private var theme
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: theme.spacing.xs) {
             // Event header with time and period
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(event.formattedActualTime)
-                        .font(.system(size: 14, weight: .bold, design: .monospaced))
-                        .foregroundColor(.primary)
-                    
+                        .font(theme.typography.cardMeta)
+                        .foregroundStyle(theme.colors.textPrimary)
+
                     Text(event.matchTime)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                        .font(theme.typography.caption)
+                        .foregroundStyle(theme.colors.textSecondary)
                 }
-                
+
                 Spacer()
-                
+
                 Text(event.periodDisplayName)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
+                    .font(theme.typography.caption)
+                    .foregroundStyle(theme.colors.textInverted)
+                    .padding(.horizontal, theme.spacing.xs)
+                    .padding(.vertical, theme.spacing.xs / 2)
                     .background(
                         Capsule()
-                            .fill(Color.gray.opacity(0.2))
+                            .fill(theme.colors.accentSecondary)
                     )
             }
-            
+
             // Event details
             HStack(alignment: .top) {
                 // Event type icon
                 Image(systemName: eventIcon)
-                    .font(.system(size: 16))
-                    .foregroundColor(eventColor)
+                    .font(theme.typography.iconAccent)
+                    .foregroundStyle(eventColor)
                     .frame(width: 20, height: 20)
-                
+
                 VStack(alignment: .leading, spacing: 2) {
                     // Event type
                     Text(event.eventType.displayName)
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.primary)
-                    
+                        .font(theme.typography.cardMeta)
+                        .foregroundStyle(theme.colors.textPrimary)
+
                     // Team and details
                     HStack {
                         // Team badge (only if event has a team)
                         if let team = event.team {
                             Text(team.rawValue)
-                                .font(.caption)
+                                .font(theme.typography.caption)
                                 .fontWeight(.semibold)
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
+                                .foregroundStyle(theme.colors.textInverted)
+                                .padding(.horizontal, theme.spacing.xs)
+                                .padding(.vertical, theme.spacing.xs / 2)
                                 .background(
                                     RoundedRectangle(cornerRadius: 4)
-                                        .fill(team == .home ? Color.blue : Color.red)
+                                        .fill(theme.colors.badgeColor(for: team))
                                 )
                         }
-                        
+
                         // Event description
                         Text(event.displayDescription)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                            .font(theme.typography.caption)
+                            .foregroundStyle(theme.colors.textSecondary)
                             .lineLimit(2)
                     }
                 }
-                
+
                 Spacer()
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, theme.spacing.xs)
     }
     
     /// Icon for the event type
@@ -155,28 +161,7 @@ private struct MatchEventRowView: View {
     }
     
     /// Color for the event type
-    private var eventColor: Color {
-        switch event.eventType {
-        case .goal:
-            return .green
-        case .card(let details):
-            return details.cardType == .yellow ? .yellow : .red
-        case .substitution:
-            return .blue
-        case .kickOff, .periodStart:
-            return .green
-        case .halfTime:
-            return .orange
-        case .periodEnd, .matchEnd:
-            return .red
-        case .penaltiesStart:
-            return .orange
-        case .penaltyAttempt(let details):
-            return details.result == .scored ? .green : .red
-        case .penaltiesEnd:
-            return .green
-        }
-    }
+    private var eventColor: Color { theme.colors.color(for: event.eventType) }
 }
 
 #Preview {

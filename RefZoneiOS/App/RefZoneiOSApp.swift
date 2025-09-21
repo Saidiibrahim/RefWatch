@@ -8,18 +8,22 @@
 import SwiftUI
 import SwiftData
 import RefWatchCore
+import RefWorkoutCore
 import Clerk
 
 @main
 @MainActor
 struct RefZoneiOSApp: App {
     @StateObject private var router = AppRouter()
+    @StateObject private var appModeController = AppModeController()
+    @StateObject private var themeManager = ThemeManager()
     // Built once during app init to avoid lazy/self init ordering issues
     private let modelContainer: ModelContainer?
     private let historyStore: MatchHistoryStoring
     private let journalStore: JournalEntryStoring
     private let scheduleStore: ScheduleStoring
     private let teamStore: TeamLibraryStoring
+    private let workoutServices = IOSWorkoutServicesFactory.makeDefault()
 
     private let clerk = Clerk.shared
     @State private var matchVM: MatchViewModel
@@ -82,8 +86,12 @@ struct RefZoneiOSApp: App {
             MainTabView(matchViewModel: matchVM, historyStore: historyStore, scheduleStore: scheduleStore, teamStore: teamStore)
                 .environmentObject(router)
                 .environmentObject(syncDiagnostics)
+                .environmentObject(appModeController)
+                .environmentObject(themeManager)
                 .environment(\.clerk, clerk)
                 .environment(\.journalStore, journalStore)
+                .workoutServices(workoutServices)
+                .theme(themeManager.theme)
                 .task {
                     if let key = Bundle.main.object(forInfoDictionaryKey: "ClerkPublishableKey") as? String, !key.isEmpty {
                         clerk.configure(publishableKey: key)

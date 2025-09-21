@@ -13,34 +13,37 @@ struct PenaltyShootoutView: View {
     let matchViewModel: MatchViewModel
     let lifecycle: MatchLifecycleCoordinator
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.theme) private var theme
 
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: theme.spacing.l) {
 
             if matchViewModel.isPenaltyShootoutDecided, let winner = matchViewModel.penaltyWinner {
                 Text("\(winner == .home ? matchViewModel.homeTeamDisplayName : matchViewModel.awayTeamDisplayName) win")
-                    .font(.system(size: 14, weight: .semibold))
-                    .padding(8)
-                    .foregroundColor(.black)
+                    .font(theme.typography.cardHeadline)
+                    .padding(theme.spacing.s)
+                    .foregroundStyle(theme.colors.textInverted)
                     .frame(maxWidth: .infinity)
                     .background(
-                        RoundedRectangle(cornerRadius: 8).fill(Color.green)
+                        RoundedRectangle(cornerRadius: theme.components.chipCornerRadius, style: .continuous)
+                            .fill(theme.colors.matchPositive)
                     )
-                    .padding(.horizontal)
+                    .padding(.horizontal, theme.components.cardHorizontalPadding)
             } else if matchViewModel.isSuddenDeathActive {
                 Text("Sudden Death")
-                    .font(.system(size: 13, weight: .semibold))
-                    .padding(6)
-                    .foregroundColor(.white)
+                    .font(theme.typography.cardMeta)
+                    .padding(theme.spacing.xs)
+                    .foregroundStyle(theme.colors.textPrimary)
                     .frame(maxWidth: .infinity)
                     .background(
-                        RoundedRectangle(cornerRadius: 8).fill(Color.orange)
+                        RoundedRectangle(cornerRadius: theme.components.chipCornerRadius, style: .continuous)
+                            .fill(theme.colors.matchWarning)
                     )
-                    .padding(.horizontal)
+                    .padding(.horizontal, theme.components.cardHorizontalPadding)
             }
 
             // Tallies
-            HStack(spacing: 12) {
+            HStack(spacing: theme.spacing.m) {
                 PenaltyTeamPanel(
                     side: .home,
                     title: matchViewModel.homeTeamDisplayName,
@@ -67,10 +70,12 @@ struct PenaltyShootoutView: View {
                     onMiss: { matchViewModel.recordPenaltyAttempt(team: .away, result: .missed) }
                 )
             }
-            .padding(.horizontal)
+            .padding(.horizontal, theme.components.cardHorizontalPadding)
 
             Spacer()
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(theme.colors.backgroundPrimary.ignoresSafeArea())
         .onAppear {
             // Ensure we mark penalties started once (idempotent)
             matchViewModel.beginPenaltiesIfNeeded()
@@ -89,29 +94,32 @@ struct PenaltyShootoutView: View {
                 lifecycle.goToFinished()
             }) {
                 Text("End Shootout")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(.white)
+                    .font(theme.typography.button)
+                    .foregroundStyle(theme.colors.textInverted)
                     .frame(maxWidth: .infinity)
-                    .frame(height: 36)
+                    .frame(height: theme.components.buttonHeight / 1.6)
                     .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(matchViewModel.isPenaltyShootoutDecided ? Color.green : Color.gray)
+                        RoundedRectangle(cornerRadius: theme.components.controlCornerRadius, style: .continuous)
+                            .fill(matchViewModel.isPenaltyShootoutDecided ? theme.colors.matchPositive : theme.colors.backgroundElevated)
                     )
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("endShootoutButton")
             .disabled(!matchViewModel.isPenaltyShootoutDecided)
-            .padding(.horizontal, 12)
-            .padding(.top, 8)
-            .padding(.bottom, 28)
+            .opacity(matchViewModel.isPenaltyShootoutDecided ? 1 : 0.5)
+            .padding(.horizontal, theme.components.cardHorizontalPadding)
+            .padding(.top, theme.spacing.s)
+            .padding(.bottom, theme.spacing.xl)
         }
-        // First-kicker prompt handled at ContentView level before routing
+        // First-kicker prompt handled at MatchRootView level before routing
     }
 
     
 }
 
 private struct PenaltyTeamPanel: View {
+    @Environment(\.theme) private var theme
+
     let side: TeamSide
     let title: String
     let scored: Int
@@ -124,39 +132,39 @@ private struct PenaltyTeamPanel: View {
     let onMiss: () -> Void
 
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: theme.spacing.s) {
             Text(title)
-                .font(.system(size: 16, weight: .bold))
-                .foregroundColor(.white)
+                .font(theme.typography.cardHeadline)
+                .foregroundStyle(theme.colors.textPrimary)
 
             Text("\(scored) / \(taken)")
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(.green)
+                .font(theme.typography.cardMeta)
+                .foregroundStyle(theme.colors.matchPositive)
 
             // Per-round dots (first 5, then grow for sudden death)
-            HStack(spacing: 6) {
+            HStack(spacing: theme.spacing.xs) {
                 ForEach(0..<rounds, id: \.self) { idx in
                     Group {
                         if idx < results.count {
                             if results[idx] == .scored {
-                                Circle().fill(Color.green)
+                                Circle().fill(theme.colors.matchPositive)
                             } else {
-                                Circle().fill(Color.red)
+                                Circle().fill(theme.colors.matchCritical)
                             }
                         } else {
-                            Circle().stroke(Color.white.opacity(0.6), lineWidth: 1)
+                            Circle().stroke(theme.colors.outlineMuted, lineWidth: 1)
                         }
                     }
                     .frame(width: 8, height: 8)
                 }
             }
 
-            HStack(spacing: 8) {
+            HStack(spacing: theme.spacing.s) {
                 Button(action: onScore) {
                     Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(.white)
+                        .foregroundStyle(theme.colors.textInverted)
                         .frame(width: 34, height: 34)
-                        .background(Circle().fill(Color.green))
+                        .background(Circle().fill(theme.colors.matchPositive))
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier(side == .home ? "homeScorePenaltyBtn" : "awayScorePenaltyBtn")
@@ -164,9 +172,9 @@ private struct PenaltyTeamPanel: View {
 
                 Button(action: onMiss) {
                     Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(.white)
+                        .foregroundStyle(theme.colors.textInverted)
                         .frame(width: 34, height: 34)
-                        .background(Circle().fill(Color.red))
+                        .background(Circle().fill(theme.colors.matchCritical))
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier(side == .home ? "homeMissPenaltyBtn" : "awayMissPenaltyBtn")
@@ -176,12 +184,12 @@ private struct PenaltyTeamPanel: View {
         .frame(maxWidth: .infinity)
         .frame(height: 110)
         .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color.gray.opacity(0.7))
+            RoundedRectangle(cornerRadius: theme.components.cardCornerRadius, style: .continuous)
+                .fill(theme.colors.backgroundElevated)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(isActive ? Color.green : Color.clear, lineWidth: 2)
+            RoundedRectangle(cornerRadius: theme.components.cardCornerRadius, style: .continuous)
+                .stroke(isActive ? theme.colors.matchPositive : .clear, lineWidth: 2)
         )
     }
 }

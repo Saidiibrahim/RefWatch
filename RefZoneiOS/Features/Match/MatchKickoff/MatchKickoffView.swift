@@ -21,6 +21,7 @@ struct MatchKickoffView: View {
     let defaultSelected: TeamSide?
     let onConfirmStart: (() -> Void)?
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.theme) private var theme
     @State private var selected: TeamSide?
 
     init(matchViewModel: MatchViewModel, phase: Phase, defaultSelected: TeamSide? = nil, onConfirmStart: (() -> Void)? = nil) {
@@ -33,16 +34,16 @@ struct MatchKickoffView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: AppTheme.Spacing.l) {
-                VStack(spacing: AppTheme.Spacing.s - 2) {
+            VStack(spacing: theme.spacing.l) {
+                VStack(spacing: theme.spacing.s - 2) {
                     Text(headerTitle)
-                        .font(AppTheme.Typography.header)
+                        .font(theme.typography.heroTitle)
                     Text(durationLabel)
-                        .font(AppTheme.Typography.subheader)
-                        .foregroundStyle(.secondary)
+                        .font(theme.typography.heroSubtitle)
+                        .foregroundStyle(theme.colors.textSecondary)
                 }
 
-                HStack(spacing: AppTheme.Spacing.m) {
+                HStack(spacing: theme.spacing.m) {
                     teamButton(.home, name: matchViewModel.homeTeamDisplayName,
                                score: matchViewModel.currentMatch?.homeScore ?? 0)
                     teamButton(.away, name: matchViewModel.awayTeamDisplayName,
@@ -71,7 +72,7 @@ struct MatchKickoffView: View {
                     dismiss()
                 } label: {
                     Label(LocalizedStringKey("kickoff_start_cta"), systemImage: "checkmark.circle.fill")
-                        .font(AppTheme.Typography.header)
+                        .font(theme.typography.heroTitle)
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
@@ -106,19 +107,19 @@ struct MatchKickoffView: View {
         Button {
             selected = side
         } label: {
-            VStack(spacing: AppTheme.Spacing.s) {
-                Text(name).font(AppTheme.Typography.header)
+            VStack(spacing: theme.spacing.s) {
+                Text(name).font(theme.typography.heroSubtitle)
                 Text("\(score)")
-                    .font(AppTheme.Typography.scoreL)
+                    .font(theme.typography.timerSecondary)
                     .monospacedDigit()
             }
             .frame(maxWidth: .infinity)
             .padding()
             .background(
-                RoundedRectangle(cornerRadius: AppTheme.Corners.m)
-                    .fill((selected == side) ? Color.green.opacity(0.8) : Color(.secondarySystemBackground))
+                RoundedRectangle(cornerRadius: theme.components.cardCornerRadius)
+                    .fill((selected == side) ? theme.colors.matchPositive : theme.colors.backgroundElevated)
             )
-            .foregroundStyle((selected == side) ? .white : .primary)
+            .foregroundStyle((selected == side) ? Color.white : theme.colors.textPrimary)
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier(side == .home ? "homeTeamButton" : "awayTeamButton")
