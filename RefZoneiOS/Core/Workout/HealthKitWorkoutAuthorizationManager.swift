@@ -5,7 +5,7 @@ import RefWorkoutCore
 
 @available(iOS 17.0, *)
 @MainActor
-final class IOSHealthKitWorkoutAuthorizationManager: WorkoutAuthorizationManaging, @unchecked Sendable {
+final class IOSHealthKitWorkoutAuthorizationManager: WorkoutAuthorizationManaging {
   private let healthStore: HKHealthStore
   private let shareTypes: Set<HKSampleType>
   private let readTypes: Set<HKObjectType>

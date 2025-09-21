@@ -8,7 +8,7 @@ import RefWatchCore
 /// quick-return affordances while the app is backgrounded or the screen is locked.
 @MainActor
 @Observable
-final class BackgroundRuntimeSessionController: NSObject, BackgroundRuntimeManaging, @unchecked Sendable {
+final class BackgroundRuntimeSessionController: NSObject, BackgroundRuntimeManaging {
   enum Status {
     case idle
     case starting

@@ -4,7 +4,7 @@ import HealthKit
 import RefWorkoutCore
 
 @MainActor
-final class HealthKitWorkoutTracker: NSObject, WorkoutSessionTracking, @unchecked Sendable {
+final class HealthKitWorkoutTracker: NSObject, WorkoutSessionTracking {
   private let healthStore: HKHealthStore
   private var activeSessions: [UUID: ManagedSession] = [:]
   private var sessionLookup: [ObjectIdentifier: UUID] = [:]
