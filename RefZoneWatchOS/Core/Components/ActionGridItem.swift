@@ -6,9 +6,12 @@
 //
 
 import SwiftUI
+import RefWatchCore
 
 /// Grid item component with circular icon and text label for action sheets
 struct ActionGridItem: View {
+    @Environment(\.theme) private var theme
+
     let title: String
     let icon: String
     let color: Color
@@ -34,29 +37,29 @@ struct ActionGridItem: View {
     
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 4) {
+            VStack(spacing: theme.spacing.xs) {
                 ZStack {
                     Circle()
                         .fill(color)
                         .frame(width: 44, height: 44)
                     Image(systemName: icon)
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundColor(.white)
+                        .font(theme.typography.iconAccent)
+                        .foregroundStyle(theme.colors.textInverted)
                 }
-                
+
                 Text(title)
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundColor(.primary)
+                    .font(theme.typography.cardMeta)
+                    .foregroundStyle(theme.colors.textPrimary)
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
                     .minimumScaleFactor(0.85)
             }
             .frame(maxWidth: expandHorizontally ? .infinity : nil, minHeight: 72)
-            .padding(.vertical, 6)
-            .padding(.horizontal, 6)
+            .padding(.vertical, theme.spacing.s)
+            .padding(.horizontal, theme.spacing.s)
             .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(showBackground ? Color.gray.opacity(0.1) : Color.clear) // Conditional background
+                RoundedRectangle(cornerRadius: theme.components.cardCornerRadius, style: .continuous)
+                    .fill(showBackground ? theme.colors.surfaceOverlay : Color.clear) // Conditional background
             )
         }
         .buttonStyle(.plain)

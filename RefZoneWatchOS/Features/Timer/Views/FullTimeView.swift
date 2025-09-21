@@ -12,13 +12,14 @@ struct FullTimeView: View {
     let matchViewModel: MatchViewModel
     let lifecycle: MatchLifecycleCoordinator
     @State private var showingEndMatchConfirmation = false
+    @Environment(\.theme) private var theme
     
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: theme.spacing.l) {
             Spacer()
-            
+
             // Team score boxes
-            HStack(spacing: 16) {
+            HStack(spacing: theme.spacing.l) {
                 TeamScoreBox(
                     teamName: matchViewModel.homeTeamDisplayName,
                     score: matchViewModel.currentMatch?.homeScore ?? 0
@@ -29,11 +30,11 @@ struct FullTimeView: View {
                     score: matchViewModel.currentMatch?.awayScore ?? 0
                 )
             }
-            .padding(.horizontal)
-            
+            .padding(.horizontal, theme.components.cardHorizontalPadding)
+
             Spacer()
         }
-        .background(Color.black)
+        .background(theme.colors.backgroundPrimary)
         .navigationTitle("Full Time")
         // Compact button pinned above the bottom safe area
         .safeAreaInset(edge: .bottom) {
@@ -44,20 +45,20 @@ struct FullTimeView: View {
                 showingEndMatchConfirmation = true
             }) {
                 Text("End Match")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(.white)
+                    .font(theme.typography.button)
+                    .foregroundStyle(theme.colors.textInverted)
                     .frame(maxWidth: .infinity)
-                    .frame(height: 36)
+                    .frame(height: theme.components.buttonHeight / 1.6)
                     .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.green)
+                        RoundedRectangle(cornerRadius: theme.components.controlCornerRadius)
+                            .fill(theme.colors.matchPositive)
                     )
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("endMatchButton")
-            .padding(.horizontal, 12)
-            .padding(.top, 8)
-            .padding(.bottom, 28) // lift above page indicator / rounded corners
+            .padding(.horizontal, theme.components.cardHorizontalPadding)
+            .padding(.top, theme.spacing.s)
+            .padding(.bottom, theme.spacing.xl) // lift above page indicator / rounded corners
         }
         .confirmationDialog(
             "",
@@ -111,22 +112,24 @@ struct FullTimeView: View {
 private struct TeamScoreBox: View {
     let teamName: String
     let score: Int
-    
+    @Environment(\.theme) private var theme
+
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: theme.spacing.s) {
             Text(teamName)
-                .font(.system(size: 16, weight: .bold))
-                .foregroundColor(.white)
-            
+                .font(theme.typography.cardHeadline)
+                .foregroundStyle(theme.colors.textSecondary)
+
             Text("\(score)")
-                .font(.system(size: 32, weight: .bold))
-                .foregroundColor(.white)
+                .font(theme.typography.timerSecondary)
+                .foregroundStyle(theme.colors.textPrimary)
+                .monospacedDigit()
         }
         .frame(maxWidth: .infinity)
         .frame(height: 80)
         .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color.gray.opacity(0.7))
+            RoundedRectangle(cornerRadius: theme.components.cardCornerRadius)
+                .fill(theme.colors.backgroundElevated)
         )
     }
 }

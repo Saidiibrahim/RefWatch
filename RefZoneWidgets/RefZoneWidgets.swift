@@ -82,7 +82,7 @@ struct RefZoneWidgets: Widget {
             }
         }
         .configurationDisplayName("RefZone")
-        .description("Glance match time, score, and jump in.")
+        .description("Glance match time and pause or resume instantly.")
         .supportedFamilies([.accessoryRectangular, .accessoryCircular])
     }
 }

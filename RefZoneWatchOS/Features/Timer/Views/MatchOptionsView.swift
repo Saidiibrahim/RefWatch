@@ -13,6 +13,7 @@ struct MatchOptionsView: View {
     let matchViewModel: MatchViewModel
     var lifecycle: MatchLifecycleCoordinator? = nil
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.theme) private var theme
     
     // State for controlling alert presentations
     @State private var showingResetConfirmation = false
@@ -27,7 +28,7 @@ struct MatchOptionsView: View {
                     ActionButton(
                         title: "Home",
                         icon: "house",
-                        color: .green
+                        color: theme.colors.matchPositive
                     ) {
                         matchViewModel.navigateHome()
                         lifecycle?.resetToStart()
@@ -39,7 +40,7 @@ struct MatchOptionsView: View {
                     ActionButton(
                         title: "Choose colours",
                         icon: "paintpalette",
-                        color: .orange
+                        color: theme.colors.accentSecondary
                     ) {
                         showingColorPicker = true
                     }
@@ -49,7 +50,7 @@ struct MatchOptionsView: View {
                     ActionButton(
                         title: "Reset match",
                         icon: "trash",
-                        color: .blue
+                        color: theme.colors.accentMuted
                     ) {
                         showingResetConfirmation = true
                     }
@@ -59,7 +60,7 @@ struct MatchOptionsView: View {
                     ActionButton(
                         title: "Abandon match",
                         icon: "xmark.circle",
-                        color: .red
+                        color: theme.colors.matchCritical
                     ) {
                         showingAbandonConfirmation = true
                     }
@@ -67,7 +68,10 @@ struct MatchOptionsView: View {
                 }
             }
             .listStyle(.carousel)
+            .scrollContentBackground(.hidden)
+            .background(theme.colors.backgroundPrimary)
         }
+        .tint(theme.colors.accentSecondary)
         .alert("Reset Match", isPresented: $showingResetConfirmation) {
             Button("Cancel", role: .cancel) { }
             Button("Reset", role: .destructive) {

@@ -14,6 +14,7 @@ struct TimerView: View {
     private let commandHandler = LiveActivityCommandHandler()
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.theme) private var theme
     // Persist selected timer face
     @AppStorage("timer_face_style") private var timerFaceStyleRaw: String = TimerFaceStyle.standard.rawValue
     private var faceStyle: TimerFaceStyle { TimerFaceStyle.parse(raw: timerFaceStyleRaw) }
@@ -21,30 +22,33 @@ struct TimerView: View {
     private var periodLabel: String { PeriodLabelFormatter.label(for: model) }
     
     var body: some View {
-        VStack(spacing: 8) {
-                // Period indicator
-                HStack {
-                    Text(periodLabel)
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.white)
-                    Spacer()
-                }
-                .padding(.horizontal)
-                
-                // Score display
-                ScoreDisplayView(
-                    homeTeam: model.homeTeam,
-                    awayTeam: model.awayTeam,
-                    homeScore: model.currentMatch?.homeScore ?? 0,
-                    awayScore: model.currentMatch?.awayScore ?? 0
-                )
-                
-                // Main content: render selected timer face
-                TimerFaceFactory.view(for: faceStyle, model: model)
-                    .hapticsProvider(WatchHaptics())
+        VStack(spacing: theme.spacing.m) {
+            // Period indicator
+            HStack {
+                Text(periodLabel)
+                    .font(theme.typography.cardMeta)
+                    .foregroundStyle(theme.colors.textSecondary)
+                Spacer()
+            }
+            .padding(.horizontal, theme.components.cardHorizontalPadding)
+
+            // Score display
+            ScoreDisplayView(
+                homeTeam: model.homeTeam,
+                awayTeam: model.awayTeam,
+                homeScore: model.currentMatch?.homeScore ?? 0,
+                awayScore: model.currentMatch?.awayScore ?? 0
+            )
+
+            // Main content: render selected timer face
+            TimerFaceFactory.view(for: faceStyle, model: model)
+                .hapticsProvider(WatchHaptics())
         }
         .accessibilityIdentifier("timerArea")
-        .padding(.top)
+        .padding(.top, theme.spacing.l)
+        .padding(.bottom, theme.spacing.xl)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(theme.colors.backgroundPrimary.ignoresSafeArea())
         .onAppear {
             publishLiveActivityState()
             processPendingWidgetCommand()

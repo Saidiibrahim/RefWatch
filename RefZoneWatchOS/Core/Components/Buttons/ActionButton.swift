@@ -6,9 +6,12 @@
 //
 
 import SwiftUI
+import RefWatchCore
 
 /// Standalone action button (not for NavigationLinks)
 struct ActionButton: View {
+    @Environment(\.theme) private var theme
+
     let title: String
     let icon: String
     let color: Color
@@ -28,25 +31,24 @@ struct ActionButton: View {
     
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 12) {
+            HStack(spacing: theme.spacing.m) {
                 // Icon circle
                 ZStack {
                     Circle()
                         .fill(color)
                         .frame(width: 40, height: 40)
-                    
+
                     Image(systemName: icon)
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundColor(.white)
+                        .font(theme.typography.iconAccent)
+                        .foregroundStyle(theme.colors.textInverted)
                 }
-                
+
                 // Label
                 Text(title)
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.primary)
+                    .font(theme.typography.cardHeadline)
+                    .foregroundStyle(theme.colors.textPrimary)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            // Removed padding and background to eliminate grey background/padding
         }
         .buttonStyle(PlainButtonStyle())
     }

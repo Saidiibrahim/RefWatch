@@ -2,6 +2,13 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- Do NOT include com.apple.developer.watchkit.background-mode here.
+	     watchOS uses Info.plist WKBackgroundModes=["workout-processing"].
+	     Adding this entitlement causes a provisioning profile mismatch. -->
+	<key>com.apple.developer.healthkit</key>
+	<true/>
+	<key>com.apple.developer.healthkit.background-delivery</key>
+	<true/>
 	<key>com.apple.security.application-groups</key>
 	<array>
 		<string>group.refzone.shared</string>

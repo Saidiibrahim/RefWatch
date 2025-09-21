@@ -11,27 +11,34 @@ import RefWatchCore
 struct PenaltyShootoutView: View {
     let matchViewModel: MatchViewModel
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.theme) private var theme
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: AppTheme.Spacing.l) {
-                Text("penalties_title").font(AppTheme.Typography.header)
+            VStack(spacing: theme.spacing.l) {
+                Text("penalties_title").font(theme.typography.heroTitle)
 
                 if matchViewModel.isPenaltyShootoutDecided, let winner = matchViewModel.penaltyWinner {
                     Text(String(format: NSLocalizedString("shootout_winner_format", comment: ""), (winner == .home ? matchViewModel.homeTeamDisplayName : matchViewModel.awayTeamDisplayName)))
-                        .font(AppTheme.Typography.subheader)
-                        .padding(AppTheme.Spacing.s)
+                        .font(theme.typography.heroSubtitle)
+                        .padding(theme.spacing.s)
                         .frame(maxWidth: .infinity)
-                        .background(RoundedRectangle(cornerRadius: AppTheme.Corners.s).fill(.green.opacity(0.2)))
+                        .background(
+                            RoundedRectangle(cornerRadius: theme.components.controlCornerRadius)
+                                .fill(theme.colors.matchPositive.opacity(0.2))
+                        )
                 } else if matchViewModel.isSuddenDeathActive {
                     Text("shootout_sudden_death")
-                        .font(AppTheme.Typography.subheader)
-                        .padding(AppTheme.Spacing.xs)
+                        .font(theme.typography.heroSubtitle)
+                        .padding(theme.spacing.xs)
                         .frame(maxWidth: .infinity)
-                        .background(RoundedRectangle(cornerRadius: AppTheme.Corners.s).fill(.orange.opacity(0.2)))
+                        .background(
+                            RoundedRectangle(cornerRadius: theme.components.controlCornerRadius)
+                                .fill(theme.colors.matchWarning.opacity(0.2))
+                        )
                 }
 
-                HStack(spacing: AppTheme.Spacing.m) {
+                HStack(spacing: theme.spacing.m) {
                     panel(.home,
                           title: matchViewModel.homeTeamDisplayName,
                           scored: matchViewModel.homePenaltiesScored,
@@ -83,28 +90,30 @@ struct PenaltyShootoutView: View {
                        active: Bool,
                        onScore: @escaping () -> Void,
                        onMiss: @escaping () -> Void) -> some View {
-        VStack(spacing: AppTheme.Spacing.m - 2) {
-            Text(title).font(AppTheme.Typography.header)
-            Text("\(scored) / \(taken)").font(.subheadline).foregroundStyle(.secondary)
-            HStack(spacing: AppTheme.Spacing.xs) {
+        VStack(spacing: theme.spacing.m - 2) {
+            Text(title).font(theme.typography.heroTitle)
+            Text("\(scored) / \(taken)")
+                .font(theme.typography.cardMeta)
+                .foregroundStyle(theme.colors.textSecondary)
+            HStack(spacing: theme.spacing.xs) {
                 ForEach(0..<rounds, id: \.self) { i in
                     Group {
                         if i < results.count {
-                            Circle().fill(results[i] == .scored ? .green : .red)
+                            Circle().fill(results[i] == .scored ? theme.colors.matchPositive : theme.colors.matchCritical)
                         } else {
                             Circle().stroke(.secondary, lineWidth: 1)
                         }
                     }.frame(width: 8, height: 8)
                 }
             }
-            HStack(spacing: AppTheme.Spacing.m - 2) {
+            HStack(spacing: theme.spacing.m - 2) {
                 Button(action: onScore) {
                     Label(LocalizedStringKey("shootout_score"), systemImage: "checkmark.circle.fill")
                         .accessibilityLabel(Text("Record score for \(title)"))
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(.green)
+                .tint(theme.colors.matchPositive)
                 .disabled(!active)
 
                 Button(action: onMiss) {
@@ -113,16 +122,19 @@ struct PenaltyShootoutView: View {
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
-                .tint(.red)
+                .tint(theme.colors.matchCritical)
                 .disabled(!active)
             }
         }
         .frame(maxWidth: .infinity)
         .padding()
-        .background(RoundedRectangle(cornerRadius: AppTheme.Corners.m).fill(Color(.secondarySystemBackground)))
+        .background(
+            RoundedRectangle(cornerRadius: theme.components.cardCornerRadius)
+                .fill(theme.colors.backgroundElevated)
+        )
         .overlay(
-            RoundedRectangle(cornerRadius: AppTheme.Corners.m)
-                .stroke(active ? .green : .clear, lineWidth: 2)
+            RoundedRectangle(cornerRadius: theme.components.cardCornerRadius)
+                .stroke(active ? theme.colors.matchPositive : .clear, lineWidth: 2)
         )
     }
 }
