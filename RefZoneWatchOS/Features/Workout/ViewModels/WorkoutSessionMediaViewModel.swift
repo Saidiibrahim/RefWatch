@@ -16,7 +16,8 @@ import UIKit
 final class WorkoutSessionMediaViewModel {
   private enum Constants {
     static let artworkSize = CGSize(width: 140, height: 140)
-    static let pollInterval: TimeInterval = 1.0
+    static let basePollInterval: TimeInterval = 2.5 // Increased from 1.0 for better battery life
+    static let fastPollInterval: TimeInterval = 1.0 // Used when media is actively playing
   }
 
   private(set) var title: String = "Not Playing"
@@ -37,6 +38,7 @@ final class WorkoutSessionMediaViewModel {
   @ObservationIgnored private let infoCenter = MPNowPlayingInfoCenter.default()
   @ObservationIgnored private var observers: [NSObjectProtocol] = []
   @ObservationIgnored private var pollTimer: Timer?
+  @ObservationIgnored private var currentPollInterval: TimeInterval = Constants.basePollInterval
   @ObservationIgnored private let commandClient: WorkoutMediaCommandSending
 
   init(
@@ -120,11 +122,18 @@ final class WorkoutSessionMediaViewModel {
   // MARK: - Private helpers
 
   private func startPolling() {
-    pollTimer = Timer.scheduledTimer(withTimeInterval: Constants.pollInterval, repeats: true) { [weak self] _ in
+    updatePollInterval()
+    pollTimer = Timer.scheduledTimer(withTimeInterval: currentPollInterval, repeats: true) { [weak self] _ in
       Task { @MainActor in
         self?.refresh()
       }
     }
+  }
+
+  /// Updates the polling interval based on current playback state
+  private func updatePollInterval() {
+    // Use faster polling when media is actively playing for better responsiveness
+    currentPollInterval = isPlaying ? Constants.fastPollInterval : Constants.basePollInterval
   }
 
   private func stopPolling() {
@@ -132,7 +141,15 @@ final class WorkoutSessionMediaViewModel {
     pollTimer = nil
   }
 
+  /// Restarts the polling timer with the current interval
+  private func restartPollingTimer() {
+    stopPolling()
+    startPolling()
+  }
+
   private func refreshPlaybackState() {
+    let wasPlaying = isPlaying
+
     switch infoCenter.playbackState {
     case .playing:
       isPlaying = true
@@ -145,6 +162,12 @@ final class WorkoutSessionMediaViewModel {
     let hasInfo = (infoCenter.nowPlayingInfo != nil)
     canSkipBackward = hasInfo
     canSkipForward = hasInfo
+
+    // Update polling interval if playback state changed
+    if wasPlaying != isPlaying {
+      updatePollInterval()
+      restartPollingTimer()
+    }
   }
 
   private func refreshMetadata() {

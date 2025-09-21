@@ -4,7 +4,7 @@ import HealthKit
 import RefWorkoutCore
 
 @MainActor
-final class HealthKitWorkoutAuthorizationManager: WorkoutAuthorizationManaging, @unchecked Sendable {
+final class HealthKitWorkoutAuthorizationManager: WorkoutAuthorizationManaging {
   private let healthStore: HKHealthStore
   private let shareTypes: Set<HKSampleType>
   private let readTypes: Set<HKObjectType>

@@ -5,7 +5,7 @@ import RefWorkoutCore
 
 @available(iOS 17.0, *)
 @MainActor
-final class IOSHealthKitWorkoutTracker: NSObject, WorkoutSessionTracking, @unchecked Sendable {
+final class IOSHealthKitWorkoutTracker: NSObject, WorkoutSessionTracking {
   private let healthStore: HKHealthStore
   private var activeSessions: [UUID: ManagedSession] = [:]
   private var sessionLookup: [ObjectIdentifier: UUID] = [:]
