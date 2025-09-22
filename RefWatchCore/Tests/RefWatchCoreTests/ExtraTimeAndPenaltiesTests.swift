@@ -133,6 +133,36 @@ final class ExtraTimeAndPenaltiesTests: XCTestCase {
         XCTAssertTrue(vm.isFullTime)
     }
 
+    func test_undoLastPenaltyAttempt_revertsTallies_and_removes_event() async throws {
+        let vm = MatchViewModel()
+        vm.beginPenaltiesIfNeeded()
+
+        vm.recordPenaltyAttempt(team: .home, result: .scored)
+        vm.recordPenaltyAttempt(team: .away, result: .missed)
+
+        let eventsBeforeUndo = vm.matchEvents.count
+
+        XCTAssertTrue(vm.undoLastPenaltyAttempt())
+        XCTAssertEqual(vm.homePenaltiesTaken, 1)
+        XCTAssertEqual(vm.homePenaltyResults.count, 1)
+        XCTAssertEqual(vm.awayPenaltiesTaken, 0)
+        XCTAssertTrue(vm.awayPenaltyResults.isEmpty)
+        XCTAssertEqual(vm.matchEvents.count, eventsBeforeUndo - 1)
+    }
+
+    func test_swapPenaltyOrder_toggles_first_kicker() async throws {
+        let vm = MatchViewModel()
+        vm.beginPenaltiesIfNeeded()
+
+        XCTAssertEqual(vm.penaltyFirstKicker, .home)
+        XCTAssertFalse(vm.hasChosenPenaltyFirstKicker)
+
+        vm.swapPenaltyOrder()
+
+        XCTAssertEqual(vm.penaltyFirstKicker, .away)
+        XCTAssertTrue(vm.hasChosenPenaltyFirstKicker)
+    }
+
     func test_penalties_next_team_and_early_win_detection() async throws {
         throw XCTSkip("Early decision thresholds under initial rounds vary; keeping in app target tests")
         let vm = MatchViewModel()

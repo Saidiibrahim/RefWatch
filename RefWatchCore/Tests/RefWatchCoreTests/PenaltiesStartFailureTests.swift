@@ -25,6 +25,8 @@ final class FakePenaltyManagerNeverBegins: PenaltyManaging {
     func setFirstKicker(_ team: TeamSide) { firstKicker = team; hasChosenFirstKicker = true }
     func markHasChosenFirstKicker(_ chosen: Bool) { hasChosenFirstKicker = chosen }
     func recordAttempt(team: TeamSide, result: PenaltyAttemptDetails.Result, playerNumber: Int?) { }
+    func undoLastAttempt() -> PenaltyUndoResult? { nil }
+    func swapKickingOrder() { }
     func end() { isActive = false }
 
     var onStart: (() -> Void)?
@@ -46,4 +48,3 @@ final class PenaltiesStartFailureTests: XCTestCase {
         XCTAssertFalse(vm.hasChosenPenaltyFirstKicker)
     }
 }
-

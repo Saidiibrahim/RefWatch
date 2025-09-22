@@ -15,6 +15,7 @@ struct TimerView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.theme) private var theme
+    @Environment(\.watchLayoutScale) private var layout
     // Persist selected timer face
     @AppStorage("timer_face_style") private var timerFaceStyleRaw: String = TimerFaceStyle.standard.rawValue
     private var faceStyle: TimerFaceStyle { TimerFaceStyle.parse(raw: timerFaceStyleRaw) }
@@ -22,12 +23,16 @@ struct TimerView: View {
     private var periodLabel: String { PeriodLabelFormatter.label(for: model) }
     
     var body: some View {
-        VStack(spacing: theme.spacing.m) {
+        let verticalSpacing = layout.category == .compact ? theme.spacing.s : theme.spacing.m
+
+        VStack(spacing: verticalSpacing) {
             // Period indicator
             HStack {
                 Text(periodLabel)
                     .font(theme.typography.cardMeta)
                     .foregroundStyle(theme.colors.textSecondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
                 Spacer()
             }
             .padding(.horizontal, theme.components.cardHorizontalPadding)
@@ -45,8 +50,8 @@ struct TimerView: View {
                 .hapticsProvider(WatchHaptics())
         }
         .accessibilityIdentifier("timerArea")
-        .padding(.top, theme.spacing.l)
-        .padding(.bottom, theme.spacing.xl)
+        .padding(.top, layout.timerTopPadding)
+        .padding(.bottom, layout.timerBottomPadding + layout.safeAreaBottomPadding)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(theme.colors.backgroundPrimary.ignoresSafeArea())
         .onAppear {
@@ -150,4 +155,12 @@ private extension TimerView {
 
 #Preview {
     TimerView(model: MatchViewModel(haptics: WatchHaptics()), lifecycle: MatchLifecycleCoordinator())
-} 
+        .watchLayoutScale(WatchLayoutScale(category: .compact))
+        .previewDevice("Apple Watch Series 9 (41mm)")
+}
+
+#Preview("Timer – Ultra") {
+    TimerView(model: MatchViewModel(haptics: WatchHaptics()), lifecycle: MatchLifecycleCoordinator())
+        .watchLayoutScale(WatchLayoutScale(category: .expanded))
+        .previewDevice("Apple Watch Ultra 2 (49mm)")
+}

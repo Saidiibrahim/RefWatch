@@ -18,6 +18,7 @@ struct MatchRootView: View {
     @State private var lifecycle: MatchLifecycleCoordinator
     @State private var showPersistenceError = false
     @State private var latestSummary: CompletedMatchSummary?
+    @State private var isStartMatchActive = false
     private let commandHandler = LiveActivityCommandHandler()
     private let livePublisher = LiveActivityStatePublisher(reloadKind: "RefZoneWidgets")
     
@@ -100,7 +101,6 @@ struct MatchRootView: View {
                     )
                 }
             }
-            .navigationTitle("Match")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     if lifecycle.state == .idle {
@@ -156,10 +156,17 @@ struct MatchRootView: View {
             #endif
             if newState != .idle {
                 appModeController.overrideForActiveSession(.match)
+                isStartMatchActive = false
             }
         }
         .onChange(of: matchViewModel.lastPersistenceError) { newValue, _ in
             if newValue != nil { showPersistenceError = true }
+        }
+        .onChange(of: lifecycle.shouldPresentStartMatchScreen) { shouldPresent in
+            if shouldPresent {
+                isStartMatchActive = true
+                lifecycle.shouldPresentStartMatchScreen = false
+            }
         }
         .alert("Save Failed", isPresented: $showPersistenceError) {
             Button("OK") { matchViewModel.lastPersistenceError = nil }
@@ -177,7 +184,15 @@ private extension MatchRootView {
     @ViewBuilder
     var heroSection: some View {
         Section {
-            NavigationLink {
+            NavigationLink(
+                isActive: Binding(
+                    get: { isStartMatchActive },
+                    set: { newValue in
+                        if !newValue { lifecycle.shouldPresentStartMatchScreen = false }
+                        isStartMatchActive = newValue
+                    }
+                )
+            ) {
                 StartMatchScreen(matchViewModel: matchViewModel, lifecycle: lifecycle)
             } label: {
                 StartMatchHeroCard()

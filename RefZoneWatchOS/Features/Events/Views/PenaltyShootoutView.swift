@@ -14,111 +14,147 @@ struct PenaltyShootoutView: View {
     let lifecycle: MatchLifecycleCoordinator
     @Environment(\.dismiss) private var dismiss
     @Environment(\.theme) private var theme
+    @Environment(\.watchLayoutScale) private var layout
+    @State private var showingPanelActions = false
 
     var body: some View {
-        VStack(spacing: theme.spacing.l) {
+        ScrollView {
+            VStack(spacing: theme.spacing.m) {
+                statusBanner
 
-            if matchViewModel.isPenaltyShootoutDecided, let winner = matchViewModel.penaltyWinner {
-                Text("\(winner == .home ? matchViewModel.homeTeamDisplayName : matchViewModel.awayTeamDisplayName) win")
-                    .font(theme.typography.cardHeadline)
-                    .padding(theme.spacing.s)
-                    .foregroundStyle(theme.colors.textInverted)
-                    .frame(maxWidth: .infinity)
-                    .background(
-                        RoundedRectangle(cornerRadius: theme.components.chipCornerRadius, style: .continuous)
-                            .fill(theme.colors.matchPositive)
+                HStack(spacing: theme.spacing.s) {
+                    PenaltyTeamPanel(
+                        side: .home,
+                        title: matchViewModel.homeTeamDisplayName,
+                        scored: matchViewModel.homePenaltiesScored,
+                        taken: matchViewModel.homePenaltiesTaken,
+                        rounds: matchViewModel.penaltyRoundsVisible,
+                        results: matchViewModel.homePenaltyResults,
+                        isActive: matchViewModel.nextPenaltyTeam == .home && !matchViewModel.isPenaltyShootoutDecided,
+                        isDisabled: matchViewModel.isPenaltyShootoutDecided,
+                        onScore: { matchViewModel.recordPenaltyAttempt(team: .home, result: .scored) },
+                        onMiss: { matchViewModel.recordPenaltyAttempt(team: .home, result: .missed) },
+                        onLongPress: presentPanelActions
                     )
-                    .padding(.horizontal, theme.components.cardHorizontalPadding)
-            } else if matchViewModel.isSuddenDeathActive {
-                Text("Sudden Death")
-                    .font(theme.typography.cardMeta)
-                    .padding(theme.spacing.xs)
-                    .foregroundStyle(theme.colors.textPrimary)
-                    .frame(maxWidth: .infinity)
-                    .background(
-                        RoundedRectangle(cornerRadius: theme.components.chipCornerRadius, style: .continuous)
-                            .fill(theme.colors.matchWarning)
+
+                    PenaltyTeamPanel(
+                        side: .away,
+                        title: matchViewModel.awayTeamDisplayName,
+                        scored: matchViewModel.awayPenaltiesScored,
+                        taken: matchViewModel.awayPenaltiesTaken,
+                        rounds: matchViewModel.penaltyRoundsVisible,
+                        results: matchViewModel.awayPenaltyResults,
+                        isActive: matchViewModel.nextPenaltyTeam == .away && !matchViewModel.isPenaltyShootoutDecided,
+                        isDisabled: matchViewModel.isPenaltyShootoutDecided,
+                        onScore: { matchViewModel.recordPenaltyAttempt(team: .away, result: .scored) },
+                        onMiss: { matchViewModel.recordPenaltyAttempt(team: .away, result: .missed) },
+                        onLongPress: presentPanelActions
                     )
-                    .padding(.horizontal, theme.components.cardHorizontalPadding)
-            }
+                }
 
-            // Tallies
-            HStack(spacing: theme.spacing.m) {
-                PenaltyTeamPanel(
-                    side: .home,
-                    title: matchViewModel.homeTeamDisplayName,
-                    scored: matchViewModel.homePenaltiesScored,
-                    taken: matchViewModel.homePenaltiesTaken,
-                    rounds: matchViewModel.penaltyRoundsVisible,
-                    results: matchViewModel.homePenaltyResults,
-                    isActive: matchViewModel.nextPenaltyTeam == .home && !matchViewModel.isPenaltyShootoutDecided,
-                    isDisabled: matchViewModel.isPenaltyShootoutDecided,
-                    onScore: { matchViewModel.recordPenaltyAttempt(team: .home, result: .scored) },
-                    onMiss: { matchViewModel.recordPenaltyAttempt(team: .home, result: .missed) }
-                )
-
-                PenaltyTeamPanel(
-                    side: .away,
-                    title: matchViewModel.awayTeamDisplayName,
-                    scored: matchViewModel.awayPenaltiesScored,
-                    taken: matchViewModel.awayPenaltiesTaken,
-                    rounds: matchViewModel.penaltyRoundsVisible,
-                    results: matchViewModel.awayPenaltyResults,
-                    isActive: matchViewModel.nextPenaltyTeam == .away && !matchViewModel.isPenaltyShootoutDecided,
-                    isDisabled: matchViewModel.isPenaltyShootoutDecided,
-                    onScore: { matchViewModel.recordPenaltyAttempt(team: .away, result: .scored) },
-                    onMiss: { matchViewModel.recordPenaltyAttempt(team: .away, result: .missed) }
-                )
+                Spacer(minLength: theme.spacing.xs)
             }
             .padding(.horizontal, theme.components.cardHorizontalPadding)
-
-            Spacer()
+            .padding(.top, theme.spacing.s)
+            .padding(.bottom, layout.safeAreaBottomPadding + theme.spacing.s)
+            .frame(maxWidth: .infinity, alignment: .top)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(theme.colors.backgroundPrimary.ignoresSafeArea())
         .onAppear {
             // Ensure we mark penalties started once (idempotent)
             matchViewModel.beginPenaltiesIfNeeded()
         }
-        // Bottom action
-        .safeAreaInset(edge: .bottom) {
-            Button(action: {
-                WKInterfaceDevice.current().play(.success)
-                #if DEBUG
-                print("DEBUG: PenaltyShootoutView: End Shootout tapped (decided=\(matchViewModel.isPenaltyShootoutDecided))")
-                #endif
-                matchViewModel.endPenaltiesAndProceed()
-                #if DEBUG
-                print("DEBUG: PenaltyShootoutView: endPenaltiesAndProceed -> isFullTime=\(matchViewModel.isFullTime)")
-                #endif
-                lifecycle.goToFinished()
-            }) {
-                Text("End Shootout")
-                    .font(theme.typography.button)
-                    .foregroundStyle(theme.colors.textInverted)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: theme.components.buttonHeight / 1.6)
-                    .background(
-                        RoundedRectangle(cornerRadius: theme.components.controlCornerRadius, style: .continuous)
-                            .fill(matchViewModel.isPenaltyShootoutDecided ? theme.colors.matchPositive : theme.colors.backgroundElevated)
-                    )
+        .confirmationDialog(
+            "Penalty Options",
+            isPresented: $showingPanelActions,
+            titleVisibility: .visible
+        ) {
+            if canUndoPenaltyAttempt {
+                Button("Undo Last Kick") { handleUndo() }
             }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("endShootoutButton")
-            .disabled(!matchViewModel.isPenaltyShootoutDecided)
-            .opacity(matchViewModel.isPenaltyShootoutDecided ? 1 : 0.5)
-            .padding(.horizontal, theme.components.cardHorizontalPadding)
-            .padding(.top, theme.spacing.s)
-            .padding(.bottom, theme.spacing.xl)
+
+            if !matchViewModel.isPenaltyShootoutDecided {
+                Button("Swap Kicking Order") { handleSwapOrder() }
+            }
+
+            if matchViewModel.isPenaltyShootoutDecided {
+                Button("End Shootout", role: .destructive) { handleEndShootout() }
+            }
+
+            Button("Cancel", role: .cancel) { }
         }
         // First-kicker prompt handled at MatchRootView level before routing
     }
 
-    
+    @ViewBuilder
+    private var statusBanner: some View {
+        if matchViewModel.isPenaltyShootoutDecided, let winner = matchViewModel.penaltyWinner {
+            Text("\(winner == .home ? matchViewModel.homeTeamDisplayName : matchViewModel.awayTeamDisplayName) win")
+                .font(theme.typography.cardHeadline)
+                .padding(theme.spacing.s)
+                .foregroundStyle(theme.colors.textInverted)
+                .frame(maxWidth: .infinity)
+                .background(
+                    RoundedRectangle(cornerRadius: theme.components.chipCornerRadius, style: .continuous)
+                        .fill(theme.colors.matchPositive)
+                )
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+                .simultaneousGesture(longPressGesture(trigger: presentPanelActions))
+        } else if matchViewModel.isSuddenDeathActive {
+            Text("Sudden Death")
+                .font(theme.typography.cardMeta)
+                .padding(theme.spacing.xs)
+                .foregroundStyle(theme.colors.textPrimary)
+                .frame(maxWidth: .infinity)
+                .background(
+                    RoundedRectangle(cornerRadius: theme.components.chipCornerRadius, style: .continuous)
+                        .fill(theme.colors.matchWarning)
+                )
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+                .simultaneousGesture(longPressGesture(trigger: presentPanelActions))
+        }
+    }
+
+    private func longPressGesture(trigger: @escaping () -> Void) -> some Gesture {
+        LongPressGesture(minimumDuration: 0.7)
+            .onEnded { finished in
+                guard finished else { return }
+                trigger()
+            }
+    }
+
+    private func presentPanelActions() {
+        WKInterfaceDevice.current().play(.click)
+        showingPanelActions = true
+    }
+
+    private func handleEndShootout() {
+        guard matchViewModel.isPenaltyShootoutDecided else { return }
+        WKInterfaceDevice.current().play(.success)
+        matchViewModel.endPenaltiesAndProceed()
+        lifecycle.goToFinished()
+    }
+
+    private func handleUndo() {
+        if !matchViewModel.undoLastPenaltyAttempt() {
+            WKInterfaceDevice.current().play(.failure)
+        }
+    }
+
+    private func handleSwapOrder() {
+        matchViewModel.swapPenaltyOrder()
+    }
+
+    private var canUndoPenaltyAttempt: Bool {
+        (matchViewModel.homePenaltiesTaken + matchViewModel.awayPenaltiesTaken) > 0
+    }
 }
 
 private struct PenaltyTeamPanel: View {
     @Environment(\.theme) private var theme
+    @Environment(\.watchLayoutScale) private var layout
 
     let side: TeamSide
     let title: String
@@ -130,16 +166,21 @@ private struct PenaltyTeamPanel: View {
     let isDisabled: Bool
     let onScore: () -> Void
     let onMiss: () -> Void
+    let onLongPress: (() -> Void)?
 
     var body: some View {
         VStack(spacing: theme.spacing.s) {
             Text(title)
                 .font(theme.typography.cardHeadline)
                 .foregroundStyle(theme.colors.textPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
 
             Text("\(scored) / \(taken)")
                 .font(theme.typography.cardMeta)
                 .foregroundStyle(theme.colors.matchPositive)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
 
             // Per-round dots (first 5, then grow for sudden death)
             HStack(spacing: theme.spacing.xs) {
@@ -163,17 +204,17 @@ private struct PenaltyTeamPanel: View {
                 Button(action: onScore) {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundStyle(theme.colors.textInverted)
-                        .frame(width: 34, height: 34)
+                        .frame(width: controlDiameter, height: controlDiameter)
                         .background(Circle().fill(theme.colors.matchPositive))
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier(side == .home ? "homeScorePenaltyBtn" : "awayScorePenaltyBtn")
                 .disabled(!isActive || isDisabled)
-
+                
                 Button(action: onMiss) {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundStyle(theme.colors.textInverted)
-                        .frame(width: 34, height: 34)
+                        .frame(width: controlDiameter, height: controlDiameter)
                         .background(Circle().fill(theme.colors.matchCritical))
                 }
                 .buttonStyle(.plain)
@@ -182,7 +223,7 @@ private struct PenaltyTeamPanel: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .frame(height: 110)
+        .frame(minHeight: layout.penaltyPanelMinHeight)
         .background(
             RoundedRectangle(cornerRadius: theme.components.cardCornerRadius, style: .continuous)
                 .fill(theme.colors.backgroundElevated)
@@ -191,11 +232,33 @@ private struct PenaltyTeamPanel: View {
             RoundedRectangle(cornerRadius: theme.components.cardCornerRadius, style: .continuous)
                 .stroke(isActive ? theme.colors.matchPositive : .clear, lineWidth: 2)
         )
+        .contentShape(RoundedRectangle(cornerRadius: theme.components.cardCornerRadius, style: .continuous))
+        .simultaneousGesture(longPressGesture)
+    }
+
+    private var controlDiameter: CGFloat {
+        layout.dimension(36, minimum: 32, maximum: 44)
+    }
+
+    private var longPressGesture: some Gesture {
+        LongPressGesture(minimumDuration: 0.7)
+            .onEnded { finished in
+                guard finished, let onLongPress else { return }
+                onLongPress()
+            }
     }
 }
 
 // FirstKickerPickerView removed; replaced by dedicated PenaltyFirstKickerView screen
 
-#Preview {
+#Preview("Penalties – 41mm") {
     PenaltyShootoutView(matchViewModel: MatchViewModel(haptics: WatchHaptics()), lifecycle: MatchLifecycleCoordinator())
+        .watchLayoutScale(WatchLayoutScale(category: .compact))
+        .previewDevice("Apple Watch Series 9 (41mm)")
+}
+
+#Preview("Penalties – Ultra") {
+    PenaltyShootoutView(matchViewModel: MatchViewModel(haptics: WatchHaptics()), lifecycle: MatchLifecycleCoordinator())
+        .watchLayoutScale(WatchLayoutScale(category: .expanded))
+        .previewDevice("Apple Watch Ultra 2 (49mm)")
 }

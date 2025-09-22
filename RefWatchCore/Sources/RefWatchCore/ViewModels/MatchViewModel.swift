@@ -489,6 +489,31 @@ public final class MatchViewModel {
         backgroundRuntimeManager?.end(reason: .completed)
     }
 
+    @discardableResult
+    public func undoLastPenaltyAttempt() -> Bool {
+        guard let undoResult = penaltyManager.undoLastAttempt() else { return false }
+
+        if let index = matchEvents.lastIndex(where: { record in
+            if case .penaltyAttempt = record.eventType { return true }
+            return false
+        }) {
+            matchEvents.remove(at: index)
+        }
+
+        if undoResult.details.result == .scored {
+            haptics.play(.warning)
+        } else {
+            haptics.play(.tap)
+        }
+
+        return true
+    }
+
+    public func swapPenaltyOrder() {
+        penaltyManager.swapKickingOrder()
+        haptics.play(.tap)
+    }
+
     public func setPenaltyFirstKicker(_ team: TeamSide) {
         penaltyManager.setFirstKicker(team)
     }

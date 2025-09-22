@@ -23,6 +23,7 @@ struct MatchActionsSheet: View {
     var body: some View {
         // Two equal columns with compact spacing to fit on one screen
         let columns = Array(repeating: GridItem(.flexible(), spacing: theme.spacing.m), count: 2)
+        let endActionTitle = matchViewModel.isFullTime ? "End Match" : "End Half"
 
         NavigationStack {
             GeometryReader { proxy in
@@ -60,7 +61,7 @@ struct MatchActionsSheet: View {
                             HStack {
                                 Spacer(minLength: 0)
                                 ActionGridItem(
-                                    title: "End Half",
+                                    title: endActionTitle,
                                     icon: "checkmark.circle",
                                     color: theme.colors.matchPositive,
                                     expandHorizontally: false,
@@ -76,7 +77,7 @@ struct MatchActionsSheet: View {
                             HStack {
                                 Spacer(minLength: 0)
                                 ActionGridItem(
-                                    title: "End Half",
+                                    title: endActionTitle,
                                     icon: "checkmark.circle",
                                     color: theme.colors.matchPositive,
                                     expandHorizontally: false,
@@ -110,6 +111,16 @@ struct MatchActionsSheet: View {
             titleVisibility: .hidden
         ) {
             Button("Yes") {
+                if matchViewModel.isFullTime {
+                    matchViewModel.finalizeMatch()
+                    DispatchQueue.main.async {
+                        lifecycle?.resetToStart()
+                        matchViewModel.resetMatch()
+                    }
+                    dismiss()
+                    return
+                }
+
                 let isFirstHalf = matchViewModel.currentPeriod == 1
                 matchViewModel.endCurrentPeriod()
                 if isFirstHalf {
@@ -119,11 +130,12 @@ struct MatchActionsSheet: View {
             }
             Button("No", role: .cancel) { }
         } message: {
-            Text(
-                (matchViewModel.currentMatch != nil && matchViewModel.currentPeriod == 2 && (matchViewModel.currentMatch?.numberOfPeriods ?? 2) == 2)
+            let prompt = matchViewModel.isFullTime
                 ? "Are you sure you want to 'End Match'?"
-                : "Are you sure you want to 'End Half'?"
-            )
+                : ((matchViewModel.currentMatch != nil && matchViewModel.currentPeriod == 2 && (matchViewModel.currentMatch?.numberOfPeriods ?? 2) == 2)
+                    ? "Are you sure you want to 'End Match'?"
+                    : "Are you sure you want to 'End Half'?")
+            Text(prompt)
         }
         .background(theme.colors.backgroundPrimary.ignoresSafeArea())
     }

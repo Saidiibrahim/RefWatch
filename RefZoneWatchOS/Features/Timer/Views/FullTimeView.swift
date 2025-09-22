@@ -6,89 +6,49 @@
 //
 
 import SwiftUI
+import WatchKit
 import RefWatchCore
 
 struct FullTimeView: View {
     let matchViewModel: MatchViewModel
     let lifecycle: MatchLifecycleCoordinator
-    @State private var showingEndMatchConfirmation = false
+    @State private var showingActionSheet = false
     @Environment(\.theme) private var theme
-    
+    @Environment(\.watchLayoutScale) private var layout
+
     var body: some View {
-        VStack(spacing: theme.spacing.l) {
-            Spacer()
+        ScrollView {
+            VStack(spacing: theme.spacing.m) {
+                Text("Full Time")
+                    .font(theme.typography.heroSubtitle)
+                    .foregroundStyle(theme.colors.textPrimary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
 
-            // Team score boxes
-            HStack(spacing: theme.spacing.l) {
-                TeamScoreBox(
-                    teamName: matchViewModel.homeTeamDisplayName,
-                    score: matchViewModel.currentMatch?.homeScore ?? 0
-                )
-                
-                TeamScoreBox(
-                    teamName: matchViewModel.awayTeamDisplayName,
-                    score: matchViewModel.currentMatch?.awayScore ?? 0
-                )
-            }
-            .padding(.horizontal, theme.components.cardHorizontalPadding)
-
-            Spacer()
-        }
-        .background(theme.colors.backgroundPrimary)
-        .navigationTitle("Full Time")
-        // Compact button pinned above the bottom safe area
-        .safeAreaInset(edge: .bottom) {
-            Button(action: {
-                #if DEBUG
-                print("DEBUG: FullTimeView: End Match tapped – presenting confirmation")
-                #endif
-                showingEndMatchConfirmation = true
-            }) {
-                Text("End Match")
-                    .font(theme.typography.button)
-                    .foregroundStyle(theme.colors.textInverted)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: theme.components.buttonHeight / 1.6)
-                    .background(
-                        RoundedRectangle(cornerRadius: theme.components.controlCornerRadius)
-                            .fill(theme.colors.matchPositive)
+                HStack(spacing: theme.spacing.s) {
+                    TeamScoreBox(
+                        teamName: matchViewModel.homeTeamDisplayName,
+                        score: matchViewModel.currentMatch?.homeScore ?? 0
                     )
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("endMatchButton")
-            .padding(.horizontal, theme.components.cardHorizontalPadding)
-            .padding(.top, theme.spacing.s)
-            .padding(.bottom, theme.spacing.xl) // lift above page indicator / rounded corners
-        }
-        .confirmationDialog(
-            "",
-            isPresented: $showingEndMatchConfirmation,
-            titleVisibility: .hidden
-        ) {
-            Button("Yes") {
-                #if DEBUG
-                print("DEBUG: FullTimeView: ConfirmationDialog Yes tapped – begin finalize")
-                #endif
-                matchViewModel.finalizeMatch()
-                DispatchQueue.main.async {
-                    lifecycle.resetToStart()
-                    matchViewModel.resetMatch()
+
+                    TeamScoreBox(
+                        teamName: matchViewModel.awayTeamDisplayName,
+                        score: matchViewModel.currentMatch?.awayScore ?? 0
+                    )
                 }
             }
-            .accessibilityIdentifier("endMatchConfirmYes")
-            Button("No", role: .cancel) {
-                #if DEBUG
-                print("DEBUG: FullTimeView: ConfirmationDialog No tapped – cancelling")
-                #endif
-            }
-            .accessibilityIdentifier("endMatchConfirmNo")
-        } message: {
-            Text("Are you sure you want to 'End Match'?")
+            .padding(.horizontal, theme.components.cardHorizontalPadding)
+            .padding(.top, theme.spacing.s)
+            .padding(.bottom, layout.safeAreaBottomPadding + theme.spacing.l)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .onChange(of: showingEndMatchConfirmation) { isShowing, _ in
-            #if DEBUG
-            print("DEBUG: FullTimeView.onChange showingEndMatchConfirmation=\(isShowing)")
-            #endif
+        .background(theme.colors.backgroundPrimary.ignoresSafeArea())
+        .contentShape(Rectangle())
+        .onLongPressGesture(minimumDuration: 0.8) {
+            WKInterfaceDevice.current().play(.notification)
+            showingActionSheet = true
+        }
+        .sheet(isPresented: $showingActionSheet) {
+            MatchActionsSheet(matchViewModel: matchViewModel, lifecycle: lifecycle)
         }
         .onChange(of: matchViewModel.matchCompleted) { completed, _ in
             #if DEBUG
@@ -113,28 +73,37 @@ private struct TeamScoreBox: View {
     let teamName: String
     let score: Int
     @Environment(\.theme) private var theme
+    @Environment(\.watchLayoutScale) private var layout
 
     var body: some View {
         VStack(spacing: theme.spacing.s) {
             Text(teamName)
                 .font(theme.typography.cardHeadline)
                 .foregroundStyle(theme.colors.textSecondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
 
             Text("\(score)")
                 .font(theme.typography.timerSecondary)
                 .foregroundStyle(theme.colors.textPrimary)
                 .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
         }
         .frame(maxWidth: .infinity)
-        .frame(height: 80)
+        .frame(height: layout.teamScoreBoxHeight)
         .background(
             RoundedRectangle(cornerRadius: theme.components.cardCornerRadius)
                 .fill(theme.colors.backgroundElevated)
         )
+        .overlay(
+            RoundedRectangle(cornerRadius: theme.components.cardCornerRadius)
+                .stroke(theme.colors.outlineMuted.opacity(0.4), lineWidth: 1)
+        )
     }
 }
 
-#Preview {
+#Preview("Full Time – 41mm") {
     let viewModel = MatchViewModel(haptics: WatchHaptics())
     // Set up match with some scores for preview
     viewModel.configureMatch(duration: 90, periods: 2, halfTimeLength: 15, hasExtraTime: false, hasPenalties: false)
@@ -143,4 +112,18 @@ private struct TeamScoreBox: View {
     viewModel.isFullTime = true
     
     return FullTimeView(matchViewModel: viewModel, lifecycle: MatchLifecycleCoordinator())
+        .watchLayoutScale(WatchLayoutScale(category: .compact))
+        .previewDevice("Apple Watch Series 9 (41mm)")
+}
+
+#Preview("Full Time – Ultra") {
+    let viewModel = MatchViewModel(haptics: WatchHaptics())
+    viewModel.configureMatch(duration: 90, periods: 2, halfTimeLength: 15, hasExtraTime: false, hasPenalties: false)
+    viewModel.updateScore(isHome: true, increment: true)
+    viewModel.updateScore(isHome: false, increment: true)
+    viewModel.isFullTime = true
+
+    return FullTimeView(matchViewModel: viewModel, lifecycle: MatchLifecycleCoordinator())
+        .watchLayoutScale(WatchLayoutScale(category: .expanded))
+        .previewDevice("Apple Watch Ultra 2 (49mm)")
 }
