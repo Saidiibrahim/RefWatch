@@ -15,109 +15,74 @@ struct TeamDetailsView: View {
     @State private var selectedPlayerNumber: Int?
     @State private var showingPlayerNumberInput = false
     @State private var selectedGoalType: GoalDetails.GoalType?
-    
+    @Environment(\.theme) private var theme
+    @Environment(\.watchLayoutScale) private var layout
+
+    private var gridSpacing: CGFloat {
+        layout.category == .compact ? theme.spacing.s : theme.spacing.m
+    }
+
     var body: some View {
-        VStack {
-            Text(teamType == .home ? "HOM" : "AWA")
-                .font(.title2)
-                .bold()
-                .padding(.bottom, 8)
-                .accessibilityLabel(teamType == .home ? "Home" : "Away")
-            
-            VStack(spacing: 16) {
-                HStack(spacing: 20) {
-                    NavigationLink {
+        ScrollView {
+            VStack(spacing: theme.spacing.m) {
+                header
+
+                LazyVGrid(columns: gridColumns, spacing: gridSpacing) {
+                    cardNavigationLink(
+                        icon: "square.fill",
+                        color: .yellow,
+                        label: "Yellow"
+                    ) {
                         CardEventFlow(
                             cardType: .yellow,
                             team: teamType,
                             matchViewModel: matchViewModel,
                             setupViewModel: setupViewModel
                         )
-                    } label: {
-                        EventButtonView(
-                            icon: "square.fill",
-                            color: .yellow,
-                            label: "Yellow",
-                            isNavigationLabel: true
-                        )
                     }
-                    .buttonStyle(.plain)
-                    .simultaneousGesture(
-                        TapGesture().onEnded {
-                            WKInterfaceDevice.current().play(.notification)
-                        }
-                    )
-                    
-                    NavigationLink {
+
+                    cardNavigationLink(
+                        icon: "square.fill",
+                        color: .red,
+                        label: "Red"
+                    ) {
                         CardEventFlow(
                             cardType: .red,
                             team: teamType,
                             matchViewModel: matchViewModel,
                             setupViewModel: setupViewModel
                         )
-                    } label: {
-                        EventButtonView(
-                            icon: "square.fill",
-                            color: .red,
-                            label: "Red",
-                            isNavigationLabel: true
-                        )
                     }
-                    .buttonStyle(.plain)
-                    .simultaneousGesture(
-                        TapGesture().onEnded {
-                            WKInterfaceDevice.current().play(.notification)
-                        }
-                    )
-                }
-                
-                HStack(spacing: 20) {
-                    NavigationLink {
+
+                    cardNavigationLink(
+                        icon: "arrow.up.arrow.down",
+                        color: .blue,
+                        label: "Sub"
+                    ) {
                         SubstitutionFlow(
                             team: teamType,
                             matchViewModel: matchViewModel,
                             setupViewModel: setupViewModel
                         )
-                    } label: {
-                        EventButtonView(
-                            icon: "arrow.up.arrow.down",
-                            color: .blue,
-                            label: "Sub",
-                            isNavigationLabel: true
-                        )
                     }
-                    .buttonStyle(.plain)
-                    .simultaneousGesture(
-                        TapGesture().onEnded {
-                            WKInterfaceDevice.current().play(.click)
-                        }
-                    )
-                    
-                    NavigationLink {
+
+                    cardNavigationLink(
+                        icon: "soccerball",
+                        color: .green,
+                        label: "Goal"
+                    ) {
                         GoalTypeSelectionView(team: teamType) { goalType in
-                            print("DEBUG: Goal type received in TeamDetailsView: \(goalType.rawValue) for team: \(teamType)")
                             selectedGoalType = goalType
                             showingPlayerNumberInput = true
                         }
-                    } label: {
-                        EventButtonView(
-                            icon: "soccerball",
-                            color: .green,
-                            label: "Goal",
-                            isNavigationLabel: true
-                        )
                     }
-                    .buttonStyle(.plain)
-                    .simultaneousGesture(
-                        TapGesture().onEnded {
-                            WKInterfaceDevice.current().play(.click)
-                        }
-                    )
                 }
             }
-            .padding(.horizontal)
+            .padding(.horizontal, theme.spacing.m)
+            .padding(.vertical, theme.spacing.s)
+            .frame(maxWidth: .infinity, alignment: .top)
         }
-        .padding()
+        .background(theme.colors.backgroundPrimary.ignoresSafeArea())
         .navigationDestination(isPresented: $showingPlayerNumberInput) {
             if let goalType = selectedGoalType {
                 PlayerNumberInputView(
@@ -156,4 +121,77 @@ struct TeamDetailsView: View {
         print("DEBUG: Navigating to middle screen...")
         setupViewModel.setSelectedTab(1)
     }
+
+    private var gridColumns: [GridItem] {
+        [
+            GridItem(.flexible(), spacing: gridSpacing),
+            GridItem(.flexible(), spacing: gridSpacing)
+        ]
+    }
+
+    private var header: some View {
+        Text(teamType == .home ? "HOM" : "AWA")
+            .font(theme.typography.label.weight(.semibold))
+            .foregroundStyle(theme.colors.textSecondary)
+            .textCase(.uppercase)
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+            .padding(.top, theme.spacing.xs)
+            .accessibilityLabel(teamType == .home ? "Home" : "Away")
+    }
+
+    private func cardNavigationLink<Destination: View>(
+        icon: String,
+        color: Color,
+        label: String,
+        @ViewBuilder destination: () -> Destination
+    ) -> some View {
+        NavigationLink {
+            destination()
+        } label: {
+            EventButtonView(
+                icon: icon,
+                color: color,
+                label: label,
+                isNavigationLabel: true
+            )
+        }
+        .buttonStyle(.plain)
+        .simultaneousGesture(
+            TapGesture().onEnded {
+                WKInterfaceDevice.current().play(haptic(for: icon))
+            }
+        )
+    }
+
+    private func haptic(for icon: String) -> WKHapticType {
+        switch icon {
+        case "square.fill":
+            return .notification
+        case "arrow.up.arrow.down":
+            return .click
+        case "soccerball":
+            return .click
+        default:
+            return .notification
+        }
+    }
+}
+
+#Preview("Team Details – 41mm") {
+    let matchViewModel = MatchViewModel(haptics: WatchHaptics())
+    let setupViewModel = MatchSetupViewModel(matchViewModel: matchViewModel)
+
+    return TeamDetailsView(teamType: .home, matchViewModel: matchViewModel, setupViewModel: setupViewModel)
+        .watchLayoutScale(WatchLayoutScale(category: .compact))
+        .previewDevice("Apple Watch Series 9 (41mm)")
+}
+
+#Preview("Team Details – Ultra") {
+    let matchViewModel = MatchViewModel(haptics: WatchHaptics())
+    let setupViewModel = MatchSetupViewModel(matchViewModel: matchViewModel)
+
+    return TeamDetailsView(teamType: .away, matchViewModel: matchViewModel, setupViewModel: setupViewModel)
+        .watchLayoutScale(WatchLayoutScale(category: .expanded))
+        .previewDevice("Apple Watch Ultra 2 (49mm)")
 }

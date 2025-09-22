@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		7BEAA61A255544BFAD7DA0CA /* RefWorkoutCore in Frameworks */ = {isa = PBXBuildFile; productRef = 18DCFE891B8C4879B96A0263 /* RefWorkoutCore */; };
 		9654C2452E78EB46001941F3 /* RefWatchCore in Frameworks */ = {isa = PBXBuildFile; productRef = 9654C2442E78EB46001941F3 /* RefWatchCore */; };
+		966791932E80F18700FC49FB /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 966791922E80F18700FC49FB /* Supabase */; };
 		966D6DD62E6E5BBE0086E820 /* Clerk in Frameworks */ = {isa = PBXBuildFile; productRef = 966D6DD52E6E5BBE0086E820 /* Clerk */; };
 		96BBA36C2E77BF07000A67FC /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 96BBA36B2E77BF07000A67FC /* WidgetKit.framework */; };
 		96BBA36E2E77BF07000A67FC /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 96BBA36D2E77BF07000A67FC /* SwiftUI.framework */; };
@@ -268,6 +269,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				966791932E80F18700FC49FB /* Supabase in Frameworks */,
 				966D6DD62E6E5BBE0086E820 /* Clerk in Frameworks */,
 				96F51E952E68530000C27CF8 /* RefWatchCore in Frameworks */,
 				7BEAA61A255544BFAD7DA0CA /* RefWorkoutCore in Frameworks */,
@@ -485,6 +487,7 @@
 				96F51E942E68530000C27CF8 /* RefWatchCore */,
 				966D6DD52E6E5BBE0086E820 /* Clerk */,
 				18DCFE891B8C4879B96A0263 /* RefWorkoutCore */,
+				966791922E80F18700FC49FB /* Supabase */,
 			);
 			productName = RefZoneiOS;
 			productReference = 96B8126E2E67CDA400B23EC0 /* RefZoneiOS.app */;
@@ -1420,6 +1423,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 9654C2432E78EB35001941F3 /* XCLocalSwiftPackageReference "RefWatchCore" */;
 			productName = RefWatchCore;
+		};
+		966791922E80F18700FC49FB /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 96123ED72E7D96CD00204DCB /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
 		};
 		966D6DD52E6E5BBE0086E820 /* Clerk */ = {
 			isa = XCSwiftPackageProductDependency;

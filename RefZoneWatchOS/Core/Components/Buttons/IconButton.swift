@@ -6,38 +6,58 @@
 //
 
 import SwiftUI
+import RefWatchCore
 
 /// Circular icon button for quick actions
 struct IconButton: View {
+    @Environment(\.theme) private var theme
+    @Environment(\.watchLayoutScale) private var layout
+
     let icon: String
     let color: Color
-    let size: CGFloat
+    private let explicitDiameter: CGFloat?
     let action: () -> Void
-    
+
     init(
         icon: String,
         color: Color = .blue,
-        size: CGFloat = 44,
+        size: CGFloat? = nil,
         action: @escaping () -> Void
     ) {
         self.icon = icon
         self.color = color
-        self.size = size
+        self.explicitDiameter = size
         self.action = action
     }
-    
+
     var body: some View {
+        let diameter = explicitDiameter ?? layout.iconButtonDiameter
         Button(action: action) {
             Image(systemName: icon)
-                .font(.system(size: size * 0.5, weight: .medium))
-                .foregroundColor(.white)
-                .frame(width: size, height: size)
+                .font(.system(size: diameter * 0.48, weight: .semibold))
+                .foregroundStyle(theme.colors.textInverted)
+                .frame(width: diameter, height: diameter)
                 .background(
                     Circle()
                         .fill(color)
                 )
+                .contentShape(Circle())
         }
-        .buttonStyle(PlainButtonStyle())
+        .buttonStyle(.plain)
+        .accessibilityLabel(Text(icon.accessibilityLabelFallback))
+    }
+}
+
+private extension String {
+    var accessibilityLabelFallback: String {
+        switch self {
+        case "checkmark.circle.fill":
+            return "Confirm"
+        case "xmark.circle.fill":
+            return "Cancel"
+        default:
+            return self
+        }
     }
 }
 
