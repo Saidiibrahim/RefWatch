@@ -18,70 +18,18 @@ struct TeamDetailsView: View {
     @Environment(\.theme) private var theme
     @Environment(\.watchLayoutScale) private var layout
 
-    private var gridSpacing: CGFloat {
-        layout.category == .compact ? theme.spacing.s : theme.spacing.m
-    }
-
     var body: some View {
-        ScrollView {
-            VStack(spacing: theme.spacing.m) {
-                header
+        VStack(spacing: theme.spacing.m) {
+            header
 
-                LazyVGrid(columns: gridColumns, spacing: gridSpacing) {
-                    cardNavigationLink(
-                        icon: "square.fill",
-                        color: .yellow,
-                        label: "Yellow"
-                    ) {
-                        CardEventFlow(
-                            cardType: .yellow,
-                            team: teamType,
-                            matchViewModel: matchViewModel,
-                            setupViewModel: setupViewModel
-                        )
-                    }
+            AdaptiveEventGrid(items: eventGridItems)
 
-                    cardNavigationLink(
-                        icon: "square.fill",
-                        color: .red,
-                        label: "Red"
-                    ) {
-                        CardEventFlow(
-                            cardType: .red,
-                            team: teamType,
-                            matchViewModel: matchViewModel,
-                            setupViewModel: setupViewModel
-                        )
-                    }
-
-                    cardNavigationLink(
-                        icon: "arrow.up.arrow.down",
-                        color: .blue,
-                        label: "Sub"
-                    ) {
-                        SubstitutionFlow(
-                            team: teamType,
-                            matchViewModel: matchViewModel,
-                            setupViewModel: setupViewModel
-                        )
-                    }
-
-                    cardNavigationLink(
-                        icon: "soccerball",
-                        color: .green,
-                        label: "Goal"
-                    ) {
-                        GoalTypeSelectionView(team: teamType) { goalType in
-                            selectedGoalType = goalType
-                            showingPlayerNumberInput = true
-                        }
-                    }
-                }
-            }
-            .padding(.horizontal, theme.spacing.m)
-            .padding(.vertical, theme.spacing.s)
-            .frame(maxWidth: .infinity, alignment: .top)
+            Spacer(minLength: 0)
         }
+        .padding(.horizontal, theme.spacing.m)
+        .padding(.top, theme.spacing.s)
+        .padding(.bottom, layout.safeAreaBottomPadding)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(theme.colors.backgroundPrimary.ignoresSafeArea())
         .navigationDestination(isPresented: $showingPlayerNumberInput) {
             if let goalType = selectedGoalType {
@@ -122,13 +70,6 @@ struct TeamDetailsView: View {
         setupViewModel.setSelectedTab(1)
     }
 
-    private var gridColumns: [GridItem] {
-        [
-            GridItem(.flexible(), spacing: gridSpacing),
-            GridItem(.flexible(), spacing: gridSpacing)
-        ]
-    }
-
     private var header: some View {
         Text(teamType == .home ? "HOM" : "AWA")
             .font(theme.typography.label.weight(.semibold))
@@ -140,28 +81,46 @@ struct TeamDetailsView: View {
             .accessibilityLabel(teamType == .home ? "Home" : "Away")
     }
 
-    private func cardNavigationLink<Destination: View>(
-        icon: String,
-        color: Color,
-        label: String,
-        @ViewBuilder destination: () -> Destination
-    ) -> some View {
-        NavigationLink {
-            destination()
-        } label: {
-            EventButtonView(
-                icon: icon,
-                color: color,
-                label: label,
-                isNavigationLabel: true
-            )
-        }
-        .buttonStyle(.plain)
-        .simultaneousGesture(
-            TapGesture().onEnded {
-                WKInterfaceDevice.current().play(haptic(for: icon))
+    private var eventGridItems: [AdaptiveEventGridItem] {
+        [
+            AdaptiveEventGridItem(icon: "square.fill", color: .yellow, label: "Yellow", onTap: {
+                WKInterfaceDevice.current().play(haptic(for: "square.fill"))
+            }) {
+                CardEventFlow(
+                    cardType: .yellow,
+                    team: teamType,
+                    matchViewModel: matchViewModel,
+                    setupViewModel: setupViewModel
+                )
+            },
+            AdaptiveEventGridItem(icon: "square.fill", color: .red, label: "Red", onTap: {
+                WKInterfaceDevice.current().play(haptic(for: "square.fill"))
+            }) {
+                CardEventFlow(
+                    cardType: .red,
+                    team: teamType,
+                    matchViewModel: matchViewModel,
+                    setupViewModel: setupViewModel
+                )
+            },
+            AdaptiveEventGridItem(icon: "arrow.up.arrow.down", color: .blue, label: "Sub", onTap: {
+                WKInterfaceDevice.current().play(haptic(for: "arrow.up.arrow.down"))
+            }) {
+                SubstitutionFlow(
+                    team: teamType,
+                    matchViewModel: matchViewModel,
+                    setupViewModel: setupViewModel
+                )
+            },
+            AdaptiveEventGridItem(icon: "soccerball", color: .green, label: "Goal", onTap: {
+                WKInterfaceDevice.current().play(haptic(for: "soccerball"))
+            }) {
+                GoalTypeSelectionView(team: teamType) { goalType in
+                    selectedGoalType = goalType
+                    showingPlayerNumberInput = true
+                }
             }
-        )
+        ]
     }
 
     private func haptic(for icon: String) -> WKHapticType {

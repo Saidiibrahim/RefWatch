@@ -17,21 +17,21 @@ struct PenaltyFirstKickerView: View {
     @Environment(\.watchLayoutScale) private var layout
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: theme.spacing.m) {
+        GeometryReader { _ in
+            VStack(alignment: .leading, spacing: layout.dimension(theme.spacing.m, minimum: theme.spacing.s)) {
                 header
 
-                HStack(spacing: theme.spacing.s) {
+                HStack(spacing: layout.dimension(theme.spacing.s, minimum: theme.spacing.xs)) {
                     firstKickerButton(title: matchViewModel.homeTeamDisplayName, side: .home, color: theme.colors.accentPrimary)
                     firstKickerButton(title: matchViewModel.awayTeamDisplayName, side: .away, color: theme.colors.accentMuted)
                 }
 
-                Spacer(minLength: theme.spacing.s)
+                Spacer(minLength: theme.spacing.xs)
             }
             .padding(.horizontal, theme.spacing.m)
             .padding(.top, theme.spacing.s)
-            .padding(.bottom, layout.safeAreaBottomPadding + theme.spacing.l)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.bottom, layout.safeAreaBottomPadding)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         }
         .background(theme.colors.backgroundPrimary.ignoresSafeArea())
     }

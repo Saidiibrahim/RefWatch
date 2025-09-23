@@ -489,6 +489,156 @@ create policy "workout_events_via_session" on public.workout_events for select u
 );
 ```
 
+### AI (Responses API compatible)
+Stores user chat threads and messages for the iOS Assistant feature using provider‑neutral shapes aligned with OpenAI's Responses API (multi‑part content, tool calls, usage). Ownership by `owner_id`. Future sharing can reuse `resource_shares`.
+```sql
+-- Progress: Not yet implemented
+
+-- Message roles (provider neutral, Responses-compatible)
+create type if not exists ai_message_role as enum ('system', 'user', 'assistant', 'tool');
+
+-- Threads group messages and hold model/configuration defaults
+create table if not exists public.ai_threads (
+  id uuid primary key,
+  owner_id uuid not null references public.users(id) on delete cascade,
+  title text,
+  instructions text,                -- optional system instructions for this thread
+  default_model text,               -- e.g., 'gpt-4o-mini'
+  default_temperature double precision,
+  metadata jsonb not null default '{}'::jsonb,
+  prompt_tokens_total integer not null default 0,
+  completion_tokens_total integer not null default 0,
+  last_activity_at timestamptz not null default now(),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz
+);
+
+-- Individual messages (multi-part content and usage aligned to Responses)
+create table if not exists public.ai_messages (
+  id uuid primary key,
+  thread_id uuid not null references public.ai_threads(id) on delete cascade,
+  role ai_message_role not null,
+  content_text text,                 -- convenience text (first output_text or user text)
+  content_parts jsonb not null default '[]'::jsonb, -- array of typed parts per Responses
+  provider_response_id text,         -- upstream response id for assistant messages
+  tool_calls jsonb not null default '[]'::jsonb,   -- [{type,name,arguments_json}]
+  tool_results jsonb not null default '[]'::jsonb, -- [{tool_call_id,result_json}]
+  usage_input_tokens integer not null default 0,
+  usage_output_tokens integer not null default 0,
+  latency_ms integer,
+  status text,                       -- 'completed'|'errored'|... (optional)
+  error jsonb,                       -- structured error when status=errored
+  created_at timestamptz not null default now()
+);
+
+-- Attachments linked to a message, backed by Supabase Storage
+create table if not exists public.ai_attachments (
+  id uuid primary key,
+  message_id uuid not null references public.ai_messages(id) on delete cascade,
+  storage_path text not null,        -- e.g., 'assistant-attachments/<user>/<uuid>.bin'
+  content_type text,
+  byte_size integer,
+  metadata jsonb,
+  created_at timestamptz not null default now()
+);
+
+-- Daily usage aggregates for cost/rate limiting
+create table if not exists public.ai_usage_daily (
+  owner_id uuid not null references public.users(id) on delete cascade,
+  on_date date not null,
+  model text not null,
+  input_tokens bigint not null default 0,
+  output_tokens bigint not null default 0,
+  responses_count bigint not null default 0,
+  last_updated_at timestamptz not null default now(),
+  primary key (owner_id, on_date, model)
+);
+
+-- Helpful indexes for fast loads
+create index if not exists idx_ai_threads_owner_activity on public.ai_threads(owner_id, last_activity_at desc);
+create index if not exists idx_ai_messages_thread_time on public.ai_messages(thread_id, created_at asc);
+create index if not exists idx_ai_threads_not_deleted on public.ai_threads(owner_id, last_activity_at desc) where deleted_at is null;
+
+-- RLS policies: owner-only access; messages/attachments authorized via thread ownership
+alter table public.ai_threads enable row level security;
+create policy if not exists "ai_threads_own_rows" on public.ai_threads for all using (
+  owner_id in (select id from public.users where clerk_user_id = current_setting('request.jwt.claim.sub', true))
+) with check (
+  owner_id in (select id from public.users where clerk_user_id = current_setting('request.jwt.claim.sub', true))
+);
+
+alter table public.ai_messages enable row level security;
+create policy if not exists "ai_messages_via_thread_owner" on public.ai_messages for all using (
+  exists (
+    select 1 from public.ai_threads t
+    join public.users u on t.owner_id = u.id
+    where t.id = ai_messages.thread_id
+      and u.clerk_user_id = current_setting('request.jwt.claim.sub', true)
+  )
+) with check (
+  exists (
+    select 1 from public.ai_threads t
+    join public.users u on t.owner_id = u.id
+    where t.id = ai_messages.thread_id
+      and u.clerk_user_id = current_setting('request.jwt.claim.sub', true)
+  )
+);
+
+alter table public.ai_attachments enable row level security;
+create policy if not exists "ai_attachments_via_message_owner" on public.ai_attachments for all using (
+  exists (
+    select 1 from public.ai_messages m
+    join public.ai_threads t on m.thread_id = t.id
+    join public.users u on t.owner_id = u.id
+    where m.id = ai_attachments.message_id
+      and u.clerk_user_id = current_setting('request.jwt.claim.sub', true)
+  )
+) with check (
+  exists (
+    select 1 from public.ai_messages m
+    join public.ai_threads t on m.thread_id = t.id
+    join public.users u on t.owner_id = u.id
+    where m.id = ai_attachments.message_id
+      and u.clerk_user_id = current_setting('request.jwt.claim.sub', true)
+  )
+);
+
+-- Maintenance triggers
+-- updated_at maintenance exists elsewhere; reuse it here
+create trigger if not exists t_upd_ai_threads before update on public.ai_threads
+for each row execute function set_updated_at();
+
+-- Keep thread.last_activity_at fresh when a new message arrives and update daily usage
+create or replace function touch_ai_thread() returns trigger as $$
+begin
+  update public.ai_threads
+     set last_activity_at = now(), updated_at = now()
+   where id = new.thread_id;
+  -- upsert usage aggregates
+  insert into public.ai_usage_daily(owner_id, on_date, model, input_tokens, output_tokens, responses_count, last_updated_at)
+  select t.owner_id, (now() at time zone 'utc')::date, coalesce(t.default_model, 'unknown'), new.usage_input_tokens, new.usage_output_tokens, case when new.role = 'assistant' then 1 else 0 end, now()
+  from public.ai_threads t where t.id = new.thread_id
+  on conflict (owner_id, on_date, model)
+  do update set
+    input_tokens = public.ai_usage_daily.input_tokens + excluded.input_tokens,
+    output_tokens = public.ai_usage_daily.output_tokens + excluded.output_tokens,
+    responses_count = public.ai_usage_daily.responses_count + excluded.responses_count,
+    last_updated_at = now();
+  return new;
+end;
+$$ language plpgsql;
+
+create trigger if not exists t_ai_messages_touch after insert on public.ai_messages
+for each row execute function touch_ai_thread();
+```
+
+#### Assistant Access Patterns & Notes
+- List threads: `select * from ai_threads where owner_id = $1 and deleted_at is null order by last_activity_at desc limit 50;`
+- Load messages: `select * from ai_messages where thread_id = $1 order by created_at asc limit 200;`
+- Storage: use a dedicated bucket (e.g., `ai-attachments`) with object paths prefixed by user id for RLS-friendly policies.
+- Future sharing: reuse `resource_shares` to grant read access to specific threads without changing table ownership.
+
 ### Coaching & Feedback (Future‑Ready)
 Allow senior officials to review a match (or workout) and leave structured feedback. Designed for opt‑in sharing.
 ```sql

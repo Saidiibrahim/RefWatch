@@ -13,6 +13,7 @@ struct MatchKickOffView: View {
 
     @State private var selectedTeam: Team?
     @State private var isShowingMatchSettings = false
+    @State private var isShowingDurationDialog = false
     @Environment(\.theme) private var theme
     @Environment(\.watchLayoutScale) private var layout
     
@@ -63,48 +64,19 @@ struct MatchKickOffView: View {
     }
     
     var body: some View {
-        // Use a simple VStack to avoid scroll overlap issues and keep
-        // the bottom controls consistently positioned on all sizes.
-        VStack(alignment: .leading, spacing: theme.spacing.m) {
-            header
-
-            HStack(spacing: theme.spacing.s) {
-                CompactTeamBox(
-                    teamName: matchViewModel.homeTeamDisplayName,
-                    score: matchViewModel.currentMatch?.homeScore ?? 0,
-                    isSelected: selectedTeam == .home,
-                    action: { selectedTeam = .home },
-                    accessibilityIdentifier: "homeTeamButton"
-                )
-                .accessibilityLabel("Home")
-
-                CompactTeamBox(
-                    teamName: matchViewModel.awayTeamDisplayName,
-                    score: matchViewModel.currentMatch?.awayScore ?? 0,
-                    isSelected: selectedTeam == .away,
-                    action: { selectedTeam = .away },
-                    accessibilityIdentifier: "awayTeamButton"
-                )
-                .accessibilityLabel("Away")
+        GeometryReader { _ in
+            ViewThatFits(in: .vertical) {
+                fullLayout
+                compactLayout
             }
-
-            Spacer(minLength: theme.spacing.s)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
-        .padding(.horizontal, theme.spacing.m)
-        .padding(.top, theme.spacing.s)
-        .frame(maxWidth: .infinity, alignment: .leading)
         .background(theme.colors.backgroundPrimary.ignoresSafeArea())
         .safeAreaInset(edge: .bottom) {
-            // Keep the duration chip visually associated with the confirm action
-            // by placing both inside the safe-area inset, stacked vertically.
-            VStack(alignment: .leading, spacing: theme.spacing.s) {
-                if shouldShowDurationChip {
-                    durationChip
-                }
-                confirmButton
-            }
-            .padding(.horizontal, theme.spacing.m)
-            .padding(.bottom, layout.safeAreaBottomPadding)
+            confirmButton
+                .padding(.top, confirmButtonTopPadding) // Use responsive padding
+                .padding(.horizontal, theme.spacing.m)
+                .padding(.bottom, layout.safeAreaBottomPadding)
         }
         .sheet(isPresented: $isShowingMatchSettings) {
             NavigationStack {
@@ -124,6 +96,21 @@ struct MatchKickOffView: View {
                 }
             }
         }
+        .confirmationDialog(
+            "Half Duration",
+            isPresented: $isShowingDurationDialog,
+            presenting: allowsDurationShortcut ? perPeriodDurationLabel : nil,
+            actions: { _ in
+                Button("Change Duration") {
+                    isShowingDurationDialog = false
+                    isShowingMatchSettings = true
+                }
+                Button("Cancel", role: .cancel) {}
+            },
+            message: { durationLabel in
+                Text(durationLabel)
+            }
+        )
         .navigationBarBackButtonHidden()
         .onAppear {
             // Set the default selected team for second half
@@ -176,45 +163,130 @@ struct MatchKickOffView: View {
         }
     }
 
-    private var durationChip: some View {
-        Button {
-            isShowingMatchSettings = true
-        } label: {
-            Text(perPeriodDurationLabel)
-                .font(theme.typography.cardMeta)
-                .foregroundStyle(theme.colors.textSecondary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-                .padding(.vertical, theme.spacing.xs)
-                .padding(.horizontal, theme.spacing.s)
-                .background(
-                    Capsule(style: .continuous)
-                        .fill(theme.colors.backgroundElevated.opacity(0.6))
-                )
+    private var fullLayout: some View {
+        VStack(alignment: .leading, spacing: theme.spacing.l) {
+            header
+
+            // Team buttons section
+            VStack(spacing: theme.spacing.m) {
+                HStack(spacing: theme.spacing.m) {
+                    kickoffTeamButton(
+                        title: matchViewModel.homeTeamDisplayName,
+                        score: matchViewModel.currentMatch?.homeScore ?? 0,
+                        isSelected: selectedTeam == .home,
+                        action: { selectedTeam = .home },
+                        accessibilityIdentifier: "homeTeamButton"
+                    )
+                    .accessibilityLabel("Home")
+
+                    kickoffTeamButton(
+                        title: matchViewModel.awayTeamDisplayName,
+                        score: matchViewModel.currentMatch?.awayScore ?? 0,
+                        isSelected: selectedTeam == .away,
+                        action: { selectedTeam = .away },
+                        accessibilityIdentifier: "awayTeamButton"
+                    )
+                    .accessibilityLabel("Away")
+                }
+            }
+
+            Spacer(minLength: theme.spacing.l)
         }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("kickoffDurationChip")
+        .padding(.horizontal, theme.spacing.m)
+        .padding(.top, theme.spacing.m)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private var shouldShowDurationChip: Bool {
-        if isSecondHalf { return false }
-        if let phase = etPhase, phase == 2 { return false }
-        return true
+    private var compactLayout: some View {
+        VStack(alignment: .leading, spacing: theme.spacing.s) {
+            header
+
+            // Team buttons section with tighter spacing
+            VStack(spacing: theme.spacing.s) {
+                HStack(spacing: theme.spacing.s) {
+                    kickoffTeamButton(
+                        title: matchViewModel.homeTeamDisplayName,
+                        score: matchViewModel.currentMatch?.homeScore ?? 0,
+                        isSelected: selectedTeam == .home,
+                        action: { selectedTeam = .home },
+                        accessibilityIdentifier: "homeTeamButton"
+                    )
+                    .accessibilityLabel("Home")
+
+                    kickoffTeamButton(
+                        title: matchViewModel.awayTeamDisplayName,
+                        score: matchViewModel.currentMatch?.awayScore ?? 0,
+                        isSelected: selectedTeam == .away,
+                        action: { selectedTeam = .away },
+                        accessibilityIdentifier: "awayTeamButton"
+                    )
+                    .accessibilityLabel("Away")
+                }
+            }
+
+            Spacer(minLength: theme.spacing.xs)
+        }
+        .padding(.horizontal, theme.spacing.m)
+        .padding(.top, theme.spacing.s)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func kickoffTeamButton(
+        title: String,
+        score: Int,
+        isSelected: Bool,
+        action: @escaping () -> Void,
+        accessibilityIdentifier: String
+    ) -> some View {
+        CompactTeamBox(
+            teamName: title,
+            score: score,
+            isSelected: isSelected,
+            action: action,
+            accessibilityIdentifier: accessibilityIdentifier
+        )
+    }
+
+    // Responsive spacing for confirm button - more space needed on smaller screens
+    private var confirmButtonTopPadding: CGFloat {
+        switch layout.category {
+        case .compact:
+            return theme.spacing.xl // 24pt on compact screens for better visual balance
+        case .standard:
+            return theme.spacing.l  // 16pt on standard screens
+        case .expanded:
+            return theme.spacing.l  // 16pt on expanded screens (Ultra looks good already)
+        }
     }
 
     // Note: No additional bottom content padding is required now that
     // the duration chip and confirm button are placed inside the inset.
 
     private var confirmButton: some View {
-        IconButton(
-            icon: "checkmark.circle.fill",
-            color: selectedTeam != nil
-                ? theme.colors.matchPositive
-                : theme.colors.matchPositive.opacity(0.35)
-        ) { confirmKickOff() }
-        .disabled(selectedTeam == nil)
-        .accessibilityIdentifier("kickoffConfirmButton")
-        .animation(.easeInOut(duration: 0.2), value: selectedTeam != nil)
+        ZStack {
+            IconButton(
+                icon: "checkmark.circle.fill",
+                color: selectedTeam != nil
+                    ? theme.colors.matchPositive
+                    : theme.colors.matchPositive.opacity(0.35)
+            ) { confirmKickOff() }
+            .disabled(selectedTeam == nil)
+            .accessibilityIdentifier("kickoffConfirmButton")
+            .animation(.easeInOut(duration: 0.2), value: selectedTeam != nil)
+        }
+        .simultaneousGesture(
+            LongPressGesture(minimumDuration: 0.8)
+                .onEnded { _ in
+                    guard allowsDurationShortcut else { return }
+                    isShowingDurationDialog = true
+                }
+        )
+    }
+
+    private var allowsDurationShortcut: Bool {
+        if isSecondHalf { return false }
+        if let phase = etPhase, phase != 1 { return false }
+        return true
     }
 
     private func confirmKickOff() {

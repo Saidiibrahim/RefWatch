@@ -30,6 +30,7 @@ This document describes the target architecture for using Supabase as the backen
   - Persistence: SwiftData `CompletedMatchRecord` (primary), optional CloudKit Private DB for same-user cross-device sync.
   - Sync: WatchConnectivity receiver; tags incoming snapshots with `ownerId`, persists, and notifies UI.
   - Network: Calls Supabase Edge Functions with third-party session tokens (via `SupabaseTokenProvider`) for entitlements, IAP verification, and optional analytics ingestion.
+  - AI (Responses): Calls `/ai/*` endpoints to create/list threads and stream responses using the Responses API; messages persist in Postgres (`ai_threads`, `ai_messages`).
   - Entitlements distribution: Pushes a compact entitlements snapshot to watch via `WCSession` whenever it changes.
 
 - Supabase Backend (source of truth for entitlements)
@@ -131,6 +132,23 @@ Lifecycle guardrails:
   - Input: compact match summary (or storage path to full payload).
   - Idempotent by match `id` to avoid duplicates.
 
+- `GET /ai/threads`
+  - Verify Clerk JWT → list threads by owner.
+  - Paginated results ordered by `last_activity_at desc`.
+
+- `POST /ai/threads`
+  - Create a thread (optional title/instructions/model/temperature/metadata).
+  - Return created thread.
+
+- `GET /ai/threads/:id/messages`
+  - Owner check → return messages ordered by `created_at asc`.
+
+- `POST /ai/threads/:id/messages`
+  - Append a user message; optionally kick off Responses streaming.
+
+- `POST /ai/threads/:id/responses`
+  - Call OpenAI Responses API; stream events to client and persist an assistant message with multi‑part `content_parts` and usage. Update `ai_usage_daily` and `ai_threads.last_activity_at`.
+
 ### Webhooks
 - App Store Server Notifications v2 → updates `entitlements` on renew/cancel/refund.
 - Optional Clerk webhooks (user created/deleted) → keep `users` in sync.
@@ -189,6 +207,7 @@ Lifecycle guardrails:
 3) Read APIs & Edge Functions
    - Ship `GET /entitlements` Edge Function that verifies Clerk session tokens and returns the canonical snapshot (even if it only returns the free tier for now).
    - Introduce `/diagnostics/ping` that the Settings check can call instead of the public `todos` table once the schema is in place.
+   - Add Assistant: `GET/POST /assistant/threads`, `GET/POST /assistant/threads/:id/messages`, `POST /assistant/threads/:id/stream` with OpenAI first.
 4) Purchase Flow Prep
    - Scaffold `/iap/verify` endpoint (stub App Store calls) so the client path is ready when StoreKit integration starts.
    - Store verification results in `iap_transactions` with foreign keys to `users`.
