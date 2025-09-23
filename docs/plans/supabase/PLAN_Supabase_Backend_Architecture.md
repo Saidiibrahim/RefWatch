@@ -3,11 +3,20 @@
 This document describes the target architecture for using Supabase as the backend for RefWatch, and how it integrates with the iOS and watchOS apps, Clerk (auth), StoreKit 2 (purchases), SwiftData/CloudKit (local and iCloud sync), and WatchConnectivity.
 
 ## Goals
-- Canonical, server‑side entitlements validated against Apple’s App Store Server API.
+- Establish a Supabase foundation that keeps entitlements server‑sourced, with enough schema flexibility to introduce tiered plans later (only the free tier is active today).
 - Offline‑first UX on both iOS and watchOS; graceful degradation when offline.
 - Clear separation of roles: iOS owns identity and purchase flows; watchOS stays lightweight and network‑independent.
 - Optional server ingestion for analytics/sharing without disrupting local ownership of data.
 - Privacy by default: upload minimal summaries unless user opts in to richer analytics.
+
+## Current Implementation Snapshot
+- `SupabaseEnvironment` now guards configuration loading and normalizes URL/keys before constructing the SDK client.
+- `SupabaseClientProvider` centralizes client creation, injects the publishable key, and wires in auth callbacks.
+- `SupabaseTokenProvider` bridges to the third‑party session manager (Clerk) via `session.getToken()?.jwt`, removing the need for Supabase Auth or bespoke JWT handling in the app layer.
+- `SupabaseHelloWorldService` and its XCTest validate that an authorized client can read from the `todos` table, proving round‑trip connectivity.
+- Settings surface this diagnostic, giving us a live health check while we roll out the real schema.
+- Broader table design now lives in `PLAN_Supabase_Database_Schema.md`; use that roadmap when adding new migrations.
+- Edge-function implementation guidance sits in `edge_functions/README.md`; functions are deployed directly in Supabase when ready.
 
 ## Stack Overview
 - watchOS App (offline‑first)
@@ -16,36 +25,36 @@ This document describes the target architecture for using Supabase as the backen
   - Sends completed match snapshots to iPhone via WatchConnectivity.
 
 - iOS App (identity, purchases, persistence, sync)
-  - Identity: Clerk SDK; exposes `AuthenticationProviding` (`ownerId = clerk_user_id`) and adds a lightweight `TokenProviding` helper that can supply a fresh Clerk session JWT via `session.getToken()` when networking with Supabase.
+  - Identity: Clerk SDK; exposes `AuthenticationProviding` (`ownerId = clerk_user_id`) and adds a lightweight `TokenProviding` helper that can supply a fresh third-party session token via `session.getToken()` when networking with Supabase.
   - Purchases: StoreKit 2 for subscriptions; sends signed transactions to backend for validation.
-  - Persistence: SwiftData `CompletedMatchRecord` (primary), optional CloudKit Private DB for same‑user cross‑device sync.
+  - Persistence: SwiftData `CompletedMatchRecord` (primary), optional CloudKit Private DB for same-user cross-device sync.
   - Sync: WatchConnectivity receiver; tags incoming snapshots with `ownerId`, persists, and notifies UI.
-  - Network: Calls Supabase Edge Functions with Clerk JWT for entitlements, IAP verification, and (optional) analytics ingestion.
+  - Network: Calls Supabase Edge Functions with third-party session tokens (via `SupabaseTokenProvider`) for entitlements, IAP verification, and optional analytics ingestion.
   - Entitlements distribution: Pushes a compact entitlements snapshot to watch via `WCSession` whenever it changes.
 
 - Supabase Backend (source of truth for entitlements)
-  - Postgres with RLS; Edge Functions (Deno) that verify Clerk JWTs and interact with App Store Server API.
+  - Postgres with RLS; Edge Functions (Deno) that verify third-party Clerk session tokens and interact with App Store Server API.
   - Tables for `users`, `entitlements`, optional `matches_summary` and `share_links`.
   - Webhooks for App Store Server Notifications (renewals, revocations) and optional Clerk events.
   - Mirrors plan to Clerk `publicMetadata` for quick client reflection (optional nicety).
 
 ## Identity & Entitlements
 - Identity Source: Clerk on iOS; device holds a Clerk session and exposes `currentUserId` via `AuthenticationProviding`.
-- Token Transport: extend the auth adapter to surface `session.getToken()` results (bearer session JWTs) so the client can call Supabase Edge Functions with `Authorization: Bearer <ClerkJWT>` and short-lived caching.
-- Entitlements Source of Truth: Supabase `entitlements` table.
-  - iOS completes StoreKit purchase → sends transaction JWS + Clerk JWT to `/iap/verify`.
-  - Edge Function verifies with App Store Server API → upserts `entitlements` row → returns `EntitlementsSnapshot` (plan, features, expiresAt).
-  - Every edge entry point verifies the provided Clerk session JWT via `@clerk/backend verifyToken` (or equivalent JOSE JWKS flow), validating `exp`, `nbf`, `tokenType == session_token`, and `azp` against the allowed origins before trusting `sub`.
-  - Supabase project secrets include `CLERK_JWT_KEY` and authorized origins to keep verification networkless and consistent across environments.
-  - Edge Function may update Clerk `publicMetadata.plan` to reflect plan quickly in the UI.
+- Token Transport: `SupabaseTokenProvider` calls the third‑party session manager (`try await Clerk.shared.session?.getToken()?.jwt`) and injects the bearer token into Supabase requests. No Supabase Auth sessions are created on-device.
+- Entitlements Source of Truth: Supabase `user_entitlements` table (name pending final schema).
+  - iOS completes StoreKit purchase → sends transaction JWS + Clerk session token to `/iap/verify`.
+  - Edge Function verifies with App Store Server API → upserts the entitlement row → returns `EntitlementsSnapshot` (current tier, feature flags, expiresAt) even though only the free tier is active today.
+  - Edge endpoints validate the Clerk session token using Clerk's backend helpers/JWKS, ensuring we never accept an unsigned or expired third‑party token.
+  - Supabase secrets store the Clerk verification keys and allowed origins so token checks run locally in the function environment.
+  - Entitlement tiers should be modeled explicitly (`subscription_tier` enum + optional `expires_at`) so future paid plans only require configuration changes.
   - iOS caches the snapshot with TTL and pushes it to the watch.
 
 ### Entitlements Snapshot (client-side cache, also sent to watch)
-Minimal, signed or unsigned depending on needs:
+Minimal, signed or unsigned depending on needs. For now `plan` is always `free`, but the shape should already accommodate upgrades:
 ```json
 {
-  "plan": "pro",
-  "features": ["advancedTimers", "richAnalytics"],
+  "plan": "free",
+  "features": [],
   "issuedAt": "2025-09-08T10:00:00Z",
   "expiresAt": "2026-09-08T10:00:00Z",
   "ttlSeconds": 604800
@@ -85,6 +94,10 @@ Notes:
 - `matches_summary` (optional): `id uuid pk`, `user_id uuid fk`, `completed_at timestamptz`, `home text`, `away text`, `scores jsonb`, `metrics jsonb`, `payload_hash text`, `created_at timestamptz`
 - `share_links` (optional): `id uuid pk`, `resource_id uuid`, `token text`, `expires_at timestamptz`, `created_at timestamptz`
 
+> **Note:** This high-level sketch is kept for entitlements context. The full
+> schema roadmap (teams, scheduled matches, analytics, etc.) is detailed in
+> `PLAN_Supabase_Database_Schema.md` and should drive upcoming migrations.
+
 Enable Row Level Security (RLS); functions verify Clerk JWT and set `request.user_id` based on `clerk_user_id` mapping.
 
 Lifecycle guardrails:
@@ -111,6 +124,8 @@ Lifecycle guardrails:
   - Upsert `entitlements` (plan/status/expires_at), return snapshot.
   - Optionally call Clerk Admin API to set `publicMetadata.plan` and `expiresAt`.
   - Emit structured telemetry (duration, Apple error codes) so the client can surface retry guidance when validation is delayed.
+- Keep implementation notes in `edge_functions/README.md`; source code lives in
+  the Supabase project once we are ready to deploy.
 
 - `POST /matches/ingest` (optional)
   - Input: compact match summary (or storage path to full payload).
@@ -129,11 +144,11 @@ Lifecycle guardrails:
 ## Core Flows
 1) App Launch (iOS)
    - Configure Clerk → Build SwiftData container → Load cached entitlements → Fetch `/entitlements` in background → Push snapshot to watch if changed.
-   - Edge fetch includes `Authorization: Bearer <ClerkJWT>`; fetch a fresh token if the cached one is older than ~60s to mirror Clerk guidance.
+   - Edge fetch includes `Authorization: Bearer <ClerkSessionToken>`; fetch a fresh token if the cached one is older than ~60s to mirror Clerk guidance.
 
 2) Purchase (iOS)
-   - Complete StoreKit purchase → Send transaction JWS + Clerk JWT to `/iap/verify` → Backend validates and updates DB → Returns snapshot → Cache + push to watch → Update UI.
-   - Ensure outgoing call refreshes the Clerk token immediately post-purchase so revoked sessions cannot reuse stale JWTs.
+   - Complete StoreKit purchase → Send transaction JWS + Clerk session token to `/iap/verify` → Backend validates and updates DB → Returns snapshot → Cache + push to watch → Update UI.
+   - Ensure outgoing call refreshes the Clerk token immediately post-purchase so revoked sessions cannot reuse stale tokens.
 
 3) Complete Match (watch → iOS)
    - Watch exports snapshot → iOS tags `ownerId` and saves SwiftData → (Optional) enqueue summary upload to `/matches/ingest`.
@@ -144,15 +159,15 @@ Lifecycle guardrails:
 
 ## Offline, Caching, Resilience
 - Everything functions offline: watch officiating, iOS history, and gating via cached snapshot.
-- Entitlements: TTL with grace (e.g., 3–7 days) to avoid punishing subscribers without connectivity.
-- Watch fallbacks: if no valid snapshot is present, gate Pro features automatically and surface a subtle prompt to reconnect for refreshed entitlements.
+- Entitlements: TTL with grace (e.g., 3–7 days) to avoid punishing subscribers without connectivity. Even with a single tier today, keep the refresh flow identical so paid tiers can drop in later.
+- Watch fallbacks: if no valid snapshot is present, gate any paid-only features automatically (future) and surface a subtle prompt to reconnect for refreshed entitlements.
 - Idempotency: Use match UUIDs for ingestion; guard duplicate uploads.
 - CloudKit: optional, for Apple‑ID sync of SwiftData; independent of Supabase.
 
 ## Security & Privacy
-- Client→Backend: `Authorization: Bearer <ClerkJWT>`; verify in functions via Clerk JWKS.
+- Client→Backend: `Authorization: Bearer <ClerkSessionToken>` obtained by `SupabaseTokenProvider`; verify in functions via Clerk JWKS.
 - Edge functions reject unauthenticated calls before touching Postgres/App Store APIs; no public PostgREST routes expose entitlement tables.
-- Never ship Supabase service role keys in the app; keep secrets server‑side.
+- Never ship Supabase service role keys in the app; keep secrets server-side.
 - RLS: restrict rows by `user_id`; map `clerk_user_id` to `users.id` per request.
 - PII minimization: upload summaries by default; full payload uploads only with explicit user consent.
 - Optional hardening: DeviceCheck/App Attest checks before honoring remote entitlements.
@@ -164,12 +179,23 @@ Lifecycle guardrails:
 - Secrets management: store `CLERK_SECRET_KEY`, `CLERK_JWT_KEY`, App Store private keys, and environment-specific origins as Supabase secrets; never embed them in configs checked into git.
 
 ## Incremental Adoption Plan
-1) App: Add `EntitlementsProviding` and gate one “Pro” feature (e.g., Advanced Timers). Cache snapshot; push to watch.
-   - Include the new Clerk token helper (`TokenProviding`) so networking paths can request a valid session JWT on demand.
-2) Backend: Implement `GET /entitlements` with Clerk JWT verification; add `users`/`entitlements` tables.
-3) Purchases: Implement `POST /iap/verify` (App Store Server API) and App Store Server Notifications; mirror plan to Clerk `publicMetadata`.
-4) Optional: `POST /matches/ingest` for analytics; add basic trends dashboard later.
-5) Optional: Enable CloudKit Private DB for SwiftData to sync personal history across the user’s devices.
+1) App Foundation (in progress)
+   - Harden `SupabaseClientProvider` diagnostics (already landed) and surface Settings‑level status (done).
+   - Add lightweight Observability (`OSLog`, metrics) around Supabase calls to catch token/URL issues early.
+2) Database & Auth Bootstrap (next)
+   - Create `users` table keyed by Clerk `user_id` with columns for `subscription_tier` (enum: `free`, `pro_future`) and optional `tier_expires_at`.
+   - Create `user_entitlements` (or merge into `users`) storing the cached entitlements payload plus audit timestamps.
+   - Add Row Level Security policies mapping Clerk `sub` → `users.id` once verification is wired.
+3) Read APIs & Edge Functions
+   - Ship `GET /entitlements` Edge Function that verifies Clerk session tokens and returns the canonical snapshot (even if it only returns the free tier for now).
+   - Introduce `/diagnostics/ping` that the Settings check can call instead of the public `todos` table once the schema is in place.
+4) Purchase Flow Prep
+   - Scaffold `/iap/verify` endpoint (stub App Store calls) so the client path is ready when StoreKit integration starts.
+   - Store verification results in `iap_transactions` with foreign keys to `users`.
+5) Optional Analytics Foundation
+   - Define `match_summaries` table with `owner_id`, `period_count`, `total_penalties`, etc. Keep ingestion opt‑in and minimized.
+6) Sync Enhancements (later)
+   - Enable CloudKit Private DB for SwiftData once entitlements + purchases stabilize.
 
 ---
 

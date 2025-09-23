@@ -46,7 +46,7 @@ This file guides coding agents working within the `docs/` directory. It compleme
   - [watchOS_SmartStack_Add_RefZone.md](plans/wip/watchOS_SmartStack_Add_RefZone.md)
 - **Backlog**
   - [PLAN_Frameworks_Integration_Roadmap.md](plans/backlog/PLAN_Frameworks_Integration_Roadmap.md)
-  - [PLAN_Supabase_Backend_Architecture.md](plans/backlog/PLAN_Supabase_Backend_Architecture.md)
+  - [PLAN_Supabase_Backend_Architecture.md](plans/supabase/PLAN_Supabase_Backend_Architecture.md)
   - [PLAN_TestFlight_Distribution.md](PLAN_TestFlight_Distribution.md)
   - [PLAN_watchOS_SwiftData_Migration.md](plans/backlog/PLAN_watchOS_SwiftData_Migration.md)
 

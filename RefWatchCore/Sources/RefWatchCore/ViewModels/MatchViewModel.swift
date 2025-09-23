@@ -375,6 +375,42 @@ public final class MatchViewModel {
         currentMatch = newMatch
         waitingForMatchStart = false
     }
+
+    /// Applies the current settings to the in-progress match without rebuilding it.
+    /// Preserves score, events, and custom team names while updating configuration fields.
+    public func applySettingsToCurrentMatch(
+        durationMinutes: Int,
+        periods: Int,
+        halfTimeLengthMinutes: Int,
+        hasExtraTime: Bool,
+        hasPenalties: Bool,
+        extraTimeHalfLengthMinutes: Int,
+        penaltyRounds: Int
+    ) {
+        matchDuration = durationMinutes
+        numberOfPeriods = periods
+        halfTimeLength = halfTimeLengthMinutes
+        self.hasExtraTime = hasExtraTime
+        self.hasPenalties = hasPenalties
+        self.extraTimeHalfLengthMinutes = extraTimeHalfLengthMinutes
+        penaltyInitialRounds = penaltyRounds
+
+        guard var match = currentMatch else { return }
+
+        match.duration = TimeInterval(durationMinutes * 60)
+        match.numberOfPeriods = periods
+        match.halfTimeLength = TimeInterval(halfTimeLengthMinutes * 60)
+        match.extraTimeHalfLength = TimeInterval(extraTimeHalfLengthMinutes * 60)
+        match.hasExtraTime = hasExtraTime
+        match.hasPenalties = hasPenalties
+        match.penaltyInitialRounds = max(1, penaltyRounds)
+
+        currentMatch = match
+
+        if !isMatchInProgress {
+            periodTimeRemaining = timerManager.configureInitialPeriodLabel(match: match, currentPeriod: currentPeriod)
+        }
+    }
     
     public func setKickingTeam(_ isHome: Bool) { homeTeamKickingOff = isHome }
     public func getSecondHalfKickingTeam() -> TeamSide { homeTeamKickingOff ? .away : .home }

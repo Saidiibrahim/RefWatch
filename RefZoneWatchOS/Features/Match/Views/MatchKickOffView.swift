@@ -12,6 +12,7 @@ struct MatchKickOffView: View {
     let lifecycle: MatchLifecycleCoordinator
 
     @State private var selectedTeam: Team?
+    @State private var isShowingMatchSettings = false
     @Environment(\.theme) private var theme
     @Environment(\.watchLayoutScale) private var layout
     
@@ -97,11 +98,31 @@ struct MatchKickOffView: View {
             // Keep the duration chip visually associated with the confirm action
             // by placing both inside the safe-area inset, stacked vertically.
             VStack(alignment: .leading, spacing: theme.spacing.s) {
-                durationChip
+                if shouldShowDurationChip {
+                    durationChip
+                }
                 confirmButton
             }
             .padding(.horizontal, theme.spacing.m)
             .padding(.bottom, layout.safeAreaBottomPadding)
+        }
+        .sheet(isPresented: $isShowingMatchSettings) {
+            NavigationStack {
+                MatchSettingsListView(
+                    matchViewModel: matchViewModel,
+                    primaryActionLabel: "Apply Settings"
+                ) { viewModel in
+                    viewModel.applySettingsToCurrentMatch(
+                        durationMinutes: viewModel.matchDuration,
+                        periods: viewModel.numberOfPeriods,
+                        halfTimeLengthMinutes: viewModel.halfTimeLength,
+                        hasExtraTime: viewModel.hasExtraTime,
+                        hasPenalties: viewModel.hasPenalties,
+                        extraTimeHalfLengthMinutes: viewModel.extraTimeHalfLengthMinutes,
+                        penaltyRounds: viewModel.penaltyInitialRounds
+                    )
+                }
+            }
         }
         .navigationBarBackButtonHidden()
         .onAppear {
@@ -157,7 +178,7 @@ struct MatchKickOffView: View {
 
     private var durationChip: some View {
         Button {
-            lifecycle.requestStartMatchScreen()
+            isShowingMatchSettings = true
         } label: {
             Text(perPeriodDurationLabel)
                 .font(theme.typography.cardMeta)
@@ -173,6 +194,12 @@ struct MatchKickOffView: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("kickoffDurationChip")
+    }
+
+    private var shouldShowDurationChip: Bool {
+        if isSecondHalf { return false }
+        if let phase = etPhase, phase == 2 { return false }
+        return true
     }
 
     // Note: No additional bottom content padding is required now that
