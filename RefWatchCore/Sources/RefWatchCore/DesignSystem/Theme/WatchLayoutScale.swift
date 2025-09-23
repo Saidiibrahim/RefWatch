@@ -81,6 +81,28 @@ public struct WatchLayoutScale {
         dimension(96, minimum: 84)
     }
 
+    public var canFitEventGrid: Bool {
+        switch category {
+        case .compact: return false
+        case .standard, .expanded: return true
+        }
+    }
+
+    public var eventGridColumns: Int {
+        switch category {
+        case .compact: return 2
+        case .standard, .expanded: return 2
+        }
+    }
+
+    public var eventButtonLayout: EventButtonLayout {
+        switch category {
+        case .compact: return .compactVertical
+        case .standard: return .standardGrid
+        case .expanded: return .expandedGrid
+        }
+    }
+
     public var workoutArtworkSize: CGFloat {
         dimension(112, minimum: 92)
     }
@@ -92,6 +114,12 @@ public struct WatchLayoutScale {
     public var workoutTransportLargeDiameter: CGFloat {
         dimension(56, minimum: 48)
     }
+}
+
+public enum EventButtonLayout {
+    case compactVertical
+    case standardGrid
+    case expandedGrid
 }
 
 private struct WatchLayoutScaleKey: EnvironmentKey {

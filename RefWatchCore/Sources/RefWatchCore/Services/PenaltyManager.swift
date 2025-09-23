@@ -37,6 +37,10 @@ public final class PenaltyManager: PenaltyManaging {
     private(set) public var awayResults: [PenaltyAttemptDetails.Result] = []
     private(set) public var awayAttempts: [PenaltyAttemptDetails] = []
 
+    /// Tracks the actual order attempts were recorded so undo remains reliable even if
+    /// first-kicker swaps after play has started.
+    private var attemptStack: [TeamSide] = []
+
     // MARK: - Callbacks (wired by VM)
     public var onStart: (() -> Void)?
     public var onAttempt: ((TeamSide, PenaltyAttemptDetails) -> Void)?
@@ -101,6 +105,7 @@ public final class PenaltyManager: PenaltyManaging {
             awayAttempts.append(details)
         }
 
+        attemptStack.append(team)
         computeDecisionIfNeeded()
     }
 
@@ -109,15 +114,7 @@ public final class PenaltyManager: PenaltyManaging {
         guard isActive else { return nil }
         guard homeTaken > 0 || awayTaken > 0 else { return nil }
 
-        let lastTeam: TeamSide
-        if homeTaken > awayTaken {
-            lastTeam = .home
-        } else if awayTaken > homeTaken {
-            lastTeam = .away
-        } else {
-            guard homeTaken > 0 else { return nil }
-            lastTeam = firstKicker == .home ? .away : .home
-        }
+        guard let lastTeam = attemptStack.popLast() else { return nil }
 
         let undoneDetails: PenaltyAttemptDetails
 
@@ -163,6 +160,7 @@ public final class PenaltyManager: PenaltyManaging {
         firstKicker = .home
         homeTaken = 0; homeScored = 0; homeResults.removeAll(); homeAttempts.removeAll()
         awayTaken = 0; awayScored = 0; awayResults.removeAll(); awayAttempts.removeAll()
+        attemptStack.removeAll()
     }
 
     private func computeDecisionIfNeeded() {

@@ -233,6 +233,31 @@ final class ExtraTimeAndPenaltiesTests: XCTestCase {
         }
     }
 
+    func test_penaltyUndo_afterMidShootoutSwap_removesActualLastTeam() async throws {
+        let manager = PenaltyManager()
+        manager.begin()
+        manager.setFirstKicker(.home)
+
+        manager.recordAttempt(team: .home, result: .scored)
+        manager.recordAttempt(team: .away, result: .missed)
+
+        manager.swapKickingOrder() // swap after attempts exist
+
+        manager.recordAttempt(team: .away, result: .scored)
+
+        XCTAssertEqual(manager.homeTaken, 1)
+        XCTAssertEqual(manager.awayTaken, 2)
+
+        let undoResult = manager.undoLastAttempt()
+
+        XCTAssertNotNil(undoResult)
+        XCTAssertEqual(undoResult?.team, .away)
+        XCTAssertEqual(manager.homeTaken, 1)
+        XCTAssertEqual(manager.awayTaken, 1)
+        XCTAssertEqual(manager.homeResults.count, 1)
+        XCTAssertEqual(manager.awayResults.count, 1)
+    }
+
     func test_isSuddenDeathActive_after_five_each() async throws {
         let vm = MatchViewModel()
         vm.beginPenaltiesIfNeeded()

@@ -18,9 +18,11 @@ struct PenaltyShootoutView: View {
     @State private var showingPanelActions = false
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: theme.spacing.m) {
-                statusBanner
+        GeometryReader { proxy in
+            VStack(spacing: adaptiveSpacing(for: proxy.size.height)) {
+                if shouldShowStatusBanner {
+                    statusBanner
+                }
 
                 HStack(spacing: theme.spacing.s) {
                     PenaltyTeamPanel(
@@ -52,12 +54,12 @@ struct PenaltyShootoutView: View {
                     )
                 }
 
-                Spacer(minLength: theme.spacing.xs)
+                Spacer(minLength: 0)
             }
             .padding(.horizontal, theme.components.cardHorizontalPadding)
             .padding(.top, theme.spacing.s)
-            .padding(.bottom, layout.safeAreaBottomPadding + theme.spacing.s)
-            .frame(maxWidth: .infinity, alignment: .top)
+            .padding(.bottom, layout.safeAreaBottomPadding)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
         .background(theme.colors.backgroundPrimary.ignoresSafeArea())
         .onAppear {
@@ -84,6 +86,23 @@ struct PenaltyShootoutView: View {
             Button("Cancel", role: .cancel) { }
         }
         // First-kicker prompt handled at MatchRootView level before routing
+    }
+
+    private func adaptiveSpacing(for height: CGFloat) -> CGFloat {
+        switch layout.category {
+        case .compact where height < 350:
+            return theme.spacing.xs
+        case .compact:
+            return theme.spacing.s
+        case .standard:
+            return theme.spacing.m
+        case .expanded:
+            return theme.spacing.l
+        }
+    }
+
+    private var shouldShowStatusBanner: Bool {
+        layout.category != .compact || matchViewModel.isPenaltyShootoutDecided
     }
 
     @ViewBuilder
@@ -233,6 +252,7 @@ private struct PenaltyTeamPanel: View {
                 .stroke(isActive ? theme.colors.matchPositive : .clear, lineWidth: 2)
         )
         .contentShape(RoundedRectangle(cornerRadius: theme.components.cardCornerRadius, style: .continuous))
+        .accessibilityIdentifier(side == .home ? "homePenaltyPanel" : "awayPenaltyPanel")
         .simultaneousGesture(longPressGesture)
     }
 

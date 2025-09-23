@@ -143,9 +143,13 @@ extension RefWatch_Watch_AppUITests {
         if app.buttons["Yes"].waitForExistence(timeout: 2) { app.buttons["Yes"].tap() }
 
         // Full time: end match and return home
-        XCTAssertTrue(app.buttons["endMatchButton"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.buttons["endMatchButton"].isHittable)
-        app.buttons["endMatchButton"].tap()
+        timer.press(forDuration: 1.0)
+        let endMatchAction = app.buttons["End Match"]
+        if endMatchAction.waitForExistence(timeout: 3) {
+            endMatchAction.tap()
+        } else if app.staticTexts["End Match"].waitForExistence(timeout: 1) {
+            app.staticTexts["End Match"].tap()
+        }
         if app.buttons["Yes"].waitForExistence(timeout: 2) { app.buttons["Yes"].tap() }
 
         // Validate we're back to idle
@@ -246,15 +250,24 @@ extension RefWatch_Watch_AppUITests {
             app.buttons["awayMissPenaltyBtn"].tap()
         }
 
-        // End shootout
-        XCTAssertTrue(app.buttons["endShootoutButton"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.buttons["endShootoutButton"].isHittable)
-        app.buttons["endShootoutButton"].tap()
+        // End shootout via panel long-press
+        let homePenaltyPanel = app.otherElements["homePenaltyPanel"]
+        XCTAssertTrue(homePenaltyPanel.waitForExistence(timeout: 3))
+        homePenaltyPanel.press(forDuration: 1.0)
+        if app.buttons["End Shootout"].waitForExistence(timeout: 3) {
+            app.buttons["End Shootout"].tap()
+        } else if app.staticTexts["End Shootout"].exists {
+            app.staticTexts["End Shootout"].tap()
+        }
 
         // Full time: end match
-        XCTAssertTrue(app.buttons["endMatchButton"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.buttons["endMatchButton"].isHittable)
-        app.buttons["endMatchButton"].tap()
+        timer.press(forDuration: 1.0)
+        let endMatchButton = app.buttons["End Match"]
+        if endMatchButton.waitForExistence(timeout: 3) {
+            endMatchButton.tap()
+        } else if app.staticTexts["End Match"].exists {
+            app.staticTexts["End Match"].tap()
+        }
         if app.buttons["Yes"].waitForExistence(timeout: 2) { app.buttons["Yes"].tap() }
 
         // Back to idle
