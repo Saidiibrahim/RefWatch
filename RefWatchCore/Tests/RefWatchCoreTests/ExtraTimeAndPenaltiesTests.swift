@@ -268,4 +268,67 @@ final class ExtraTimeAndPenaltiesTests: XCTestCase {
         }
         XCTAssertTrue(vm.isSuddenDeathActive)
     }
+
+    func test_swapOrder_multiple_times_with_undo_maintains_correct_stack() async throws {
+        let manager = PenaltyManager()
+        manager.begin()
+        manager.setFirstKicker(.home)
+
+        // Record initial attempts
+        manager.recordAttempt(team: .home, result: .scored)
+        manager.recordAttempt(team: .away, result: .missed)
+
+        XCTAssertEqual(manager.homeTaken, 1)
+        XCTAssertEqual(manager.awayTaken, 1)
+
+        // Swap multiple times
+        manager.swapKickingOrder()
+        manager.swapKickingOrder()
+        manager.swapKickingOrder()
+
+        // Record more attempts
+        manager.recordAttempt(team: .home, result: .scored)
+        manager.recordAttempt(team: .away, result: .scored)
+
+        XCTAssertEqual(manager.homeTaken, 2)
+        XCTAssertEqual(manager.awayTaken, 2)
+
+        // Undo last attempt - should remove away team's second attempt
+        let undoResult = manager.undoLastAttempt()
+        XCTAssertNotNil(undoResult)
+        XCTAssertEqual(undoResult?.team, .away)
+        XCTAssertEqual(manager.homeTaken, 2)
+        XCTAssertEqual(manager.awayTaken, 1)
+
+        // Undo again - should remove home team's second attempt
+        let secondUndo = manager.undoLastAttempt()
+        XCTAssertNotNil(secondUndo)
+        XCTAssertEqual(secondUndo?.team, .home)
+        XCTAssertEqual(manager.homeTaken, 1)
+        XCTAssertEqual(manager.awayTaken, 1)
+    }
+
+    func test_undo_with_equal_attempts_after_swap_uses_stack_not_firstKicker() async throws {
+        let manager = PenaltyManager()
+        manager.begin()
+        manager.setFirstKicker(.home)
+
+        // Equal attempts scenario: home -> away
+        manager.recordAttempt(team: .home, result: .scored)
+        manager.recordAttempt(team: .away, result: .missed)
+
+        // Now both teams have 1 attempt each
+        XCTAssertEqual(manager.homeTaken, 1)
+        XCTAssertEqual(manager.awayTaken, 1)
+
+        // Swap order (firstKicker changes from .home to .away)
+        manager.swapKickingOrder()
+
+        // The undo should still correctly identify the last team (away) via the stack
+        let undoResult = manager.undoLastAttempt()
+        XCTAssertNotNil(undoResult)
+        XCTAssertEqual(undoResult?.team, .away) // Should be away, not home
+        XCTAssertEqual(manager.homeTaken, 1)
+        XCTAssertEqual(manager.awayTaken, 0)
+    }
 }
