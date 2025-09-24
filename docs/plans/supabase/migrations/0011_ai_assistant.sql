@@ -1,11 +1,16 @@
--- Progress: Not yet implemented
+-- Progress: Implemented
 
--- Assistant feature: threads, messages, attachments, enums, indexes, RLS, triggers
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_type
+    WHERE typname = 'ai_message_role'
+      AND typnamespace = 'public'::regnamespace
+  ) THEN
+    EXECUTE 'CREATE TYPE public.ai_message_role AS ENUM (''system'', ''user'', ''assistant'', ''tool'')';
+  END IF;
+END $$;
 
--- Enum for AI message roles (Responses-compatible)
-create type if not exists ai_message_role as enum ('system', 'user', 'assistant', 'tool');
-
--- Threads table (provider-neutral)
 create table if not exists public.ai_threads (
   id uuid primary key,
   owner_id uuid not null references public.users(id) on delete cascade,
@@ -22,7 +27,6 @@ create table if not exists public.ai_threads (
   deleted_at timestamptz
 );
 
--- Messages table with multi-part content and usage
 create table if not exists public.ai_messages (
   id uuid primary key,
   thread_id uuid not null references public.ai_threads(id) on delete cascade,
@@ -50,7 +54,6 @@ create table if not exists public.ai_attachments (
   created_at timestamptz not null default now()
 );
 
--- Daily usage table
 create table if not exists public.ai_usage_daily (
   owner_id uuid not null references public.users(id) on delete cascade,
   on_date date not null,
@@ -62,56 +65,106 @@ create table if not exists public.ai_usage_daily (
   primary key (owner_id, on_date, model)
 );
 
--- Indexes
 create index if not exists idx_ai_threads_owner_activity on public.ai_threads(owner_id, last_activity_at desc);
 create index if not exists idx_ai_messages_thread_time on public.ai_messages(thread_id, created_at asc);
 create index if not exists idx_ai_threads_not_deleted on public.ai_threads(owner_id, last_activity_at desc) where deleted_at is null;
 
--- RLS policies
 alter table public.ai_threads enable row level security;
-create policy if not exists "ai_threads_own_rows" on public.ai_threads for all using (
-  owner_id in (select id from public.users where clerk_user_id = current_setting('request.jwt.claim.sub', true))
-) with check (
-  owner_id in (select id from public.users where clerk_user_id = current_setting('request.jwt.claim.sub', true))
-);
-
 alter table public.ai_messages enable row level security;
-create policy if not exists "ai_messages_via_thread_owner" on public.ai_messages for all using (
-  exists (
-    select 1 from public.ai_threads t
-    join public.users u on t.owner_id = u.id
-    where t.id = ai_messages.thread_id
-      and u.clerk_user_id = current_setting('request.jwt.claim.sub', true)
-  )
-) with check (
-  exists (
-    select 1 from public.ai_threads t
-    join public.users u on t.owner_id = u.id
-    where t.id = ai_messages.thread_id
-      and u.clerk_user_id = current_setting('request.jwt.claim.sub', true)
-  )
-);
-
 alter table public.ai_attachments enable row level security;
-create policy if not exists "ai_attachments_via_message_owner" on public.ai_attachments for all using (
-  exists (
-    select 1 from public.ai_messages m
-    join public.ai_threads t on m.thread_id = t.id
-    join public.users u on t.owner_id = u.id
-    where m.id = ai_attachments.message_id
-      and u.clerk_user_id = current_setting('request.jwt.claim.sub', true)
-  )
-) with check (
-  exists (
-    select 1 from public.ai_messages m
-    join public.ai_threads t on m.thread_id = t.id
-    join public.users u on t.owner_id = u.id
-    where m.id = ai_attachments.message_id
-      and u.clerk_user_id = current_setting('request.jwt.claim.sub', true)
-  )
-);
 
--- Triggers
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'ai_threads'
+      AND policyname = 'ai_threads_own_rows'
+  ) THEN
+    EXECUTE $policy$
+      CREATE POLICY "ai_threads_own_rows" ON public.ai_threads
+        FOR ALL USING (
+          owner_id IN (
+            SELECT id FROM public.users
+            WHERE clerk_user_id = current_setting('request.jwt.claim.sub', true)
+          )
+        )
+        WITH CHECK (
+          owner_id IN (
+            SELECT id FROM public.users
+            WHERE clerk_user_id = current_setting('request.jwt.claim.sub', true)
+          )
+        );
+    $policy$;
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'ai_messages'
+      AND policyname = 'ai_messages_via_thread_owner'
+  ) THEN
+    EXECUTE $policy$
+      CREATE POLICY "ai_messages_via_thread_owner" ON public.ai_messages
+        FOR ALL USING (
+          EXISTS (
+            SELECT 1
+            FROM public.ai_threads t
+            JOIN public.users u ON t.owner_id = u.id
+            WHERE t.id = ai_messages.thread_id
+              AND u.clerk_user_id = current_setting('request.jwt.claim.sub', true)
+          )
+        )
+        WITH CHECK (
+          EXISTS (
+            SELECT 1
+            FROM public.ai_threads t
+            JOIN public.users u ON t.owner_id = u.id
+            WHERE t.id = ai_messages.thread_id
+              AND u.clerk_user_id = current_setting('request.jwt.claim.sub', true)
+          )
+        );
+    $policy$;
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'ai_attachments'
+      AND policyname = 'ai_attachments_via_message_owner'
+  ) THEN
+    EXECUTE $policy$
+      CREATE POLICY "ai_attachments_via_message_owner" ON public.ai_attachments
+        FOR ALL USING (
+          EXISTS (
+            SELECT 1
+            FROM public.ai_messages m
+            JOIN public.ai_threads t ON m.thread_id = t.id
+            JOIN public.users u ON t.owner_id = u.id
+            WHERE m.id = ai_attachments.message_id
+              AND u.clerk_user_id = current_setting('request.jwt.claim.sub', true)
+          )
+        )
+        WITH CHECK (
+          EXISTS (
+            SELECT 1
+            FROM public.ai_messages m
+            JOIN public.ai_threads t ON m.thread_id = t.id
+            JOIN public.users u ON t.owner_id = u.id
+            WHERE m.id = ai_attachments.message_id
+              AND u.clerk_user_id = current_setting('request.jwt.claim.sub', true)
+          )
+        );
+    $policy$;
+  END IF;
+END $$;
+
 create or replace function set_updated_at() returns trigger as $$
 begin
   new.updated_at = now();
@@ -119,8 +172,17 @@ begin
 end;
 $$ language plpgsql;
 
-create trigger if not exists t_upd_ai_threads before update on public.ai_threads
-for each row execute function set_updated_at();
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_trigger
+    WHERE tgname = 't_upd_ai_threads'
+      AND tgrelid = 'public.ai_threads'::regclass
+  ) THEN
+    EXECUTE 'CREATE TRIGGER t_upd_ai_threads BEFORE UPDATE ON public.ai_threads
+             FOR EACH ROW EXECUTE FUNCTION set_updated_at()';
+  END IF;
+END $$;
 
 create or replace function touch_ai_thread() returns trigger as $$
 begin
@@ -140,7 +202,14 @@ begin
 end;
 $$ language plpgsql;
 
-create trigger if not exists t_ai_messages_touch after insert on public.ai_messages
-for each row execute function touch_ai_thread();
-
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_trigger
+    WHERE tgname = 't_ai_messages_touch'
+      AND tgrelid = 'public.ai_messages'::regclass
+  ) THEN
+    EXECUTE 'CREATE TRIGGER t_ai_messages_touch AFTER INSERT ON public.ai_messages
+             FOR EACH ROW EXECUTE FUNCTION touch_ai_thread()';
+  END IF;
+END $$;

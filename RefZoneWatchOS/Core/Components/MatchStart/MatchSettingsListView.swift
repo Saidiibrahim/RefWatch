@@ -14,7 +14,6 @@ import RefWatchCore
 
 struct MatchSettingsListView: View {
   @Environment(\.theme) private var theme
-  @Environment(\.dismiss) private var dismiss
   @Bindable var matchViewModel: MatchViewModel
 
   /// Callback invoked when the user confirms and starts the match.
@@ -221,9 +220,8 @@ private extension MatchSettingsListView {
 
   // MARK: - Actions
   func startMatch() {
-    // Propagate the configured model upstream and close the screen.
+    // Propagate the configured model upstream; navigation is coordinated by the caller.
     onStartMatch(matchViewModel)
-    dismiss()
   }
 
   var cardRowInsets: EdgeInsets {

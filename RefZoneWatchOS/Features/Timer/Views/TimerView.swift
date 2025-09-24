@@ -11,6 +11,7 @@ struct TimerView: View {
     @State private var showingActionSheet = false
     @State private var pendingRouteToChooseFirstKicker = false
     @State private var livePublisher = LiveActivityStatePublisher(reloadKind: "RefZoneWidgets")
+    @State private var confirmationDismissTask: Task<Void, Never>? = nil
     private let commandHandler = LiveActivityCommandHandler()
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
@@ -23,37 +24,10 @@ struct TimerView: View {
     private var periodLabel: String { PeriodLabelFormatter.label(for: model) }
     
     var body: some View {
-        let verticalSpacing = layout.category == .compact ? theme.spacing.s : theme.spacing.m
-
-        VStack(spacing: verticalSpacing) {
-            // Period indicator
-            HStack {
-                Text(periodLabel)
-                    .font(theme.typography.cardMeta)
-                    .foregroundStyle(theme.colors.textSecondary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-                Spacer()
-            }
-            .padding(.horizontal, theme.components.cardHorizontalPadding)
-
-            // Score display
-            ScoreDisplayView(
-                homeTeam: model.homeTeam,
-                awayTeam: model.awayTeam,
-                homeScore: model.currentMatch?.homeScore ?? 0,
-                awayScore: model.currentMatch?.awayScore ?? 0
-            )
-
-            // Main content: render selected timer face
-            TimerFaceFactory.view(for: faceStyle, model: model)
-                .hapticsProvider(WatchHaptics())
-        }
-        .accessibilityIdentifier("timerArea")
-        .padding(.top, layout.timerTopPadding)
-        .padding(.bottom, layout.timerBottomPadding + layout.safeAreaBottomPadding)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(theme.colors.backgroundPrimary.ignoresSafeArea())
+        mainLayout
+            .overlay { confirmationOverlay }
+            .animation(.easeInOut(duration: 0.2), value: model.pendingConfirmation?.id)
+            .erasedToAnyView()
         .onAppear {
             publishLiveActivityState()
             processPendingWidgetCommand()
@@ -133,6 +107,20 @@ struct TimerView: View {
                 processPendingWidgetCommand()
             }
         }
+        .onChange(of: model.pendingConfirmation?.id) { newValue in
+            confirmationDismissTask?.cancel()
+            guard let id = newValue else { return }
+            confirmationDismissTask = Task { [model] in
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                guard !Task.isCancelled else { return }
+                await MainActor.run {
+                    model.clearPendingConfirmation(id: id)
+                }
+            }
+        }
+        .onDisappear {
+            confirmationDismissTask?.cancel()
+        }
     }
     
     // MARK: - Faces are rendered above; no state-specific views here.
@@ -141,6 +129,55 @@ struct TimerView: View {
 // MARK: - LiveActivity Publishing
 
 private extension TimerView {
+    var mainLayout: some View {
+        let verticalSpacing = layout.category == .compact ? theme.spacing.s : theme.spacing.m
+
+        return VStack(spacing: verticalSpacing) {
+            periodIndicator
+            scoreDisplay
+            timerFace
+        }
+        .accessibilityIdentifier("timerArea")
+        .padding(.top, layout.timerTopPadding)
+        .padding(.bottom, layout.timerBottomPadding + layout.safeAreaBottomPadding)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(theme.colors.backgroundPrimary.ignoresSafeArea())
+    }
+
+    private var periodIndicator: some View {
+        HStack {
+            Text(periodLabel)
+                .font(theme.typography.cardMeta)
+                .foregroundStyle(theme.colors.textSecondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            Spacer()
+        }
+        .padding(.horizontal, theme.components.cardHorizontalPadding)
+    }
+
+    private var scoreDisplay: some View {
+        ScoreDisplayView(
+            homeTeam: model.homeTeam,
+            awayTeam: model.awayTeam,
+            homeScore: model.currentMatch?.homeScore ?? 0,
+            awayScore: model.currentMatch?.awayScore ?? 0
+        )
+    }
+
+    private var timerFace: some View {
+        TimerFaceFactory.view(for: faceStyle, model: model)
+            .hapticsProvider(WatchHaptics())
+    }
+
+    @ViewBuilder
+    var confirmationOverlay: some View {
+        if let confirmation = model.pendingConfirmation {
+            EventConfirmationView(confirmation: confirmation, matchViewModel: model)
+                .transition(.opacity)
+        }
+    }
+
     func publishLiveActivityState() {
         livePublisher.publish(for: model)
     }
@@ -152,6 +189,12 @@ private extension TimerView {
 }
 
 // MARK: - Supporting Views
+
+private extension View {
+    func erasedToAnyView() -> AnyView {
+        AnyView(self)
+    }
+}
 
 #Preview {
     TimerView(model: MatchViewModel(haptics: WatchHaptics()), lifecycle: MatchLifecycleCoordinator())

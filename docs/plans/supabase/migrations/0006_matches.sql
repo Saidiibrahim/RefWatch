@@ -1,4 +1,4 @@
--- Progress: Not yet implemented
+-- Progress: Implemented
 
 create table if not exists public.matches (
   id uuid primary key,
@@ -16,6 +16,13 @@ create table if not exists public.matches (
   home_team_name text not null,
   away_team_id uuid references public.teams(id),
   away_team_name text not null,
+  regulation_minutes integer,
+  number_of_periods integer not null default 2,
+  half_time_minutes integer,
+  extra_time_enabled boolean not null default false,
+  extra_time_half_minutes integer,
+  penalties_enabled boolean not null default false,
+  penalty_initial_rounds integer not null default 5,
   home_score integer default 0,
   away_score integer default 0,
   final_score jsonb,
@@ -51,26 +58,50 @@ create table if not exists public.match_events (
   occurred_at timestamptz not null,
   period_index integer not null,
   clock_seconds integer not null,
+  match_time_label text not null,
   event_type match_event_type not null,
   payload jsonb,
   team_id uuid references public.teams(id),
   team_member_id uuid references public.team_members(id),
+  team_side match_team_side,
   created_at timestamptz not null default now()
 );
 create index if not exists idx_events_match_time on public.match_events(match_id, occurred_at);
 create index if not exists idx_events_match_clock on public.match_events(match_id, period_index, clock_seconds);
 
 alter table public.match_events enable row level security;
-create policy if not exists "events_via_match_owner" on public.match_events for select using (
-  exists (
-    select 1 from public.matches m
-    join public.users u on m.owner_id = u.id
-    where m.id = match_events.match_id
-      and u.clerk_user_id = current_setting('request.jwt.claim.sub', true)
-  )
-);
 
-create trigger if not exists t_upd_matches before update on public.matches
-for each row execute function set_updated_at();
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'match_events'
+      AND policyname = 'events_via_match_owner'
+  ) THEN
+    EXECUTE $policy$
+      CREATE POLICY "events_via_match_owner" ON public.match_events
+        FOR SELECT USING (
+          EXISTS (
+            SELECT 1
+            FROM public.matches m
+            JOIN public.users u ON m.owner_id = u.id
+            WHERE m.id = match_events.match_id
+              AND u.clerk_user_id = current_setting('request.jwt.claim.sub', true)
+          )
+        );
+    $policy$;
+  END IF;
+END $$;
 
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_trigger
+    WHERE tgname = 't_upd_matches'
+      AND tgrelid = 'public.matches'::regclass
+  ) THEN
+    EXECUTE 'CREATE TRIGGER t_upd_matches BEFORE UPDATE ON public.matches
+             FOR EACH ROW EXECUTE FUNCTION set_updated_at()';
+  END IF;
+END $$;

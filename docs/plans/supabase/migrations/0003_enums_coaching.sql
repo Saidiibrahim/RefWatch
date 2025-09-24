@@ -1,6 +1,12 @@
--- Progress: Not yet implemented
+-- Progress: Implemented
 
--- Resource kind for coaching/sharing flows
-create type if not exists shared_resource_kind as enum ('match', 'workout');
-
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_type
+    WHERE typname = 'shared_resource_kind'
+      AND typnamespace = 'public'::regnamespace
+  ) THEN
+    EXECUTE 'CREATE TYPE public.shared_resource_kind AS ENUM (''match'', ''workout'')';
+  END IF;
+END $$;

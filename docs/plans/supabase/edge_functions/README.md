@@ -15,7 +15,7 @@ Start implementing functions once:
 ## Proposed Functions
 | Endpoint | Purpose | Notes |
 | --- | --- | --- |
-| `GET /diagnostics/ping` | Lightweight health check for Settings. | Verifies Clerk token and returns `ok`, `clerkUserId`, timestamp. No database dependency beyond verification. |
+| `GET /diagnostics/ping` | Lightweight health check for Settings. | Verifies Clerk token and returns `{status:'ok', clerk_user_id, timestamp}`. No database dependency beyond verification. |
 | `GET /entitlements` | Returns the canonical entitlements snapshot. | Optional until we add paid tiers; still useful for free-tier auditing. |
 | `POST /iap/verify` | Validates StoreKit transactions and updates entitlements. | Requires App Store Server API credentials and the entitlements tables. |
 | `POST /matches/ingest` (future) | Accepts match summaries uploaded from iOS. | Depends on Phase 2 schema (`matches`, `match_events`, etc.). |
