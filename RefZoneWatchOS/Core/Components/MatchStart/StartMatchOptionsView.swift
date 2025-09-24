@@ -7,41 +7,33 @@ import RefWatchCore
 /// - Renders two large action cards:
 ///   - "Select Match" navigates to a list of previously saved matches.
 ///   - "Create Match" navigates to a configurable settings list.
-/// - Accepts view-builder destinations so the caller controls navigation targets.
-/// - Calls `onReset` on tap before navigating to ensure any in-progress match state
-///   is cleared. This avoids leaking partially configured state between flows.
-///
-/// Usage:
-/// ```swift
-/// StartMatchOptionsView(onReset: reset) {
-///   SavedMatchesListView(matches: saved, onSelectMatch: select)
-/// } createDestination: {
-///   MatchSettingsListView(matchViewModel: vm, onStartMatch: start)
-/// }
-/// ```
+/// - Exposes callbacks for the caller to drive navigation when an option is tapped.
+/// - Calls `onReset` before invoking the tap handlers to ensure any in-progress
+///   match state is cleared. This avoids leaking partially configured state between flows.
 
-struct StartMatchOptionsView<SelectDestination: View, CreateDestination: View>: View {
+struct StartMatchOptionsView: View {
   @Environment(\.theme) private var theme
 
   private let onReset: () -> Void
-  private let selectDestination: () -> SelectDestination
-  private let createDestination: () -> CreateDestination
+  private let onSelectMatch: () -> Void
+  private let onCreateMatch: () -> Void
 
   init(
     onReset: @escaping () -> Void,
-    @ViewBuilder selectDestination: @escaping () -> SelectDestination,
-    @ViewBuilder createDestination: @escaping () -> CreateDestination
+    onSelectMatch: @escaping () -> Void,
+    onCreateMatch: @escaping () -> Void
   ) {
     self.onReset = onReset
-    self.selectDestination = selectDestination
-    self.createDestination = createDestination
+    self.onSelectMatch = onSelectMatch
+    self.onCreateMatch = onCreateMatch
   }
 
   var body: some View {
     ScrollView {
       VStack(spacing: theme.components.listVerticalSpacing) {
-        NavigationLink {
-          selectDestination()
+        Button {
+          onReset()
+          onSelectMatch()
         } label: {
           MenuCard(
             title: "Select Match",
@@ -54,11 +46,10 @@ struct StartMatchOptionsView<SelectDestination: View, CreateDestination: View>: 
           )
         }
         .buttonStyle(.plain)
-        // Reset any in-progress configuration before switching to selection flow.
-        .simultaneousGesture(TapGesture().onEnded(onReset))
 
-        NavigationLink {
-          createDestination()
+        Button {
+          onReset()
+          onCreateMatch()
         } label: {
           MenuCard(
             title: "Create Match",
@@ -71,8 +62,6 @@ struct StartMatchOptionsView<SelectDestination: View, CreateDestination: View>: 
           )
         }
         .buttonStyle(.plain)
-        // Reset to ensure a clean slate when starting a new configuration.
-        .simultaneousGesture(TapGesture().onEnded(onReset))
       }
       .padding(.horizontal, theme.components.cardHorizontalPadding)
       .padding(.vertical, theme.components.listRowVerticalInset * 2)
@@ -81,10 +70,6 @@ struct StartMatchOptionsView<SelectDestination: View, CreateDestination: View>: 
 }
 
 #Preview("Start Match Options") {
-  StartMatchOptionsView(onReset: {}) {
-    EmptyView()
-  } createDestination: {
-    EmptyView()
-  }
+  StartMatchOptionsView(onReset: {}, onSelectMatch: {}, onCreateMatch: {})
   .theme(DefaultTheme())
 }

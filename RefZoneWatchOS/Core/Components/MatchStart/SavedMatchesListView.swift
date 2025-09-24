@@ -4,15 +4,13 @@ import RefWatchCore
 // MARK: - SavedMatchesListView
 /// Displays a list of previously saved matches.
 ///
-/// - Tapping a row invokes `onSelectMatch` and then dismisses the view.
+/// - Tapping a row invokes `onSelectMatch`; callers decide how to navigate next.
 /// - Uses `ThemeCardContainer` to keep styling consistent with other menus.
 /// - This component is intentionally dumb: selection logic is delegated upward
 ///   so that feature coordinators can decide how to transition.
 
 struct SavedMatchesListView: View {
   @Environment(\.theme) private var theme
-  @Environment(\.dismiss) private var dismiss
-
   let matches: [Match]
   /// Callback invoked when a match is selected from the list.
   let onSelectMatch: (Match) -> Void
@@ -66,9 +64,8 @@ private extension SavedMatchesListView {
 
   // MARK: - Actions
   func select(_ match: Match) {
-    // Report selection upward and close the screen.
+    // Report selection upward; navigation is coordinated by the caller.
     onSelectMatch(match)
-    dismiss()
   }
 }
 

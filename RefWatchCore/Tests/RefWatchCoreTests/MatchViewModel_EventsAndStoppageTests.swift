@@ -64,5 +64,48 @@ final class MatchViewModel_EventsAndStoppageTests: XCTestCase {
         let second = parseMMSS(vm.formattedStoppageTime)
         XCTAssertGreaterThanOrEqual(second, 2)
     }
-}
 
+    func test_goal_sets_pending_confirmation() async throws {
+        let vm = MatchViewModel()
+        vm.configureMatch(duration: 45, periods: 2, halfTimeLength: 15, hasExtraTime: false, hasPenalties: false)
+
+        vm.startMatch()
+        XCTAssertNil(vm.pendingConfirmation)
+
+        vm.recordGoal(team: .home, goalType: .regular, playerNumber: 9)
+
+        guard let confirmation = vm.pendingConfirmation else {
+            return XCTFail("Expected pending confirmation after recording goal")
+        }
+
+        switch confirmation.event.eventType {
+        case .goal(let details):
+            XCTAssertEqual(details.goalType, .regular)
+        default:
+            XCTFail("Expected goal event in pending confirmation")
+        }
+        XCTAssertEqual(confirmation.event.team, .home)
+
+        await vm.clearPendingConfirmation(id: confirmation.id)
+        XCTAssertNil(vm.pendingConfirmation)
+    }
+
+    func test_undo_goal_reverts_score_and_history() {
+        let vm = MatchViewModel()
+        vm.configureMatch(duration: 45, periods: 2, halfTimeLength: 15, hasExtraTime: false, hasPenalties: false)
+
+        vm.startMatch()
+        vm.recordGoal(team: .home, goalType: .regular, playerNumber: 9)
+        let eventCount = vm.matchEvents.count
+
+        XCTAssertTrue(vm.undoLastUserEvent())
+        XCTAssertEqual(vm.currentMatch?.homeScore, 0)
+        XCTAssertEqual(vm.matchEvents.count, eventCount - 1)
+        XCTAssertNil(vm.pendingConfirmation)
+    }
+
+    func test_undo_without_events_returns_false() {
+        let vm = MatchViewModel()
+        XCTAssertFalse(vm.undoLastUserEvent())
+    }
+}

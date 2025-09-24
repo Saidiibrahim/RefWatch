@@ -6,9 +6,10 @@
 //
 
 import SwiftUI
+import WatchKit
 import RefWatchCore
 
-/// Sheet view presenting three action options for referees during a match
+/// Sheet view presenting four action options for referees during a match
 struct MatchActionsSheet: View {
     let matchViewModel: MatchViewModel
     var lifecycle: MatchLifecycleCoordinator? = nil
@@ -31,6 +32,7 @@ struct MatchActionsSheet: View {
                 let cellWidth = max(0, (proxy.size.width - (hPadding * 2) - colSpacing) / 2)
 
                 ViewThatFits(in: .vertical) {
+                    // Standard spacing - for larger watches (45mm+)
                     actionContent(
                         cellWidth: cellWidth,
                         horizontalSpacing: theme.spacing.l,
@@ -38,6 +40,7 @@ struct MatchActionsSheet: View {
                         endActionTitle: endActionTitle
                     )
 
+                    // Medium spacing
                     actionContent(
                         cellWidth: cellWidth,
                         horizontalSpacing: theme.spacing.m,
@@ -45,10 +48,25 @@ struct MatchActionsSheet: View {
                         endActionTitle: endActionTitle
                     )
 
+                    // Small spacing
                     actionContent(
                         cellWidth: cellWidth,
                         horizontalSpacing: theme.spacing.s,
                         verticalSpacing: theme.spacing.s,
+                        endActionTitle: endActionTitle
+                    )
+
+                    // Extra small spacing for 42mm watches
+                    actionContent(
+                        cellWidth: cellWidth,
+                        horizontalSpacing: theme.spacing.xs,
+                        verticalSpacing: theme.spacing.xs,
+                        endActionTitle: endActionTitle
+                    )
+
+                    // Ultra-compact for very small screens
+                    ultraCompactContent(
+                        cellWidth: cellWidth,
                         endActionTitle: endActionTitle
                     )
                 }
@@ -117,8 +135,10 @@ private extension MatchActionsSheet {
         endActionTitle: String
     ) -> some View {
         VStack(spacing: verticalSpacing) {
+            // Top row remains: Match Log + Options. We keep spacing adaptive via ViewThatFits.
             topRow(cellWidth: cellWidth, spacing: horizontalSpacing)
-            bottomAction(cellWidth: cellWidth, title: endActionTitle)
+            // Bottom row now has two cells: Undo + End Half/Match.
+            bottomRow(cellWidth: cellWidth, spacing: horizontalSpacing, endActionTitle: endActionTitle)
             Spacer(minLength: 0)
         }
     }
@@ -147,17 +167,32 @@ private extension MatchActionsSheet {
         }
     }
 
+    // New bottom row for the 2x2 grid. Adds Undo placeholder and keeps End action logic.
     @ViewBuilder
-    private func bottomAction(cellWidth: CGFloat, title: String) -> some View {
-        HStack {
-            Spacer(minLength: 0)
+    private func bottomRow(cellWidth: CGFloat, spacing: CGFloat, endActionTitle: String) -> some View {
+        HStack(spacing: spacing) {
+            // Undo placeholder — prints a debug message for now
+            ActionGridItem(
+                title: "Undo",
+                icon: "arrow.uturn.backward.circle",
+                color: theme.colors.accentMuted,
+                showBackground: false
+            ) {
+                if matchViewModel.undoLastUserEvent() {
+                    dismiss()
+                } else {
+                    WKInterfaceDevice.current().play(.failure)
+                    print("[MatchActionsSheet] Undo tapped but no undoable event found")
+                }
+            }
+            .frame(width: cellWidth)
 
+            // End Half/Match action follows existing behavior
             if matchViewModel.isHalfTime {
                 ActionGridItem(
-                    title: title,
+                    title: endActionTitle,
                     icon: "checkmark.circle",
                     color: theme.colors.matchPositive,
-                    expandHorizontally: false,
                     showBackground: false
                 ) {
                     matchViewModel.endHalfTimeManually()
@@ -166,18 +201,119 @@ private extension MatchActionsSheet {
                 .frame(width: cellWidth)
             } else {
                 ActionGridItem(
-                    title: title,
+                    title: endActionTitle,
                     icon: "checkmark.circle",
                     color: theme.colors.matchPositive,
-                    expandHorizontally: false,
                     showBackground: false
                 ) {
                     showingEndHalfConfirmation = true
                 }
                 .frame(width: cellWidth)
             }
+        }
+    }
+
+    // Ultra-compact layout for very small watches (42mm and smaller)
+    @ViewBuilder
+    private func ultraCompactContent(cellWidth: CGFloat, endActionTitle: String) -> some View {
+        VStack(spacing: theme.spacing.xs) {
+            // Top row with minimal spacing
+            HStack(spacing: theme.spacing.xs) {
+                compactActionItem(
+                    title: "Match Log",
+                    icon: "list.bullet",
+                    color: theme.colors.accentSecondary,
+                    width: cellWidth
+                ) {
+                    showingMatchLogs = true
+                }
+
+                compactActionItem(
+                    title: "Options",
+                    icon: "ellipsis.circle",
+                    color: theme.colors.accentMuted,
+                    width: cellWidth
+                ) {
+                    showingOptions = true
+                }
+            }
+
+            // Bottom row with minimal spacing
+            HStack(spacing: theme.spacing.xs) {
+                compactActionItem(
+                    title: "Undo",
+                    icon: "arrow.uturn.backward.circle",
+                    color: theme.colors.accentMuted,
+                    width: cellWidth
+                ) {
+                    if matchViewModel.undoLastUserEvent() {
+                        dismiss()
+                    } else {
+                        WKInterfaceDevice.current().play(.failure)
+                        print("[MatchActionsSheet] Undo tapped but no undoable event found")
+                    }
+                }
+
+                // End Half/Match action follows existing behavior
+                if matchViewModel.isHalfTime {
+                    compactActionItem(
+                        title: endActionTitle,
+                        icon: "checkmark.circle",
+                        color: theme.colors.matchPositive,
+                        width: cellWidth
+                    ) {
+                        matchViewModel.endHalfTimeManually()
+                        dismiss()
+                    }
+                } else {
+                    compactActionItem(
+                        title: endActionTitle,
+                        icon: "checkmark.circle",
+                        color: theme.colors.matchPositive,
+                        width: cellWidth
+                    ) {
+                        showingEndHalfConfirmation = true
+                    }
+                }
+            }
 
             Spacer(minLength: 0)
         }
+    }
+
+    // Compact action item for ultra-small layouts
+    @ViewBuilder
+    private func compactActionItem(
+        title: String,
+        icon: String,
+        color: Color,
+        width: CGFloat,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            VStack(spacing: theme.spacing.xs) {
+                ZStack {
+                    Circle()
+                        .fill(color)
+                        .frame(width: 36, height: 36) // Smaller than standard 44pt
+                    Image(systemName: icon)
+                        .font(.system(size: 16, weight: .medium)) // Smaller icon
+                        .foregroundStyle(theme.colors.textInverted)
+                }
+
+                Text(title)
+                    .font(theme.typography.cardMeta) // Smaller text
+                    .foregroundStyle(theme.colors.textPrimary)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(1) // Single line only
+                    .minimumScaleFactor(0.7) // More aggressive scaling
+            }
+            .frame(width: width, height: 52) // Much smaller height than standard 72pt
+            .padding(.vertical, theme.spacing.xs)
+            .padding(.horizontal, theme.spacing.xs)
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(Text(title))
     }
 }

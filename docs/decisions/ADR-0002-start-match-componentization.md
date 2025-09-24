@@ -12,9 +12,9 @@
 
 ## Decision
 - Extract the Start Match subviews into dedicated, reusable components under `RefZoneWatchOS/Core/Components/MatchStart/`:
-  - `StartMatchOptionsView` renders the two primary actions (select/create) and accepts view-builder destinations plus a reset callback.
+  - `StartMatchOptionsView` renders the two primary actions (select/create) and exposes closures so callers own navigation while guaranteeing `reset` fires first.
   - `MatchSettingsListView` hosts the create flow list, exposes bindings for `MatchViewModel`, and emits an `onStartMatch` callback instead of depending on navigation context.
-  - `SavedMatchesListView` renders the saved match list and reports selection through a closure before dismissing.
+  - `SavedMatchesListView` renders the saved match list and reports selection through a closure so the parent can coordinate routing.
 - Refactor `StartMatchScreen` to compose these components, while keeping lifecycle coordination (`MatchLifecycleCoordinator`) and dismissal behavior unchanged.
 
 ## Rationale
@@ -28,9 +28,9 @@
   - `RefZoneWatchOS/Core/Components/MatchStart/MatchSettingsListView.swift`
   - `RefZoneWatchOS/Core/Components/MatchStart/SavedMatchesListView.swift`
 - `StartMatchScreen` now:
-  - Calls `matchViewModel.resetMatch()` via the new options view whenever either navigation link is tapped.
+  - Calls `matchViewModel.resetMatch()` via the options view before pushing deeper routes.
   - Passes `matchViewModel` into `MatchSettingsListView` and handles configuration in a local helper (`configureMatch(with:)`) before advancing the lifecycle.
-  - For saved matches, the closure selects the match, triggers `goToKickoffFirst()`, and relies on the component to dismiss itself.
+  - For saved matches, the closure selects the match, triggers `goToKickoffFirst()`, and the coordinator handles dismissal.
 - Each component ships with a SwiftUI preview that applies `DefaultTheme()` for quick visual QA.
 
 ## Verification

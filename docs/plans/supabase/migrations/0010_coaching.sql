@@ -1,4 +1,4 @@
--- Progress: Not yet implemented
+-- Progress: Implemented
 
 create table if not exists public.coaches (
   id uuid primary key,
@@ -45,38 +45,86 @@ create table if not exists public.feedback_attachments (
 );
 
 alter table public.resource_shares enable row level security;
-create policy if not exists "share_owner_manage" on public.resource_shares for all using (
-  owner_id in (select id from public.users where clerk_user_id = current_setting('request.jwt.claim.sub', true))
-);
-
 alter table public.feedback_threads enable row level security;
-create policy if not exists "threads_owner_or_grantee_read" on public.feedback_threads for select using (
-  owner_id in (select id from public.users where clerk_user_id = current_setting('request.jwt.claim.sub', true))
-  or exists (
-    select 1 from public.resource_shares rs
-    join public.users u on rs.grantee_user_id = u.id
-    where rs.resource_kind = feedback_threads.resource_kind
-      and rs.resource_id = feedback_threads.resource_id
-      and u.clerk_user_id = current_setting('request.jwt.claim.sub', true)
-  )
-);
-
 alter table public.feedback_items enable row level security;
-create policy if not exists "items_thread_read" on public.feedback_items for select using (
-  exists (
-    select 1 from public.feedback_threads t
-    join public.users u on t.owner_id = u.id
-    where t.id = feedback_items.thread_id
-      and (
-        u.clerk_user_id = current_setting('request.jwt.claim.sub', true)
-        or exists (
-          select 1 from public.resource_shares rs
-          join public.users ug on rs.grantee_user_id = ug.id
-          where rs.resource_kind = t.resource_kind and rs.resource_id = t.resource_id
-            and ug.clerk_user_id = current_setting('request.jwt.claim.sub', true)
-        )
-      )
-  )
-);
 
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'resource_shares'
+      AND policyname = 'share_owner_manage'
+  ) THEN
+    EXECUTE $policy$
+      CREATE POLICY "share_owner_manage" ON public.resource_shares
+        FOR ALL USING (
+          owner_id IN (
+            SELECT id FROM public.users
+            WHERE clerk_user_id = current_setting('request.jwt.claim.sub', true)
+          )
+        );
+    $policy$;
+  END IF;
+END $$;
 
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'feedback_threads'
+      AND policyname = 'threads_owner_or_grantee_read'
+  ) THEN
+    EXECUTE $policy$
+      CREATE POLICY "threads_owner_or_grantee_read" ON public.feedback_threads
+        FOR SELECT USING (
+          owner_id IN (
+            SELECT id FROM public.users
+            WHERE clerk_user_id = current_setting('request.jwt.claim.sub', true)
+          )
+          OR EXISTS (
+            SELECT 1
+            FROM public.resource_shares rs
+            JOIN public.users u ON rs.grantee_user_id = u.id
+            WHERE rs.resource_kind = feedback_threads.resource_kind
+              AND rs.resource_id = feedback_threads.resource_id
+              AND u.clerk_user_id = current_setting('request.jwt.claim.sub', true)
+          )
+        );
+    $policy$;
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'feedback_items'
+      AND policyname = 'items_thread_read'
+  ) THEN
+    EXECUTE $policy$
+      CREATE POLICY "items_thread_read" ON public.feedback_items
+        FOR SELECT USING (
+          EXISTS (
+            SELECT 1
+            FROM public.feedback_threads t
+            JOIN public.users u ON t.owner_id = u.id
+            WHERE t.id = feedback_items.thread_id
+              AND (
+                u.clerk_user_id = current_setting('request.jwt.claim.sub', true)
+                OR EXISTS (
+                  SELECT 1
+                  FROM public.resource_shares rs
+                  JOIN public.users ug ON rs.grantee_user_id = ug.id
+                  WHERE rs.resource_kind = t.resource_kind
+                    AND rs.resource_id = t.resource_id
+                    AND ug.clerk_user_id = current_setting('request.jwt.claim.sub', true)
+                )
+              )
+          )
+        );
+    $policy$;
+  END IF;
+END $$;

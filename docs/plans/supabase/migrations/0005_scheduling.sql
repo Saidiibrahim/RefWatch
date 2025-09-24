@@ -1,4 +1,11 @@
--- Progress: Not yet implemented
+-- Progress: Implemented
+
+create or replace function set_updated_at() returns trigger as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$ language plpgsql;
 
 create table if not exists public.scheduled_matches (
   id uuid primary key,
@@ -13,25 +20,52 @@ create table if not exists public.scheduled_matches (
   home_team_name text not null,
   away_team_id uuid references public.teams(id),
   away_team_name text not null,
+  source_device_id text,
   notes text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  source_device_id text,
   unique (owner_id, kickoff_at, home_team_name, away_team_name)
 );
 
 create index if not exists idx_sched_owner_kickoff on public.scheduled_matches(owner_id, kickoff_at);
 create index if not exists idx_sched_status on public.scheduled_matches(status);
 
--- Trigger function for updated_at
-create or replace function set_updated_at() returns trigger as $$
-begin
-  new.updated_at = now();
-  return new;
-end;
-$$ language plpgsql;
+alter table public.scheduled_matches enable row level security;
 
-create trigger if not exists t_upd_scheduled before update on public.scheduled_matches
-for each row execute function set_updated_at();
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'scheduled_matches'
+      AND policyname = 'scheduled_matches_own_rows'
+  ) THEN
+    EXECUTE $policy$
+      CREATE POLICY "scheduled_matches_own_rows" ON public.scheduled_matches
+        FOR ALL USING (
+          owner_id IN (
+            SELECT id FROM public.users
+            WHERE clerk_user_id = current_setting('request.jwt.claim.sub', true)
+          )
+        )
+        WITH CHECK (
+          owner_id IN (
+            SELECT id FROM public.users
+            WHERE clerk_user_id = current_setting('request.jwt.claim.sub', true)
+          )
+        );
+    $policy$;
+  END IF;
+END $$;
 
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_trigger
+    WHERE tgname = 't_upd_scheduled'
+      AND tgrelid = 'public.scheduled_matches'::regclass
+  ) THEN
+    EXECUTE 'CREATE TRIGGER t_upd_scheduled BEFORE UPDATE ON public.scheduled_matches
+             FOR EACH ROW EXECUTE FUNCTION set_updated_at()';
+  END IF;
+END $$;

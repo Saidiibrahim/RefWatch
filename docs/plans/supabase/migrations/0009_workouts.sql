@@ -1,4 +1,4 @@
--- Progress: Not yet implemented
+-- Progress: Implemented
 
 create table if not exists public.workout_sessions (
   id uuid primary key,
@@ -29,6 +29,7 @@ create table if not exists public.workout_session_metrics (
 create table if not exists public.workout_intensity_profile (
   session_id uuid not null references public.workout_sessions(id) on delete cascade,
   zone_index integer not null,
+  zone workout_intensity_zone not null,
   label text,
   lower_bound double precision,
   upper_bound double precision,
@@ -62,32 +63,86 @@ create table if not exists public.workout_presets (
   owner_id uuid not null references public.users(id) on delete cascade,
   kind workout_kind not null,
   title text not null,
+  description text,
   segments jsonb not null,
+  default_zones workout_intensity_zone[] not null default '{}'::workout_intensity_zone[],
+  metadata jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (owner_id, title)
 );
 
 alter table public.workout_sessions enable row level security;
-create policy if not exists "workouts_own_rows" on public.workout_sessions for all using (
-  owner_id in (select id from public.users where clerk_user_id = current_setting('request.jwt.claim.sub', true))
-) with check (
-  owner_id in (select id from public.users where clerk_user_id = current_setting('request.jwt.claim.sub', true))
-);
-
 alter table public.workout_events enable row level security;
-create policy if not exists "workout_events_via_session" on public.workout_events for select using (
-  exists (
-    select 1 from public.workout_sessions s
-    join public.users u on s.owner_id = u.id
-    where s.id = workout_events.session_id
-      and u.clerk_user_id = current_setting('request.jwt.claim.sub', true)
-  )
-);
 
-create trigger if not exists t_upd_workouts before update on public.workout_sessions
-for each row execute function set_updated_at();
-create trigger if not exists t_upd_workout_presets before update on public.workout_presets
-for each row execute function set_updated_at();
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'workout_sessions'
+      AND policyname = 'workouts_own_rows'
+  ) THEN
+    EXECUTE $policy$
+      CREATE POLICY "workouts_own_rows" ON public.workout_sessions
+        FOR ALL USING (
+          owner_id IN (
+            SELECT id FROM public.users
+            WHERE clerk_user_id = current_setting('request.jwt.claim.sub', true)
+          )
+        )
+        WITH CHECK (
+          owner_id IN (
+            SELECT id FROM public.users
+            WHERE clerk_user_id = current_setting('request.jwt.claim.sub', true)
+          )
+        );
+    $policy$;
+  END IF;
+END $$;
 
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'workout_events'
+      AND policyname = 'workout_events_via_session'
+  ) THEN
+    EXECUTE $policy$
+      CREATE POLICY "workout_events_via_session" ON public.workout_events
+        FOR SELECT USING (
+          EXISTS (
+            SELECT 1 FROM public.workout_sessions s
+            JOIN public.users u ON s.owner_id = u.id
+            WHERE s.id = workout_events.session_id
+              AND u.clerk_user_id = current_setting('request.jwt.claim.sub', true)
+          )
+        );
+    $policy$;
+  END IF;
+END $$;
 
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_trigger
+    WHERE tgname = 't_upd_workouts'
+      AND tgrelid = 'public.workout_sessions'::regclass
+  ) THEN
+    EXECUTE 'CREATE TRIGGER t_upd_workouts BEFORE UPDATE ON public.workout_sessions
+             FOR EACH ROW EXECUTE FUNCTION set_updated_at()';
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_trigger
+    WHERE tgname = 't_upd_workout_presets'
+      AND tgrelid = 'public.workout_presets'::regclass
+  ) THEN
+    EXECUTE 'CREATE TRIGGER t_upd_workout_presets BEFORE UPDATE ON public.workout_presets
+             FOR EACH ROW EXECUTE FUNCTION set_updated_at()';
+  END IF;
+END $$;

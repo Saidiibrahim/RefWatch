@@ -33,16 +33,21 @@ These tables are minimal and can land immediately.
 
 | Table | Purpose | Notes |
 | --- | --- | --- |
-| `users` | Canonical identity row keyed by Clerk `user_id`. | Already drafted in entitlements migration; reuse there. |
-| `user_devices` | Optional mapping of device IDs to users for debugging sync issues. | Columns: `id`, `user_id`, `platform`, `model`, `app_version`, `last_seen_at`. |
+| `users` | Canonical identity row keyed by Clerk `user_id`. | Columns now mirror Clerk profile/meta (`clerk_user_id`, `primary_email`, `first_name`, `last_name`, `display_name`, `image_url`, metadata blobs, status, sync timestamps) with UUID default + RLS binding to JWT `sub`. |
+| `user_devices` | Optional mapping of device IDs to users for debugging sync issues. | Tracks Clerk session + client details (`session_id`, `platform`, `client_name`, `ip_address`, `location`, `user_agent`, `metadata`) with `last_active_at`; RLS via parent join. |
+
+Supporting RPCs:
+- `rpc.upsert_user_from_clerk(payload jsonb)`: security-definer helper that validates the JWT `sub`, mirrors Clerk profile data into `users`, and updates sync timestamps.
+- `rpc.upsert_user_device_from_clerk(payload jsonb)`: associates a Clerk session/device payload with the authenticated user while keeping `session_id` unique.
 
 ## Phase 1 — Team Library
 Matches iOS Team Management features.
 
 | Table | Columns (key fields only) | Notes |
 | --- | --- | --- |
-| `teams` | `id uuid PK`, `owner_id uuid FK`, `name text`, `short_name text`, `created_at`, `updated_at` | RLS by `owner_id`. |
-| `team_members` | `id uuid PK`, `team_id uuid FK`, `display_name text`, `number text`, `role text`, `created_at` | `role` enum (`player`, `coach`, `staff`). |
+| `teams` | `id uuid PK`, `owner_id uuid FK`, `name text`, `short_name text`, `division text`, `color_primary text`, `color_secondary text`, timestamps | RLS by `owner_id`. |
+| `team_members` | `id uuid PK`, `team_id uuid FK`, `display_name text`, `jersey_number text`, `role text`, `position text`, `notes text`, `created_at` | Mirrors SwiftData `PlayerRecord`. |
+| `team_officials` | `id uuid PK`, `team_id uuid FK`, `display_name text`, `role team_official_role`, `phone text`, `email text`, `created_at` | Mirrors `TeamOfficialRecord`. |
 | `team_tags` | `team_id uuid FK`, `tag text`, composite PK | Optional user-defined taxonomy for quick filtering. |
 
 SwiftData already captures similar tables; migrations can mirror property names
@@ -53,15 +58,17 @@ Supports schedule view + match history ingestion.
 
 | Table | Columns | Notes |
 | --- | --- | --- |
-| `scheduled_matches` | `id uuid PK`, `owner_id`, `home_team_name`, `away_team_name`, `kickoff_at`, `location text`, `competition text`, `notes text`, `created_at`, `updated_at` | Derived directly from Schedule feature. |
-| `matches` | `id uuid PK`, `owner_id`, `started_at`, `completed_at`, `duration_seconds`, `competition`, `venue`, `home_team_name`, `away_team_name`, `final_score jsonb`, `source_device_id`, `created_at` | Accept watch snapshots pushed via iPhone. |
-| `match_periods` | `id uuid PK`, `match_id`, `index integer`, `duration_seconds`, `added_time_seconds`, `result jsonb`, `created_at` | Renders timers accurately. |
-| `match_events` | `id uuid PK`, `match_id`, `occurred_at timestamptz`, `period_index`, `clock_seconds`, `event_type enum`, `payload jsonb`, `created_at` | `event_type` covers goal, card, substitution, stoppage, etc. |
+| `scheduled_matches` | `id uuid PK`, `owner_id`, library FKs + text fallbacks, `kickoff_at`, `notes text`, timestamps, `source_device_id` | Derived directly from Schedule feature. |
+| `matches` | `id uuid PK`, `owner_id`, optional `scheduled_match_id`, competition/venue FKs + text, team FKs + text, `status`, `started_at`, `completed_at`, `duration_seconds`, `home_score`, `away_score`, `final_score jsonb`, `source_device_id`, timestamps | Accept watch snapshots pushed via iPhone. |
+| `match_periods` | `id uuid PK`, `match_id`, `index integer`, `regulation_seconds`, `added_time_seconds`, `result jsonb`, `created_at` | Renders timers accurately. |
+| `match_events` | `id uuid PK`, `match_id`, `occurred_at timestamptz`, `period_index`, `clock_seconds`, `event_type enum`, `payload jsonb`, optional team/member FKs, `created_at` | Supports kickoff, stoppage, penalties, etc. |
 | `match_officials` | `match_id`, `user_id`, `role enum`, composite PK | Enables shared officiating in future. |
 
 ### Event Type Enumeration (initial)
-`goal`, `goalOverruled`, `cardYellow`, `cardRed`, `cardSecondYellow`,
-`penaltyAwarded`, `penaltyScored`, `penaltyMissed`, `injury`, `substitution`,
+`kickOff`, `periodStart`, `periodEnd`, `halfTime`, `matchEnd`, `stoppageStart`,
+`stoppageEnd`, `goal`, `goalOverruled`, `cardYellow`, `cardRed`,
+`cardSecondYellow`, `penaltyAwarded`, `penaltyScored`, `penaltyMissed`,
+`penaltiesStart`, `penaltyAttempt`, `penaltiesEnd`, `injury`, `substitution`,
 `note`.
 
 ## Phase 3 — Analytics & Trends
@@ -147,13 +154,20 @@ create type official_role as enum ('center', 'assistant_1', 'assistant_2', 'four
 
 -- Event types captured during a match timeline
 create type match_event_type as enum (
+  'kick_off',
   'period_start', 'period_end',
+  'half_time',
+  'match_end',
   'stoppage_start', 'stoppage_end',
   'goal', 'goal_overruled',
   'card_yellow', 'card_red', 'card_second_yellow',
   'penalty_awarded', 'penalty_scored', 'penalty_missed',
-  'injury', 'substitution', 'note'
+  'penalties_start', 'penalty_attempt', 'penalties_end',
+  'injury', 'substitution',
+  'note'
 );
+
+create type match_team_side as enum ('home', 'away');
 
 -- Self-assessment mood scale (example set; can evolve)
 create type assessment_mood as enum ('calm', 'focused', 'stressed', 'fatigued');
@@ -176,6 +190,8 @@ create type workout_metric_kind as enum (
 create type workout_metric_unit as enum (
   'meters', 'kilometers', 'seconds', 'minutes', 'minutesPerKilometer', 'kilometersPerHour', 'beatsPerMinute', 'kilocalories', 'metersClimbed', 'stepsPerMinute', 'watts', 'ratingOfPerceivedExertion'
 );
+
+create type workout_intensity_zone as enum ('recovery', 'aerobic', 'tempo', 'threshold', 'anaerobic');
 ```
 
 ### Library: Teams, Competitions, Venues
@@ -187,6 +203,7 @@ create table if not exists public.teams (
   owner_id uuid not null references public.users(id) on delete cascade,
   name text not null,
   short_name text,
+  division text,
   color_primary text,        -- optional hex
   color_secondary text,
   created_at timestamptz not null default now(),
@@ -200,8 +217,23 @@ create table if not exists public.team_members (
   display_name text not null,
   jersey_number text,
   role text,                 -- 'player'|'coach'|'staff' (text to keep flexible)
+  position text,
+  notes text,
   created_at timestamptz not null default now()
 );
+-- Team staff/officials aligned with TeamOfficialRecord
+create type if not exists team_official_role as enum ('Manager', 'Assistant Manager', 'Coach', 'Physio', 'Doctor');
+
+create table if not exists public.team_officials (
+  id uuid primary key,
+  team_id uuid not null references public.teams(id) on delete cascade,
+  display_name text not null,
+  role team_official_role not null,
+  phone text,
+  email text,
+  created_at timestamptz not null default now()
+);
+
 
 -- Free-form tags for filtering teams in Library/Start Match
 create table if not exists public.team_tags (
@@ -285,6 +317,13 @@ create table if not exists public.matches (
   home_team_name text not null,
   away_team_id uuid references public.teams(id),
   away_team_name text not null,
+  regulation_minutes integer,
+  number_of_periods integer not null default 2,
+  half_time_minutes integer,
+  extra_time_enabled boolean not null default false,
+  extra_time_half_minutes integer,
+  penalties_enabled boolean not null default false,
+  penalty_initial_rounds integer not null default 5,
   -- Final score duplicated as scalar columns for easy sorting; detailed by events below
   home_score integer default 0,
   away_score integer default 0,
@@ -324,10 +363,12 @@ create table if not exists public.match_events (
   occurred_at timestamptz not null,     -- absolute time
   period_index integer not null,
   clock_seconds integer not null,       -- seconds from period start
+  match_time_label text not null,       -- formatted clock string (e.g., "45+2")
   event_type match_event_type not null,
   payload jsonb,                        -- see appendix for shapes
   team_id uuid references public.teams(id),           -- optional attribution
   team_member_id uuid references public.team_members(id),
+  team_side match_team_side,            -- fallback when team_id is nil
   created_at timestamptz not null default now()
 );
 create index if not exists idx_events_match_time on public.match_events(match_id, occurred_at);
@@ -343,10 +384,10 @@ create table if not exists public.match_assessments (
   match_id uuid not null references public.matches(id) on delete cascade,
   owner_id uuid not null references public.users(id) on delete cascade,
   mood assessment_mood,
-  rating integer check (rating between 1 and 10),   -- overall self-score
-  notes text,                                       -- free-form journaling
-  incidents text,                                   -- notable events to revisit
-  fitness text,                                     -- perceived fitness/recovery
+  rating integer check (rating between 1 and 5),    -- matches UI stepper 0-5
+  overall text,
+  went_well text,
+  to_improve text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (match_id, owner_id)                       -- one assessment per user/match
@@ -361,11 +402,19 @@ Pre-compute metrics for fast rendering in the Trends tab. Values derived from `m
 create table if not exists public.match_metrics (
   match_id uuid primary key references public.matches(id) on delete cascade,
   owner_id uuid not null references public.users(id) on delete cascade,
+  regulation_minutes integer,
+  half_time_minutes integer,
+  extra_time_minutes integer,
+  penalties_enabled boolean not null default false,
   total_goals integer not null default 0,
   total_cards integer not null default 0,
   total_penalties integer not null default 0,
   yellow_cards integer not null default 0,
   red_cards integer not null default 0,
+  home_cards integer not null default 0,
+  away_cards integer not null default 0,
+  home_substitutions integer not null default 0,
+  away_substitutions integer not null default 0,
   penalties_scored integer not null default 0,
   penalties_missed integer not null default 0,
   avg_added_time_seconds integer default 0,
@@ -421,6 +470,7 @@ create table if not exists public.workout_session_metrics (
 create table if not exists public.workout_intensity_profile (
   session_id uuid not null references public.workout_sessions(id) on delete cascade,
   zone_index integer not null,
+  zone workout_intensity_zone not null,
   label text,
   lower_bound double precision,
   upper_bound double precision,
@@ -457,7 +507,10 @@ create table if not exists public.workout_presets (
   owner_id uuid not null references public.users(id) on delete cascade,
   kind workout_kind not null,
   title text not null,
+  description text,
   segments jsonb not null,                    -- array of segment definitions
+  default_zones workout_intensity_zone[] not null default '{}'::workout_intensity_zone[],
+  metadata jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (owner_id, title)
