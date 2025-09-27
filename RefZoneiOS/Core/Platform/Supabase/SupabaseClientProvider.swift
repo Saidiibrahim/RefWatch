@@ -15,7 +15,7 @@ import Supabase
 protocol SupabaseClientProviding {
   func client() throws -> SupabaseClientRepresenting
   func authorizedClient() async throws -> SupabaseClientRepresenting
-  func clerkToken() async throws -> String
+  func refreshFunctionAuth()
 }
 
 struct SupabaseQueryFilter: Equatable {
@@ -53,7 +53,7 @@ enum SupabaseClientError: Error, Equatable, Sendable {
   case emptyRPCResponse
 }
 
-protocol SupabaseClientRepresenting: AnyObject {
+protocol SupabaseClientRepresenting: AnyObject, Sendable {
   var functionsClient: SupabaseFunctionsClientRepresenting { get }
   func fetchRows<T: Decodable>(
     from table: String,
@@ -70,9 +70,15 @@ protocol SupabaseClientRepresenting: AnyObject {
     encoder: JSONEncoder,
     decoder: JSONDecoder
   ) async throws -> Response
+  func upsertRows<Payload: Encodable, Response: Decodable>(
+    into table: String,
+    payload: Payload,
+    onConflict: String,
+    decoder: JSONDecoder
+  ) async throws -> Response
 }
 
-protocol SupabaseFunctionsClientRepresenting: AnyObject {
+protocol SupabaseFunctionsClientRepresenting: AnyObject, Sendable {
   func setAuth(token: String?)
   func invoke<T: Decodable>(
     _ functionName: String,
@@ -80,6 +86,8 @@ protocol SupabaseFunctionsClientRepresenting: AnyObject {
     decoder: JSONDecoder
   ) async throws -> T
 }
+
+// The SDK types are now Sendable by default in modern Supabase SDK versions
 
 extension SupabaseClient: SupabaseClientRepresenting {
   var functionsClient: SupabaseFunctionsClientRepresenting { functions }
@@ -114,11 +122,11 @@ extension SupabaseClient: SupabaseClientRepresenting {
     if let column {
       // Supabase Swift updated signatures: first params are unlabeled.
       // Using unlabeled column + limit avoids "Extraneous argument label" errors.
-        query = query.order(column, ascending: ascending) as! PostgrestFilterBuilder
+      query = query.order(column, ascending: ascending) as! PostgrestFilterBuilder
     }
 
     if limit > 0 {
-        query = query.limit(limit) as! PostgrestFilterBuilder
+      query = query.limit(limit) as! PostgrestFilterBuilder
     }
 
     let response = try await query.execute()
@@ -142,7 +150,7 @@ extension SupabaseClient: SupabaseClientRepresenting {
     }
 
     let payload = try EncodableDictionary(anyDictionary: dictionary)
-      let response = try await database.rpc(
+    let response = try await self.rpc(
       function,
       params: payload
     ).execute()
@@ -151,6 +159,18 @@ extension SupabaseClient: SupabaseClientRepresenting {
       throw SupabaseClientError.emptyRPCResponse
     }
     return try decoder.decode(Response.self, from: data)
+  }
+
+  func upsertRows<Payload, Response>(
+    into table: String,
+    payload: Payload,
+    onConflict: String,
+    decoder: JSONDecoder
+  ) async throws -> Response where Payload : Encodable, Response : Decodable {
+    let response = try await from(table)
+      .upsert(payload, onConflict: onConflict, returning: .representation)
+      .execute()
+    return try decoder.decode(Response.self, from: response.data)
   }
 }
 
@@ -166,7 +186,7 @@ private struct EncodableDictionary: Encodable, Sendable {
     self.values = converted
   }
 
-  func encode(to encoder: Encoder) throws {
+  nonisolated func encode(to encoder: Encoder) throws {
     var container = encoder.container(keyedBy: DynamicCodingKey.self)
     for (key, value) in values {
       guard let codingKey = DynamicCodingKey(stringValue: key) else {
@@ -229,7 +249,7 @@ private enum JSONValue: Sendable {
 }
 
 extension JSONValue: Encodable {
-  func encode(to encoder: Encoder) throws {
+  nonisolated func encode(to encoder: Encoder) throws {
     switch self {
     case let .string(value):
       var container = encoder.singleValueContainer()
@@ -268,10 +288,9 @@ extension FunctionsClient: SupabaseFunctionsClientRepresenting {}
 final class SupabaseClientProvider: SupabaseClientProviding {
   static let shared = SupabaseClientProvider()
 
-  typealias ClientFactory = (SupabaseEnvironment, SupabaseTokenProviding) throws -> SupabaseClientRepresenting
+  typealias ClientFactory = (SupabaseEnvironment) throws -> SupabaseClientRepresenting
 
   private let environmentLoader: () throws -> SupabaseEnvironment
-  private let tokenProvider: SupabaseTokenProviding
   private let clientFactory: ClientFactory
   private var cachedClient: SupabaseClientRepresenting?
   private var cachedEnvironment: SupabaseEnvironment?
@@ -279,24 +298,16 @@ final class SupabaseClientProvider: SupabaseClientProviding {
 
   init(
     environmentLoader: @escaping () throws -> SupabaseEnvironment = { try SupabaseEnvironment.load() },
-    tokenProvider: SupabaseTokenProviding = SupabaseTokenProvider(),
-    clientFactory: @escaping ClientFactory = { environment, tokenProvider in
+    clientFactory: @escaping ClientFactory = { environment in
       let instance = SupabaseClient(
         supabaseURL: environment.url,
         supabaseKey: environment.anonKey,
-        options: SupabaseClientOptions(
-          auth: SupabaseClientOptions.AuthOptions(
-            accessToken: {
-              try await tokenProvider.currentToken()
-            }
-          )
-        )
+        options: SupabaseClientOptions()
       )
       return instance
     }
   ) {
     self.environmentLoader = environmentLoader
-    self.tokenProvider = tokenProvider
     self.clientFactory = clientFactory
   }
 
@@ -308,42 +319,68 @@ final class SupabaseClientProvider: SupabaseClientProviding {
       return cachedClient
     }
 
-    let environment = try environmentLoader()
-    // Validate that the resolved Supabase URL has a non-empty host before
-    // handing it to the SDK. The SDK computes a default storage key using
-    // `supabaseURL.host!` during initialization; if `host` is nil (e.g., due
-    // to malformed input or stray whitespace), it would crash with a fatal
-    // unwrap. Surfacing a descriptive configuration error here makes Settings
-    // diagnostics much clearer and avoids a hard crash.
-    guard let host = environment.url.host, host.isEmpty == false else {
-      throw SupabaseEnvironment.ConfigurationError.invalidURL(environment.url.absoluteString)
+    AppLog.supabase.info("Creating new Supabase client...")
+
+    do {
+      let environment = try environmentLoader()
+
+      // Validate that the resolved Supabase URL has a non-empty host before
+      // handing it to the SDK. The SDK computes a default storage key using
+      // `supabaseURL.host!` during initialization; if `host` is nil (e.g., due
+      // to malformed input or stray whitespace), it would crash with a fatal
+      // unwrap. Surfacing a descriptive configuration error here makes Settings
+      // diagnostics much clearer and avoids a hard crash.
+      guard let host = environment.url.host, host.isEmpty == false else {
+        AppLog.supabase.error("Supabase client creation failed: invalid URL host - \(environment.url.absoluteString, privacy: .public)")
+        throw SupabaseEnvironment.ConfigurationError.invalidURL(environment.url.absoluteString)
+      }
+
+      let instance = try clientFactory(environment)
+
+      // Diagnostics: log resolved host and anon key length only (not the key
+      // itself). Helps quickly spot misconfiguration in local/dev builds.
+      let hostForLog = environment.url.host ?? "<nil>"
+      AppLog.supabase.info("Successfully created Supabase client host=\(hostForLog, privacy: .public) anonLen=\(environment.anonKey.count)")
+
+      cachedClient = instance
+      cachedEnvironment = environment
+      return instance
+
+    } catch {
+      AppLog.supabase.error("Failed to create Supabase client: \(error.localizedDescription, privacy: .public)")
+      throw error
     }
-    let tokenProvider = self.tokenProvider
-    let instance = try clientFactory(environment, tokenProvider)
-    // Diagnostics: log resolved host and anon key length only (not the key
-    // itself). Helps quickly spot misconfiguration in local/dev builds.
-    let hostForLog = environment.url.host ?? "<nil>"
-    AppLog.supabase.info("Creating Supabase client host=\(hostForLog, privacy: .public) anonLen=\(environment.anonKey.count)")
-    cachedClient = instance
-    cachedEnvironment = environment
-    return instance
   }
 
   func authorizedClient() async throws -> SupabaseClientRepresenting {
-    let client = try client()
-    if let environment = cachedEnvironment {
-      client.functionsClient.setAuth(token: environment.anonKey)
+    do {
+      let client = try client()
+      refreshFunctionAuth()
+      AppLog.supabase.info("Authorized Supabase client ready")
+      return client
+    } catch {
+      AppLog.supabase.error("Failed to get authorized Supabase client: \(error.localizedDescription, privacy: .public)")
+      throw error
     }
-    return client
   }
 
-  func clerkToken() async throws -> String {
-    do {
-      let token = try await tokenProvider.currentToken()
-      return token
-    } catch {
-      AppLog.supabase.error("Failed to fetch Clerk token: \(error.localizedDescription, privacy: .public)")
-      throw error
+  func refreshFunctionAuth() {
+    guard let client = cachedClient else { return }
+
+    if let supabaseClient = client as? SupabaseClient {
+      // Use currentSession for synchronous access
+      let token = supabaseClient.auth.currentSession?.accessToken
+      let resolved = token ?? cachedEnvironment?.anonKey
+      client.functionsClient.setAuth(token: resolved)
+      if token != nil {
+        AppLog.supabase.debug("Functions auth updated with session token")
+      } else {
+        AppLog.supabase.debug("Functions auth using anon key fallback (no active session)")
+      }
+    } else {
+      if let anon = cachedEnvironment?.anonKey {
+        client.functionsClient.setAuth(token: anon)
+      }
     }
   }
 

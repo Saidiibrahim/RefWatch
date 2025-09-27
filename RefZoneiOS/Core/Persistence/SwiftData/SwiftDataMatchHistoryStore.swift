@@ -26,7 +26,7 @@ import RefWatchCore
 @MainActor
 final class SwiftDataMatchHistoryStore: MatchHistoryStoring {
     private let container: ModelContainer
-    private let context: ModelContext
+    let context: ModelContext
     private let auth: AuthenticationProviding
     private let importFlagKey = "rw_history_imported_v1"
 
@@ -92,6 +92,7 @@ final class SwiftDataMatchHistoryStore: MatchHistoryStoring {
             existing.homeScore = snapshot.match.homeScore
             existing.awayScore = snapshot.match.awayScore
             existing.payload = data
+            existing.needsRemoteSync = true
         } else {
             let row = CompletedMatchRecord(
                 id: snapshot.id,
@@ -101,7 +102,8 @@ final class SwiftDataMatchHistoryStore: MatchHistoryStoring {
                 awayTeam: snapshot.match.awayTeam,
                 homeScore: snapshot.match.homeScore,
                 awayScore: snapshot.match.awayScore,
-                payload: data
+                payload: data,
+                needsRemoteSync: true
             )
             context.insert(row)
         }
@@ -154,10 +156,15 @@ final class SwiftDataMatchHistoryStore: MatchHistoryStoring {
     }
 
     // MARK: - Helpers
-    private func fetchRecord(id: UUID) throws -> CompletedMatchRecord? {
+    func fetchRecord(id: UUID) throws -> CompletedMatchRecord? {
         var desc = FetchDescriptor<CompletedMatchRecord>(predicate: #Predicate { $0.id == id })
         desc.fetchLimit = 1
         return try context.fetch(desc).first
+    }
+
+    func fetchAllRecords() throws -> [CompletedMatchRecord] {
+        let desc = FetchDescriptor<CompletedMatchRecord>()
+        return try context.fetch(desc)
     }
 
     /// Attaches the current user as owner if snapshot lacks an `ownerId`.
@@ -165,19 +172,19 @@ final class SwiftDataMatchHistoryStore: MatchHistoryStoring {
         match.attachingOwnerIfMissing(using: auth)
     }
 
-    private static func encoder() -> JSONEncoder {
+    static func encoder() -> JSONEncoder {
         let enc = JSONEncoder()
         enc.outputFormatting = [.prettyPrinted]
         enc.dateEncodingStrategy = .iso8601
         return enc
     }
 
-    private static func decoder() -> JSONDecoder {
+    static func decoder() -> JSONDecoder {
         let dec = JSONDecoder()
         dec.dateDecodingStrategy = .iso8601
         return dec
     }
 
-    private static func encode(_ obj: CompletedMatch) throws -> Data { try encoder().encode(obj) }
-    private static func decode(_ data: Data) -> CompletedMatch? { try? decoder().decode(CompletedMatch.self, from: data) }
+    static func encode(_ obj: CompletedMatch) throws -> Data { try encoder().encode(obj) }
+    static func decode(_ data: Data) -> CompletedMatch? { try? decoder().decode(CompletedMatch.self, from: data) }
 }

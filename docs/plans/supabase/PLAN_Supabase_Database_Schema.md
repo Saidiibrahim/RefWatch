@@ -5,6 +5,8 @@ need once backend scaffolding is ready. It is an iterative roadmap that keeps
 offline-first constraints and the existing SwiftData models in mind while laying
 out how Supabase tables should evolve.
 
+> **Status Update (Mar 2025):** Supabase is now the sole identity provider. Replace references to Clerk IDs/claims with Supabase `auth.users` identifiers and access tokens when implementing migrations.
+
 ## Objectives
 - Mirror the core domain objects already present on-device (matches, teams,
   schedules, trends) so the backend can ingest, aggregate, and share data when

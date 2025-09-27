@@ -36,7 +36,6 @@
 
 ## Peer Review Checklist
 - Schema plan and SQL migrations match field names/types used in the iOS/watchOS code.
-- RLS policies reference valid tables and respect Clerk ID mapping.
+- RLS policies reference valid tables and respect Supabase auth user mapping.
 - Comments annotate intent and status (`-- Progress: ...` → `-- Shipped: YYYY-MM-DD` once live).
-
 

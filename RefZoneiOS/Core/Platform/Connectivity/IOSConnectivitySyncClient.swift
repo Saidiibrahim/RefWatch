@@ -68,7 +68,7 @@ final class IOSConnectivitySyncClient: NSObject {
     func handleCompletedMatch(_ match: CompletedMatch) {
         // Persist and notify on main actor (SwiftData stores are often main-actor isolated)
         Task { @MainActor in
-            // Attach owner id if missing on the main actor (ClerkAuth accesses @MainActor values)
+            // Attach owner id if missing on the main actor (Supabase auth controller exposes @MainActor values)
             let snapshot = match.attachingOwnerIfMissing(using: auth)
             do { try history.save(snapshot) } catch {
                 AppLog.history.error("Failed to save synced snapshot: \(error.localizedDescription, privacy: .public)")

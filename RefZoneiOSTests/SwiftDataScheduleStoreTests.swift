@@ -1,10 +1,17 @@
 #if canImport(XCTest)
 import XCTest
 import SwiftData
+import Combine
 @testable import RefZoneiOS
 
 @MainActor
 final class SwiftDataScheduleStoreTests: XCTestCase {
+    private var cancellables: Set<AnyCancellable> = []
+
+    override func tearDown() {
+        cancellables.removeAll()
+        super.tearDown()
+    }
 
     func makeMemoryContainer() throws -> ModelContainer {
         let schema = Schema([ScheduledMatchRecord.self])
@@ -58,6 +65,22 @@ final class SwiftDataScheduleStoreTests: XCTestCase {
         let all = store.loadAll()
         XCTAssertEqual(all.count, 1)
         XCTAssertEqual(all.first?.homeTeam, "Alpha")
+    }
+
+    func test_changesPublisher_emitsUpdates() throws {
+        let container = try makeMemoryContainer()
+        let store = SwiftDataScheduleStore(container: container, importJSONOnFirstRun: false)
+
+        let expectation = expectation(description: "publisher emits")
+        expectation.expectedFulfillmentCount = 2 // Initial snapshot + save
+
+        store.changesPublisher
+            .sink { _ in expectation.fulfill() }
+            .store(in: &cancellables)
+
+        store.save(ScheduledMatch(homeTeam: "Home", awayTeam: "Away", kickoff: Date()))
+
+        wait(for: [expectation], timeout: 1.0)
     }
 }
 

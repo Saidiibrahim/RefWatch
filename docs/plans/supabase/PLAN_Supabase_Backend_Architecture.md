@@ -1,6 +1,8 @@
 # PLAN — Supabase Backend End‑State Architecture
 
-This document describes the target architecture for using Supabase as the backend for RefWatch, and how it integrates with the iOS and watchOS apps, Clerk (auth), StoreKit 2 (purchases), SwiftData/CloudKit (local and iCloud sync), and WatchConnectivity.
+This document describes the target architecture for using Supabase as the backend for RefWatch, and how it integrates with the iOS and watchOS apps, native Supabase auth, StoreKit 2 (purchases), SwiftData/CloudKit (local and iCloud sync), and WatchConnectivity.
+
+> **Status Update (Mar 2025):** Clerk has been removed from the mobile stack. Supabase GoTrue now issues the JWTs used across repositories and functions. Any Clerk references below reflect the original rollout plan and remain for archival purposes.
 
 ## Goals
 - Establish a Supabase foundation that keeps entitlements server‑sourced, with enough schema flexibility to introduce tiered plans later (only the free tier is active today).
@@ -12,7 +14,7 @@ This document describes the target architecture for using Supabase as the backen
 ## Current Implementation Snapshot
 - `SupabaseEnvironment` now guards configuration loading and normalizes URL/keys before constructing the SDK client.
 - `SupabaseClientProvider` centralizes client creation, injects the publishable key, and wires in auth callbacks.
-- `SupabaseTokenProvider` bridges to the third‑party session manager (Clerk) via `session.getToken()?.jwt`, removing the need for Supabase Auth or bespoke JWT handling in the app layer.
+- `SupabaseAuthController` now owns session management and exposes tokens directly via Supabase GoTrue, eliminating the bridge to Clerk.
 - `SupabaseHelloWorldService` and its XCTest validate that an authorized client can read from the `todos` table, proving round‑trip connectivity.
 - Settings surface this diagnostic, giving us a live health check while we roll out the real schema.
 - Broader table design now lives in `PLAN_Supabase_Database_Schema.md`; use that roadmap when adding new migrations.

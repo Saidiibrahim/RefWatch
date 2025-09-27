@@ -39,16 +39,34 @@ final class SwiftDataMatchHistoryStoreTests: XCTestCase {
         XCTAssertEqual(all.first?.match.homeScore, 2)
     }
 
+    struct TestAuth: AuthenticationProviding {
+        let state: AuthState
+
+        var currentUserId: String? {
+            switch state {
+            case let .signedIn(userId, _, _):
+                return userId
+            case .signedOut:
+                return nil
+            }
+        }
+
+        var currentEmail: String? { nil }
+        var currentDisplayName: String? {
+            if case let .signedIn(_, _, name) = state { return name }
+            return nil
+        }
+    }
+
     func testOwnerAssignment_whenAuthPresent_setsOwnerId() throws {
-        struct TestAuth: AuthenticationProviding { let state: AuthState; var currentUserId: String? { if case let .signedIn(userId, _) = state { return userId } else { return nil } } }
         let container = try makeContainer()
-        let auth = TestAuth(state: .signedIn(userId: "u1", displayName: "Test"))
+        let auth = TestAuth(state: .signedIn(userId: "sup-1", email: "test@example.com", displayName: "Test"))
         let store = SwiftDataMatchHistoryStore(container: container, auth: auth, importJSONOnFirstRun: false)
         let m = Match(homeTeam: "H", awayTeam: "A")
         let snap = CompletedMatch(match: m, events: [])
         try store.save(snap)
         let all = try store.loadAll()
-        XCTAssertEqual(all.first?.ownerId, "u1")
+        XCTAssertEqual(all.first?.ownerId, "sup-1")
     }
 
     func testLoadAll_isBoundedByDefaultLimit() throws {
