@@ -13,6 +13,14 @@ public final class SettingsViewModel {
     public var settings = Settings()
     public init() {}
     
+    public var activeMisconductTemplate: MisconductTemplate {
+        MisconductTemplateCatalog.template(for: settings.selectedMisconductTemplateID)
+    }
+    
+    public var misconductTemplates: [MisconductTemplate] {
+        MisconductTemplateCatalog.allTemplates
+    }
+    
     public func updatePeriodDuration(_ duration: Int) {
         settings.periodDuration = duration
     }
@@ -28,5 +36,9 @@ public final class SettingsViewModel {
 
     public func updateSubstitutionOrder(_ playerOffFirst: Bool) {
         settings.substitutionOrderPlayerOffFirst = playerOffFirst
+    }
+    
+    public func updateMisconductTemplate(id: String) {
+        settings.selectedMisconductTemplateID = id
     }
 }

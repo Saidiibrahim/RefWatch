@@ -5,6 +5,7 @@ struct CardReasonSelectionView: View {
   let cardType: CardDetails.CardType
   let isTeamOfficial: Bool
   let onSelect: (String) -> Void
+  @Environment(SettingsViewModel.self) private var settingsViewModel
 
   var body: some View {
     if reasons.isEmpty {
@@ -13,8 +14,10 @@ struct CardReasonSelectionView: View {
       SelectionListView(
         title: title,
         options: reasons,
-        formatter: { $0 },
-        onSelect: onSelect
+        formatter: { $0.displayText },
+        onSelect: { reason in
+          onSelect(reason.displayText)
+        }
       )
     }
   }
@@ -25,20 +28,11 @@ private extension CardReasonSelectionView {
     cardType == .yellow ? "Yellow Card Reason" : "Red Card Reason"
   }
 
-  var reasons: [String] {
-    if isTeamOfficial {
-      let prefix = cardType == .yellow ? "YT" : "RT"
-      return TeamOfficialCardReason
-        .allCases
-        .filter { String(describing: $0).hasPrefix(prefix) }
-        .map(\.rawValue)
-    }
-
-    if cardType == .yellow {
-      return YellowCardReason.allCases.map(\.rawValue)
-    }
-
-    return RedCardReason.allCases.map(\.rawValue)
+  var reasons: [MisconductReason] {
+    let recipient: CardRecipientType = isTeamOfficial ? .teamOfficial : .player
+    return settingsViewModel
+      .activeMisconductTemplate
+      .reasons(for: cardType, recipient: recipient)
   }
 }
 
