@@ -21,32 +21,38 @@ final class SwiftDataTeamLibraryStoreTests: XCTestCase {
         var all = try store.loadAllTeams()
         XCTAssertEqual(all.count, 1)
         XCTAssertEqual(all.first?.name, "Leeds United")
+        XCTAssertTrue(team.needsRemoteSync)
 
         // Update team
         team.name = "Leeds"
         try store.updateTeam(team)
         all = try store.loadAllTeams()
         XCTAssertEqual(all.first?.name, "Leeds")
+        XCTAssertTrue(team.needsRemoteSync)
 
         // Add player
         let p = try store.addPlayer(to: team, name: "John Smith", number: 9)
         XCTAssertEqual(team.players.count, 1)
         XCTAssertEqual(p.team?.id, team.id)
+        XCTAssertTrue(team.needsRemoteSync)
 
         // Edit player
         p.name = "Jon Smith"; p.number = 10
         try store.updatePlayer(p)
         XCTAssertEqual(team.players.first?.number, 10)
+        XCTAssertTrue(team.needsRemoteSync)
 
         // Add official
         let o = try store.addOfficial(to: team, name: "Coach Bob", roleRaw: "Coach")
         XCTAssertEqual(team.officials.count, 1)
         XCTAssertEqual(o.team?.id, team.id)
+        XCTAssertTrue(team.needsRemoteSync)
 
         // Edit official
         o.name = "Coach Robert"
         try store.updateOfficial(o)
         XCTAssertEqual(team.officials.first?.name, "Coach Robert")
+        XCTAssertTrue(team.needsRemoteSync)
 
         // Search
         let results = try store.searchTeams(query: "Lee")
@@ -57,6 +63,7 @@ final class SwiftDataTeamLibraryStoreTests: XCTestCase {
         XCTAssertEqual(team.players.count, 0)
         try store.deleteOfficial(o)
         XCTAssertEqual(team.officials.count, 0)
+        XCTAssertTrue(team.needsRemoteSync)
 
         // Delete team
         try store.deleteTeam(team)

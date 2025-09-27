@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import Combine
 import OSLog
 import RefWatchCore
 
@@ -15,12 +16,14 @@ protocol ScheduleStoring {
     func save(_ item: ScheduledMatch)
     func delete(id: UUID)
     func wipeAll()
+    var changesPublisher: AnyPublisher<[ScheduledMatch], Never> { get }
 }
 
 @MainActor
 final class ScheduleService: ScheduleStoring {
     private let fileURL: URL
     private let queue = DispatchQueue(label: "ScheduleService", attributes: .concurrent)
+    private let subject = CurrentValueSubject<[ScheduledMatch], Never>([])
 
     init(baseDirectory: URL? = nil) {
         if let base = baseDirectory {
@@ -32,6 +35,7 @@ final class ScheduleService: ScheduleStoring {
             try? FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
             self.fileURL = tmp.appendingPathComponent("scheduled_matches.json")
         }
+        subject.send(loadAll())
     }
 
     func loadAll() -> [ScheduledMatch] {
@@ -65,11 +69,18 @@ final class ScheduleService: ScheduleStoring {
         queue.sync(flags: .barrier) { persist([]) }
     }
 
+    var changesPublisher: AnyPublisher<[ScheduledMatch], Never> {
+        subject.eraseToAnyPublisher()
+    }
+
     private func persist(_ items: [ScheduledMatch]) {
         do {
             let enc = JSONEncoder(); enc.outputFormatting = [.prettyPrinted]; enc.dateEncodingStrategy = .iso8601
             let data = try enc.encode(items)
             try data.write(to: fileURL, options: .atomic)
+            DispatchQueue.main.async { [subject] in
+                subject.send(items)
+            }
         } catch {
             AppLog.schedule.error("Failed to persist scheduled matches: \(error.localizedDescription, privacy: .public)")
             DispatchQueue.main.async {

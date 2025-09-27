@@ -7,19 +7,17 @@ project.
 ## When to Build
 Start implementing functions once:
 - The core tables from `PLAN_Supabase_Database_Schema.md` phase 1–2 are live.
-- Clerk session tokens are confirmed working via `SupabaseTokenProvider` in the
-  iOS app.
-- The Settings connectivity check is ready to be pointed at a real endpoint
-  instead of the temporary `todos` table.
+- Supabase GoTrue sessions are confirmed working via `SupabaseAuthController` in the iOS app.
+- The Settings connectivity check is ready to be pointed at a real endpoint instead of the temporary `todos` table.
 
 ## Proposed Functions
 | Endpoint | Purpose | Notes |
 | --- | --- | --- |
-| `GET /diagnostics/ping` | Lightweight health check for Settings. | Verifies Clerk token and returns `{status:'ok', clerk_user_id, timestamp}`. No database dependency beyond verification. |
+| `GET /diagnostics/ping` | Lightweight health check for Settings. | Verifies Supabase auth token and returns `{status:'ok', user_id, timestamp}`. No database dependency beyond verification. |
 | `GET /entitlements` | Returns the canonical entitlements snapshot. | Optional until we add paid tiers; still useful for free-tier auditing. |
 | `POST /iap/verify` | Validates StoreKit transactions and updates entitlements. | Requires App Store Server API credentials and the entitlements tables. |
 | `POST /matches/ingest` (future) | Accepts match summaries uploaded from iOS. | Depends on Phase 2 schema (`matches`, `match_events`, etc.). |
-| `GET /ai/threads` | List user threads (paginated). | Verifies Clerk token; selects from `ai_threads` by owner. |
+| `GET /ai/threads` | List user threads (paginated). | Verifies Supabase auth token; selects from `ai_threads` by owner. |
 | `POST /ai/threads` | Create a new thread with optional title/instructions/model. | Inserts into `ai_threads`; returns thread. |
 | `GET /ai/threads/:id/messages` | Fetch messages for a thread. | Owner-only; ordered by `created_at asc`. |
 | `POST /ai/threads/:id/messages` | Append a user message; optionally trigger stream. | Inserts `ai_messages` with `role='user'`. |

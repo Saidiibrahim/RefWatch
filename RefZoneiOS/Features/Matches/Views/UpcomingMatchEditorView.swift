@@ -63,7 +63,12 @@ struct UpcomingMatchEditorView: View {
     }
 
     private func save() {
-        let item = ScheduledMatch(homeTeam: homeName.trimmingCharacters(in: .whitespacesAndNewlines), awayTeam: awayName.trimmingCharacters(in: .whitespacesAndNewlines), kickoff: kickoff)
+        let item = ScheduledMatch(
+            homeTeam: homeName.trimmingCharacters(in: .whitespacesAndNewlines),
+            awayTeam: awayName.trimmingCharacters(in: .whitespacesAndNewlines),
+            kickoff: kickoff,
+            needsRemoteSync: true
+        )
         scheduleStore.save(item)
         AppLog.schedule.info("Saved scheduled match: \(item.homeTeam) vs \(item.awayTeam) @ \(item.kickoff.timeIntervalSince1970, privacy: .public)")
         onSaved?()

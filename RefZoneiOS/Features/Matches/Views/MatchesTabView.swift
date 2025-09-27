@@ -124,12 +124,7 @@ struct MatchesTabView: View {
             }
             .onAppear {
                 refreshRecentAndPrompt()
-                let all = scheduleStore.loadAll()
-                let now = Date()
-                let cal = Calendar.current
-                today = all.filter { cal.isDate($0.kickoff, inSameDayAs: now) }
-                upcoming = all.filter { $0.kickoff > cal.startOfDay(for: now).addingTimeInterval(24*60*60) }
-                    .sorted(by: { $0.kickoff < $1.kickoff })
+                refreshSchedule()
             }
             .sheet(isPresented: $showingAddUpcoming) {
                 UpcomingMatchEditorView(scheduleStore: scheduleStore, teamStore: teamStore) {
@@ -144,6 +139,9 @@ struct MatchesTabView: View {
             }
             .onReceive(NotificationCenter.default.publisher(for: .journalDidChange).receive(on: RunLoop.main)) { _ in
                 refreshRecentAndPrompt()
+            }
+            .onReceive(scheduleStore.changesPublisher.receive(on: RunLoop.main)) { items in
+                handleScheduleUpdate(items)
             }
             .navigationDestination(for: Route.self) { route in
                 switch route {
@@ -183,29 +181,30 @@ struct MatchesTabView: View {
 
 private extension MatchesTabView {
     static func format(_ date: Date) -> String {
-        let f = DateFormatter()
-        f.dateStyle = .short
-        f.timeStyle = .short
-        return f.string(from: date)
+        let formatter = DateFormatter()
+        formatter.dateStyle = .short
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
     }
 
     static func formatTime(_ date: Date) -> String {
-        let f = DateFormatter()
-        f.dateStyle = .none
-        f.timeStyle = .short
-        return f.string(from: date)
+        let formatter = DateFormatter()
+        formatter.dateStyle = .none
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
     }
 
     static func formatRelative(_ date: Date) -> String {
-        let cal = Calendar.current
-        if cal.isDateInToday(date) { return formatTime(date) }
-        if cal.isDateInTomorrow(date) { return "Tomorrow, \(formatTime(date))" }
-        let f = DateFormatter(); f.dateFormat = "EEEE, h:mm a"
-        return f.string(from: date)
+        let calendar = Calendar.current
+        if calendar.isDateInToday(date) { return formatTime(date) }
+        if calendar.isDateInTomorrow(date) { return "Tomorrow, \(formatTime(date))" }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEEE, h:mm a"
+        return formatter.string(from: date)
     }
+
     func refreshRecentAndPrompt() {
         recent = matchViewModel.loadRecentCompletedMatches(limit: 5)
-        // Compute prompt candidate
         if let latest = matchViewModel.loadRecentCompletedMatches(limit: 1).first {
             let latestJournal = (try? journalStore.loadLatest(for: latest.id)) ?? nil
             lastNeedingJournal = latestJournal == nil ? latest : nil
@@ -213,12 +212,17 @@ private extension MatchesTabView {
             lastNeedingJournal = nil
         }
     }
+
     func refreshSchedule() {
-        let all = scheduleStore.loadAll()
+        handleScheduleUpdate(scheduleStore.loadAll())
+    }
+
+    func handleScheduleUpdate(_ matches: [ScheduledMatch]) {
         let now = Date()
-        let cal = Calendar.current
-        today = all.filter { cal.isDate($0.kickoff, inSameDayAs: now) }
-        upcoming = all.filter { $0.kickoff > cal.startOfDay(for: now).addingTimeInterval(24*60*60) }
+        let calendar = Calendar.current
+        today = matches.filter { calendar.isDate($0.kickoff, inSameDayAs: now) }
+        upcoming = matches
+            .filter { $0.kickoff > calendar.startOfDay(for: now).addingTimeInterval(24 * 60 * 60) }
             .sorted(by: { $0.kickoff < $1.kickoff })
     }
 }

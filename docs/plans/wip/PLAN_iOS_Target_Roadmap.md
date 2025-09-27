@@ -291,23 +291,20 @@ Notes
 - This work focuses on UI/routing parity and does not alter shared `MatchViewModel` logic. The shared VM already enforces settings (periods/ET/penalties) and event logging.
 - Period count configurability on iOS (currently hard‑coded to 2 in `MatchSetupView`) can be added in a follow‑up if needed to fully mirror watch setup options.
 
-PR I7 — Auth (Clerk) ▶
-- Goals: Integrate Clerk on iOS implementing `AuthenticationProviding`; bridge minimal identity to watch.
+PR I7 — Auth (Supabase Native) ▶
+- Goals: Remove Clerk from the iOS app and rely solely on Supabase native auth for sign-in/out, session restoration, and sync ownership.
 - Scope:
-  - iOS: `ClerkAuth` adapter (sign‑in/out, session, `currentUserId`), Settings → Account section.
-  - Watch: show "Sign in on iPhone" state; receive identity over WatchConnectivity for display/gating only.
-  - Persistence: when signed in, stores set `ownerId` on new snapshots; sign‑out policy configurable (wipe vs. keep local and unlink).
-- Acceptance: Sign in/out works on iOS, watch reflects state; data continues to function offline; no cloud sync in I7 (future optional).
-- Branch: `feat/clerk-auth-setup`
-- Commits: adapter + UI, watch bridge, wiring, docs.
+  - iOS: `SupabaseAuthController` drives `AuthenticationProviding`; Settings surfaces email/password auth and account status.
+  - Watch: continues to consume owner information via connectivity without any vendor-specific coupling.
+  - Persistence: signed-in flows attach Supabase user IDs to new snapshots; signing out keeps local data and simply clears remote ownership.
+- Acceptance: Sign in/out works on iOS, match sync respects Supabase sessions, and the app continues to work offline when signed out.
+- Branch: `feat/supabase-native-auth`
+- Commits: auth controller + Settings refresh, repository wiring, docs cleanup.
 
-Implementation notes (addressing PR feedback)
-- Build config: Disabled `GENERATE_INFOPLIST_FILE` for iOS target so custom `RefZoneiOS/Info.plist` ships with `ClerkPublishableKey` and URL scheme.
-- Debugging: Added `AuthStateDebugger` (DEBUG-only) and do/catch around `clerk.load()` with error logging and signed-in/out transition logs.
-- Adapter: Extracted `ClerkAuth.bestDisplayName(firstName:username:id:)` for deterministic display-name mapping.
-- Tests added:
-  - Unit: `ClerkAuthTests` (name mapping + signed-out when Clerk absent), `CompletedMatchOwnershipTests` (owner attach semantics).
-  - UI: `SettingsAuthUITests` asserts signed-out state shows "Sign in".
+Implementation notes
+- Build config: legacy Clerk Info.plist keys and entitlements removed; Supabase secrets remain sourced from xcconfig.
+- Diagnostics: Functions auth now derives from Supabase sessions; removed `AuthStateDebugger` and Clerk edge functions.
+- Tests updated: repository suites now exercise auth-state observers; removed Clerk-specific unit tests.
 
 ---
 

@@ -17,6 +17,18 @@ final class TeamRecord {
     var primaryColorHex: String?
     var secondaryColorHex: String?
 
+    /// Supabase user id that owns this record once identity sync succeeds.
+    var ownerSupabaseId: String?
+
+    /// Timestamp captured the last time a local mutation occurred (for sync ordering).
+    var lastModifiedAt: Date
+
+    /// Timestamp reported by Supabase (`teams.updated_at`) the last time we pulled remote data.
+    var remoteUpdatedAt: Date?
+
+    /// Indicates the record (or one of its children) needs to be pushed to Supabase.
+    var needsRemoteSync: Bool
+
     @Relationship(deleteRule: .cascade, inverse: \PlayerRecord.team)
     var players: [PlayerRecord]
 
@@ -29,7 +41,11 @@ final class TeamRecord {
         shortName: String? = nil,
         division: String? = nil,
         primaryColorHex: String? = nil,
-        secondaryColorHex: String? = nil
+        secondaryColorHex: String? = nil,
+        ownerSupabaseId: String? = nil,
+        lastModifiedAt: Date = Date(),
+        remoteUpdatedAt: Date? = nil,
+        needsRemoteSync: Bool = true
     ) {
         self.id = id
         self.name = name
@@ -37,8 +53,31 @@ final class TeamRecord {
         self.division = division
         self.primaryColorHex = primaryColorHex
         self.secondaryColorHex = secondaryColorHex
+        self.ownerSupabaseId = ownerSupabaseId
+        self.lastModifiedAt = lastModifiedAt
+        self.remoteUpdatedAt = remoteUpdatedAt
+        self.needsRemoteSync = needsRemoteSync
         self.players = []
         self.officials = []
+    }
+}
+
+extension TeamRecord {
+    /// Marks the record as locally dirty so the sync layer can enqueue a push.
+    func markLocallyModified(at date: Date = Date(), ownerSupabaseId ownerId: String? = nil) {
+        lastModifiedAt = date
+        needsRemoteSync = true
+        if let ownerId {
+            ownerSupabaseId = ownerId
+        }
+    }
+
+    /// Applies remote metadata after a successful pull/upsert so future syncs can diff correctly.
+    func applyRemoteSyncMetadata(ownerId: String?, remoteUpdatedAt updatedAt: Date?, synchronizedAt syncDate: Date = Date()) {
+        ownerSupabaseId = ownerId ?? ownerSupabaseId
+        remoteUpdatedAt = updatedAt
+        needsRemoteSync = false
+        lastModifiedAt = syncDate
     }
 }
 
@@ -95,4 +134,3 @@ final class TeamOfficialRecord {
         self.team = team
     }
 }
-

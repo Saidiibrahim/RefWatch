@@ -9,9 +9,9 @@ import Foundation
 import SwiftData
 
 @MainActor
-final class SwiftDataTeamLibraryStore: TeamLibraryStoring {
+final class SwiftDataTeamLibraryStore: TeamLibraryStoring, TeamLibraryMetadataPersisting {
     private let container: ModelContainer
-    private let context: ModelContext
+    let context: ModelContext
 
     init(container: ModelContainer) {
         self.container = container
@@ -38,6 +38,7 @@ final class SwiftDataTeamLibraryStore: TeamLibraryStoring {
 
     func createTeam(name: String, shortName: String?, division: String?) throws -> TeamRecord {
         let team = TeamRecord(name: name, shortName: shortName, division: division)
+        team.markLocallyModified()
         context.insert(team)
         try context.save()
         return team
@@ -45,6 +46,7 @@ final class SwiftDataTeamLibraryStore: TeamLibraryStoring {
 
     func updateTeam(_ team: TeamRecord) throws {
         // TeamRecord is reference type in ModelContext; fields mutated directly by caller.
+        team.markLocallyModified()
         try context.save()
     }
 
@@ -58,14 +60,21 @@ final class SwiftDataTeamLibraryStore: TeamLibraryStoring {
         let p = PlayerRecord(name: name, number: number, team: team)
         team.players.append(p)
         context.insert(p)
+        team.markLocallyModified()
         try context.save()
         return p
     }
 
-    func updatePlayer(_ player: PlayerRecord) throws { try context.save() }
+    func updatePlayer(_ player: PlayerRecord) throws {
+        player.team?.markLocallyModified()
+        try context.save()
+    }
 
     func deletePlayer(_ player: PlayerRecord) throws {
-        if let team = player.team { team.players.removeAll { $0.id == player.id } }
+        if let team = player.team {
+            team.markLocallyModified()
+            team.players.removeAll { $0.id == player.id }
+        }
         context.delete(player)
         try context.save()
     }
@@ -75,16 +84,27 @@ final class SwiftDataTeamLibraryStore: TeamLibraryStoring {
         let o = TeamOfficialRecord(name: name, roleRaw: roleRaw, team: team)
         team.officials.append(o)
         context.insert(o)
+        team.markLocallyModified()
         try context.save()
         return o
     }
 
-    func updateOfficial(_ official: TeamOfficialRecord) throws { try context.save() }
+    func updateOfficial(_ official: TeamOfficialRecord) throws {
+        official.team?.markLocallyModified()
+        try context.save()
+    }
 
     func deleteOfficial(_ official: TeamOfficialRecord) throws {
-        if let team = official.team { team.officials.removeAll { $0.id == official.id } }
+        if let team = official.team {
+            team.markLocallyModified()
+            team.officials.removeAll { $0.id == official.id }
+        }
         context.delete(official)
         try context.save()
     }
-}
 
+    func persistMetadataChanges(for team: TeamRecord) throws {
+        // Metadata adjustments do not require additional mutations; simply saving commits changes.
+        try context.save()
+    }
+}

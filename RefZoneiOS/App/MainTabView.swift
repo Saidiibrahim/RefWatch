@@ -15,8 +15,10 @@ struct MainTabView: View {
     @Environment(\.theme) private var theme
     let matchViewModel: MatchViewModel
     let historyStore: MatchHistoryStoring
+    let matchSyncController: MatchHistorySyncControlling?
     let scheduleStore: ScheduleStoring
     let teamStore: TeamLibraryStoring
+    let authController: SupabaseAuthController
 
     var body: some View {
         TabView(selection: $router.selectedTab) {
@@ -36,7 +38,13 @@ struct MainTabView: View {
                 .tabItem { Label("Assistant", systemImage: "brain.head.profile") }
                 .tag(AppRouter.Tab.assistant)
 
-            SettingsTabView(historyStore: historyStore, scheduleStore: scheduleStore, teamStore: teamStore)
+            SettingsTabView(
+                historyStore: historyStore,
+                matchSyncController: matchSyncController,
+                scheduleStore: scheduleStore,
+                teamStore: teamStore,
+                authController: authController
+            )
                 .tabItem { Label("Settings", systemImage: "gear") }
                 .tag(AppRouter.Tab.settings)
         }
@@ -49,8 +57,10 @@ struct MainTabView: View {
     MainTabView(
         matchViewModel: MatchViewModel(haptics: NoopHaptics()),
         historyStore: MatchHistoryService(),
+        matchSyncController: nil,
         scheduleStore: ScheduleService(),
-        teamStore: InMemoryTeamLibraryStore()
+        teamStore: InMemoryTeamLibraryStore(),
+        authController: SupabaseAuthController(clientProvider: SupabaseClientProvider.shared)
     )
         .environmentObject(AppRouter.preview())
         .workoutServices(.inMemoryStub())

@@ -23,6 +23,12 @@ final class CompletedMatchRecord {
     // Full snapshot retained as encoded JSON for fidelity
     var payload: Data
 
+    // Supabase metadata
+    var remoteUpdatedAt: Date?
+    var needsRemoteSync: Bool
+    var lastSyncedAt: Date?
+    var sourceDeviceId: String?
+
     init(
         id: UUID,
         completedAt: Date,
@@ -31,7 +37,11 @@ final class CompletedMatchRecord {
         awayTeam: String,
         homeScore: Int,
         awayScore: Int,
-        payload: Data
+        payload: Data,
+        remoteUpdatedAt: Date? = nil,
+        needsRemoteSync: Bool = false,
+        lastSyncedAt: Date? = nil,
+        sourceDeviceId: String? = nil
     ) {
         self.id = id
         self.completedAt = completedAt
@@ -41,5 +51,9 @@ final class CompletedMatchRecord {
         self.homeScore = homeScore
         self.awayScore = awayScore
         self.payload = payload
+        self.remoteUpdatedAt = remoteUpdatedAt
+        self.needsRemoteSync = needsRemoteSync
+        self.lastSyncedAt = lastSyncedAt
+        self.sourceDeviceId = sourceDeviceId
     }
 }
