@@ -63,8 +63,8 @@ The feature uses a coordinator pattern to manage the complex flow of recording c
 #### Models
 
 - `CardRecipientType`: Defines possible card recipients (player/team official)
-- `TeamOfficialCardReason`: Enumerates reasons for team official cards
-- `YellowCardReason`/`RedCardReason`: Defines player card reasons
+- `MisconductTemplate`: Groups card reasons by template for players and team officials
+- `MisconductReason`: Represents an individual code (e.g., Y1 – Unsporting Behaviour)
 
 ## Implementation Notes
 

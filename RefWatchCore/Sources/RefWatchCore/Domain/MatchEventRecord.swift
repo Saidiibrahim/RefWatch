@@ -8,7 +8,7 @@
 import Foundation
 
 /// Detailed match event record with timestamp and full context
-public struct MatchEventRecord: Identifiable, Codable {
+public struct MatchEventRecord: Identifiable, Codable, Equatable {
     public let id: UUID
     public let timestamp: Date
     public let actualTime: Date // Wall-clock time when event occurred
@@ -26,8 +26,31 @@ public struct MatchEventRecord: Identifiable, Codable {
         details: EventDetails
     ) {
         self.id = UUID()
-        self.timestamp = Date()
-        self.actualTime = Date()
+        let now = Date()
+        self.timestamp = now
+        self.actualTime = now
+        self.matchTime = matchTime
+        self.period = period
+        self.eventType = eventType
+        self.team = team
+        self.details = details
+    }
+
+    /// Allows callers (e.g. Supabase sync) to hydrate events with their
+    /// original identity and timestamps instead of generating new ones.
+    public init(
+        id: UUID,
+        timestamp: Date,
+        actualTime: Date,
+        matchTime: String,
+        period: Int,
+        eventType: MatchEventType,
+        team: TeamSide?,
+        details: EventDetails
+    ) {
+        self.id = id
+        self.timestamp = timestamp
+        self.actualTime = actualTime
         self.matchTime = matchTime
         self.period = period
         self.eventType = eventType
@@ -37,7 +60,7 @@ public struct MatchEventRecord: Identifiable, Codable {
 }
 
 /// Event type with associated data
-public enum MatchEventType: Codable {
+public enum MatchEventType: Codable, Equatable {
     case goal(GoalDetails)
     case card(CardDetails)
     case substitution(SubstitutionDetails)
@@ -69,13 +92,13 @@ public enum MatchEventType: Codable {
 }
 
 /// Team side enumeration
-public enum TeamSide: String, Codable, CaseIterable {
+public enum TeamSide: String, Codable, CaseIterable, Equatable {
     case home = "Home"
     case away = "Away"
 }
 
 /// Event details union type
-public enum EventDetails: Codable {
+public enum EventDetails: Codable, Equatable {
     case goal(GoalDetails)
     case card(CardDetails)
     case substitution(SubstitutionDetails)
@@ -84,7 +107,7 @@ public enum EventDetails: Codable {
 }
 
 /// Goal event details
-public struct GoalDetails: Codable {
+public struct GoalDetails: Codable, Equatable {
     public let goalType: GoalType
     public let playerNumber: Int?
     public let playerName: String?
@@ -95,7 +118,7 @@ public struct GoalDetails: Codable {
         self.playerName = playerName
     }
     
-    public enum GoalType: String, Codable {
+    public enum GoalType: String, Codable, Equatable {
         case regular = "Goal"
         case ownGoal = "Own Goal"
         case penalty = "Penalty"
@@ -104,7 +127,7 @@ public struct GoalDetails: Codable {
 }
 
 /// Card event details
-public struct CardDetails: Codable {
+public struct CardDetails: Codable, Equatable {
     public let cardType: CardType
     public let recipientType: CardRecipientType
     public let playerNumber: Int?
@@ -121,14 +144,14 @@ public struct CardDetails: Codable {
         self.reason = reason
     }
     
-    public enum CardType: String, Codable {
+    public enum CardType: String, Codable, Equatable {
         case yellow = "Yellow"
         case red = "Red"
     }
 }
 
 /// Substitution event details
-public struct SubstitutionDetails: Codable {
+public struct SubstitutionDetails: Codable, Equatable {
     public let playerOut: Int?
     public let playerIn: Int?
     public let playerOutName: String?
@@ -221,4 +244,3 @@ public extension MatchEventRecord {
         DateFormatter.watchShortTime.string(from: actualTime)
     }
 }
-
