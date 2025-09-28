@@ -52,7 +52,12 @@ struct RefZoneiOSApp: App {
             // Schedule
             ScheduledMatchRecord.self
         ])
-        let authController = SupabaseAuthController(clientProvider: SupabaseClientProvider.shared)
+        let clientProvider = SupabaseClientProvider.shared
+        let synchronizer = SupabaseUserProfileSynchronizer(clientProvider: clientProvider)
+        let authController = SupabaseAuthController(
+            clientProvider: clientProvider,
+            profileSynchronizer: synchronizer
+        )
         _authController = StateObject(wrappedValue: authController)
 
         let result = ModelContainerFactory.makeStore(builder: Self.containerBuilder, schema: schema, auth: authController)

@@ -9,7 +9,11 @@
 import CryptoKit
 import Foundation
 
+/// Utilities for generating cryptographically secure nonces used by Sign in with Apple and Google.
 struct SupabaseAuthNonceGenerator {
+  /// Produces a secure random nonce suitable for OIDC flows.
+  ///
+  /// - Parameter length: Desired character count. The default matches Apple's recommendation.
   static func randomNonce(length: Int = 32) -> String {
     precondition(length > 0)
     var randomBytes = [UInt8](repeating: 0, count: length)
@@ -23,6 +27,7 @@ struct SupabaseAuthNonceGenerator {
     return String(nonce)
   }
 
+  /// Hashes a nonce with SHA-256 for providers that require a digest (e.g., Apple).
   static func sha256(_ input: String) -> String {
     let data = Data(input.utf8)
     let hashed = SHA256.hash(data: data)

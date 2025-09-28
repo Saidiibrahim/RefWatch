@@ -8,7 +8,9 @@
 import Foundation
 import UIKit
 
+/// Abstraction for driving Google Identity Services and returning Supabase-friendly tokens.
 protocol SupabaseGoogleSignInCoordinating {
+  /// Initiates Google Sign-In and returns ID-token credentials that can be exchanged with Supabase.
   @MainActor
   func signIn() async throws -> SupabaseIDTokenCredentials
 }
@@ -18,6 +20,7 @@ import GoogleSignIn
 
 @MainActor
 final class SupabaseGoogleSignInCoordinator: SupabaseGoogleSignInCoordinating {
+  /// Presents Google Sign-In, normalizes the nonce requirements, and wraps the provider's token.
   func signIn() async throws -> SupabaseIDTokenCredentials {
     guard let presenter = UIApplication.topViewController() else {
       throw SupabaseAuthError.thirdPartyUnavailable(provider: SupabaseIDTokenCredentials.Provider.google.rawValue)
@@ -78,6 +81,7 @@ final class SupabaseGoogleSignInCoordinator: SupabaseGoogleSignInCoordinating {
 
 @MainActor
 final class SupabaseGoogleSignInCoordinator: SupabaseGoogleSignInCoordinating {
+  /// Throws ``SupabaseAuthError/thirdPartyUnavailable(provider:)`` when the Google SDK is unavailable.
   func signIn() async throws -> SupabaseIDTokenCredentials {
     throw SupabaseAuthError.thirdPartyUnavailable(provider: SupabaseIDTokenCredentials.Provider.google.rawValue)
   }

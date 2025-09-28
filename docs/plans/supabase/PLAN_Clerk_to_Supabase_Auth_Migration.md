@@ -124,16 +124,16 @@ FOREIGN KEY (owner_id) REFERENCES public.users(id);
 ### Phase 4: Supabase Auth → Public Users Sync
 
 #### 4.1 Client responsibilities
-- [ ] Add a `SupabaseUserProfileSynchronizer` helper under `RefZoneiOS/Core/Platform/Supabase/` that can fetch or upsert `public.users` rows using the current session's UUID. Shape the payload with `id`, `email`, `display_name`, `avatar_url`, `email_verified`, `last_sign_in_at`, `raw_app_metadata`, `raw_user_metadata`, and timestamps.
-- [ ] Inject the synchronizer into `SupabaseAuthController` so `refreshState(using:)` calls `await synchronizer.syncIfNeeded(session:)` after successful sign-in/restore. Ensure failures are logged and surfaced so repositories can retry once the row exists.
-- [ ] Cover the helper with unit tests (e.g. `SupabaseUserProfileSynchronizerTests`) to validate payload translation and error handling.
-- [ ] Update app entry points (e.g. `RefZoneiOSApp`, previews) to pass the synchronizer dependency.
+- [x] Add a `SupabaseUserProfileSynchronizer` helper under `RefZoneiOS/Core/Platform/Supabase/` that can fetch or upsert `public.users` rows using the current session's UUID. Shape the payload with `id`, `email`, `display_name`, `avatar_url`, `email_verified`, `last_sign_in_at`, `raw_app_metadata`, `raw_user_metadata`, and timestamps.
+- [x] Inject the synchronizer into `SupabaseAuthController` so `refreshState(using:)` calls `await synchronizer.syncIfNeeded(session:)` after successful sign-in/restore. Ensure failures are logged and surfaced so repositories can retry once the row exists.
+- [x] Cover the helper with unit tests (e.g. `SupabaseUserProfileSynchronizerTests`) to validate payload translation and error handling.
+- [x] Update app entry points (e.g. `RefZoneiOSApp`, previews) to pass the synchronizer dependency.
 
 #### 4.2 Database automation
-- [ ] Add a `public.sync_user_from_auth()` security-definer function that upserts into `public.users` when supplied an `auth.users` row (mirroring the columns listed above).
-- [ ] Create `AFTER INSERT`/`AFTER UPDATE` triggers on `auth.users` that invoke the function so new or updated GoTrue users automatically populate `public.users`.
+- [x] Add a `public.sync_user_from_auth()` security-definer function that upserts into `public.users` when supplied an `auth.users` row (mirroring the columns listed above).
+- [x] Create `AFTER INSERT`/`AFTER UPDATE` triggers on `auth.users` that invoke the function so new or updated GoTrue users automatically populate `public.users`.
 - [ ] Optionally add an `AFTER DELETE` trigger to cascade cleanup of `public.users` (respecting `ON DELETE CASCADE` for dependent tables).
-- [ ] Ship the function + triggers in a migration and document rollout steps so other environments receive the automation.
+- [x] Ship the function + triggers in a migration and document rollout steps so other environments receive the automation.
 
 ## Implementation Priority
 
