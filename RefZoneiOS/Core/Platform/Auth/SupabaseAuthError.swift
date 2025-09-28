@@ -8,6 +8,11 @@
 
 import Foundation
 
+/// A DocC-ready enumeration describing user-facing authentication failures.
+///
+/// ``SupabaseAuthError`` bridges raw Supabase/SDK errors into actionable guidance that can be
+/// surfaced in SwiftUI alerts. Each case renders copy tailored to the scenario so the
+/// Settings UI can stay declarative.
 enum SupabaseAuthError: Error, LocalizedError, Equatable {
   case invalidEmail
   case invalidPassword
@@ -57,6 +62,10 @@ enum SupabaseAuthError: Error, LocalizedError, Equatable {
     }
   }
 
+  /// Produces a ``SupabaseAuthError`` from an arbitrary error emitted by the Supabase SDK or platform frameworks.
+  ///
+  /// - Parameter error: The originating error.
+  /// - Returns: A best-effort mapping that defaults to ``SupabaseAuthError/unknown(message:)``.
   static func map(_ error: Error) -> SupabaseAuthError {
     if let authError = error as? SupabaseAuthError {
       return authError
@@ -98,6 +107,7 @@ enum SupabaseAuthError: Error, LocalizedError, Equatable {
 }
 
 private extension String {
+  /// Returns `nil` when the string is empty or matches a generic placeholder message.
   var nilIfPlaceholder: String? {
     let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
     if trimmed.isEmpty { return nil }

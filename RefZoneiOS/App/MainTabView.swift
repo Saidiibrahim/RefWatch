@@ -54,13 +54,18 @@ struct MainTabView: View {
 
 #if DEBUG
 #Preview {
+    let clientProvider = SupabaseClientProvider.shared
+    let synchronizer = SupabaseUserProfileSynchronizer(clientProvider: clientProvider)
     MainTabView(
         matchViewModel: MatchViewModel(haptics: NoopHaptics()),
         historyStore: MatchHistoryService(),
         matchSyncController: nil,
         scheduleStore: ScheduleService(),
         teamStore: InMemoryTeamLibraryStore(),
-        authController: SupabaseAuthController(clientProvider: SupabaseClientProvider.shared)
+        authController: SupabaseAuthController(
+            clientProvider: clientProvider,
+            profileSynchronizer: synchronizer
+        )
     )
         .environmentObject(AppRouter.preview())
         .workoutServices(.inMemoryStub())

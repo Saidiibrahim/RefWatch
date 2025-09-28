@@ -9,6 +9,7 @@
 import UIKit
 
 extension UIApplication {
+  /// Finds the top-most view controller for presenting authentication flows that require UIKit.
   static func topViewController(base: UIViewController? = UIApplication.activeWindow?.rootViewController) -> UIViewController? {
     if let nav = base as? UINavigationController {
       return topViewController(base: nav.visibleViewController)
@@ -22,6 +23,7 @@ extension UIApplication {
     return base
   }
 
+  /// Returns the current key window so coordinators can derive a presentation anchor.
   static var activeWindow: UIWindow? {
     UIApplication.shared
       .connectedScenes
