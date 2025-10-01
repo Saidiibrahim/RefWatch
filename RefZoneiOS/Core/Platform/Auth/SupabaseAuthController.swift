@@ -103,6 +103,12 @@ final class SupabaseAuthController: ObservableObject, SupabaseAuthStateProviding
         return nil
     }
 
+    /// Indicates whether the user currently has an authenticated Supabase session.
+    var isSignedIn: Bool {
+        if case .signedIn = state { return true }
+        return false
+    }
+
     /// Reads the user's email from the latest session snapshot.
     var currentEmail: String? {
         if case let .signedIn(_, email, _) = state { return email }
@@ -311,14 +317,16 @@ final class SupabaseAuthController: ObservableObject, SupabaseAuthStateProviding
                 } catch {
                     AppLog.supabase.error("User profile sync failed: \(error.localizedDescription, privacy: .public)")
                 }
+                await clientProvider.refreshFunctionAuth()
             }
         } else {
             state = .signedOut
             profileSyncTask?.cancel()
             profileSyncTask = nil
+            Task {
+                await clientProvider.refreshFunctionAuth()
+            }
         }
-
-        clientProvider.refreshFunctionAuth()
     }
 
     private static func bestDisplayName(from user: User) -> String? {

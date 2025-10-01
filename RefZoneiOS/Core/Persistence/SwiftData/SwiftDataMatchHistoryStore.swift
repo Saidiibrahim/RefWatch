@@ -28,15 +28,11 @@ final class SwiftDataMatchHistoryStore: MatchHistoryStoring {
     private let container: ModelContainer
     let context: ModelContext
     private let auth: AuthenticationProviding
-    private let importFlagKey = "rw_history_imported_v1"
 
-    init(container: ModelContainer, auth: AuthenticationProviding = NoopAuth(), importJSONOnFirstRun: Bool = true) {
+    init(container: ModelContainer, auth: AuthenticationProviding = NoopAuth()) {
         self.container = container
         self.context = ModelContext(container)
         self.auth = auth
-        if importJSONOnFirstRun {
-            importFromLegacyJSONIfNeeded()
-        }
     }
 
     // MARK: - MatchHistoryStoring
@@ -81,6 +77,7 @@ final class SwiftDataMatchHistoryStore: MatchHistoryStoring {
     }
 
     func save(_ match: CompletedMatch) throws {
+        try requireSignedIn(operation: "save match history")
         let snapshot = attachOwnerIfNeeded(match)
         let data = try Self.encode(snapshot)
 
@@ -91,6 +88,12 @@ final class SwiftDataMatchHistoryStore: MatchHistoryStoring {
             existing.awayTeam = snapshot.match.awayTeam
             existing.homeScore = snapshot.match.homeScore
             existing.awayScore = snapshot.match.awayScore
+            existing.homeTeamId = snapshot.match.homeTeamId
+            existing.awayTeamId = snapshot.match.awayTeamId
+            existing.competitionId = snapshot.match.competitionId
+            existing.competitionName = snapshot.match.competitionName
+            existing.venueId = snapshot.match.venueId
+            existing.venueName = snapshot.match.venueName
             existing.payload = data
             existing.needsRemoteSync = true
         } else {
@@ -102,6 +105,12 @@ final class SwiftDataMatchHistoryStore: MatchHistoryStoring {
                 awayTeam: snapshot.match.awayTeam,
                 homeScore: snapshot.match.homeScore,
                 awayScore: snapshot.match.awayScore,
+                homeTeamId: snapshot.match.homeTeamId,
+                awayTeamId: snapshot.match.awayTeamId,
+                competitionId: snapshot.match.competitionId,
+                competitionName: snapshot.match.competitionName,
+                venueId: snapshot.match.venueId,
+                venueName: snapshot.match.venueName,
                 payload: data,
                 needsRemoteSync: true
             )
@@ -112,6 +121,7 @@ final class SwiftDataMatchHistoryStore: MatchHistoryStoring {
     }
 
     func delete(id: UUID) throws {
+        try requireSignedIn(operation: "delete match history")
         if let existing = try fetchRecord(id: id) {
             context.delete(existing)
             try context.save()
@@ -120,39 +130,12 @@ final class SwiftDataMatchHistoryStore: MatchHistoryStoring {
     }
 
     func wipeAll() throws {
-        var desc = FetchDescriptor<CompletedMatchRecord>()
-        let all = try context.fetch(desc)
-        for item in all { context.delete(item) }
-        try context.save()
-        NotificationCenter.default.post(name: .matchHistoryDidChange, object: nil)
+        try requireSignedIn(operation: "wipe match history")
+        try performWipeAll()
     }
 
-    // MARK: - Import
-    /// Performs a best-effort, one-time import from the legacy JSON store.
-    ///
-    /// Steps:
-    /// - Check a `UserDefaults` flag to skip work if already imported.
-    /// - Load existing SwiftData rows and build a Set of IDs to avoid duplicates.
-    /// - Load all legacy JSON snapshots; for each item not in the ID set, upsert via `save(_:)`.
-    /// - Mark the flag as imported even if partial failures occur (best-effort policy).
-    ///
-    /// Rationale:
-    /// - Keeps first-run cost predictable and resilient to partial data inconsistencies.
-    /// - Uses `save(_:)` path to centralize owner attachment and notifications.
-    private func importFromLegacyJSONIfNeeded() {
-        if UserDefaults.standard.bool(forKey: importFlagKey) { return }
-        let legacy = MatchHistoryService() // JSON-based
-        let items = (try? legacy.loadAll()) ?? []
-        guard !items.isEmpty else {
-            UserDefaults.standard.set(true, forKey: importFlagKey)
-            return
-        }
-        // Build an index of existing IDs to avoid duplicates if partial import occurred
-        let existingIds = Set((try? context.fetch(FetchDescriptor<CompletedMatchRecord>()))?.map { $0.id } ?? [])
-        for item in items where !existingIds.contains(item.id) {
-            do { try save(item) } catch { /* continue best-effort */ }
-        }
-        UserDefaults.standard.set(true, forKey: importFlagKey)
+    func wipeAllForLogout() throws {
+        try performWipeAll()
     }
 
     // MARK: - Helpers
@@ -172,6 +155,13 @@ final class SwiftDataMatchHistoryStore: MatchHistoryStoring {
         match.attachingOwnerIfMissing(using: auth)
     }
 
+    /// Ensures a Supabase user is available before mutating persistence.
+    private func requireSignedIn(operation: String) throws {
+        guard auth.currentUserId != nil else {
+            throw PersistenceAuthError.signedOut(operation: operation)
+        }
+    }
+
     static func encoder() -> JSONEncoder {
         let enc = JSONEncoder()
         enc.outputFormatting = [.prettyPrinted]
@@ -187,4 +177,15 @@ final class SwiftDataMatchHistoryStore: MatchHistoryStoring {
 
     static func encode(_ obj: CompletedMatch) throws -> Data { try encoder().encode(obj) }
     static func decode(_ data: Data) -> CompletedMatch? { try? decoder().decode(CompletedMatch.self, from: data) }
+}
+
+private extension SwiftDataMatchHistoryStore {
+    func performWipeAll() throws {
+        let all = try context.fetch(FetchDescriptor<CompletedMatchRecord>())
+        for item in all { context.delete(item) }
+        if context.hasChanges {
+            try context.save()
+        }
+        NotificationCenter.default.post(name: .matchHistoryDidChange, object: nil)
+    }
 }

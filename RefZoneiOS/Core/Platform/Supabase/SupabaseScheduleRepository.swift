@@ -50,10 +50,12 @@ final class SupabaseScheduleRepository: ScheduleStoring {
     self.dateProvider = dateProvider
     self.pullInterval = pullInterval
     self.pendingDeletions = backlog.loadPendingDeletionIDs()
+    publishSyncStatus()
 
     if let userId = authStateProvider.currentUserId,
        let uuid = UUID(uuidString: userId) {
       ownerUUID = uuid
+      publishSyncStatus()
       scheduleInitialSync()
     }
 
@@ -78,33 +80,38 @@ final class SupabaseScheduleRepository: ScheduleStoring {
     store.loadAll()
   }
 
-  func save(_ item: ScheduledMatch) {
+  func save(_ item: ScheduledMatch) throws {
+    let ownerUUID = try requireOwnerUUID(operation: "save scheduled match")
     var updated = item
-    if updated.ownerSupabaseId == nil, let ownerUUID {
+    if updated.ownerSupabaseId != ownerUUID.uuidString {
       updated.ownerSupabaseId = ownerUUID.uuidString
     }
     updated.needsRemoteSync = true
-    store.save(updated)
+    try store.save(updated)
     enqueuePush(for: updated.id)
   }
 
-  func delete(id: UUID) {
+  func delete(id: UUID) throws {
+    _ = try requireOwnerUUID(operation: "delete scheduled match")
     pendingPushes.remove(id)
     pendingDeletions.insert(id)
     backlog.addPendingDeletion(id: id)
-    store.delete(id: id)
+    try store.delete(id: id)
     scheduleProcessingTask()
+    publishSyncStatus()
   }
 
-  func wipeAll() {
+  func wipeAll() throws {
+    _ = try requireOwnerUUID(operation: "wipe scheduled matches")
     let existing = store.loadAll()
     for match in existing {
       pendingPushes.remove(match.id)
       pendingDeletions.insert(match.id)
       backlog.addPendingDeletion(id: match.id)
     }
-    store.wipeAll()
+    try store.wipeAll()
     scheduleProcessingTask()
+    publishSyncStatus()
   }
 
   var changesPublisher: AnyPublisher<[ScheduledMatch], Never> {
@@ -124,12 +131,23 @@ private extension SupabaseScheduleRepository {
       processingTask = nil
       pullTask?.cancel()
       pullTask = nil
+      pendingPushes.removeAll()
+      pendingDeletions.removeAll()
+      backlog.clearAll()
+      do {
+        try store.wipeAllForLogout()
+        log.notice("Cleared scheduled matches after sign-out")
+      } catch {
+        log.error("Failed to wipe scheduled matches on sign-out: \(error.localizedDescription, privacy: .public)")
+      }
+      publishSyncStatus()
     case let .signedIn(userId, _, _):
       guard let uuid = UUID(uuidString: userId) else {
         log.error("Schedule sync received non-UUID Supabase id: \(userId, privacy: .public)")
         return
       }
       ownerUUID = uuid
+      publishSyncStatus()
       scheduleInitialSync()
     }
   }
@@ -183,6 +201,7 @@ private extension SupabaseScheduleRepository {
     pendingPushes.insert(matchId)
     applyOwnerIdentityIfNeeded(for: matchId)
     scheduleProcessingTask()
+    publishSyncStatus()
   }
 
   func scheduleProcessingTask() {
@@ -241,6 +260,7 @@ private extension SupabaseScheduleRepository {
       log.error("Supabase schedule delete failed id=\(id.uuidString, privacy: .public) error=\(error.localizedDescription, privacy: .public)")
       try? await Task.sleep(nanoseconds: 1_000_000_000)
     }
+    publishSyncStatus()
   }
 
   func performRemotePush(id: UUID) async {
@@ -266,6 +286,7 @@ private extension SupabaseScheduleRepository {
       log.error("Supabase schedule push failed id=\(id.uuidString, privacy: .public) error=\(error.localizedDescription, privacy: .public)")
       try? await Task.sleep(nanoseconds: 1_000_000_000)
     }
+    publishSyncStatus()
   }
 
   func pushDirtyMatches() async throws {
@@ -278,6 +299,7 @@ private extension SupabaseScheduleRepository {
       applyOwnerIdentityIfNeeded(for: match.id)
     }
     scheduleProcessingTask()
+    publishSyncStatus()
     try? await Task.sleep(nanoseconds: 200_000_000)
   }
 
@@ -290,6 +312,7 @@ private extension SupabaseScheduleRepository {
     if let maxDate = filtered.map({ $0.updatedAt }).max() {
       remoteCursor = max(remoteCursor ?? maxDate, maxDate)
     }
+    publishSyncStatus()
   }
  }
 
@@ -380,4 +403,22 @@ private extension SupabaseScheduleRepository {
       metadataPersistor.publishSnapshot()
     }
   }
- }
+
+  func publishSyncStatus() {
+    let info: [String: Any] = [
+      "component": "schedule",
+      "pendingPushes": pendingPushes.count,
+      "pendingDeletions": pendingDeletions.count,
+      "signedIn": ownerUUID != nil,
+      "timestamp": dateProvider()
+    ]
+    NotificationCenter.default.post(name: .syncStatusUpdate, object: nil, userInfo: info)
+  }
+
+  func requireOwnerUUID(operation: String) throws -> UUID {
+    guard let ownerUUID else {
+      throw PersistenceAuthError.signedOut(operation: operation)
+    }
+    return ownerUUID
+  }
+}

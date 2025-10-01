@@ -22,6 +22,8 @@ final class SupabaseMatchHistoryRepository: MatchHistoryStoring, MatchHistorySyn
   private let dateProvider: () -> Date
   private let deviceIdProvider: () -> String?
   private let pullInterval: TimeInterval
+  private let initialBackoff: TimeInterval
+  private let maxBackoff: TimeInterval
   private let log = AppLog.supabase
 
   private var ownerUUID: UUID?
@@ -29,7 +31,8 @@ final class SupabaseMatchHistoryRepository: MatchHistoryStoring, MatchHistorySyn
   private var processingTask: Task<Void, Never>?
   private var pullTask: Task<Void, Never>?
   private var pendingPushes: Set<UUID> = []
-  private var pendingDeletions: Set<UUID>
+  private var pushMetadata: [UUID: MatchSyncPushMetadata] = [:]
+  private var pendingDeletions: Set<UUID> = []
   private var remoteCursor: Date?
 
   init(
@@ -39,7 +42,9 @@ final class SupabaseMatchHistoryRepository: MatchHistoryStoring, MatchHistorySyn
     backlog: MatchSyncBacklogStoring = SupabaseMatchSyncBacklogStore(),
     dateProvider: @escaping () -> Date = Date.init,
     deviceIdProvider: @escaping () -> String? = { nil },
-    pullInterval: TimeInterval = 600
+    pullInterval: TimeInterval = 600,
+    initialBackoff: TimeInterval = 5,
+    maxBackoff: TimeInterval = 300
   ) {
     self.store = store
     self.authStateProvider = authStateProvider
@@ -48,7 +53,10 @@ final class SupabaseMatchHistoryRepository: MatchHistoryStoring, MatchHistorySyn
     self.dateProvider = dateProvider
     self.deviceIdProvider = deviceIdProvider
     self.pullInterval = pullInterval
+    self.initialBackoff = initialBackoff
+    self.maxBackoff = maxBackoff
     self.pendingDeletions = backlog.loadPendingDeletionIDs()
+    self.pushMetadata = backlog.loadPendingPushMetadata()
 
     restoreStateFromStore()
 
@@ -83,6 +91,7 @@ final class SupabaseMatchHistoryRepository: MatchHistoryStoring, MatchHistorySyn
   }
 
   func save(_ match: CompletedMatch) throws {
+    _ = try ensureOwnerUUID(operation: "save match history")
     try store.save(match)
     guard let record = try store.fetchRecord(id: match.id) else { return }
     markRecordForSync(record)
@@ -92,29 +101,36 @@ final class SupabaseMatchHistoryRepository: MatchHistoryStoring, MatchHistorySyn
   }
 
   func delete(id: UUID) throws {
+    _ = try ensureOwnerUUID(operation: "delete match history")
     pendingPushes.remove(id)
+    clearPushMetadata(for: id)
     pendingDeletions.insert(id)
     backlog.addPendingDeletion(id: id)
     try store.delete(id: id)
     scheduleProcessingTask()
+    publishSyncStatus()
   }
 
   func wipeAll() throws {
+    _ = try ensureOwnerUUID(operation: "wipe match history")
     let records = try store.fetchAllRecords()
     for record in records {
       pendingPushes.remove(record.id)
+      clearPushMetadata(for: record.id)
       pendingDeletions.insert(record.id)
       backlog.addPendingDeletion(id: record.id)
     }
     try store.wipeAll()
     scheduleProcessingTask()
+    publishSyncStatus()
   }
 
   // MARK: - MatchHistorySyncControlling
 
   func requestManualSync() -> Bool {
-    guard ownerUUID != nil else { return false }
+    guard (try? ensureOwnerUUID(operation: "sync match history")) != nil else { return false }
     scheduleProcessingTask()
+    publishSyncStatus()
     Task { [weak self] in
       guard let self else { return }
       do {
@@ -141,12 +157,24 @@ private extension SupabaseMatchHistoryRepository {
       remoteCursor = nil
       processingTask?.cancel(); processingTask = nil
       pullTask?.cancel(); pullTask = nil
+      pendingPushes.removeAll()
+      pendingDeletions.removeAll()
+      pushMetadata.removeAll()
+      backlog.clearAll()
+      do {
+        try store.wipeAllForLogout()
+        log.notice("Cleared local match history after sign-out")
+      } catch {
+        log.error("Failed to wipe match history on sign-out: \(error.localizedDescription, privacy: .public)")
+      }
+      publishSyncStatus()
     case let .signedIn(userId, _, _):
       guard let uuid = UUID(uuidString: userId) else {
         log.error("Match sync received non-UUID Supabase id: \(userId, privacy: .public)")
         return
       }
       ownerUUID = uuid
+      publishSyncStatus()
       scheduleInitialSync()
     }
   }
@@ -199,7 +227,9 @@ private extension SupabaseMatchHistoryRepository {
   func enqueuePush(for matchId: UUID) {
     pendingPushes.insert(matchId)
     applyOwnerIdentityIfNeeded(for: matchId)
+    ensurePushMetadata(for: matchId, initialDelay: 0)
     scheduleProcessingTask()
+    publishSyncStatus()
   }
 
   func scheduleProcessingTask() {
@@ -237,6 +267,51 @@ private extension SupabaseMatchHistoryRepository {
   }
 }
 
+private extension SupabaseMatchHistoryRepository {
+  func ensurePushMetadata(for matchId: UUID, initialDelay: TimeInterval) {
+    if pushMetadata[matchId] != nil { return }
+    let nextAttempt = dateProvider().addingTimeInterval(initialDelay)
+    let metadata = MatchSyncPushMetadata(retryCount: 0, nextAttempt: nextAttempt)
+    pushMetadata[matchId] = metadata
+    backlog.updatePendingPushMetadata(metadata, for: matchId)
+  }
+
+  func scheduleRetry(for matchId: UUID) {
+    let previousCount = pushMetadata[matchId]?.retryCount ?? 0
+    let nextRetry = min(previousCount + 1, 10)
+    let exponent = max(nextRetry - 1, 0)
+    let backoff = min(maxBackoff, initialBackoff * pow(2, Double(exponent)))
+    let metadata = MatchSyncPushMetadata(
+      retryCount: nextRetry,
+      nextAttempt: dateProvider().addingTimeInterval(backoff)
+    )
+    pushMetadata[matchId] = metadata
+    backlog.updatePendingPushMetadata(metadata, for: matchId)
+    log.info("Supabase match push retry scheduled id=\(matchId.uuidString, privacy: .public) attempt=\(nextRetry) delay=\(backoff, privacy: .public)s")
+    publishSyncStatus()
+  }
+
+  func clearPushMetadata(for matchId: UUID) {
+    pushMetadata.removeValue(forKey: matchId)
+    backlog.removePendingPushMetadata(for: matchId)
+    publishSyncStatus()
+  }
+
+  func publishSyncStatus() {
+    var info: [String: Any] = [
+      "component": "match_history",
+      "pendingPushes": pendingPushes.count,
+      "pendingDeletions": pendingDeletions.count,
+      "signedIn": ownerUUID != nil,
+      "timestamp": dateProvider()
+    ]
+    if let nextRetry = pushMetadata.values.map(\.nextAttempt).min() {
+      info["nextRetry"] = nextRetry
+    }
+    NotificationCenter.default.post(name: .syncStatusUpdate, object: nil, userInfo: info)
+  }
+}
+
 // MARK: - Remote Operations
 
 private extension SupabaseMatchHistoryRepository {
@@ -254,8 +329,10 @@ private extension SupabaseMatchHistoryRepository {
     } catch {
       pendingDeletions.insert(id)
       log.error("Supabase match delete failed id=\(id.uuidString, privacy: .public) error=\(error.localizedDescription, privacy: .public)")
+      reportMatchSyncFailure(error, context: .delete, matchId: id)
       try? await Task.sleep(nanoseconds: 1_000_000_000)
     }
+    publishSyncStatus()
   }
 
   func pushDirtyMatches() async throws {
@@ -265,21 +342,41 @@ private extension SupabaseMatchHistoryRepository {
     for record in records {
       pendingPushes.insert(record.id)
       applyOwnerIdentityIfNeeded(for: record.id)
+      ensurePushMetadata(for: record.id, initialDelay: 0)
     }
     scheduleProcessingTask()
+    publishSyncStatus()
   }
 
   func performRemotePush(id: UUID) async {
+    ensurePushMetadata(for: id, initialDelay: 0)
+
+    if let metadata = pushMetadata[id] {
+      let now = dateProvider()
+      if metadata.nextAttempt > now {
+        let delay = metadata.nextAttempt.timeIntervalSince(now)
+        let clampedDelay = min(delay, maxBackoff)
+        let nanoseconds = UInt64(max(clampedDelay, 0) * 1_000_000_000)
+        if nanoseconds > 0 {
+          try? await Task.sleep(nanoseconds: nanoseconds)
+        }
+      }
+    }
+
     guard let ownerUUID else {
+      scheduleRetry(for: id)
       pendingPushes.insert(id)
       return
     }
+
     guard let record = try? store.fetchRecord(id: id),
           let snapshot = SwiftDataMatchHistoryStore.decode(record.payload) else {
+      clearPushMetadata(for: id)
       return
     }
 
     guard let request = makeMatchBundleRequest(for: record, snapshot: snapshot, ownerUUID: ownerUUID) else {
+      scheduleRetry(for: id)
       pendingPushes.insert(id)
       return
     }
@@ -296,15 +393,23 @@ private extension SupabaseMatchHistoryRepository {
       try store.context.save()
       NotificationCenter.default.post(name: .matchHistoryDidChange, object: nil)
       remoteCursor = max(remoteCursor ?? result.updatedAt, result.updatedAt)
+      clearPushMetadata(for: id)
     } catch {
+      scheduleRetry(for: id)
       pendingPushes.insert(id)
       log.error("Supabase match push failed id=\(id.uuidString, privacy: .public) error=\(error.localizedDescription, privacy: .public)")
-      try? await Task.sleep(nanoseconds: 1_000_000_000)
+      reportMatchSyncFailure(error, context: .push, matchId: id)
     }
   }
 
   func pullRemoteUpdates(for ownerUUID: UUID) async throws {
+    #if DEBUG
+    log.debug("Match history pull started for owner=\(ownerUUID.uuidString, privacy: .public)")
+    #endif
     let remoteBundles = try await api.fetchMatchBundles(ownerId: ownerUUID, updatedAfter: remoteCursor)
+    #if DEBUG
+    log.debug("Fetched \(remoteBundles.count) remote bundles")
+    #endif
     guard remoteBundles.isEmpty == false else { return }
 
     var didChange = false
@@ -326,15 +431,23 @@ private extension SupabaseMatchHistoryRepository {
           record.awayTeam = bundle.match.awayTeamName
           record.homeScore = bundle.match.homeScore
           record.awayScore = bundle.match.awayScore
+          record.homeTeamId = bundle.match.homeTeamId
+          record.awayTeamId = bundle.match.awayTeamId
+          record.competitionId = bundle.match.competitionId
+          record.competitionName = bundle.match.competitionName
+          record.venueId = bundle.match.venueId
+          record.venueName = bundle.match.venueName
           record.needsRemoteSync = false
           record.remoteUpdatedAt = bundle.match.updatedAt
           record.lastSyncedAt = dateProvider()
           record.sourceDeviceId = bundle.match.sourceDeviceId ?? record.sourceDeviceId
+          clearPushMetadata(for: bundle.match.id)
           didChange = true
         }
       } else {
         if let record = try insertRemote(bundle, ownerUUID: ownerUUID) {
           store.context.insert(record)
+          clearPushMetadata(for: bundle.match.id)
           didChange = true
         }
       }
@@ -343,22 +456,76 @@ private extension SupabaseMatchHistoryRepository {
     if didChange {
       try store.context.save()
       NotificationCenter.default.post(name: .matchHistoryDidChange, object: nil)
+      #if DEBUG
+      log.debug("Match history sync complete: \(remoteBundles.count) bundles processed, posting .matchHistoryDidChange notification")
+      #endif
     }
 
     if let maxDate = remoteBundles.map({ $0.match.updatedAt }).max() {
       remoteCursor = max(remoteCursor ?? maxDate, maxDate)
     }
+    publishSyncStatus()
   }
 }
 
 // MARK: - Helpers
 
 private extension SupabaseMatchHistoryRepository {
+  enum MatchSyncFailureContext { case push, delete }
+
+  func reportMatchSyncFailure(_ error: Error, context: MatchSyncFailureContext, matchId: UUID) {
+    let description = String(describing: error)
+    let message: String
+    let breadcrumb: String
+
+    if isMissingIngestFunctionError(error) {
+      message = "matches-ingest edge function missing (404)"
+      breadcrumb = "match_history.ingest.404"
+    } else {
+      let phase = context == .push ? "ingest" : "delete"
+      message = "Supabase match \(phase) failed: \(description)"
+      breadcrumb = "match_history.\(phase)"
+    }
+
+    NotificationCenter.default.post(
+      name: .syncNonrecoverableError,
+      object: nil,
+      userInfo: [
+        "error": "\(message) [match_id=\(matchId.uuidString)]",
+        "context": breadcrumb
+      ]
+    )
+  }
+
+  func isMissingIngestFunctionError(_ error: Error) -> Bool {
+    let description = String(describing: error).lowercased()
+    if description.contains("matches-ingest") {
+      if description.contains("404") || description.contains("not found") {
+        return true
+      }
+    }
+    let nsError = error as NSError
+    if nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorResourceUnavailable {
+      return true
+    }
+    if nsError.code == 404 { return true }
+    return false
+  }
+
   func restoreStateFromStore() {
     do {
       let records = try store.fetchAllRecords()
       pendingPushes = Set(records.filter { $0.needsRemoteSync }.map { $0.id })
       remoteCursor = records.compactMap { $0.remoteUpdatedAt }.max()
+      let validIds = pendingPushes
+      let staleIds = Set(pushMetadata.keys).subtracting(validIds)
+      for stale in staleIds {
+        clearPushMetadata(for: stale)
+      }
+      for id in validIds {
+        ensurePushMetadata(for: id, initialDelay: 0)
+      }
+      publishSyncStatus()
     } catch {
       log.error("Failed to restore match sync state: \(error.localizedDescription, privacy: .public)")
     }
@@ -373,6 +540,17 @@ private extension SupabaseMatchHistoryRepository {
       record.sourceDeviceId = deviceIdProvider()
     }
     try? store.context.save()
+  }
+
+  func ensureOwnerUUID(operation: String) throws -> UUID {
+    if let ownerUUID {
+      return ownerUUID
+    }
+    if let userId = authStateProvider.currentUserId, let resolved = UUID(uuidString: userId) {
+      ownerUUID = resolved
+      return resolved
+    }
+    throw PersistenceAuthError.signedOut(operation: operation)
   }
 
   func applyOwnerIdentityIfNeeded(for matchId: UUID) {
@@ -401,13 +579,13 @@ private extension SupabaseMatchHistoryRepository {
       numberOfPeriods: max(1, match.numberOfPeriods),
       regulationMinutes: Int(match.duration / 60),
       halfTimeMinutes: Int(match.halfTimeLength / 60),
-      competitionId: nil,
-      competitionName: nil,
-      venueId: nil,
-      venueName: nil,
-      homeTeamId: nil,
+      competitionId: match.competitionId,
+      competitionName: match.competitionName,
+      venueId: match.venueId,
+      venueName: match.venueName,
+      homeTeamId: match.homeTeamId,
       homeTeamName: match.homeTeam,
-      awayTeamId: nil,
+      awayTeamId: match.awayTeamId,
       awayTeamName: match.awayTeam,
       extraTimeEnabled: match.hasExtraTime,
       extraTimeHalfMinutes: match.hasExtraTime ? Int(match.extraTimeHalfLength / 60) : nil,
@@ -450,10 +628,62 @@ private extension SupabaseMatchHistoryRepository {
       )
     }
 
+    let metrics = makeMetricsPayload(
+      ownerId: ownerUUID,
+      matchPayload: matchPayload,
+      match: match,
+      periodSummaries: periodSummaries,
+      events: snapshot.events
+    )
+
     return SupabaseMatchIngestService.MatchBundleRequest(
       match: matchPayload,
       periods: periods,
-      events: events
+      events: events,
+      metrics: metrics
+    )
+  }
+
+  func makeMetricsPayload(
+    ownerId: UUID,
+    matchPayload: SupabaseMatchIngestService.MatchBundleRequest.MatchPayload,
+    match: Match,
+    periodSummaries: [PeriodSummary],
+    events: [MatchEventRecord]
+  ) -> SupabaseMatchIngestService.MatchBundleRequest.MetricsPayload {
+    let finalScore = matchPayload.finalScore
+    let homeYellow = finalScore?.homeYellowCards ?? match.homeYellowCards
+    let awayYellow = finalScore?.awayYellowCards ?? match.awayYellowCards
+    let homeRed = finalScore?.homeRedCards ?? match.homeRedCards
+    let awayRed = finalScore?.awayRedCards ?? match.awayRedCards
+    let yellowCards = homeYellow + awayYellow
+    let redCards = homeRed + awayRed
+    let homeCards = homeYellow + homeRed
+    let awayCards = awayYellow + awayRed
+
+    let penaltyStats = penaltyStats(from: events)
+    let avgAddedSeconds = averageAddedTime(in: periodSummaries)
+    let extraTimeMinutes = matchPayload.extraTimeHalfMinutes.map { $0 * 2 }
+
+    return SupabaseMatchIngestService.MatchBundleRequest.MetricsPayload(
+      matchId: matchPayload.id,
+      ownerId: ownerId,
+      regulationMinutes: matchPayload.regulationMinutes,
+      halfTimeMinutes: matchPayload.halfTimeMinutes,
+      extraTimeMinutes: extraTimeMinutes,
+      penaltiesEnabled: matchPayload.penaltiesEnabled,
+      totalGoals: matchPayload.homeScore + matchPayload.awayScore,
+      totalCards: yellowCards + redCards,
+      totalPenalties: penaltyStats.attempts,
+      yellowCards: yellowCards,
+      redCards: redCards,
+      homeCards: homeCards,
+      awayCards: awayCards,
+      homeSubstitutions: finalScore?.homeSubstitutions ?? match.homeSubs,
+      awaySubstitutions: finalScore?.awaySubstitutions ?? match.awaySubs,
+      penaltiesScored: penaltyStats.scored,
+      penaltiesMissed: penaltyStats.missed,
+      avgAddedTimeSeconds: avgAddedSeconds
     )
   }
 
@@ -523,6 +753,12 @@ private extension SupabaseMatchHistoryRepository {
       awayTeam: snapshot.match.awayTeam,
       homeScore: snapshot.match.homeScore,
       awayScore: snapshot.match.awayScore,
+      homeTeamId: snapshot.match.homeTeamId,
+      awayTeamId: snapshot.match.awayTeamId,
+      competitionId: snapshot.match.competitionId,
+      competitionName: snapshot.match.competitionName,
+      venueId: snapshot.match.venueId,
+      venueName: snapshot.match.venueName,
       payload: payload,
       remoteUpdatedAt: bundle.match.updatedAt,
       needsRemoteSync: false,
@@ -554,6 +790,12 @@ private extension SupabaseMatchHistoryRepository {
     match.startTime = remote.startedAt
     match.homeScore = remote.homeScore
     match.awayScore = remote.awayScore
+    match.homeTeamId = remote.homeTeamId
+    match.awayTeamId = remote.awayTeamId
+    match.competitionId = remote.competitionId
+    match.competitionName = remote.competitionName
+    match.venueId = remote.venueId
+    match.venueName = remote.venueName
 
     if let final = remote.finalScore {
       match.homeYellowCards = final.homeYellowCards
@@ -630,6 +872,12 @@ private extension SupabaseMatchHistoryRepository {
     let awaySubs: Int
   }
 
+  struct PenaltyStats {
+    let attempts: Int
+    let scored: Int
+    let missed: Int
+  }
+
   func deriveStats(from events: [SupabaseMatchIngestService.RemoteEvent]) -> DerivedStats {
     var homeYellow = 0
     var awayYellow = 0
@@ -660,6 +908,46 @@ private extension SupabaseMatchHistoryRepository {
       homeSubs: homeSubs,
       awaySubs: awaySubs
     )
+  }
+
+  func penaltyStats(from events: [MatchEventRecord]) -> PenaltyStats {
+    var attempts = 0
+    var scored = 0
+    var missed = 0
+    var sawExplicitAttempts = false
+
+    for event in events {
+      switch event.eventType {
+      case .penaltyAttempt(let details):
+        sawExplicitAttempts = true
+        attempts += 1
+        if details.result == .scored {
+          scored += 1
+        } else {
+          missed += 1
+        }
+      default:
+        continue
+      }
+    }
+
+    if sawExplicitAttempts == false {
+      for event in events {
+        if case let .goal(details) = event.eventType, details.goalType == .penalty {
+          attempts += 1
+          scored += 1
+        }
+      }
+    }
+
+    return PenaltyStats(attempts: attempts, scored: scored, missed: missed)
+  }
+
+  func averageAddedTime(in summaries: [PeriodSummary]) -> Int {
+    guard summaries.isEmpty == false else { return 0 }
+    let total = summaries.reduce(0) { $0 + max(0, $1.addedTimeSeconds) }
+    let average = Double(total) / Double(summaries.count)
+    return Int(average.rounded())
   }
 
   func supabaseTeamSide(for team: TeamSide?) -> String? {

@@ -8,6 +8,7 @@
 //
 
 import Foundation
+import OSLog
 import Supabase
 
 protocol SupabaseScheduleServing {
@@ -65,6 +66,7 @@ struct SupabaseScheduleAPI: SupabaseScheduleServing {
   private let clientProvider: SupabaseClientProviding
   private let decoder: JSONDecoder
   private let isoFormatter: ISO8601DateFormatter
+  private let log = AppLog.supabase
 
   init(
     clientProvider: SupabaseClientProviding = SupabaseClientProvider.shared,
@@ -150,7 +152,13 @@ struct SupabaseScheduleAPI: SupabaseScheduleServing {
       .upsert([payload], onConflict: "id", returning: .representation)
       .execute()
 
-    let updatedRows = try decoder.decode([ScheduledMatchRowDTO].self, from: response.data)
+    if let raw = String(data: response.data, encoding: .utf8) {
+      log.debug("Scheduled match upsert response: \(raw, privacy: .public)")
+    } else {
+      log.debug("Scheduled match upsert response size=\(response.data.count, privacy: .public) bytes")
+    }
+
+    let updatedRows = try Self.decodeUpsertResponse(data: response.data, decoder: decoder)
     guard let updated = updatedRows.first else {
       throw APIError.invalidResponse
     }
@@ -172,11 +180,49 @@ struct SupabaseScheduleAPI: SupabaseScheduleServing {
   }
 }
 
-private extension SupabaseScheduleAPI {
+extension SupabaseScheduleAPI {
   static func makeDecoder() -> JSONDecoder {
     let decoder = JSONDecoder()
-    decoder.dateDecodingStrategy = .iso8601
+    let isoWithFraction = ISO8601DateFormatter()
+    isoWithFraction.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    let isoWithoutFraction = ISO8601DateFormatter()
+    isoWithoutFraction.formatOptions = [.withInternetDateTime]
+
+    decoder.dateDecodingStrategy = .custom { decoder in
+      let container = try decoder.singleValueContainer()
+      let value = try container.decode(String.self)
+
+      if let date = parseTimestamp(value, isoWithFraction: isoWithFraction, isoWithoutFraction: isoWithoutFraction) {
+        return date
+      }
+
+      throw DecodingError.dataCorruptedError(
+        in: container,
+        debugDescription: "Invalid date string: \(value)"
+      )
+    }
+
     return decoder
+  }
+
+  static func decodeUpsertResponse(data: Data, decoder: JSONDecoder) throws -> [ScheduledMatchRowDTO] {
+    if data.isEmpty {
+      return []
+    }
+
+    if let rows = try? decoder.decode([ScheduledMatchRowDTO].self, from: data) {
+      return rows
+    }
+
+    struct Representation: Decodable {
+      let data: [ScheduledMatchRowDTO]
+    }
+
+    if let wrapped = try? decoder.decode(Representation.self, from: data) {
+      return wrapped.data
+    }
+
+    throw APIError.invalidResponse
   }
 
   static func makeISOFormatter() -> ISO8601DateFormatter {
@@ -186,9 +232,55 @@ private extension SupabaseScheduleAPI {
   }
 }
 
+private extension SupabaseScheduleAPI {
+  static func parseTimestamp(
+    _ value: String,
+    isoWithFraction: ISO8601DateFormatter,
+    isoWithoutFraction: ISO8601DateFormatter
+  ) -> Date? {
+    if let date = isoWithFraction.date(from: value) ?? isoWithoutFraction.date(from: value) {
+      return date
+    }
+
+    let normalized = normalizePostgresTimestamp(value)
+    return isoWithFraction.date(from: normalized) ?? isoWithoutFraction.date(from: normalized)
+  }
+
+  static func normalizePostgresTimestamp(_ value: String) -> String {
+    var result = value
+
+    if let spaceIndex = result.firstIndex(of: " ") {
+      result.replaceSubrange(spaceIndex...spaceIndex, with: "T")
+    }
+
+    guard let tzIndex = result.lastIndex(where: { $0 == "+" || $0 == "-" }) else {
+      return result
+    }
+
+    let prefix = String(result[..<tzIndex])
+    let suffix = String(result[tzIndex...])
+
+    if suffix.contains(":") {
+      return prefix + suffix
+    }
+
+    if suffix.count == 3 {
+      return prefix + suffix + ":00"
+    }
+
+    if suffix.count == 5 {
+      let hour = suffix.prefix(3)
+      let minutes = suffix.suffix(2)
+      return prefix + hour + ":" + minutes
+    }
+
+    return prefix + suffix
+  }
+}
+
 // Top-level DTOs (private) to avoid inheriting any actor isolation from enclosing types.
 
-private struct ScheduledMatchRowDTO: Decodable, Sendable {
+struct ScheduledMatchRowDTO: Decodable, Sendable {
   let id: UUID
   let ownerId: UUID
   let homeTeamName: String
