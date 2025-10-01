@@ -20,8 +20,8 @@ final class SupabaseScheduleRepositoryTests: XCTestCase {
 
   func testSaveQueuesPushAndClearsDirtyOnSuccess() async throws {
     let container = try makeMemoryContainer()
-    let baseStore = SwiftDataScheduleStore(container: container, importJSONOnFirstRun: false)
     let authProvider = StubAuthProvider()
+    let baseStore = SwiftDataScheduleStore(container: container, auth: authProvider)
     let api = MockScheduleAPI()
     let backlog = StubScheduleBacklogStore()
     let repository = SupabaseScheduleRepository(
@@ -38,7 +38,7 @@ final class SupabaseScheduleRepositoryTests: XCTestCase {
     let expectation = expectation(description: "sync called")
     api.syncExpectation = expectation
 
-    repository.save(ScheduledMatch(homeTeam: "Home", awayTeam: "Away", kickoff: Date(), needsRemoteSync: true))
+    try repository.save(ScheduledMatch(homeTeam: "Home", awayTeam: "Away", kickoff: Date(), needsRemoteSync: true))
 
     await fulfillment(of: [expectation], timeout: 1.5)
     try? await Task.sleep(nanoseconds: 200_000_000)
@@ -55,8 +55,8 @@ final class SupabaseScheduleRepositoryTests: XCTestCase {
 
   func testDeleteQueuesBacklogWhenAPIFails() async throws {
     let container = try makeMemoryContainer()
-    let baseStore = SwiftDataScheduleStore(container: container, importJSONOnFirstRun: false)
     let authProvider = StubAuthProvider()
+    let baseStore = SwiftDataScheduleStore(container: container, auth: authProvider)
     let api = MockScheduleAPI()
     api.deleteError = TestError()
     let backlog = StubScheduleBacklogStore()
@@ -70,11 +70,11 @@ final class SupabaseScheduleRepositoryTests: XCTestCase {
 
     authProvider.markSignedIn(userId: UUID().uuidString)
 
-    repository.save(ScheduledMatch(homeTeam: "A", awayTeam: "B", kickoff: Date(), needsRemoteSync: true))
+    try repository.save(ScheduledMatch(homeTeam: "A", awayTeam: "B", kickoff: Date(), needsRemoteSync: true))
     try? await Task.sleep(nanoseconds: 500_000_000)
 
     let matchId = baseStore.loadAll().first?.id ?? UUID()
-    repository.delete(id: matchId)
+    try repository.delete(id: matchId)
     try? await Task.sleep(nanoseconds: 500_000_000)
 
     XCTAssertEqual(api.deleteRequests.count, 1)
@@ -84,8 +84,8 @@ final class SupabaseScheduleRepositoryTests: XCTestCase {
 
   func testPullRemoteInsertsMatch() async throws {
     let container = try makeMemoryContainer()
-    let baseStore = SwiftDataScheduleStore(container: container, importJSONOnFirstRun: false)
     let authProvider = StubAuthProvider()
+    let baseStore = SwiftDataScheduleStore(container: container, auth: authProvider)
     let api = MockScheduleAPI()
     let backlog = StubScheduleBacklogStore()
 
@@ -181,6 +181,10 @@ private final class StubScheduleBacklogStore: ScheduleSyncBacklogStoring {
   func addPendingDeletion(id: UUID) { if !pendingIDs.contains(id) { pendingIDs.append(id) } }
 
   func removePendingDeletion(id: UUID) { pendingIDs.removeAll { $0 == id } }
+
+  func clearAll() {
+    pendingIDs.removeAll()
+  }
 }
 
 private final class MockScheduleAPI: SupabaseScheduleServing {

@@ -2,6 +2,20 @@
 import XCTest
 import SwiftData
 @testable import RefZoneiOS
+import RefWatchCore
+
+private struct AuthStub: AuthenticationProviding {
+    var userId: String?
+    var state: AuthState {
+        if let userId {
+            return .signedIn(userId: userId, email: nil, displayName: nil)
+        }
+        return .signedOut
+    }
+    var currentUserId: String? { userId }
+    var currentEmail: String? { nil }
+    var currentDisplayName: String? { nil }
+}
 
 @MainActor
 final class SwiftDataTeamLibraryStoreTests: XCTestCase {
@@ -14,7 +28,8 @@ final class SwiftDataTeamLibraryStoreTests: XCTestCase {
 
     func test_team_crud_and_nested_entities() throws {
         let container = try makeMemoryContainer()
-        let store = SwiftDataTeamLibraryStore(container: container)
+        let userId = UUID().uuidString
+        let store = SwiftDataTeamLibraryStore(container: container, auth: AuthStub(userId: userId))
 
         // Create team
         let team = try store.createTeam(name: "Leeds United", shortName: "LEE", division: "U18")
@@ -22,6 +37,7 @@ final class SwiftDataTeamLibraryStoreTests: XCTestCase {
         XCTAssertEqual(all.count, 1)
         XCTAssertEqual(all.first?.name, "Leeds United")
         XCTAssertTrue(team.needsRemoteSync)
+        XCTAssertEqual(team.ownerSupabaseId, userId)
 
         // Update team
         team.name = "Leeds"
@@ -69,6 +85,17 @@ final class SwiftDataTeamLibraryStoreTests: XCTestCase {
         try store.deleteTeam(team)
         all = try store.loadAllTeams()
         XCTAssertEqual(all.count, 0)
+    }
+
+    func test_createTeam_signedOutThrows() throws {
+        let container = try makeMemoryContainer()
+        let store = SwiftDataTeamLibraryStore(container: container, auth: AuthStub(userId: nil))
+        XCTAssertThrowsError(try store.createTeam(name: "Test", shortName: nil, division: nil)) { error in
+            guard case PersistenceAuthError.signedOut = error else {
+                XCTFail("Expected signed-out persistence error, got: \(error)")
+                return
+            }
+        }
     }
 }
 

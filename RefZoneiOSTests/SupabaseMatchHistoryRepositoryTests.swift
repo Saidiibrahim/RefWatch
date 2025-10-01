@@ -14,8 +14,8 @@ final class SupabaseMatchHistoryRepositoryTests: XCTestCase {
 
   func testSaveQueuesPushAndClearsDirtyOnSuccess() async throws {
     let container = try makeContainer()
-    let baseStore = SwiftDataMatchHistoryStore(container: container, auth: NoopAuth(), importJSONOnFirstRun: false)
     let authProvider = StubAuthProvider()
+    let baseStore = SwiftDataMatchHistoryStore(container: container, auth: authProvider)
     let api = MockMatchIngestService()
     let backlog = StubMatchBacklogStore()
     let repository = SupabaseMatchHistoryRepository(
@@ -49,10 +49,207 @@ final class SupabaseMatchHistoryRepositoryTests: XCTestCase {
     XCTAssertTrue(backlog.pendingIDs.isEmpty)
   }
 
+  func testMakeMatchBundleIncludesTeamIdentifiers() async throws {
+    let container = try makeContainer()
+    let authProvider = StubAuthProvider()
+    let baseStore = SwiftDataMatchHistoryStore(container: container, auth: authProvider)
+    let api = MockMatchIngestService()
+    let backlog = StubMatchBacklogStore()
+    let repository = SupabaseMatchHistoryRepository(
+      store: baseStore,
+      authStateProvider: authProvider,
+      api: api,
+      backlog: backlog,
+      deviceIdProvider: { "DEVICE" }
+    )
+
+    let ownerId = UUID()
+    authProvider.markSignedIn(userId: ownerId.uuidString, email: "owner@example.com")
+
+    let homeId = UUID()
+    let awayId = UUID()
+
+    let expectation = expectation(description: "ingest")
+    api.ingestExpectation = expectation
+
+    try repository.save(makeCompletedMatch(homeTeamId: homeId, awayTeamId: awayId))
+
+    await fulfillment(of: [expectation], timeout: 2.0)
+    try? await Task.sleep(nanoseconds: 200_000_000)
+
+    guard let request = api.ingestRequests.last else {
+      XCTFail("Expected ingest request")
+      return
+    }
+
+    XCTAssertEqual(request.match.homeTeamId, homeId)
+    XCTAssertEqual(request.match.awayTeamId, awayId)
+  }
+
+  func testSaveWhileSignedOut_throwsAuthError() async throws {
+    let container = try makeContainer()
+    let authProvider = StubAuthProvider()
+    let baseStore = SwiftDataMatchHistoryStore(container: container, auth: authProvider)
+    let api = MockMatchIngestService()
+    let backlog = StubMatchBacklogStore()
+    let repository = SupabaseMatchHistoryRepository(
+      store: baseStore,
+      authStateProvider: authProvider,
+      api: api,
+      backlog: backlog,
+      deviceIdProvider: { "DEVICE" }
+    )
+
+    let match = makeCompletedMatch()
+    XCTAssertThrowsError(try repository.save(match)) { error in
+      guard case PersistenceAuthError.signedOut = error else {
+        XCTFail("Expected signed-out persistence error, got: \(error)")
+        return
+      }
+    }
+
+    XCTAssertTrue((try? baseStore.loadAll().isEmpty) ?? false)
+    XCTAssertTrue(api.ingestRequests.isEmpty)
+    XCTAssertTrue(backlog.pendingIDs.isEmpty)
+  }
+
+  func testHandleAuthState_whenSignedOut_wipesLocalCaches() async throws {
+    let container = try makeContainer()
+    let authProvider = StubAuthProvider()
+    let baseStore = SwiftDataMatchHistoryStore(container: container, auth: authProvider)
+    let api = MockMatchIngestService()
+    let backlog = StubMatchBacklogStore()
+    let repository = SupabaseMatchHistoryRepository(
+      store: baseStore,
+      authStateProvider: authProvider,
+      api: api,
+      backlog: backlog,
+      deviceIdProvider: { "DEVICE" }
+    )
+
+    let ownerId = UUID().uuidString
+    authProvider.markSignedIn(userId: ownerId, email: "owner@example.com")
+    try await Task.sleep(nanoseconds: 200_000_000)
+
+    try repository.save(makeCompletedMatch())
+    XCTAssertEqual(try baseStore.loadAll().count, 1)
+
+    let queuedId = UUID()
+    backlog.addPendingDeletion(id: queuedId)
+    backlog.updatePendingPushMetadata(
+      MatchSyncPushMetadata(retryCount: 2, nextAttempt: Date().addingTimeInterval(30)),
+      for: queuedId
+    )
+
+    authProvider.markSignedOut()
+    try await Task.sleep(nanoseconds: 200_000_000)
+
+    XCTAssertTrue((try? baseStore.loadAll().isEmpty) ?? false)
+    XCTAssertTrue(backlog.pendingIDs.isEmpty)
+    XCTAssertTrue(backlog.pushMetadata.isEmpty)
+    XCTAssertEqual(backlog.clearAllCallCount, 1)
+  }
+
+  func testMatchMetricsPayloadIncludesAggregates() async throws {
+    let container = try makeContainer()
+    let authProvider = StubAuthProvider()
+    let baseStore = SwiftDataMatchHistoryStore(container: container, auth: authProvider)
+    let api = MockMatchIngestService()
+    let backlog = StubMatchBacklogStore()
+    let repository = SupabaseMatchHistoryRepository(
+      store: baseStore,
+      authStateProvider: authProvider,
+      api: api,
+      backlog: backlog,
+      deviceIdProvider: { "DEVICE" }
+    )
+
+    let ownerId = UUID()
+    authProvider.markSignedIn(userId: ownerId.uuidString)
+
+    var match = Match(homeTeam: "Home", awayTeam: "Away")
+    match.startTime = Date()
+    match.hasPenalties = true
+    match.homeScore = 3
+    match.awayScore = 2
+    match.homeYellowCards = 2
+    match.awayYellowCards = 1
+    match.homeRedCards = 0
+    match.awayRedCards = 1
+    match.homeSubs = 3
+    match.awaySubs = 2
+
+    let goalDetails = MatchEventRecord.GoalDetails(goalType: .regular, playerNumber: 9, playerName: "Striker")
+    let goalEvent = MatchEventRecord(
+      matchTime: "10:00",
+      period: 1,
+      eventType: .goal(goalDetails),
+      team: .home,
+      details: .goal(goalDetails)
+    )
+
+    let subDetails = SubstitutionDetails(playerOut: nil, playerIn: nil, playerOutName: nil, playerInName: nil)
+    let substitutionEvent = MatchEventRecord(
+      matchTime: "50:00",
+      period: 1,
+      eventType: .substitution(subDetails),
+      team: .home,
+      details: .substitution(subDetails)
+    )
+
+    let cardDetails = MatchEventRecord.CardDetails(cardType: .red, recipientType: .player, playerNumber: nil, playerName: nil, officialRole: nil, reason: "")
+    let cardEvent = MatchEventRecord(
+      matchTime: "60:00",
+      period: 2,
+      eventType: .card(cardDetails),
+      team: .away,
+      details: .card(cardDetails)
+    )
+
+    let penaltyDetails = PenaltyAttemptDetails(result: .scored, playerNumber: 10, round: 1)
+    let penaltyEvent = MatchEventRecord(
+      matchTime: "91:00",
+      period: 2,
+      eventType: .penaltyAttempt(penaltyDetails),
+      team: .home,
+      details: .penalty(penaltyDetails)
+    )
+
+    let completed = CompletedMatch(match: match, events: [goalEvent, substitutionEvent, cardEvent, penaltyEvent])
+
+    let expectation = expectation(description: "ingest-metrics")
+    api.ingestExpectation = expectation
+
+    try repository.save(completed)
+
+    await fulfillment(of: [expectation], timeout: 2.0)
+    let request = try XCTUnwrap(api.ingestRequests.first)
+    let metrics = try XCTUnwrap(request.metrics)
+
+    XCTAssertEqual(metrics.matchId, completed.id)
+    XCTAssertEqual(metrics.ownerId, ownerId)
+    XCTAssertEqual(metrics.totalGoals, 5)
+    XCTAssertEqual(metrics.totalCards, 4)
+    XCTAssertEqual(metrics.totalPenalties, 1)
+    XCTAssertEqual(metrics.yellowCards, 3)
+    XCTAssertEqual(metrics.redCards, 1)
+    XCTAssertEqual(metrics.homeCards, 2)
+    XCTAssertEqual(metrics.awayCards, 2)
+    XCTAssertEqual(metrics.homeSubstitutions, 3)
+    XCTAssertEqual(metrics.awaySubstitutions, 2)
+    XCTAssertEqual(metrics.penaltiesScored, 1)
+    XCTAssertEqual(metrics.penaltiesMissed, 0)
+    XCTAssertEqual(metrics.penaltiesEnabled, true)
+    XCTAssertEqual(metrics.regulationMinutes, 90)
+    XCTAssertEqual(metrics.halfTimeMinutes, 15)
+    XCTAssertEqual(metrics.extraTimeMinutes, nil)
+    XCTAssertEqual(metrics.avgAddedTimeSeconds, 180)
+  }
+
   func testDeleteQueuesBacklogWhenAPIFails() async throws {
     let container = try makeContainer()
-    let baseStore = SwiftDataMatchHistoryStore(container: container, auth: NoopAuth(), importJSONOnFirstRun: false)
     let authProvider = StubAuthProvider()
+    let baseStore = SwiftDataMatchHistoryStore(container: container, auth: authProvider)
     let api = MockMatchIngestService()
     api.deleteError = TestError()
     let backlog = StubMatchBacklogStore()
@@ -83,8 +280,8 @@ final class SupabaseMatchHistoryRepositoryTests: XCTestCase {
 
   func testPullRemoteInsertsMatch() async throws {
     let container = try makeContainer()
-    let baseStore = SwiftDataMatchHistoryStore(container: container, auth: NoopAuth(), importJSONOnFirstRun: false)
     let authProvider = StubAuthProvider()
+    let baseStore = SwiftDataMatchHistoryStore(container: container, auth: authProvider)
     let api = MockMatchIngestService()
     let backlog = StubMatchBacklogStore()
 
@@ -131,7 +328,8 @@ final class SupabaseMatchHistoryRepositoryTests: XCTestCase {
           updatedAt: now
         ),
         periods: [],
-        events: []
+        events: [],
+        metrics: nil
       )
     ]
 
@@ -197,12 +395,26 @@ private final class StubAuthProvider: SupabaseAuthStateProviding {
 
 private final class StubMatchBacklogStore: MatchSyncBacklogStoring {
   private(set) var pendingIDs: [UUID] = []
+  private(set) var pushMetadata: [UUID: MatchSyncPushMetadata] = [:]
+  private(set) var clearAllCallCount = 0
 
   func loadPendingDeletionIDs() -> Set<UUID> { Set(pendingIDs) }
 
   func addPendingDeletion(id: UUID) { if !pendingIDs.contains(id) { pendingIDs.append(id) } }
 
   func removePendingDeletion(id: UUID) { pendingIDs.removeAll { $0 == id } }
+
+  func loadPendingPushMetadata() -> [UUID: MatchSyncPushMetadata] { pushMetadata }
+
+  func updatePendingPushMetadata(_ metadata: MatchSyncPushMetadata, for id: UUID) { pushMetadata[id] = metadata }
+
+  func removePendingPushMetadata(for id: UUID) { pushMetadata.removeValue(forKey: id) }
+
+  func clearAll() {
+    pendingIDs.removeAll()
+    pushMetadata.removeAll()
+    clearAllCallCount += 1
+  }
 }
 
 private final class MockMatchIngestService: SupabaseMatchIngestServing {
@@ -232,7 +444,20 @@ private final class MockMatchIngestService: SupabaseMatchIngestServing {
 
 private struct TestError: Error {}
 
-private func makeCompletedMatch() -> CompletedMatch {
-  let match = Match(homeTeam: "Home", awayTeam: "Away")
+private func makeCompletedMatch(
+  homeTeamId: UUID? = nil,
+  awayTeamId: UUID? = nil,
+  competitionId: UUID? = nil,
+  competitionName: String? = nil,
+  venueId: UUID? = nil,
+  venueName: String? = nil
+) -> CompletedMatch {
+  var match = Match(homeTeam: "Home", awayTeam: "Away")
+  match.homeTeamId = homeTeamId
+  match.awayTeamId = awayTeamId
+  match.competitionId = competitionId
+  match.competitionName = competitionName
+  match.venueId = venueId
+  match.venueName = venueName
   return CompletedMatch(match: match, events: [])
 }
