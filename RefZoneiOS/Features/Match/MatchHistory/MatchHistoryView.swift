@@ -12,10 +12,12 @@ import RefWatchCore
 struct MatchHistoryView: View {
     let matchViewModel: MatchViewModel
     let historyStore: MatchHistoryStoring
+    let matchSyncController: MatchHistorySyncControlling?
     @Environment(\.journalStore) private var journalStore
     @State private var items: [CompletedMatch] = []
     @State private var searchText: String = ""
     @State private var isLoading: Bool = false
+    @State private var isSyncing: Bool = false
     @State private var hasMore: Bool = true
     @State private var nextCursor: Date? = nil
     private let pageSize: Int = 50
@@ -23,6 +25,19 @@ struct MatchHistoryView: View {
 
     var body: some View {
         List {
+                // Show sync progress if syncing
+                if isSyncing {
+                    HStack {
+                        Spacer()
+                        ProgressView()
+                        Text("Syncing...")
+                            .foregroundStyle(.secondary)
+                            .padding(.leading, 8)
+                        Spacer()
+                    }
+                    .padding(.vertical, 8)
+                }
+
                 let data = filteredItems
                 if data.isEmpty {
                     if searchText.isEmpty {
@@ -91,7 +106,10 @@ struct MatchHistoryView: View {
         .navigationTitle("History")
         .toolbar { EditButton() }
         .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .automatic), prompt: "Search team")
-        .refreshable { resetAndLoadFirstPage() }
+        .refreshable {
+            await performSync()
+            resetAndLoadFirstPage()
+        }
         .onAppear {
             if items.isEmpty {
                 // Schedule to next runloop to avoid mutations during initial layout
@@ -166,8 +184,18 @@ struct MatchHistoryView: View {
         f.timeStyle = .short
         return f.string(from: date)
     }
+
+    /// Performs manual sync with remote database and waits for completion
+    private func performSync() async {
+        guard let controller = matchSyncController else { return }
+        isSyncing = true
+        _ = controller.requestManualSync()
+        // Wait briefly for sync to complete (actual sync happens async)
+        try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+        isSyncing = false
+    }
 }
 
 #Preview {
-    MatchHistoryView(matchViewModel: MatchViewModel(haptics: NoopHaptics()), historyStore: MatchHistoryService())
+    MatchHistoryView(matchViewModel: MatchViewModel(haptics: NoopHaptics()), historyStore: MatchHistoryService(), matchSyncController: nil)
 }

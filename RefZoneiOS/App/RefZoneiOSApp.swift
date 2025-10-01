@@ -5,11 +5,13 @@
 //  Created by Ibrahim Saidi on 3/9/2025.
 //
 
+import Combine
 import SwiftUI
 import SwiftData
 import RefWatchCore
 import RefWorkoutCore
 import UIKit
+import OSLog
 
 @main
 @MainActor
@@ -18,19 +20,23 @@ struct RefZoneiOSApp: App {
     @StateObject private var appModeController = AppModeController()
     @StateObject private var themeManager = ThemeManager()
     @StateObject private var authController: SupabaseAuthController
+    @StateObject private var authCoordinator: AuthenticationCoordinator
     // Built once during app init to avoid lazy/self init ordering issues
-    private let modelContainer: ModelContainer?
+    private let modelContainer: ModelContainer
     private let historyStore: MatchHistoryStoring
     private let matchSyncController: MatchHistorySyncControlling?
     private let journalStore: JournalEntryStoring
     private let scheduleStore: ScheduleStoring
     private let teamStore: TeamLibraryStoring
+    private let competitionStore: CompetitionLibraryStoring
+    private let venueStore: VenueLibraryStoring
     private let workoutServices = IOSWorkoutServicesFactory.makeDefault()
 
     @State private var matchVM: MatchViewModel
     @StateObject private var syncController: ConnectivitySyncController
     @StateObject private var syncDiagnostics = SyncDiagnosticsCenter()
     @Environment(\.scenePhase) private var scenePhase
+    @State private var lastAuthState: AuthState = .signedOut
 
     // Exposed for tests to override container-building behavior
     static var containerBuilder: ModelContainerBuilding = DefaultModelContainerBuilder()
@@ -40,8 +46,9 @@ struct RefZoneiOSApp: App {
         //
         // Fallback Order (rationale):
         // 1) On-disk SwiftData (preferred): full persistence, query performance, and indexing.
-        // 2) In-memory SwiftData: avoids startup crash if persistent container fails; keeps app usable.
-        // 3) JSON store: final safety net to ensure critical features continue to work.
+        // 2) In-memory SwiftData: avoids startup crash if persistent container fails while keeping
+        //    the app usable.
+        // JSON persistence is no longer used now that Supabase auth is required on iPhone.
         let schema = Schema([
             CompletedMatchRecord.self,
             JournalEntryRecord.self,
@@ -50,7 +57,11 @@ struct RefZoneiOSApp: App {
             PlayerRecord.self,
             TeamOfficialRecord.self,
             // Schedule
-            ScheduledMatchRecord.self
+            ScheduledMatchRecord.self,
+            // Competitions
+            CompetitionRecord.self,
+            // Venues
+            VenueRecord.self
         ])
         let clientProvider = SupabaseClientProvider.shared
         let synchronizer = SupabaseUserProfileSynchronizer(clientProvider: clientProvider)
@@ -59,77 +70,54 @@ struct RefZoneiOSApp: App {
             profileSynchronizer: synchronizer
         )
         _authController = StateObject(wrappedValue: authController)
+        _authCoordinator = StateObject(wrappedValue: AuthenticationCoordinator(authController: authController))
 
-        let result = ModelContainerFactory.makeStore(builder: Self.containerBuilder, schema: schema, auth: authController)
-        // Build dependencies as locals first to avoid capturing `self` in escaping autoclosures
-        let container = result.0
-        let rawStore = result.1
-
-        let historyRepo: MatchHistoryStoring
-        let matchSyncController: MatchHistorySyncControlling?
-
-        if let swiftStore = rawStore as? SwiftDataMatchHistoryStore {
-            do {
-                let repo = SupabaseMatchHistoryRepository(
-                    store: swiftStore,
-                    authStateProvider: authController,
-                    deviceIdProvider: { UIDevice.current.identifierForVendor?.uuidString }
-                )
-                historyRepo = repo
-                matchSyncController = repo
-            } catch {
-                #if DEBUG
-                print("DEBUG: SupabaseMatchHistoryRepository creation failed, falling back to local store: \(error)")
-                #endif
-                // Fallback to local-only store if Supabase integration fails
-                historyRepo = swiftStore
-                matchSyncController = nil
-            }
-        } else {
-            historyRepo = rawStore
-            matchSyncController = nil
+        let containerResult: (ModelContainer, SwiftDataMatchHistoryStore)
+        do {
+            containerResult = try ModelContainerFactory.makeStore(builder: Self.containerBuilder, schema: schema, auth: authController)
+        } catch {
+            fatalError("Failed to create SwiftData container: \(error)")
         }
+
+        let container = containerResult.0
+        let swiftHistoryStore = containerResult.1
+
+        let matchRepo = SupabaseMatchHistoryRepository(
+            store: swiftHistoryStore,
+            authStateProvider: authController,
+            deviceIdProvider: { UIDevice.current.identifierForVendor?.uuidString }
+        )
+        let historyRepo: MatchHistoryStoring = matchRepo
+        let matchSyncController: MatchHistorySyncControlling? = matchRepo
 
         let vm = MatchViewModel(history: historyRepo, haptics: IOSHaptics())
         let controller = ConnectivitySyncController(history: historyRepo, auth: authController)
-        let jStore: JournalEntryStoring
-        let schedStore: ScheduleStoring
-        let tStore: TeamLibraryStoring
-        if let container {
-            jStore = SwiftDataJournalStore(container: container, auth: authController)
 
-            let swiftScheduleStore = SwiftDataScheduleStore(container: container, importJSONOnFirstRun: true)
-            do {
-                schedStore = SupabaseScheduleRepository(
-                    store: swiftScheduleStore,
-                    authStateProvider: authController
-                )
-            } catch {
-                #if DEBUG
-                print("DEBUG: SupabaseScheduleRepository creation failed, falling back to local store: \(error)")
-                #endif
-                // Fallback to local-only schedule store
-                schedStore = swiftScheduleStore
-            }
+        let jStore: JournalEntryStoring = SwiftDataJournalStore(container: container, auth: authController)
 
-            let swiftTeamStore = SwiftDataTeamLibraryStore(container: container)
-            do {
-                tStore = SupabaseTeamLibraryRepository(
-                    store: swiftTeamStore,
-                    authStateProvider: authController
-                )
-            } catch {
-                #if DEBUG
-                print("DEBUG: SupabaseTeamLibraryRepository creation failed, falling back to local store: \(error)")
-                #endif
-                // Fallback to local-only team store
-                tStore = swiftTeamStore
-            }
-        } else {
-            jStore = InMemoryJournalStore()
-            schedStore = ScheduleService()
-            tStore = InMemoryTeamLibraryStore()
-        }
+        let swiftScheduleStore = SwiftDataScheduleStore(container: container, auth: authController)
+        let schedStore: ScheduleStoring = SupabaseScheduleRepository(
+            store: swiftScheduleStore,
+            authStateProvider: authController
+        )
+
+        let swiftTeamStore = SwiftDataTeamLibraryStore(container: container, auth: authController)
+        let tStore: TeamLibraryStoring = SupabaseTeamLibraryRepository(
+            store: swiftTeamStore,
+            authStateProvider: authController
+        )
+
+        let swiftCompetitionStore = SwiftDataCompetitionLibraryStore(container: container, auth: authController)
+        let cStore: CompetitionLibraryStoring = SupabaseCompetitionLibraryRepository(
+            store: swiftCompetitionStore,
+            authStateProvider: authController
+        )
+
+        let swiftVenueStore = SwiftDataVenueLibraryStore(container: container, auth: authController)
+        let vStore: VenueLibraryStoring = SupabaseVenueLibraryRepository(
+            store: swiftVenueStore,
+            authStateProvider: authController
+        )
 
         // Assign to stored properties/wrappers
         self.modelContainer = container
@@ -138,41 +126,112 @@ struct RefZoneiOSApp: App {
         self.journalStore = jStore
         self.scheduleStore = schedStore
         self.teamStore = tStore
+        self.competitionStore = cStore
+        self.venueStore = vStore
         _matchVM = State(initialValue: vm)
         _syncController = StateObject(wrappedValue: controller)
     }
 
     var body: some Scene {
         WindowGroup {
-            MainTabView(
-                matchViewModel: matchVM,
-                historyStore: historyStore,
-                matchSyncController: matchSyncController,
-                scheduleStore: scheduleStore,
-                teamStore: teamStore,
-                authController: authController
-            )
+            rootContent
                 .environmentObject(router)
                 .environmentObject(syncDiagnostics)
                 .environmentObject(appModeController)
                 .environmentObject(themeManager)
                 .environmentObject(authController)
+                .environmentObject(authCoordinator)
                 .environment(\.journalStore, journalStore)
                 .workoutServices(workoutServices)
                 .theme(themeManager.theme)
                 .task {
                     await authController.restoreSessionIfAvailable()
+                    authCoordinator.presentWelcomeIfNeeded()
+                }
+                .onReceive(router.$authenticationRequest.compactMap { $0 }) { screen in
+                    authCoordinator.activeScreen = screen
+                    router.authenticationRequest = nil
                 }
                 .onChange(of: scenePhase) { phase in
                     switch phase {
                     case .active:
-                        syncController.start()
+                        if authController.isSignedIn {
+                            syncController.start()
+                        } else {
+                            syncController.stop()
+                        }
                     case .inactive, .background:
                         syncController.stop()
                     @unknown default:
                         break
                     }
                 }
+                .onChange(of: authController.state) { state in
+                    switch state {
+                    case .signedIn:
+                        if scenePhase == .active { syncController.start() }
+                    case .signedOut:
+                        syncController.stop()
+                    }
+                    handleAuthStateTransition(to: state)
+                }
+                .fullScreenCover(item: Binding(
+                    get: { authCoordinator.activeScreen },
+                    set: { authCoordinator.activeScreen = $0 }
+                )) { screen in
+                    switch screen {
+                    case .welcome:
+                        WelcomeView()
+                            .environmentObject(authCoordinator)
+                    case .signIn:
+                        SignInView(authController: authController)
+                            .environmentObject(authCoordinator)
+                    case .signUp:
+                        SignUpView(authController: authController)
+                            .environmentObject(authCoordinator)
+                    }
+                }
+                .animation(.easeInOut(duration: 0.25), value: authController.state)
+        }
+    }
+
+    @ViewBuilder
+    private var rootContent: some View {
+        switch authController.state {
+        case .signedIn:
+            MainTabView(
+                matchViewModel: matchVM,
+                historyStore: historyStore,
+                matchSyncController: matchSyncController,
+                scheduleStore: scheduleStore,
+                teamStore: teamStore,
+                competitionStore: competitionStore,
+                venueStore: venueStore,
+                authController: authController
+            )
+        case .signedOut:
+            SignedOutGateView()
+        }
+    }
+}
+
+private extension RefZoneiOSApp {
+    func handleAuthStateTransition(to newState: AuthState) {
+        defer { lastAuthState = newState }
+        guard case .signedOut = newState else { return }
+        if case .signedOut = lastAuthState { return }
+        performLogoutCleanup()
+    }
+
+    func performLogoutCleanup() {
+        AppLog.supabase.notice("Performing logout cleanup for local caches")
+        matchVM = MatchViewModel(history: historyStore, haptics: IOSHaptics())
+        if let journalStore = journalStore as? SwiftDataJournalStore {
+            do {
+                try journalStore.wipeAllForLogout()
+            } catch {
+                AppLog.supabase.error("Failed to wipe journal entries on sign-out: \(error.localizedDescription, privacy: .public)")
+            }
         }
     }
 }

@@ -7,6 +7,7 @@ import SwiftUI
 import Foundation
 
 struct AssistantTabView: View {
+    @EnvironmentObject private var authController: SupabaseAuthController
     @State private var usingStub = false
     @State private var showSpeakInfo = false
     @State private var showAttachInfo = false
@@ -29,69 +30,77 @@ struct AssistantTabView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            ScrollViewReader { proxy in
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 12) {
-                        if usingStub {
-                            HStack(spacing: 8) {
-                                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.white)
-                                    .padding(6)
-                                    .background(Color.orange)
-                                    .clipShape(RoundedRectangle(cornerRadius: 6))
-                                Text("OpenAI key missing — using demo replies.")
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                                Spacer()
+        if authController.isSignedIn {
+            NavigationStack {
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 12) {
+                            if usingStub {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.white)
+                                        .padding(6)
+                                        .background(Color.orange)
+                                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                                    Text("OpenAI key missing — using demo replies.")
+                                        .font(.footnote)
+                                        .foregroundStyle(.secondary)
+                                    Spacer()
+                                }
+                                .padding(.horizontal)
+                                .padding(.top, 6)
                             }
-                            .padding(.horizontal)
-                            .padding(.top, 6)
-                        }
 
-                        ForEach(viewModel.messages) { message in
-                            messageView(message)
-                                .id(message.id)
+                            ForEach(viewModel.messages) { message in
+                                messageView(message)
+                                    .id(message.id)
+                            }
                         }
+                        .padding(.horizontal)
+                        .padding(.top, 8)
                     }
-                    .padding(.horizontal)
-                    .padding(.top, 8)
-                }
-                .onChange(of: viewModel.messages.last?.id) { id in
-                    guard let id else { return }
-                    withAnimation { proxy.scrollTo(id, anchor: .bottom) }
-                }
-            }
-            .navigationTitle("Assistant")
-            // Bottom area: suggestions placed above the input bar
-            .safeAreaInset(edge: .bottom) {
-                VStack(spacing: 8) {
-                    if showSuggestions {
-                        suggestionsRow
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .onChange(of: viewModel.messages.last?.id) { id in
+                        guard let id else { return }
+                        withAnimation { proxy.scrollTo(id, anchor: .bottom) }
                     }
-                    modernInputBar
                 }
-                .padding(.top, showSuggestions ? 6 : 0)
-                .background(.bar)
-                .overlay(Divider(), alignment: .top)
-            }
-            .sheet(isPresented: $showVoiceMode) {
-                VoiceModeView { finalText in
-                    let trimmed = finalText.trimmingCharacters(in: .whitespacesAndNewlines)
-                    guard !trimmed.isEmpty else { return }
-                    viewModel.input = trimmed
-                    viewModel.send()
+                .navigationTitle("Assistant")
+                .safeAreaInset(edge: .bottom) {
+                    VStack(spacing: 8) {
+                        if showSuggestions {
+                            suggestionsRow
+                                .transition(.move(edge: .bottom).combined(with: .opacity))
+                        }
+                        modernInputBar
+                    }
+                    .padding(.top, showSuggestions ? 6 : 0)
+                    .background(.bar)
+                    .overlay(Divider(), alignment: .top)
+                }
+                .sheet(isPresented: $showVoiceMode) {
+                    VoiceModeView { finalText in
+                        let trimmed = finalText.trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard !trimmed.isEmpty else { return }
+                        viewModel.input = trimmed
+                        viewModel.send()
+                    }
+                }
+                .alert("Speak Not Set Up", isPresented: $showSpeakInfo) {
+                    Button("OK", role: .cancel) {}
+                } message: {
+                    Text("Realtime voice will come later. Use text for now.")
+                }
+                .alert("Coming Soon", isPresented: $showAttachInfo) {
+                    Button("OK", role: .cancel) {}
+                } message: {
+                    Text("Attachments and tools are not available yet.")
                 }
             }
-            .alert("Speak Not Set Up", isPresented: $showSpeakInfo) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text("Realtime voice will come later. Use text for now.")
-            }
-            .alert("Coming Soon", isPresented: $showAttachInfo) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text("Attachments and tools are not available yet.")
+        } else {
+            NavigationStack {
+                SignedOutFeaturePlaceholder(
+                    description: "Sign in to use RefZone Assistant and sync conversations across your devices."
+                )
+                .navigationTitle("Assistant")
             }
         }
     }

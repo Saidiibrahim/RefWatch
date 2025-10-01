@@ -11,11 +11,15 @@ import RefWatchCore
 
 struct MatchesTabView: View {
     @EnvironmentObject private var router: AppRouter
+    @EnvironmentObject private var authController: SupabaseAuthController
     @Environment(\.journalStore) private var journalStore
     let matchViewModel: MatchViewModel
     let historyStore: MatchHistoryStoring
+    let matchSyncController: MatchHistorySyncControlling?
     let scheduleStore: ScheduleStoring
     let teamStore: TeamLibraryStoring
+    let competitionStore: CompetitionLibraryStoring
+    let venueStore: VenueLibraryStoring
     @State private var path: [Route] = []
     enum Route: Hashable { case setup, timer, historyList, scheduleSetup(ScheduledMatch) }
     @State private var recent: [CompletedMatch] = []
@@ -26,141 +30,192 @@ struct MatchesTabView: View {
 
     var body: some View {
         NavigationStack(path: $path) {
-            List {
-                // Primary action
-                Section {
-                    NavigationLink(value: Route.setup) {
-                        Label("Start Match", systemImage: "play.circle.fill")
-                            .font(.headline)
-                    }
-                }
-
-                // Live (in-progress)
-                if matchViewModel.isMatchInProgress, let m = matchViewModel.currentMatch {
-                    Section("Live") {
-                        NavigationLink(value: Route.timer) {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("\(m.homeTeam) vs \(m.awayTeam)")
-                                    .font(.headline)
-                                Text("In progress")
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                }
-
-                // Today (scheduled)
-                if !today.isEmpty {
-                    Section("Today") {
-                        ForEach(today) { item in
-                            NavigationLink(value: Route.scheduleSetup(item)) {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("\(item.homeTeam) vs \(item.awayTeam)").font(.headline)
-                                    Text(Self.formatTime(item.kickoff)).font(.subheadline).foregroundStyle(.secondary)
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Upcoming (scheduled)
-                Section("Upcoming") {
-                    if upcoming.isEmpty {
-                        ContentUnavailableView(
-                            "No Upcoming Matches",
-                            systemImage: "calendar",
-                            description: Text("Add or sync scheduled matches.")
-                        )
-                    } else {
-                        ForEach(upcoming) { item in
-                            NavigationLink(value: Route.scheduleSetup(item)) {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("\(item.homeTeam) vs \(item.awayTeam)").font(.headline)
-                                    Text(Self.formatRelative(item.kickoff)).font(.subheadline).foregroundStyle(.secondary)
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Past (recent history)
-                Section("Past") {
-                    if let need = lastNeedingJournal {
-                        NavigationLink(destination: JournalEditorView(matchId: need.id, onSaved: { refreshRecentAndPrompt() })) {
-                            Label("Journal your last match", systemImage: "square.and.pencil")
-                        }
-                    }
-                    if recent.isEmpty {
-                        ContentUnavailableView(
-                            "No Past Matches",
-                            systemImage: "clock.arrow.circlepath",
-                            description: Text("Finish a match to see it here.")
-                        )
-                    } else {
-                        ForEach(recent) { item in
-                            NavigationLink(destination: MatchHistoryDetailView(snapshot: item)) {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("\(item.match.homeTeam) vs \(item.match.awayTeam)")
-                                        .font(.body)
-                                    Text(Self.format(item.completedAt))
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                        }
-                    }
-                    NavigationLink(value: Route.historyList) { Text("See All History") }
+            Group {
+                if isSignedIn {
+                    signedInContent
+                } else {
+                    SignedOutFeaturePlaceholder(
+                        description: "Sign in with your Supabase account to start matches, review history, and manage schedules on iPhone."
+                    )
                 }
             }
             .navigationTitle("Matches")
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button { path.append(.historyList) } label: { Label("History", systemImage: "clock") }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button { showingAddUpcoming = true } label: { Label("Add Upcoming", systemImage: "calendar.badge.plus") }
+                if isSignedIn {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button { path.append(.historyList) } label: { Label("History", systemImage: "clock") }
+                    }
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button { showingAddUpcoming = true } label: { Label("Add Upcoming", systemImage: "calendar.badge.plus") }
+                    }
                 }
             }
-            .onAppear {
-                refreshRecentAndPrompt()
-                refreshSchedule()
-            }
-            .sheet(isPresented: $showingAddUpcoming) {
-                UpcomingMatchEditorView(scheduleStore: scheduleStore, teamStore: teamStore) {
-                    refreshSchedule()
+            .sheet(isPresented: Binding(
+                get: { isSignedIn && showingAddUpcoming },
+                set: { showingAddUpcoming = $0 }
+            )) {
+                if isSignedIn {
+                    UpcomingMatchEditorView(scheduleStore: scheduleStore, teamStore: teamStore) {
+                        refreshSchedule()
+                    }
+                } else {
+                    SignedOutFeaturePlaceholder(
+                        description: "Sign in to create or edit scheduled matches."
+                    )
                 }
             }
             .onChange(of: matchViewModel.matchCompleted) { completed in
-                if completed { refreshRecentAndPrompt() }
+                guard completed, isSignedIn else { return }
+                refreshRecentAndPrompt()
             }
             .onReceive(NotificationCenter.default.publisher(for: .matchHistoryDidChange).receive(on: RunLoop.main)) { _ in
+                guard isSignedIn else { return }
                 refreshRecentAndPrompt()
             }
             .onReceive(NotificationCenter.default.publisher(for: .journalDidChange).receive(on: RunLoop.main)) { _ in
+                guard isSignedIn else { return }
                 refreshRecentAndPrompt()
             }
             .onReceive(scheduleStore.changesPublisher.receive(on: RunLoop.main)) { items in
+                guard isSignedIn else { return }
                 handleScheduleUpdate(items)
+            }
+            .onAppear {
+                guard isSignedIn else {
+                    path = []
+                    showingAddUpcoming = false
+                    return
+                }
+                // Trigger manual sync when view appears to ensure remote matches are loaded
+                if let syncController = matchSyncController {
+                    _ = syncController.requestManualSync()
+                }
+                refreshRecentAndPrompt()
+                refreshSchedule()
+            }
+            .onChange(of: isSignedIn) { signedIn in
+                if signedIn == false {
+                    path = []
+                    showingAddUpcoming = false
+                    recent = []
+                    today = []
+                    upcoming = []
+                    lastNeedingJournal = nil
+                }
             }
             .navigationDestination(for: Route.self) { route in
                 switch route {
                 case .setup:
-                    MatchSetupView(matchViewModel: matchViewModel) { _ in
-                        // Replace the stack with the timer so finishing returns to hub
+                    MatchSetupView(
+                        matchViewModel: matchViewModel,
+                        teamStore: teamStore,
+                        competitionStore: competitionStore,
+                        venueStore: venueStore
+                    ) { _ in
                         path = [.timer]
                     }
                 case .timer:
                     MatchTimerView(matchViewModel: matchViewModel)
                 case .historyList:
-                    MatchHistoryView(matchViewModel: matchViewModel, historyStore: historyStore)
+                    MatchHistoryView(matchViewModel: matchViewModel, historyStore: historyStore, matchSyncController: matchSyncController)
                 case .scheduleSetup(let sched):
                     MatchSetupView(
                         matchViewModel: matchViewModel,
+                        teamStore: teamStore,
+                        competitionStore: competitionStore,
+                        venueStore: venueStore,
                         onStarted: { _ in path = [.timer] },
                         prefillTeams: (sched.homeTeam, sched.awayTeam)
                     )
                 }
+            }
+        }
+    }
+
+    private var isSignedIn: Bool { authController.isSignedIn }
+
+    @ViewBuilder
+    private var signedInContent: some View {
+        List {
+            Section {
+                NavigationLink(value: Route.setup) {
+                    Label("Start Match", systemImage: "play.circle.fill")
+                        .font(.headline)
+                }
+            }
+
+            if matchViewModel.isMatchInProgress, let m = matchViewModel.currentMatch {
+                Section("Live") {
+                    NavigationLink(value: Route.timer) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("\(m.homeTeam) vs \(m.awayTeam)")
+                                .font(.headline)
+                            Text("In progress")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+
+            if !today.isEmpty {
+                Section("Today") {
+                    ForEach(today) { item in
+                        NavigationLink(value: Route.scheduleSetup(item)) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("\(item.homeTeam) vs \(item.awayTeam)").font(.headline)
+                                Text(Self.formatTime(item.kickoff)).font(.subheadline).foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+            }
+
+            Section("Upcoming") {
+                if upcoming.isEmpty {
+                    ContentUnavailableView(
+                        "No Upcoming Matches",
+                        systemImage: "calendar",
+                        description: Text("Add or sync scheduled matches.")
+                    )
+                } else {
+                    ForEach(upcoming) { item in
+                        NavigationLink(value: Route.scheduleSetup(item)) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("\(item.homeTeam) vs \(item.awayTeam)").font(.headline)
+                                Text(Self.formatRelative(item.kickoff)).font(.subheadline).foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+            }
+
+            Section("Past") {
+                if let need = lastNeedingJournal {
+                    NavigationLink(destination: JournalEditorView(matchId: need.id, onSaved: { refreshRecentAndPrompt() })) {
+                        Label("Journal your last match", systemImage: "square.and.pencil")
+                    }
+                }
+                if recent.isEmpty {
+                    ContentUnavailableView(
+                        "No Past Matches",
+                        systemImage: "clock.arrow.circlepath",
+                        description: Text("Finish a match to see it here.")
+                    )
+                } else {
+                    ForEach(recent) { item in
+                        NavigationLink(destination: MatchHistoryDetailView(snapshot: item)) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("\(item.match.homeTeam) vs \(item.match.awayTeam)")
+                                    .font(.body)
+                                Text(Self.format(item.completedAt))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+                NavigationLink(value: Route.historyList) { Text("See All History") }
             }
         }
     }
@@ -170,8 +225,11 @@ struct MatchesTabView: View {
     MatchesTabView(
         matchViewModel: MatchViewModel(haptics: NoopHaptics()),
         historyStore: MatchHistoryService(),
-        scheduleStore: ScheduleService(),
-        teamStore: InMemoryTeamLibraryStore()
+        matchSyncController: nil,
+        scheduleStore: InMemoryScheduleStore(),
+        teamStore: InMemoryTeamLibraryStore(),
+        competitionStore: InMemoryCompetitionLibraryStore(),
+        venueStore: InMemoryVenueLibraryStore()
     )
     .environmentObject(AppRouter.preview())
 }

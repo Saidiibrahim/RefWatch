@@ -17,6 +17,7 @@ struct TeamsListView: View {
     @State private var newName: String = ""
     @State private var newShort: String = ""
     @State private var newDivision: String = ""
+    @State private var errorMessage: String? = nil
 
     var body: some View {
         List {
@@ -72,6 +73,14 @@ struct TeamsListView: View {
         }
         // No nested NavigationStack here; LibraryTabView owns the NavigationStack.
         .onAppear { refresh() }
+        .alert("Unable to Update Teams", isPresented: Binding(
+            get: { errorMessage != nil },
+            set: { if $0 == false { errorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) { errorMessage = nil }
+        } message: {
+            Text(errorMessage ?? "Sign in on your phone to manage teams.")
+        }
     }
 
     private func refresh() {
@@ -80,6 +89,7 @@ struct TeamsListView: View {
         } catch {
             AppLog.library.error("Failed to load teams: \(error.localizedDescription, privacy: .public)")
             teams = []
+            errorMessage = errorDisplayMessage(for: error, fallback: "We couldn't load your teams.")
         }
     }
 
@@ -90,6 +100,7 @@ struct TeamsListView: View {
             refresh()
         } catch {
             AppLog.library.error("Failed to create team: \(error.localizedDescription, privacy: .public)")
+            errorMessage = errorDisplayMessage(for: error, fallback: "Sign in to create teams on iPhone.")
         }
     }
 
@@ -99,7 +110,18 @@ struct TeamsListView: View {
             refresh()
         } catch {
             AppLog.library.error("Failed to delete team: \(error.localizedDescription, privacy: .public)")
+            errorMessage = errorDisplayMessage(for: error, fallback: "Sign in to delete teams from your library.")
         }
+    }
+
+    private func errorDisplayMessage(for error: Error, fallback: String) -> String {
+        if let authError = error as? PersistenceAuthError {
+            return authError.errorDescription ?? fallback
+        }
+        if let localized = (error as NSError).localizedFailureReason {
+            return localized
+        }
+        return fallback
     }
 }
 
