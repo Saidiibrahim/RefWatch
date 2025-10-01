@@ -10,9 +10,14 @@ final class SwiftDataMatchHistoryStoreTests: XCTestCase {
         return try ModelContainer(for: schema, configurations: [config])
     }
 
+    private func makeStore(container: ModelContainer, userId: String = UUID().uuidString) -> SwiftDataMatchHistoryStore {
+        let auth = TestAuth(state: .signedIn(userId: userId, email: nil, displayName: nil))
+        return SwiftDataMatchHistoryStore(container: container, auth: auth)
+    }
+
     func testSaveAndLoad_roundTrip() throws {
         let container = try makeContainer()
-        let store = SwiftDataMatchHistoryStore(container: container, importJSONOnFirstRun: false)
+        let store = makeStore(container: container)
         let m = Match(homeTeam: "Home", awayTeam: "Away")
         let snap = CompletedMatch(match: m, events: [])
 
@@ -24,7 +29,7 @@ final class SwiftDataMatchHistoryStoreTests: XCTestCase {
 
     func testUpsert_dedupesById() throws {
         let container = try makeContainer()
-        let store = SwiftDataMatchHistoryStore(container: container, importJSONOnFirstRun: false)
+        let store = makeStore(container: container)
         var m = Match(homeTeam: "Home", awayTeam: "Away")
         var snap = CompletedMatch(match: m, events: [])
         try store.save(snap)
@@ -61,7 +66,7 @@ final class SwiftDataMatchHistoryStoreTests: XCTestCase {
     func testOwnerAssignment_whenAuthPresent_setsOwnerId() throws {
         let container = try makeContainer()
         let auth = TestAuth(state: .signedIn(userId: "sup-1", email: "test@example.com", displayName: "Test"))
-        let store = SwiftDataMatchHistoryStore(container: container, auth: auth, importJSONOnFirstRun: false)
+        let store = SwiftDataMatchHistoryStore(container: container, auth: auth)
         let m = Match(homeTeam: "H", awayTeam: "A")
         let snap = CompletedMatch(match: m, events: [])
         try store.save(snap)
@@ -71,7 +76,7 @@ final class SwiftDataMatchHistoryStoreTests: XCTestCase {
 
     func testLoadAll_isBoundedByDefaultLimit() throws {
         let container = try makeContainer()
-        let store = SwiftDataMatchHistoryStore(container: container, importJSONOnFirstRun: false)
+        let store = makeStore(container: container)
         // Insert more than the default fetch limit (200)
         for i in 0..<300 {
             var m = Match(homeTeam: "H\(i)", awayTeam: "A\(i)")
@@ -86,7 +91,7 @@ final class SwiftDataMatchHistoryStoreTests: XCTestCase {
 
     func testLoadBefore_returnsDescendingPages() throws {
         let container = try makeContainer()
-        let store = SwiftDataMatchHistoryStore(container: container, importJSONOnFirstRun: false)
+        let store = makeStore(container: container)
         let now = Date()
         // Seed 15 snapshots with distinct completion times
         for i in 0..<15 {
@@ -105,5 +110,18 @@ final class SwiftDataMatchHistoryStoreTests: XCTestCase {
         XCTAssertTrue(second[0].completedAt > second[1].completedAt)
         // Ensure strictly older than cursor
         XCTAssertTrue(second.first!.completedAt < cursor)
+    }
+
+    func testSaveSignedOut_throwsAuthError() throws {
+        let container = try makeContainer()
+        let auth = TestAuth(state: .signedOut)
+        let store = SwiftDataMatchHistoryStore(container: container, auth: auth)
+        let snap = CompletedMatch(match: Match(homeTeam: "H", awayTeam: "A"), events: [])
+        XCTAssertThrowsError(try store.save(snap)) { error in
+            guard case PersistenceAuthError.signedOut = error else {
+                XCTFail("Expected signed-out persistence error, got: \(error)")
+                return
+            }
+        }
     }
 }

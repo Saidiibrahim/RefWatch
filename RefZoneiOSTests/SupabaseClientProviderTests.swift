@@ -1,6 +1,7 @@
+import Foundation
+import Supabase
 import XCTest
 @testable import RefZoneiOS
-import Supabase
 
 final class SupabaseClientProviderTests: XCTestCase {
   func testAuthorizedClientSetsFunctionsAuthForEachCall() async throws {
@@ -69,6 +70,15 @@ private final class RecordingFunctionsClient: SupabaseFunctionsClientRepresentin
 
   func setAuth(token: String?) {
     authTokens.append(token ?? "<nil>")
+  }
+
+  func invoke<Response>(
+    _ functionName: String,
+    options: FunctionInvokeOptions,
+    decode: (Data, HTTPURLResponse) throws -> Response
+  ) async throws -> Response {
+    XCTFail("invoke(decode:) should not be called in SupabaseClientProvider authorization tests")
+    throw TestError()
   }
 
   func invoke<T>(

@@ -14,8 +14,8 @@ final class SupabaseTeamLibraryRepositoryTests: XCTestCase {
 
   func testCreateTeamQueuesPushAndClearsDirtyOnSuccess() async throws {
     let container = try makeMemoryContainer()
-    let baseStore = SwiftDataTeamLibraryStore(container: container)
     let authProvider = StubAuthProvider()
+    let baseStore = SwiftDataTeamLibraryStore(container: container, auth: authProvider)
     let api = MockTeamLibraryAPI()
     let backlog = StubBacklogStore()
     let repository = SupabaseTeamLibraryRepository(
@@ -41,10 +41,32 @@ final class SupabaseTeamLibraryRepositoryTests: XCTestCase {
     XCTAssertEqual(backlog.pendingIDs, [])
   }
 
+  func testCreateTeamSignedOut_throwsAuthError() async throws {
+    let container = try makeMemoryContainer()
+    let authProvider = StubAuthProvider()
+    let baseStore = SwiftDataTeamLibraryStore(container: container, auth: authProvider)
+    let api = MockTeamLibraryAPI()
+    let backlog = StubBacklogStore()
+    let repository = SupabaseTeamLibraryRepository(
+      store: baseStore,
+      authStateProvider: authProvider,
+      api: api,
+      backlog: backlog
+    )
+
+    XCTAssertThrowsError(try repository.createTeam(name: "Smoke", shortName: "SMK", division: "U12")) { error in
+      guard case PersistenceAuthError.signedOut = error else {
+        XCTFail("Expected signed-out persistence error, got: \(error)")
+        return
+      }
+    }
+    XCTAssertTrue(api.syncRequests.isEmpty)
+  }
+
   func testDeleteTeamPersistsPendingDeletionWhenAPIFails() async throws {
     let container = try makeMemoryContainer()
-    let baseStore = SwiftDataTeamLibraryStore(container: container)
     let authProvider = StubAuthProvider()
+    let baseStore = SwiftDataTeamLibraryStore(container: container, auth: authProvider)
     let api = MockTeamLibraryAPI()
     api.deleteError = TestError()
     let backlog = StubBacklogStore()
@@ -75,8 +97,8 @@ final class SupabaseTeamLibraryRepositoryTests: XCTestCase {
 
   func testPullRemoteInsertsTeam() async throws {
     let container = try makeMemoryContainer()
-    let baseStore = SwiftDataTeamLibraryStore(container: container)
     let authProvider = StubAuthProvider()
+    let baseStore = SwiftDataTeamLibraryStore(container: container, auth: authProvider)
     let api = MockTeamLibraryAPI()
     let backlog = StubBacklogStore()
 
@@ -169,6 +191,10 @@ private final class StubBacklogStore: TeamLibrarySyncBacklogStoring {
   func addPendingDeletion(id: UUID) { if pendingIDs.contains(id) == false { pendingIDs.append(id) } }
 
   func removePendingDeletion(id: UUID) { pendingIDs.removeAll { $0 == id } }
+
+  func clearAll() {
+    pendingIDs.removeAll()
+  }
 }
 
 private final class MockTeamLibraryAPI: SupabaseTeamLibraryServing {
