@@ -5,18 +5,41 @@
 //  Observes sync diagnostics notifications and exposes user-facing state.
 //
 
-import Foundation
 import Combine
+import Foundation
 import RefWatchCore
 
 final class SyncDiagnosticsCenter: ObservableObject {
+    struct SyncComponentStatus: Equatable {
+        var pendingPushes: Int = 0
+        var pendingDeletions: Int = 0
+        var nextRetry: Date? = nil
+        var signedIn: Bool = false
+        var lastUpdated: Date = .distantPast
+    }
+
+    enum Component: String {
+        case matchHistory = "match_history"
+        case teamLibrary = "team_library"
+        case schedule = "schedule"
+        case journal = "journal"
+    }
+
     @Published var lastErrorMessage: String? = nil
     @Published var lastErrorContext: String? = nil
     @Published var showBanner: Bool = false
 
-    private var observerTokens: [NSObjectProtocol] = []
+    @Published private(set) var matchStatus = SyncComponentStatus()
+    @Published private(set) var teamStatus = SyncComponentStatus()
+    @Published private(set) var scheduleStatus = SyncComponentStatus()
 
-    init(center: NotificationCenter = .default) {
+    private let clock: () -> Date
+    private var observerTokens: [NSObjectProtocol] = []
+    private var statuses: [Component: SyncComponentStatus] = [:]
+
+    init(center: NotificationCenter = .default, clock: @escaping () -> Date = Date.init) {
+        self.clock = clock
+
         let nonrecoverable = center.addObserver(forName: .syncNonrecoverableError, object: nil, queue: .main) { [weak self] note in
             let msg = note.userInfo?["error"] as? String ?? "Sync error"
             let ctx = note.userInfo?["context"] as? String
@@ -25,12 +48,46 @@ final class SyncDiagnosticsCenter: ObservableObject {
             self?.showBanner = true
         }
         observerTokens.append(nonrecoverable)
+
+        let status = center.addObserver(forName: .syncStatusUpdate, object: nil, queue: .main) { [weak self] note in
+            guard let componentName = note.userInfo?["component"] as? String,
+                  let component = Component(rawValue: componentName),
+                  let self else { return }
+
+            var snapshot = SyncComponentStatus()
+            snapshot.pendingPushes = note.userInfo?["pendingPushes"] as? Int ?? 0
+            snapshot.pendingDeletions = note.userInfo?["pendingDeletions"] as? Int ?? 0
+            snapshot.nextRetry = note.userInfo?["nextRetry"] as? Date
+            snapshot.signedIn = note.userInfo?["signedIn"] as? Bool ?? false
+            snapshot.lastUpdated = self.clock()
+            self.apply(status: snapshot, for: component)
+        }
+        observerTokens.append(status)
     }
 
     deinit {
-        for t in observerTokens { NotificationCenter.default.removeObserver(t) }
+        for token in observerTokens {
+            NotificationCenter.default.removeObserver(token)
+        }
         observerTokens.removeAll()
     }
 
     func dismiss() { showBanner = false }
+}
+
+private extension SyncDiagnosticsCenter {
+    func apply(status: SyncComponentStatus, for component: Component) {
+        statuses[component] = status
+        switch component {
+        case .matchHistory:
+            matchStatus = status
+        case .teamLibrary:
+            teamStatus = status
+        case .schedule:
+            scheduleStatus = status
+        case .journal:
+            // Journals not yet synced; reserve for future use.
+            break
+        }
+    }
 }

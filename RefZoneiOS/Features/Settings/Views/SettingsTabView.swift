@@ -17,10 +17,13 @@ struct SettingsTabView: View {
     let matchSyncController: MatchHistorySyncControlling?
     var scheduleStore: ScheduleStoring? = nil
     var teamStore: TeamLibraryStoring? = nil
+    var competitionStore: CompetitionLibraryStoring? = nil
+    var venueStore: VenueLibraryStoring? = nil
 
     @ObservedObject private var auth: SupabaseAuthController
     @EnvironmentObject private var syncDiagnostics: SyncDiagnosticsCenter
     @EnvironmentObject private var themeManager: ThemeManager
+    @EnvironmentObject private var authCoordinator: AuthenticationCoordinator
 
     @State private var defaultPeriod: Int = 45
     @State private var extraTime: Bool = false
@@ -34,12 +37,16 @@ struct SettingsTabView: View {
         matchSyncController: MatchHistorySyncControlling? = nil,
         scheduleStore: ScheduleStoring? = nil,
         teamStore: TeamLibraryStoring? = nil,
+        competitionStore: CompetitionLibraryStoring? = nil,
+        venueStore: VenueLibraryStoring? = nil,
         authController: SupabaseAuthController
     ) {
         self.historyStore = historyStore
         self.matchSyncController = matchSyncController
         self.scheduleStore = scheduleStore
         self.teamStore = teamStore
+        self.competitionStore = competitionStore
+        self.venueStore = venueStore
         self._auth = ObservedObject(initialValue: authController)
         self._authViewModel = StateObject(wrappedValue: SettingsAuthViewModel(auth: authController))
     }
@@ -86,63 +93,39 @@ private extension SettingsTabView {
             switch auth.state {
             case .signedOut:
                 VStack(alignment: .leading, spacing: 16) {
-                    Group {
-                        TextField("Email", text: $authViewModel.email)
-                            .keyboardType(.emailAddress)
-                            .textInputAutocapitalization(.never)
-                            .disableAutocorrection(true)
-                        SecureField("Password", text: $authViewModel.password)
-                    }
+                    Text("You're not signed in")
+                        .font(.headline)
 
-                    Button(action: { performEmailSignIn() }) {
-                        if authViewModel.isPerformingAction {
-                            ProgressView()
-                        } else {
-                            Label("Sign In", systemImage: "person.crop.circle.badge.plus")
-                        }
+                    Text("RefZone on iPhone now requires a signed-in Supabase account. Sign in to access match history, schedules, trends, and team management.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+
+                    Button {
+                        authCoordinator.showSignIn()
+                    } label: {
+                        Label("Sign In", systemImage: "person.crop.circle")
+                            .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
-                    .disabled(
-                        authViewModel.isPerformingAction ||
-                        authViewModel.email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-                        authViewModel.password.isEmpty
-                    )
 
-                    Button("Create Account") {
-                        performEmailSignUp()
+                    Button {
+                        authCoordinator.showSignUp()
+                    } label: {
+                        Label("Create Account", systemImage: "sparkles")
+                            .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.borderless)
-                    .disabled(
-                        authViewModel.isPerformingAction ||
-                        authViewModel.email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-                        authViewModel.password.isEmpty
-                    )
+                    .buttonStyle(.bordered)
 
-                    Divider()
-
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Or continue with")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-
-                        Button(action: performAppleSignIn) {
-                            Label("Sign in with Apple", systemImage: "applelogo")
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.bordered)
-                        .disabled(authViewModel.isPerformingAction)
-
-                        Button(action: performGoogleSignIn) {
-                            Label("Sign in with Google", systemImage: "globe")
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.bordered)
-                        .disabled(authViewModel.isPerformingAction)
-                    }
-
-                    Text("Signing in enables secure Supabase sync for match history across devices. You can continue offline without an account.")
+                    Text("Want a refresher on what's included? Review the Welcome screen for a quick overview of what signing in unlocks.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
+
+                    Button("Show Welcome Again") {
+                        authCoordinator.showWelcome()
+                    }
+                    .buttonStyle(.plain)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
                 }
             case let .signedIn(userId, email, displayName):
                 VStack(alignment: .leading, spacing: 8) {
@@ -166,7 +149,11 @@ private extension SettingsTabView {
                         Spacer()
                     }
                     Button(role: .destructive, action: signOut) {
-                        Label("Sign Out", systemImage: "rectangle.portrait.and.arrow.right")
+                        if authViewModel.isPerformingAction {
+                            ProgressView()
+                        } else {
+                            Label("Sign Out", systemImage: "rectangle.portrait.and.arrow.right")
+                        }
                     }
                     .disabled(authViewModel.isPerformingAction)
                 }
@@ -177,11 +164,11 @@ private extension SettingsTabView {
     var librarySection: some View {
         Section("Library") {
             NavigationLink {
-                if let teamStore {
-                    LibrarySettingsView(teamStore: teamStore)
-                } else {
-                    LibrarySettingsView(teamStore: InMemoryTeamLibraryStore())
-                }
+                LibrarySettingsView(
+                    teamStore: teamStore ?? InMemoryTeamLibraryStore(),
+                    competitionStore: competitionStore ?? InMemoryCompetitionLibraryStore(),
+                    venueStore: venueStore ?? InMemoryVenueLibraryStore()
+                )
             } label: {
                 Label("View Library", systemImage: "books.vertical")
             }
@@ -285,22 +272,6 @@ private extension SettingsTabView {
                 Label("Wipe Local Data", systemImage: "trash")
             }
         }
-    }
-
-    func performEmailSignIn() {
-        Task { await authViewModel.signIn() }
-    }
-
-    func performEmailSignUp() {
-        Task { await authViewModel.signUp() }
-    }
-
-    func performAppleSignIn() {
-        Task { await authViewModel.signInWithApple() }
-    }
-
-    func performGoogleSignIn() {
-        Task { await authViewModel.signInWithGoogle() }
     }
 
     func signOut() {

@@ -18,11 +18,21 @@ struct MainTabView: View {
     let matchSyncController: MatchHistorySyncControlling?
     let scheduleStore: ScheduleStoring
     let teamStore: TeamLibraryStoring
+    let competitionStore: CompetitionLibraryStoring
+    let venueStore: VenueLibraryStoring
     let authController: SupabaseAuthController
 
     var body: some View {
         TabView(selection: $router.selectedTab) {
-            MatchesTabView(matchViewModel: matchViewModel, historyStore: historyStore, scheduleStore: scheduleStore, teamStore: teamStore)
+            MatchesTabView(
+                matchViewModel: matchViewModel,
+                historyStore: historyStore,
+                matchSyncController: matchSyncController,
+                scheduleStore: scheduleStore,
+                teamStore: teamStore,
+                competitionStore: competitionStore,
+                venueStore: venueStore
+            )
                 .tabItem { Label("Matches", systemImage: "sportscourt") }
                 .tag(AppRouter.Tab.matches)
 
@@ -43,6 +53,8 @@ struct MainTabView: View {
                 matchSyncController: matchSyncController,
                 scheduleStore: scheduleStore,
                 teamStore: teamStore,
+                competitionStore: competitionStore,
+                venueStore: venueStore,
                 authController: authController
             )
                 .tabItem { Label("Settings", systemImage: "gear") }
@@ -60,8 +72,10 @@ struct MainTabView: View {
         matchViewModel: MatchViewModel(haptics: NoopHaptics()),
         historyStore: MatchHistoryService(),
         matchSyncController: nil,
-        scheduleStore: ScheduleService(),
+        scheduleStore: InMemoryScheduleStore(),
         teamStore: InMemoryTeamLibraryStore(),
+        competitionStore: InMemoryCompetitionLibraryStore(),
+        venueStore: InMemoryVenueLibraryStore(),
         authController: SupabaseAuthController(
             clientProvider: clientProvider,
             profileSynchronizer: synchronizer

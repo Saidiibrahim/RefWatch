@@ -7,6 +7,7 @@
 
 import SwiftUI
 import RefWatchCore
+import OSLog
 
 struct TeamEditorView: View {
     let teamStore: TeamLibraryStoring
@@ -25,6 +26,7 @@ struct TeamEditorView: View {
     @State private var newOfficialName = ""
     @State private var newOfficialRole: TeamOfficialRole = .manager
     @State private var editingOfficial: TeamOfficialRecord? = nil
+    @State private var errorMessage: String? = nil
 
     var body: some View {
         Form {
@@ -32,7 +34,15 @@ struct TeamEditorView: View {
                 TextField("Name", text: $editingName)
                 TextField("Short Name", text: $editingShort)
                 TextField("Division", text: $editingDivision)
-            }
+       }
+        .alert("Unable to Update Team", isPresented: Binding(
+            get: { errorMessage != nil },
+            set: { if $0 == false { errorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) { errorMessage = nil }
+        } message: {
+            Text(errorMessage ?? "Sign in on your phone to edit this team.")
+        }
             Section("Players") {
                 if sortedPlayers.isEmpty {
                     Text("No players added").foregroundStyle(.secondary)
@@ -97,7 +107,11 @@ struct TeamEditorView: View {
                 PlayerEditForm(player: player) { name, number in
                     player.name = name
                     player.number = number
-                    do { try teamStore.updatePlayer(player) } catch { }
+                    do { try teamStore.updatePlayer(player) }
+                    catch {
+                        AppLog.library.error("Failed to update player: \(error.localizedDescription, privacy: .public)")
+                        errorMessage = errorDisplayMessage(for: error, fallback: "Sign in to edit players.")
+                    }
                     editingPlayer = nil
                 }
             }
@@ -124,7 +138,11 @@ struct TeamEditorView: View {
                 OfficialEditForm(official: official) { name, role in
                     official.name = name
                     official.roleRaw = role.rawValue
-                    do { try teamStore.updateOfficial(official) } catch { }
+                    do { try teamStore.updateOfficial(official) }
+                    catch {
+                        AppLog.library.error("Failed to update official: \(error.localizedDescription, privacy: .public)")
+                        errorMessage = errorDisplayMessage(for: error, fallback: "Sign in to edit officials.")
+                    }
                     editingOfficial = nil
                 }
             }
@@ -135,7 +153,11 @@ struct TeamEditorView: View {
         team.name = editingName.trimmingCharacters(in: .whitespacesAndNewlines)
         team.shortName = editingShort.trimmingCharacters(in: .whitespacesAndNewlines)
         team.division = editingDivision.trimmingCharacters(in: .whitespacesAndNewlines)
-        do { try teamStore.updateTeam(team) } catch { }
+        do { try teamStore.updateTeam(team) }
+        catch {
+            AppLog.library.error("Failed to save team: \(error.localizedDescription, privacy: .public)")
+            errorMessage = errorDisplayMessage(for: error, fallback: "Sign in to update this team.")
+        }
     }
 
     private func addPlayer() {
@@ -143,22 +165,46 @@ struct TeamEditorView: View {
         do {
             _ = try teamStore.addPlayer(to: team, name: newPlayerName.trimmingCharacters(in: .whitespacesAndNewlines), number: num)
             newPlayerName = ""; newPlayerNumber = ""; showingAddPlayer = false
-        } catch { }
+        } catch {
+            AppLog.library.error("Failed to add player: \(error.localizedDescription, privacy: .public)")
+            errorMessage = errorDisplayMessage(for: error, fallback: "Sign in to add players.")
+        }
     }
 
     private func deletePlayer(_ p: PlayerRecord) {
-        do { try teamStore.deletePlayer(p) } catch { }
+        do { try teamStore.deletePlayer(p) }
+        catch {
+            AppLog.library.error("Failed to delete player: \(error.localizedDescription, privacy: .public)")
+            errorMessage = errorDisplayMessage(for: error, fallback: "Sign in to delete players.")
+        }
     }
 
     private func addOfficial() {
         do {
             _ = try teamStore.addOfficial(to: team, name: newOfficialName.trimmingCharacters(in: .whitespacesAndNewlines), roleRaw: newOfficialRole.rawValue)
             newOfficialName = ""; showingAddOfficial = false
-        } catch { }
+        } catch {
+            AppLog.library.error("Failed to add official: \(error.localizedDescription, privacy: .public)")
+            errorMessage = errorDisplayMessage(for: error, fallback: "Sign in to add officials.")
+        }
     }
 
     private func deleteOfficial(_ o: TeamOfficialRecord) {
-        do { try teamStore.deleteOfficial(o) } catch { }
+        do { try teamStore.deleteOfficial(o) }
+        catch {
+            AppLog.library.error("Failed to delete official: \(error.localizedDescription, privacy: .public)")
+            errorMessage = errorDisplayMessage(for: error, fallback: "Sign in to delete officials.")
+        }
+    }
+
+    private func errorDisplayMessage(for error: Error, fallback: String) -> String {
+        if let authError = error as? PersistenceAuthError {
+            return authError.errorDescription ?? fallback
+        }
+        if let localized = (error as NSError).localizedFailureReason {
+            return localized
+        }
+        return fallback
     }
 }
 
