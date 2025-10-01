@@ -12,6 +12,7 @@ protocol TeamLibrarySyncBacklogStoring: AnyObject {
   func loadPendingDeletionIDs() -> Set<UUID>
   func addPendingDeletion(id: UUID)
   func removePendingDeletion(id: UUID)
+  func clearAll()
 }
 
 final class SupabaseTeamSyncBacklogStore: TeamLibrarySyncBacklogStoring {
@@ -59,6 +60,12 @@ final class SupabaseTeamSyncBacklogStore: TeamLibrarySyncBacklogStoring {
     let encoder = JSONEncoder()
     if let data = try? encoder.encode(Array(ids)) {
       defaults.set(data, forKey: key)
+    }
+  }
+
+  func clearAll() {
+    queue.async {
+      self.defaults.removeObject(forKey: self.key)
     }
   }
 }

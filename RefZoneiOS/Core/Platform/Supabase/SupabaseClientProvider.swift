@@ -15,7 +15,7 @@ import Supabase
 protocol SupabaseClientProviding {
   func client() throws -> SupabaseClientRepresenting
   func authorizedClient() async throws -> SupabaseClientRepresenting
-  func refreshFunctionAuth()
+  func refreshFunctionAuth() async
 }
 
 struct SupabaseQueryFilter: Equatable {
@@ -80,6 +80,11 @@ protocol SupabaseClientRepresenting: AnyObject, Sendable {
 
 protocol SupabaseFunctionsClientRepresenting: AnyObject, Sendable {
   func setAuth(token: String?)
+  func invoke<Response>(
+    _ functionName: String,
+    options: FunctionInvokeOptions,
+    decode: (Data, HTTPURLResponse) throws -> Response
+  ) async throws -> Response
   func invoke<T: Decodable>(
     _ functionName: String,
     options: FunctionInvokeOptions,
@@ -355,7 +360,7 @@ final class SupabaseClientProvider: SupabaseClientProviding {
   func authorizedClient() async throws -> SupabaseClientRepresenting {
     do {
       let client = try client()
-      refreshFunctionAuth()
+      await refreshFunctionAuth()
       AppLog.supabase.info("Authorized Supabase client ready")
       return client
     } catch {
@@ -364,23 +369,28 @@ final class SupabaseClientProvider: SupabaseClientProviding {
     }
   }
 
-  func refreshFunctionAuth() {
+  func refreshFunctionAuth() async {
     guard let client = cachedClient else { return }
 
     if let supabaseClient = client as? SupabaseClient {
-      // Use currentSession for synchronous access
-      let token = supabaseClient.auth.currentSession?.accessToken
-      let resolved = token ?? cachedEnvironment?.anonKey
-      client.functionsClient.setAuth(token: resolved)
-      if token != nil {
-        AppLog.supabase.debug("Functions auth updated with session token")
-      } else {
-        AppLog.supabase.debug("Functions auth using anon key fallback (no active session)")
+      // Fetch the current session asynchronously to ensure we have the latest token
+      // CRITICAL: Do not fall back to anon key for authenticated edge functions.
+      // The caller must handle session errors explicitly to maintain security.
+      do {
+        let session = try await supabaseClient.auth.session
+        let token = session.accessToken
+        client.functionsClient.setAuth(token: token)
+        let tokenPrefix = String(token.prefix(20))
+        AppLog.supabase.debug("Functions auth updated with session token prefix=\(tokenPrefix, privacy: .public)")
+      } catch {
+        // Clear any stale token to prevent using outdated credentials
+        client.functionsClient.setAuth(token: nil)
+        AppLog.supabase.error("Functions auth failed - no valid session: \(error.localizedDescription, privacy: .public)")
+        // Note: Caller should handle this by ensuring user is signed in before invoking functions
       }
     } else {
-      if let anon = cachedEnvironment?.anonKey {
-        client.functionsClient.setAuth(token: anon)
-      }
+      // For non-SupabaseClient implementations, clear auth token
+      client.functionsClient.setAuth(token: nil)
     }
   }
 

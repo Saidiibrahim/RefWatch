@@ -61,8 +61,8 @@ Supports schedule view + match history ingestion.
 | Table | Columns | Notes |
 | --- | --- | --- |
 | `scheduled_matches` | `id uuid PK`, `owner_id`, library FKs + text fallbacks, `kickoff_at`, `notes text`, timestamps, `source_device_id` | Derived directly from Schedule feature. |
-| `matches` | `id uuid PK`, `owner_id`, optional `scheduled_match_id`, competition/venue FKs + text, team FKs + text, `status`, `started_at`, `completed_at`, `duration_seconds`, `home_score`, `away_score`, `final_score jsonb`, `source_device_id`, timestamps | Accept watch snapshots pushed via iPhone. |
-| `match_periods` | `id uuid PK`, `match_id`, `index integer`, `regulation_seconds`, `added_time_seconds`, `result jsonb`, `created_at` | Renders timers accurately. |
+| `matches` | `id uuid PK`, `owner_id`, optional `scheduled_match_id`, competition/venue FKs + text, team FKs + text, `status`, `started_at`, `completed_at`, `duration_seconds`, `home_score`, `away_score`, `final_score jsonb`, `source_device_id`, timestamps | Accept watch snapshots pushed via iPhone. Owner RLS shipped 2025-03-09. |
+| `match_periods` | `id uuid PK`, `match_id`, `index integer`, `regulation_seconds`, `added_time_seconds`, `result jsonb`, `created_at` | Renders timers accurately. Owner RLS via parent match shipped 2025-03-09. |
 | `match_events` | `id uuid PK`, `match_id`, `occurred_at timestamptz`, `period_index`, `clock_seconds`, `event_type enum`, `payload jsonb`, optional team/member FKs, `created_at` | Supports kickoff, stoppage, penalties, etc. |
 | `match_officials` | `match_id`, `user_id`, `role enum`, composite PK | Enables shared officiating in future. |
 
@@ -78,7 +78,7 @@ Once matches exist, we can precompute insights.
 
 | Table | Columns | Notes |
 | --- | --- | --- |
-| `match_metrics` | `match_id PK`, `owner_id`, `total_goals`, `total_cards`, `total_penalties`, `possession_home_percent`, `possession_away_percent`, `generated_at` | Pre-aggregated numbers for quick dashboards. |
+| `match_metrics` | `match_id PK`, `owner_id`, `total_goals`, `total_cards`, `total_penalties`, `possession_home_percent`, `possession_away_percent`, `generated_at` | Pre-aggregated numbers for quick dashboards. Owner RLS shipped 2025-03-09; iOS uploads metrics with match ingestion. |
 | `trend_snapshots` | `id uuid PK`, `owner_id`, `period_start`, `period_end`, `metrics jsonb`, `generated_at` | Stores rolling aggregates (per week/month). |
 | `shared_reports` | `id uuid PK`, `owner_id`, `slug text unique`, `report_type enum`, `payload jsonb`, `expires_at` | Foundation for share links. |
 

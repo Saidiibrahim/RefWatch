@@ -12,6 +12,7 @@ protocol ScheduleSyncBacklogStoring: AnyObject {
   func loadPendingDeletionIDs() -> Set<UUID>
   func addPendingDeletion(id: UUID)
   func removePendingDeletion(id: UUID)
+  func clearAll()
 }
 
 final class SupabaseScheduleSyncBacklogStore: ScheduleSyncBacklogStoring {
@@ -59,6 +60,12 @@ final class SupabaseScheduleSyncBacklogStore: ScheduleSyncBacklogStoring {
     let encoder = JSONEncoder()
     if let data = try? encoder.encode(Array(ids)) {
       defaults.set(data, forKey: key)
+    }
+  }
+
+  func clearAll() {
+    queue.async {
+      self.defaults.removeObject(forKey: self.key)
     }
   }
 }

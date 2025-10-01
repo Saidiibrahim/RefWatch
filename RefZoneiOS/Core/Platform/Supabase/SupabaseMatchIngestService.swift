@@ -9,6 +9,7 @@
 import Foundation
 import RefWatchCore
 import Supabase
+internal import os
 
 protocol SupabaseMatchIngestServing {
   func ingestMatchBundle(_ request: SupabaseMatchIngestService.MatchBundleRequest) async throws -> SupabaseMatchIngestService.SyncResult
@@ -150,9 +151,52 @@ struct SupabaseMatchIngestService: SupabaseMatchIngestServing {
       }
     }
 
+    struct MetricsPayload: Encodable, Equatable {
+      let matchId: UUID
+      let ownerId: UUID
+      let regulationMinutes: Int?
+      let halfTimeMinutes: Int?
+      let extraTimeMinutes: Int?
+      let penaltiesEnabled: Bool
+      let totalGoals: Int
+      let totalCards: Int
+      let totalPenalties: Int
+      let yellowCards: Int
+      let redCards: Int
+      let homeCards: Int
+      let awayCards: Int
+      let homeSubstitutions: Int
+      let awaySubstitutions: Int
+      let penaltiesScored: Int
+      let penaltiesMissed: Int
+      let avgAddedTimeSeconds: Int
+
+      enum CodingKeys: String, CodingKey {
+        case matchId = "match_id"
+        case ownerId = "owner_id"
+        case regulationMinutes = "regulation_minutes"
+        case halfTimeMinutes = "half_time_minutes"
+        case extraTimeMinutes = "extra_time_minutes"
+        case penaltiesEnabled = "penalties_enabled"
+        case totalGoals = "total_goals"
+        case totalCards = "total_cards"
+        case totalPenalties = "total_penalties"
+        case yellowCards = "yellow_cards"
+        case redCards = "red_cards"
+        case homeCards = "home_cards"
+        case awayCards = "away_cards"
+        case homeSubstitutions = "home_substitutions"
+        case awaySubstitutions = "away_substitutions"
+        case penaltiesScored = "penalties_scored"
+        case penaltiesMissed = "penalties_missed"
+        case avgAddedTimeSeconds = "avg_added_time_seconds"
+      }
+    }
+
     let match: MatchPayload
     let periods: [PeriodPayload]
     let events: [EventPayload]
+    let metrics: MetricsPayload?
   }
 
   struct SyncResult: Decodable, Equatable {
@@ -169,6 +213,7 @@ struct SupabaseMatchIngestService: SupabaseMatchIngestServing {
     let match: RemoteMatch
     let periods: [RemotePeriod]
     let events: [RemoteEvent]
+    let metrics: RemoteMetrics?
   }
 
   struct RemoteMatch: Equatable {
@@ -221,6 +266,28 @@ struct SupabaseMatchIngestService: SupabaseMatchIngestServing {
     let teamSide: String?
   }
 
+  struct RemoteMetrics: Equatable {
+    let matchId: UUID
+    let ownerId: UUID
+    let regulationMinutes: Int?
+    let halfTimeMinutes: Int?
+    let extraTimeMinutes: Int?
+    let penaltiesEnabled: Bool
+    let totalGoals: Int
+    let totalCards: Int
+    let totalPenalties: Int
+    let yellowCards: Int
+    let redCards: Int
+    let homeCards: Int
+    let awayCards: Int
+    let homeSubstitutions: Int
+    let awaySubstitutions: Int
+    let penaltiesScored: Int
+    let penaltiesMissed: Int
+    let avgAddedTimeSeconds: Int
+    let generatedAt: Date
+  }
+
   enum APIError: Error, Equatable {
     case unsupportedClient
     case invalidResponse
@@ -247,20 +314,51 @@ struct SupabaseMatchIngestService: SupabaseMatchIngestServing {
     let client = try await clientProvider.authorizedClient()
     guard let supabaseClient = client as? SupabaseClient else { throw APIError.unsupportedClient }
 
+    // Get the current session and verify we have a valid token
+    let session = try await supabaseClient.auth.session
+    let authHeader = "Bearer \(session.accessToken)"
+
+    #if DEBUG
+    let tokenPrefix = String(session.accessToken.prefix(20))
+    let userId = session.user.id
+    AppLog.supabase.debug("Match ingest: user=\(userId) token_prefix=\(tokenPrefix, privacy: .public)")
+    #endif
+
     let payload = try encoder.encode(request)
+
+    // CRITICAL FIX: The Supabase Swift SDK's FunctionsClient.invoke() with custom
+    // headers does NOT merge with setAuth() headers - it replaces them entirely.
+    // We MUST explicitly include the Authorization header when using custom headers.
     let options = FunctionInvokeOptions(
       method: .post,
       headers: [
-        "Content-Type": "application/json"
+        "Authorization": authHeader,
+        "Content-Type": "application/json",
+        "Idempotency-Key": request.match.id.uuidString,
+        "X-RefWatch-Client": "ios"
       ],
       body: payload
     )
 
-    return try await supabaseClient.functionsClient.invoke(
-      "matches-ingest",
-      options: options,
-      decoder: decoder
-    )
+    do {
+      return try await supabaseClient.functionsClient.invoke(
+        "matches-ingest",
+        options: options
+      ) { data, _ in
+        #if DEBUG
+        if let responseString = String(data: data, encoding: .utf8) {
+          AppLog.supabase.debug("Match ingest raw response: \(responseString, privacy: .public)")
+        }
+        #endif
+
+        return try decoder.decode(SyncResult.self, from: data)
+      }
+    } catch {
+      #if DEBUG
+      AppLog.supabase.error("Match ingest decoding error: \(error.localizedDescription, privacy: .public)")
+      #endif
+      throw error
+    }
   }
 
   func fetchMatchBundles(ownerId: UUID, updatedAfter: Date?) async throws -> [RemoteMatchBundle] {
@@ -300,14 +398,26 @@ struct SupabaseMatchIngestService: SupabaseMatchIngestServing {
       decoder: decoder
     )
 
+    let metricsRows: [MatchMetricsRowDTO] = try await supabaseClient.fetchRows(
+      from: "match_metrics",
+      select: "match_id, owner_id, regulation_minutes, half_time_minutes, extra_time_minutes, penalties_enabled, total_goals, total_cards, total_penalties, yellow_cards, red_cards, home_cards, away_cards, home_substitutions, away_substitutions, penalties_scored, penalties_missed, avg_added_time_seconds, generated_at",
+      filters: [.in("match_id", values: matchIds)],
+      orderBy: nil,
+      ascending: true,
+      limit: 0,
+      decoder: decoder
+    )
+
     let periodsByMatch = Dictionary(grouping: periods, by: { $0.matchId })
     let eventsByMatch = Dictionary(grouping: events, by: { $0.matchId })
+    let metricsByMatch = Dictionary(uniqueKeysWithValues: metricsRows.map { ($0.matchId, $0.toRemoteMetrics()) })
 
     return matches.map { row in
       let remoteMatch = row.toRemoteMatch()
       let remotePeriods = (periodsByMatch[row.id] ?? []).map { $0.toRemotePeriod() }
       let remoteEvents = (eventsByMatch[row.id] ?? []).map { $0.toRemoteEvent() }
-      return RemoteMatchBundle(match: remoteMatch, periods: remotePeriods, events: remoteEvents)
+      let remoteMetrics = metricsByMatch[row.id]
+      return RemoteMatchBundle(match: remoteMatch, periods: remotePeriods, events: remoteEvents, metrics: remoteMetrics)
     }
   }
 
@@ -323,8 +433,8 @@ struct SupabaseMatchIngestService: SupabaseMatchIngestServing {
   }
 }
 
-private extension SupabaseMatchIngestService {
-  static func makeEncoder() -> JSONEncoder {
+extension SupabaseMatchIngestService {
+  private static func makeEncoder() -> JSONEncoder {
     let encoder = JSONEncoder()
     encoder.dateEncodingStrategy = .iso8601
     encoder.outputFormatting = [.sortedKeys]
@@ -333,17 +443,38 @@ private extension SupabaseMatchIngestService {
 
   static func makeDecoder() -> JSONDecoder {
     let decoder = JSONDecoder()
-    decoder.dateDecodingStrategy = .iso8601
+    let isoWithFraction = ISO8601DateFormatter()
+    isoWithFraction.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    let isoWithoutFraction = ISO8601DateFormatter()
+    isoWithoutFraction.formatOptions = [.withInternetDateTime]
+
+    decoder.dateDecodingStrategy = .custom { decoder in
+      let container = try decoder.singleValueContainer()
+      let value = try container.decode(String.self)
+
+      if let date = SupabaseDateParser.parse(
+        value,
+        isoWithFraction: isoWithFraction,
+        isoWithoutFraction: isoWithoutFraction
+      ) {
+        return date
+      }
+
+      throw DecodingError.dataCorruptedError(
+        in: container,
+        debugDescription: "Cannot decode date from: \(value)"
+      )
+    }
     return decoder
   }
 
-  static func makeISOFormatter() -> ISO8601DateFormatter {
+  private static func makeISOFormatter() -> ISO8601DateFormatter {
     let formatter = ISO8601DateFormatter()
     formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
     return formatter
   }
 
-  func makeMatchFilters(ownerId: UUID, updatedAfter: Date?) -> [SupabaseQueryFilter] {
+  private func makeMatchFilters(ownerId: UUID, updatedAfter: Date?) -> [SupabaseQueryFilter] {
     var filters: [SupabaseQueryFilter] = [
       .equals("owner_id", value: ownerId.uuidString)
     ]
@@ -508,6 +639,75 @@ private struct EventRowDTO: Decodable {
       eventType: eventType,
       payload: payload,
       teamSide: teamSide
+    )
+  }
+}
+
+
+private struct MatchMetricsRowDTO: Decodable {
+  let matchId: UUID
+  let ownerId: UUID
+  let regulationMinutes: Int?
+  let halfTimeMinutes: Int?
+  let extraTimeMinutes: Int?
+  let penaltiesEnabled: Bool
+  let totalGoals: Int
+  let totalCards: Int
+  let totalPenalties: Int
+  let yellowCards: Int
+  let redCards: Int
+  let homeCards: Int
+  let awayCards: Int
+  let homeSubstitutions: Int
+  let awaySubstitutions: Int
+  let penaltiesScored: Int
+  let penaltiesMissed: Int
+  let avgAddedTimeSeconds: Int
+  let generatedAt: Date
+
+  enum CodingKeys: String, CodingKey {
+    case matchId = "match_id"
+    case ownerId = "owner_id"
+    case regulationMinutes = "regulation_minutes"
+    case halfTimeMinutes = "half_time_minutes"
+    case extraTimeMinutes = "extra_time_minutes"
+    case penaltiesEnabled = "penalties_enabled"
+    case totalGoals = "total_goals"
+    case totalCards = "total_cards"
+    case totalPenalties = "total_penalties"
+    case yellowCards = "yellow_cards"
+    case redCards = "red_cards"
+    case homeCards = "home_cards"
+    case awayCards = "away_cards"
+    case homeSubstitutions = "home_substitutions"
+    case awaySubstitutions = "away_substitutions"
+    case penaltiesScored = "penalties_scored"
+    case penaltiesMissed = "penalties_missed"
+    case avgAddedTimeSeconds = "avg_added_time_seconds"
+    case generatedAt = "generated_at"
+  }
+
+  func toRemoteMetrics() -> SupabaseMatchIngestService.RemoteMetrics {
+    SupabaseMatchIngestService.RemoteMetrics(
+      matchId: matchId,
+      ownerId: ownerId,
+      regulationMinutes: regulationMinutes,
+      halfTimeMinutes: halfTimeMinutes,
+      extraTimeMinutes: extraTimeMinutes,
+      penaltiesEnabled: penaltiesEnabled,
+      totalGoals: totalGoals,
+      totalCards: totalCards,
+      totalPenalties: totalPenalties,
+      yellowCards: yellowCards,
+      redCards: redCards,
+      homeCards: homeCards,
+      awayCards: awayCards,
+      homeSubstitutions: homeSubstitutions,
+      awaySubstitutions: awaySubstitutions,
+      penaltiesScored: penaltiesScored,
+      penaltiesMissed: penaltiesMissed,
+      avgAddedTimeSeconds: avgAddedTimeSeconds,
+      generatedAt: generatedAt
     )
   }
 }

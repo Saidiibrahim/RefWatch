@@ -54,6 +54,7 @@ final class SwiftDataJournalStore: JournalEntryStoring {
 
     // MARK: - Mutations
     func upsert(_ entry: JournalEntry) throws {
+        try requireSignedIn(operation: "save journal entry")
         if let existing = try fetchRecord(id: entry.id) {
             existing.updatedAt = entry.updatedAt
             existing.ownerId = entry.ownerId ?? existing.ownerId
@@ -87,6 +88,7 @@ final class SwiftDataJournalStore: JournalEntryStoring {
         wentWell: String?,
         toImprove: String?
     ) throws -> JournalEntry {
+        try requireSignedIn(operation: "create journal entry")
         var entry = JournalEntry(
             matchId: matchId,
             ownerId: nil,
@@ -101,6 +103,7 @@ final class SwiftDataJournalStore: JournalEntryStoring {
     }
 
     func delete(id: UUID) throws {
+        try requireSignedIn(operation: "delete journal entry")
         if let record = try fetchRecord(id: id) {
             context.delete(record)
             try context.save()
@@ -109,9 +112,19 @@ final class SwiftDataJournalStore: JournalEntryStoring {
     }
 
     func deleteAll(for matchId: UUID) throws {
+        try requireSignedIn(operation: "delete journal entries")
         let all = try context.fetch(FetchDescriptor<JournalEntryRecord>(predicate: #Predicate { $0.matchId == matchId }))
         for r in all { context.delete(r) }
         try context.save()
+        NotificationCenter.default.post(name: .journalDidChange, object: nil)
+    }
+
+    func wipeAllForLogout() throws {
+        let all = try context.fetch(FetchDescriptor<JournalEntryRecord>())
+        for record in all { context.delete(record) }
+        if context.hasChanges {
+            try context.save()
+        }
         NotificationCenter.default.post(name: .journalDidChange, object: nil)
     }
 
@@ -127,6 +140,12 @@ final class SwiftDataJournalStore: JournalEntryStoring {
         var e = entry
         e.ownerId = uid
         return e
+    }
+
+    private func requireSignedIn(operation: String) throws {
+        guard auth.currentUserId != nil else {
+            throw PersistenceAuthError.signedOut(operation: operation)
+        }
     }
 
     private static func map(_ r: JournalEntryRecord) -> JournalEntry {

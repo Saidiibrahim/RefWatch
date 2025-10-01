@@ -45,6 +45,7 @@ final class SupabaseTeamLibraryRepository: TeamLibraryStoring {
     self.metadataPersistor = metadataPersistor ?? store
     self.dateProvider = dateProvider
     self.pendingDeletions = backlog.loadPendingDeletionIDs()
+    publishSyncStatus()
 
     if let userId = authStateProvider.currentUserId,
        let uuid = UUID(uuidString: userId) {
@@ -96,6 +97,7 @@ final class SupabaseTeamLibraryRepository: TeamLibraryStoring {
     pendingDeletions.insert(teamId)
     backlog.addPendingDeletion(id: teamId)
     scheduleProcessingTask()
+    publishSyncStatus()
   }
 
   func addPlayer(to team: TeamRecord, name: String, number: Int?) throws -> PlayerRecord {
@@ -149,12 +151,25 @@ private extension SupabaseTeamLibraryRepository {
     case .signedOut:
       ownerUUID = nil
       remoteCursor = nil
+      processingTask?.cancel()
+      processingTask = nil
+      pendingPushes.removeAll()
+      pendingDeletions.removeAll()
+      backlog.clearAll()
+      do {
+        try store.wipeAllForLogout()
+        log.notice("Cleared team library cache after sign-out")
+      } catch {
+        log.error("Failed to wipe team library on sign-out: \(error.localizedDescription, privacy: .public)")
+      }
+      publishSyncStatus()
     case let .signedIn(userId, _, _):
       guard let uuid = UUID(uuidString: userId) else {
         log.error("Supabase auth linked with non-UUID id: \(userId, privacy: .public)")
         return
       }
       ownerUUID = uuid
+      publishSyncStatus()
       scheduleInitialSync()
     }
   }
@@ -181,6 +196,7 @@ private extension SupabaseTeamLibraryRepository {
     pendingPushes.insert(teamId)
     applyOwnerIdentityIfNeeded(forTeamId: teamId)
     scheduleProcessingTask()
+    publishSyncStatus()
   }
 
   func scheduleProcessingTask() {
@@ -242,8 +258,10 @@ private extension SupabaseTeamLibraryRepository {
     } catch {
       pendingDeletions.insert(teamId)
       log.error("Supabase team delete failed id=\(teamId.uuidString, privacy: .public) error=\(error.localizedDescription, privacy: .public)")
+      reportTeamSyncFailure(error, phase: .delete, teamId: teamId)
       try? await Task.sleep(nanoseconds: 1_000_000_000)
     }
+    publishSyncStatus()
   }
 
   func performRemotePush(teamId: UUID) async {
@@ -265,8 +283,10 @@ private extension SupabaseTeamLibraryRepository {
     } catch {
       pendingPushes.insert(teamId)
       log.error("Supabase team push failed id=\(teamId.uuidString, privacy: .public) error=\(error.localizedDescription, privacy: .public)")
+      reportTeamSyncFailure(error, phase: .push, teamId: teamId)
       try? await Task.sleep(nanoseconds: 1_000_000_000)
     }
+    publishSyncStatus()
   }
 
   func pushDirtyTeams() async throws {
@@ -277,6 +297,7 @@ private extension SupabaseTeamLibraryRepository {
     }
     guard pendingPushes.isEmpty == false else { return }
     scheduleProcessingTask()
+    publishSyncStatus()
     // Wait briefly for processing to drain
     try? await Task.sleep(nanoseconds: 100_000_000)
     try await pullRemoteUpdates(for: ownerUUID)
@@ -291,6 +312,7 @@ private extension SupabaseTeamLibraryRepository {
     if let maxDate = filtered.map({ $0.team.updatedAt }).max() {
       remoteCursor = max(remoteCursor ?? maxDate, maxDate)
     }
+    publishSyncStatus()
   }
 }
 
@@ -504,5 +526,42 @@ private extension SupabaseTeamLibraryRepository {
       officials: officialInputs,
       tags: []
     )
+  }
+
+  func publishSyncStatus() {
+    let info: [String: Any] = [
+      "component": "team_library",
+      "pendingPushes": pendingPushes.count,
+      "pendingDeletions": pendingDeletions.count,
+      "signedIn": ownerUUID != nil,
+      "timestamp": dateProvider()
+    ]
+    NotificationCenter.default.post(name: .syncStatusUpdate, object: nil, userInfo: info)
+  }
+
+  enum TeamSyncPhase { case push, delete }
+
+  func reportTeamSyncFailure(_ error: Error, phase: TeamSyncPhase, teamId: UUID) {
+    let description = String(describing: error)
+    let phaseLabel = phase == .push ? "sync" : "delete"
+    let message = "Supabase team \(phaseLabel) failed: \(description)"
+    let contextSuffix = containsHTTPStatus(error, code: 404) ? ".404" : ""
+    let context = "team_library.\(phaseLabel)\(contextSuffix)"
+
+    NotificationCenter.default.post(
+      name: .syncNonrecoverableError,
+      object: nil,
+      userInfo: [
+        "error": "\(message) [team_id=\(teamId.uuidString)]",
+        "context": context
+      ]
+    )
+  }
+
+  func containsHTTPStatus(_ error: Error, code: Int) -> Bool {
+    let nsError = error as NSError
+    if nsError.code == code { return true }
+    let description = String(describing: error)
+    return description.contains("\(code)")
   }
 }
