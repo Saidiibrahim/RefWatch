@@ -21,6 +21,7 @@ final class SupabaseVenueLibraryRepository: VenueLibraryStoring {
     private let backlog: VenueLibrarySyncBacklogStoring
     private let log = AppLog.supabase
     private let dateProvider: () -> Date
+    private let isoFormatter: ISO8601DateFormatter
 
     private var authCancellable: AnyCancellable?
     private var ownerUUID: UUID?
@@ -45,6 +46,11 @@ final class SupabaseVenueLibraryRepository: VenueLibraryStoring {
         self.api = api
         self.backlog = backlog
         self.dateProvider = dateProvider
+        self.isoFormatter = {
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            return formatter
+        }()
         self.pendingDeletions = backlog.loadPendingDeletionIDs()
         publishSyncStatus()
 
@@ -107,6 +113,13 @@ final class SupabaseVenueLibraryRepository: VenueLibraryStoring {
     func wipeAllForLogout() throws {
         try store.wipeAllForLogout()
     }
+
+    func refreshFromRemote() async throws {
+        guard let ownerUUID else {
+            throw PersistenceAuthError.signedOut(operation: "refresh venues")
+        }
+        try await pullRemoteUpdates(for: ownerUUID)
+    }
 }
 
 // MARK: - Identity Handling & Sync Scheduling
@@ -136,6 +149,7 @@ private extension SupabaseVenueLibraryRepository {
                 return
             }
             ownerUUID = uuid
+            remoteCursor = nil
             publishSyncStatus()
             scheduleInitialSync()
         }
@@ -150,12 +164,33 @@ private extension SupabaseVenueLibraryRepository {
 
     func performInitialSync() async {
         guard let ownerUUID else { return }
+        let ownerString = ownerUUID.uuidString
+        let startingCursor = describe(remoteCursor)
+
+        log.notice(
+            "Venue initial sync started owner=\(ownerString, privacy: .public) cursor=\(startingCursor, privacy: .public) pendingPush=\(self.pendingPushes.count) pendingDelete=\(self.pendingDeletions.count)"
+        )
+
         do {
+            if !pendingDeletions.isEmpty {
+                log.debug("Venue initial sync flushing pending deletions count=\(self.pendingDeletions.count)")
+            }
             try await flushPendingDeletions()
+
+            log.debug("Venue initial sync scanning for dirty venues")
             try await pushDirtyVenues()
+            log.debug("Venue initial sync queued pending pushes=\(self.pendingPushes.count)")
+
+            log.debug("Venue initial sync pulling remote updates cursor=\(self.describe(self.remoteCursor), privacy: .public)")
             try await pullRemoteUpdates(for: ownerUUID)
+
+            log.notice(
+                "Venue initial sync finished owner=\(ownerString, privacy: .public) cursor=\(self.describe(self.remoteCursor), privacy: .public) pendingPush=\(self.pendingPushes.count) pendingDelete=\(self.pendingDeletions.count)"
+            )
         } catch {
-            log.error("Initial venue sync failed: \(error.localizedDescription, privacy: .public)")
+            log.error(
+                "Initial venue sync failed owner=\(ownerString, privacy: .public) cursor=\(startingCursor, privacy: .public) error=\(error.localizedDescription, privacy: .public)"
+            )
         }
     }
 }
@@ -237,6 +272,8 @@ private extension SupabaseVenueLibraryRepository {
         let records = try store.loadAll().filter { $0.needsRemoteSync }
         guard !records.isEmpty else { return }
 
+        log.debug("Venue sync enqueuing dirty records count=\(records.count)")
+
         for record in records {
             pendingPushes.insert(record.id)
             applyOwnerIdentityIfNeeded(to: record)
@@ -274,8 +311,9 @@ private extension SupabaseVenueLibraryRepository {
             record.lastModifiedAt = dateProvider()
             record.ownerSupabaseId = ownerUUID.uuidString
             try store.context.save()
-
-            remoteCursor = max(remoteCursor ?? result.updatedAt, result.updatedAt)
+            log.debug(
+                "Venue push succeeded id=\(id.uuidString, privacy: .public) updatedAt=\(self.describe(result.updatedAt), privacy: .public)"
+            )
         } catch {
             pendingPushes.insert(id)
             log.error("Supabase venue push failed id=\(id.uuidString, privacy: .public) error=\(error.localizedDescription, privacy: .public)")
@@ -284,62 +322,94 @@ private extension SupabaseVenueLibraryRepository {
     }
 
     func pullRemoteUpdates(for ownerUUID: UUID) async throws {
-        let remoteVenues = try await api.fetchVenues(ownerId: ownerUUID, updatedAfter: remoteCursor)
-        guard !remoteVenues.isEmpty else { return }
+        let ownerString = ownerUUID.uuidString
+        let cursorBefore = describe(remoteCursor)
 
-        var didChange = false
-        for remote in remoteVenues {
-            if pendingDeletions.contains(remote.id) {
-                continue
+        log.debug(
+            "Venue pull requesting owner=\(ownerString, privacy: .public) cursor=\(cursorBefore, privacy: .public)"
+        )
+
+        do {
+            let remoteVenues = try await api.fetchVenues(ownerId: ownerUUID, updatedAfter: remoteCursor)
+            log.info(
+                "Venue pull received count=\(remoteVenues.count) owner=\(ownerString, privacy: .public) cursor=\(cursorBefore, privacy: .public)"
+            )
+
+            guard !remoteVenues.isEmpty else {
+                publishSyncStatus()
+                return
             }
 
             let existingRecords = try store.loadAll()
-            if let existing = existingRecords.first(where: { $0.id == remote.id }) {
-                // Update existing record if remote is newer
-                let localDirty = existing.needsRemoteSync
-                let localRemoteDate = existing.remoteUpdatedAt ?? .distantPast
+            var existingById = Dictionary(uniqueKeysWithValues: existingRecords.map { ($0.id, $0) })
 
-                if localDirty && remote.updatedAt <= localRemoteDate {
-                    // Local changes take precedence
+            var updatedCount = 0
+            var insertedCount = 0
+            var skippedPendingDeletion = 0
+            var skippedDirtyConflict = 0
+
+            for remote in remoteVenues {
+                if pendingDeletions.contains(remote.id) {
+                    skippedPendingDeletion += 1
                     continue
                 }
 
-                existing.name = remote.name
-                existing.city = remote.city
-                existing.country = remote.country
-                existing.latitude = remote.latitude
-                existing.longitude = remote.longitude
-                existing.ownerSupabaseId = remote.ownerId.uuidString
-                existing.remoteUpdatedAt = remote.updatedAt
-                existing.lastModifiedAt = dateProvider()
-                existing.needsRemoteSync = false
-                didChange = true
-            } else {
-                // Insert new record
-                let newRecord = VenueRecord(
-                    id: remote.id,
-                    name: remote.name,
-                    city: remote.city,
-                    country: remote.country,
-                    latitude: remote.latitude,
-                    longitude: remote.longitude,
-                    ownerSupabaseId: remote.ownerId.uuidString,
-                    lastModifiedAt: dateProvider(),
-                    remoteUpdatedAt: remote.updatedAt,
-                    needsRemoteSync: false
-                )
-                store.context.insert(newRecord)
-                didChange = true
+                if let existing = existingById[remote.id] {
+                    let localDirty = existing.needsRemoteSync
+                    let localRemoteDate = existing.remoteUpdatedAt ?? .distantPast
+
+                    if localDirty && remote.updatedAt <= localRemoteDate {
+                        skippedDirtyConflict += 1
+                        continue
+                    }
+
+                    existing.name = remote.name
+                    existing.city = remote.city
+                    existing.country = remote.country
+                    existing.latitude = remote.latitude
+                    existing.longitude = remote.longitude
+                    existing.ownerSupabaseId = remote.ownerId.uuidString
+                    existing.remoteUpdatedAt = remote.updatedAt
+                    existing.lastModifiedAt = dateProvider()
+                    existing.needsRemoteSync = false
+                    updatedCount += 1
+                } else {
+                    let newRecord = VenueRecord(
+                        id: remote.id,
+                        name: remote.name,
+                        city: remote.city,
+                        country: remote.country,
+                        latitude: remote.latitude,
+                        longitude: remote.longitude,
+                        ownerSupabaseId: remote.ownerId.uuidString,
+                        lastModifiedAt: dateProvider(),
+                        remoteUpdatedAt: remote.updatedAt,
+                        needsRemoteSync: false
+                    )
+                    store.context.insert(newRecord)
+                    existingById[remote.id] = newRecord
+                    insertedCount += 1
+                }
             }
+
+            if store.context.hasChanges {
+                try store.context.save()
+            }
+
+            if let maxDate = remoteVenues.map({ $0.updatedAt }).max() {
+                remoteCursor = max(remoteCursor ?? maxDate, maxDate)
+            }
+
+            log.info(
+                "Venue pull applied updated=\(updatedCount) inserted=\(insertedCount) skippedPendingDeletion=\(skippedPendingDeletion) skippedDirty=\(skippedDirtyConflict) newCursor=\(self.describe(self.remoteCursor), privacy: .public)"
+            )
+        } catch {
+            log.error(
+                "Venue pull failed owner=\(ownerString, privacy: .public) cursor=\(cursorBefore, privacy: .public) error=\(error.localizedDescription, privacy: .public)"
+            )
+            throw error
         }
 
-        if didChange {
-            try store.context.save()
-        }
-
-        if let maxDate = remoteVenues.map({ $0.updatedAt }).max() {
-            remoteCursor = max(remoteCursor ?? maxDate, maxDate)
-        }
         publishSyncStatus()
     }
 }
@@ -373,5 +443,14 @@ private extension SupabaseVenueLibraryRepository {
             return
         }
         applyOwnerIdentityIfNeeded(to: record)
+    }
+
+    func describe(_ date: Date?) -> String {
+        guard let date else { return "nil" }
+        return isoFormatter.string(from: date)
+    }
+
+    func describe(_ date: Date) -> String {
+        isoFormatter.string(from: date)
     }
 }

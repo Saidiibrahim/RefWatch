@@ -117,6 +117,10 @@ final class SwiftDataCompetitionLibraryStore: CompetitionLibraryStoring {
         notifyChanges()
     }
 
+    func refreshFromRemote() async throws {
+        // SwiftData store does not talk to remote directly; Supabase repository handles pulls.
+    }
+
     // MARK: - Internal Helpers
 
     /// Notify observers that competitions changed

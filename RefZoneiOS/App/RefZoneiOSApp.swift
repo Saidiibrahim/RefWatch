@@ -93,7 +93,9 @@ struct RefZoneiOSApp: App {
         let vm = MatchViewModel(history: historyRepo, haptics: IOSHaptics())
         let controller = ConnectivitySyncController(history: historyRepo, auth: authController)
 
-        let jStore: JournalEntryStoring = SwiftDataJournalStore(container: container, auth: authController)
+        let jStore: JournalEntryStoring = SupabaseJournalRepository(
+            authStateProvider: authController
+        )
 
         let swiftScheduleStore = SwiftDataScheduleStore(container: container, auth: authController)
         let schedStore: ScheduleStoring = SupabaseScheduleRepository(
@@ -226,9 +228,11 @@ private extension RefZoneiOSApp {
     func performLogoutCleanup() {
         AppLog.supabase.notice("Performing logout cleanup for local caches")
         matchVM = MatchViewModel(history: historyStore, haptics: IOSHaptics())
-        if let journalStore = journalStore as? SwiftDataJournalStore {
+        Task { @MainActor in
             do {
-                try journalStore.wipeAllForLogout()
+                if let supabaseStore = journalStore as? SupabaseJournalRepository {
+                    try await supabaseStore.wipeAllForLogout()
+                }
             } catch {
                 AppLog.supabase.error("Failed to wipe journal entries on sign-out: \(error.localizedDescription, privacy: .public)")
             }

@@ -157,9 +157,7 @@ struct SupabaseVenueLibraryAPI: SupabaseVenueLibraryServing {
     // MARK: - JSON Helpers
 
     static func makeDecoder() -> JSONDecoder {
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        return decoder
+        SupabaseJSONDecoderFactory.makeDecoder()
     }
 
     static func makeISOFormatter() -> ISO8601DateFormatter {

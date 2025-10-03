@@ -62,8 +62,7 @@ struct JournalListView: View {
                         }
                     }
                     .onDelete { offsets in
-                        for idx in offsets { do { try store.delete(id: entries[idx].id) } catch { show(error) } }
-                        load()
+                        Task { await deleteEntries(at: offsets) }
                     }
                 }
             }
@@ -84,9 +83,31 @@ struct JournalListView: View {
         return f.string(from: date)
     }
     private func load() {
-        entries = (try? store.loadEntries(for: snapshot.id)) ?? []
+        Task { await reloadEntries() }
     }
 
+    @MainActor
+    private func reloadEntries() async {
+        do {
+            entries = try await store.loadEntries(for: snapshot.id)
+        } catch {
+            show(error)
+        }
+    }
+
+    @MainActor
+    private func deleteEntries(at offsets: IndexSet) async {
+        do {
+            for idx in offsets {
+                try await store.delete(id: entries[idx].id)
+            }
+            await reloadEntries()
+        } catch {
+            show(error)
+        }
+    }
+
+    @MainActor
     private func show(_ error: Error) {
         errorMessage = error.localizedDescription
         showError = true

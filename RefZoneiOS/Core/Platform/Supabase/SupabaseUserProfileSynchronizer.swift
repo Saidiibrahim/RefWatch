@@ -74,9 +74,7 @@ private extension SupabaseUserProfileSynchronizer {
   }
 
   static func makeDecoder() -> JSONDecoder {
-    let decoder = JSONDecoder()
-    decoder.dateDecodingStrategy = .iso8601
-    return decoder
+    SupabaseJSONDecoderFactory.makeDecoder()
   }
 
   static func displayName(from user: User) -> String? {

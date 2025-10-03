@@ -21,6 +21,7 @@ final class SupabaseCompetitionLibraryRepository: CompetitionLibraryStoring {
     private let backlog: CompetitionLibrarySyncBacklogStoring
     private let log = AppLog.supabase
     private let dateProvider: () -> Date
+    private let isoFormatter: ISO8601DateFormatter
 
     private var authCancellable: AnyCancellable?
     private var ownerUUID: UUID?
@@ -45,6 +46,11 @@ final class SupabaseCompetitionLibraryRepository: CompetitionLibraryStoring {
         self.api = api
         self.backlog = backlog
         self.dateProvider = dateProvider
+        self.isoFormatter = {
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            return formatter
+        }()
         self.pendingDeletions = backlog.loadPendingDeletionIDs()
         publishSyncStatus()
 
@@ -107,6 +113,13 @@ final class SupabaseCompetitionLibraryRepository: CompetitionLibraryStoring {
     func wipeAllForLogout() throws {
         try store.wipeAllForLogout()
     }
+
+    func refreshFromRemote() async throws {
+        guard let ownerUUID else {
+            throw PersistenceAuthError.signedOut(operation: "refresh competitions")
+        }
+        try await pullRemoteUpdates(for: ownerUUID)
+    }
 }
 
 // MARK: - Identity Handling & Sync Scheduling
@@ -136,6 +149,7 @@ private extension SupabaseCompetitionLibraryRepository {
                 return
             }
             ownerUUID = uuid
+            remoteCursor = nil
             publishSyncStatus()
             scheduleInitialSync()
         }
@@ -150,12 +164,35 @@ private extension SupabaseCompetitionLibraryRepository {
 
     func performInitialSync() async {
         guard let ownerUUID else { return }
+        let ownerString = ownerUUID.uuidString
+        let startingCursor = describe(remoteCursor)
+
+        log.notice(
+            "Competition initial sync started owner=\(ownerString, privacy: .public) cursor=\(startingCursor, privacy: .public) pendingPush=\(self.pendingPushes.count) pendingDelete=\(self.pendingDeletions.count)"
+        )
+
         do {
+            if !pendingDeletions.isEmpty {
+            log.debug("Competition initial sync flushing pending deletions count=\(self.pendingDeletions.count)")
+            }
             try await flushPendingDeletions()
+
+            log.debug("Competition initial sync scanning for dirty competitions")
             try await pushDirtyCompetitions()
+            log.debug("Competition initial sync queued pending pushes=\(self.pendingPushes.count)")
+
+            log.debug(
+                "Competition initial sync pulling remote updates cursor=\(self.describe(self.remoteCursor), privacy: .public)"
+            )
             try await pullRemoteUpdates(for: ownerUUID)
+
+            log.notice(
+                "Competition initial sync finished owner=\(ownerString, privacy: .public) cursor=\(self.describe(self.remoteCursor), privacy: .public) pendingPush=\(self.pendingPushes.count) pendingDelete=\(self.pendingDeletions.count)"
+            )
         } catch {
-            log.error("Initial competition sync failed: \(error.localizedDescription, privacy: .public)")
+            log.error(
+                "Initial competition sync failed owner=\(ownerString, privacy: .public) cursor=\(startingCursor, privacy: .public) error=\(error.localizedDescription, privacy: .public)"
+            )
         }
     }
 }
@@ -237,6 +274,8 @@ private extension SupabaseCompetitionLibraryRepository {
         let records = try store.loadAll().filter { $0.needsRemoteSync }
         guard !records.isEmpty else { return }
 
+        log.debug("Competition sync enqueuing dirty records count=\(records.count)")
+
         for record in records {
             pendingPushes.insert(record.id)
             applyOwnerIdentityIfNeeded(to: record)
@@ -271,8 +310,9 @@ private extension SupabaseCompetitionLibraryRepository {
             record.lastModifiedAt = dateProvider()
             record.ownerSupabaseId = ownerUUID.uuidString
             try store.context.save()
-
-            remoteCursor = max(remoteCursor ?? result.updatedAt, result.updatedAt)
+            log.debug(
+                "Competition push succeeded id=\(id.uuidString, privacy: .public) updatedAt=\(self.describe(result.updatedAt), privacy: .public)"
+            )
         } catch {
             pendingPushes.insert(id)
             log.error("Supabase competition push failed id=\(id.uuidString, privacy: .public) error=\(error.localizedDescription, privacy: .public)")
@@ -281,56 +321,88 @@ private extension SupabaseCompetitionLibraryRepository {
     }
 
     func pullRemoteUpdates(for ownerUUID: UUID) async throws {
-        let remoteCompetitions = try await api.fetchCompetitions(ownerId: ownerUUID, updatedAfter: remoteCursor)
-        guard !remoteCompetitions.isEmpty else { return }
+        let ownerString = ownerUUID.uuidString
+        let cursorBefore = describe(remoteCursor)
 
-        var didChange = false
-        for remote in remoteCompetitions {
-            if pendingDeletions.contains(remote.id) {
-                continue
+        log.debug(
+            "Competition pull requesting owner=\(ownerString, privacy: .public) cursor=\(cursorBefore, privacy: .public)"
+        )
+
+        do {
+            let remoteCompetitions = try await api.fetchCompetitions(ownerId: ownerUUID, updatedAfter: remoteCursor)
+            log.info(
+                "Competition pull received count=\(remoteCompetitions.count) owner=\(ownerString, privacy: .public) cursor=\(cursorBefore, privacy: .public)"
+            )
+
+            guard !remoteCompetitions.isEmpty else {
+                publishSyncStatus()
+                return
             }
 
             let existingRecords = try store.loadAll()
-            if let existing = existingRecords.first(where: { $0.id == remote.id }) {
-                // Update existing record if remote is newer
-                let localDirty = existing.needsRemoteSync
-                let localRemoteDate = existing.remoteUpdatedAt ?? .distantPast
+            var existingById = Dictionary(uniqueKeysWithValues: existingRecords.map { ($0.id, $0) })
 
-                if localDirty && remote.updatedAt <= localRemoteDate {
-                    // Local changes take precedence
+            var updatedCount = 0
+            var insertedCount = 0
+            var skippedPendingDeletion = 0
+            var skippedDirtyConflict = 0
+
+            for remote in remoteCompetitions {
+                if pendingDeletions.contains(remote.id) {
+                    skippedPendingDeletion += 1
                     continue
                 }
 
-                existing.name = remote.name
-                existing.level = remote.level
-                existing.ownerSupabaseId = remote.ownerId.uuidString
-                existing.remoteUpdatedAt = remote.updatedAt
-                existing.lastModifiedAt = dateProvider()
-                existing.needsRemoteSync = false
-                didChange = true
-            } else {
-                // Insert new record
-                let newRecord = CompetitionRecord(
-                    id: remote.id,
-                    name: remote.name,
-                    level: remote.level,
-                    ownerSupabaseId: remote.ownerId.uuidString,
-                    lastModifiedAt: dateProvider(),
-                    remoteUpdatedAt: remote.updatedAt,
-                    needsRemoteSync: false
-                )
-                store.context.insert(newRecord)
-                didChange = true
+                if let existing = existingById[remote.id] {
+                    let localDirty = existing.needsRemoteSync
+                    let localRemoteDate = existing.remoteUpdatedAt ?? .distantPast
+
+                    if localDirty && remote.updatedAt <= localRemoteDate {
+                        skippedDirtyConflict += 1
+                        continue
+                    }
+
+                    existing.name = remote.name
+                    existing.level = remote.level
+                    existing.ownerSupabaseId = remote.ownerId.uuidString
+                    existing.remoteUpdatedAt = remote.updatedAt
+                    existing.lastModifiedAt = dateProvider()
+                    existing.needsRemoteSync = false
+                    updatedCount += 1
+                } else {
+                    let newRecord = CompetitionRecord(
+                        id: remote.id,
+                        name: remote.name,
+                        level: remote.level,
+                        ownerSupabaseId: remote.ownerId.uuidString,
+                        lastModifiedAt: dateProvider(),
+                        remoteUpdatedAt: remote.updatedAt,
+                        needsRemoteSync: false
+                    )
+                    store.context.insert(newRecord)
+                    existingById[remote.id] = newRecord
+                    insertedCount += 1
+                }
             }
+
+            if store.context.hasChanges {
+                try store.context.save()
+            }
+
+            if let maxDate = remoteCompetitions.map({ $0.updatedAt }).max() {
+                remoteCursor = max(remoteCursor ?? maxDate, maxDate)
+            }
+
+            log.info(
+                "Competition pull applied updated=\(updatedCount) inserted=\(insertedCount) skippedPendingDeletion=\(skippedPendingDeletion) skippedDirty=\(skippedDirtyConflict) newCursor=\(self.describe(self.remoteCursor), privacy: .public)"
+            )
+        } catch {
+            log.error(
+                "Competition pull failed owner=\(ownerString, privacy: .public) cursor=\(cursorBefore, privacy: .public) error=\(error.localizedDescription, privacy: .public)"
+            )
+            throw error
         }
 
-        if didChange {
-            try store.context.save()
-        }
-
-        if let maxDate = remoteCompetitions.map({ $0.updatedAt }).max() {
-            remoteCursor = max(remoteCursor ?? maxDate, maxDate)
-        }
         publishSyncStatus()
     }
 }
@@ -364,5 +436,14 @@ private extension SupabaseCompetitionLibraryRepository {
             return
         }
         applyOwnerIdentityIfNeeded(to: record)
+    }
+
+    func describe(_ date: Date?) -> String {
+        guard let date else { return "nil" }
+        return isoFormatter.string(from: date)
+    }
+
+    func describe(_ date: Date) -> String {
+        isoFormatter.string(from: date)
     }
 }

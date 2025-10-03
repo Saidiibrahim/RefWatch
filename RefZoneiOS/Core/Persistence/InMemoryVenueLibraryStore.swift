@@ -82,6 +82,10 @@ final class InMemoryVenueLibraryStore: VenueLibraryStoring {
         notifyChanges()
     }
 
+    func refreshFromRemote() async throws {
+        // No-op for in-memory store used in previews/tests
+    }
+
     // MARK: - Helpers
 
     private func notifyChanges() {
