@@ -38,4 +38,7 @@ protocol CompetitionLibraryStoring: AnyObject {
 
     /// Wipe all competitions (used on sign-out)
     func wipeAllForLogout() throws
+
+    /// Pull the latest competitions from the remote source
+    func refreshFromRemote() async throws
 }

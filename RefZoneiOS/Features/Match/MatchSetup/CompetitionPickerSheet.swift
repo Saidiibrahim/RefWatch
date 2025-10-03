@@ -97,13 +97,24 @@ struct CompetitionPickerSheet: View {
     private func loadCompetitions() {
         isLoading = true
         loadError = nil
-        do {
-            competitions = try competitionStore.loadAll()
-        } catch {
-            loadError = error.localizedDescription
-            competitions = []
+
+        Task {
+            do {
+                try await competitionStore.refreshFromRemote()
+            } catch {
+                print("Competition refresh failed: \(error.localizedDescription)")
+            }
+
+            await MainActor.run {
+                do {
+                    competitions = try competitionStore.loadAll()
+                } catch {
+                    loadError = error.localizedDescription
+                    competitions = []
+                }
+                isLoading = false
+            }
         }
-        isLoading = false
     }
 }
 

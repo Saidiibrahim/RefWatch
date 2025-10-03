@@ -111,13 +111,23 @@ struct VenuePickerSheet: View {
     private func loadVenues() {
         isLoading = true
         loadError = nil
-        do {
-            venues = try venueStore.loadAll()
-        } catch {
-            loadError = error.localizedDescription
-            venues = []
+        Task {
+            do {
+                try await venueStore.refreshFromRemote()
+            } catch {
+                print("Venue refresh failed: \(error.localizedDescription)")
+            }
+
+            await MainActor.run {
+                do {
+                    venues = try venueStore.loadAll()
+                } catch {
+                    loadError = error.localizedDescription
+                    venues = []
+                }
+                isLoading = false
+            }
         }
-        isLoading = false
     }
 }
 

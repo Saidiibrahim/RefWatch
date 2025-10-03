@@ -262,9 +262,14 @@ private extension MatchesTabView {
     }
 
     func refreshRecentAndPrompt() {
+        Task { await refreshRecentAndPromptAsync() }
+    }
+
+    @MainActor
+    private func refreshRecentAndPromptAsync() async {
         recent = matchViewModel.loadRecentCompletedMatches(limit: 5)
         if let latest = matchViewModel.loadRecentCompletedMatches(limit: 1).first {
-            let latestJournal = (try? journalStore.loadLatest(for: latest.id)) ?? nil
+            let latestJournal = try? await journalStore.loadLatest(for: latest.id)
             lastNeedingJournal = latestJournal == nil ? latest : nil
         } else {
             lastNeedingJournal = nil

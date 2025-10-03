@@ -45,3 +45,39 @@ enum SupabaseDateParser {
     return prefix + suffix
   }
 }
+
+enum SupabaseJSONDecoderFactory {
+  private static let isoWithFraction: ISO8601DateFormatter = {
+    let formatter = ISO8601DateFormatter()
+    formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    return formatter
+  }()
+
+  private static let isoWithoutFraction: ISO8601DateFormatter = {
+    let formatter = ISO8601DateFormatter()
+    formatter.formatOptions = [.withInternetDateTime]
+    return formatter
+  }()
+
+  static func makeDecoder() -> JSONDecoder {
+    let decoder = JSONDecoder()
+    decoder.dateDecodingStrategy = .custom { decoder in
+      let container = try decoder.singleValueContainer()
+      let value = try container.decode(String.self)
+
+      if let date = SupabaseDateParser.parse(
+        value,
+        isoWithFraction: isoWithFraction,
+        isoWithoutFraction: isoWithoutFraction
+      ) {
+        return date
+      }
+
+      throw DecodingError.dataCorruptedError(
+        in: container,
+        debugDescription: "Cannot decode date from: \(value)"
+      )
+    }
+    return decoder
+  }
+}

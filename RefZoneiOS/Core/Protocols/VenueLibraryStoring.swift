@@ -39,4 +39,7 @@ protocol VenueLibraryStoring: AnyObject {
 
     /// Wipe all venues (used on sign-out)
     func wipeAllForLogout() throws
+
+    /// Pull the latest venues from the remote source
+    func refreshFromRemote() async throws
 }

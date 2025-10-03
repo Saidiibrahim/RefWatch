@@ -122,6 +122,10 @@ final class SwiftDataVenueLibraryStore: VenueLibraryStoring {
         notifyChanges()
     }
 
+    func refreshFromRemote() async throws {
+        // SwiftData store relies on Supabase repository for remote pulls.
+    }
+
     // MARK: - Internal Helpers
 
     /// Notify observers that venues changed

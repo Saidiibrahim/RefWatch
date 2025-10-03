@@ -127,13 +127,7 @@ struct MatchHistoryView: View {
     }
 
     private func delete(at offsets: IndexSet) {
-        // Deletion operates on base items, not filtered view
-        for i in offsets {
-            let id = filteredItems[i].id
-            matchViewModel.deleteCompletedMatch(id: id)
-            try? journalStore.deleteAll(for: id)
-        }
-        resetAndLoadFirstPage()
+        Task { await deleteMatches(at: offsets) }
     }
 
     private func resetAndLoadFirstPage() {
@@ -193,6 +187,17 @@ struct MatchHistoryView: View {
         // Wait briefly for sync to complete (actual sync happens async)
         try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
         isSyncing = false
+    }
+
+    @MainActor
+    private func deleteMatches(at offsets: IndexSet) async {
+        // Deletion operates on base items, not filtered view
+        for i in offsets {
+            let id = filteredItems[i].id
+            matchViewModel.deleteCompletedMatch(id: id)
+            try? await journalStore.deleteAll(for: id)
+        }
+        resetAndLoadFirstPage()
     }
 }
 

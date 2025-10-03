@@ -142,6 +142,11 @@ private extension MatchHistoryDetailView {
         return f.string(from: date)
     }
     func loadLatest() {
-        latestJournal = (try? journalStore.loadLatest(for: snapshot.id)) ?? nil
+        Task { await loadLatestEntry() }
+    }
+
+    @MainActor
+    private func loadLatestEntry() async {
+        latestJournal = try? await journalStore.loadLatest(for: snapshot.id)
     }
 }

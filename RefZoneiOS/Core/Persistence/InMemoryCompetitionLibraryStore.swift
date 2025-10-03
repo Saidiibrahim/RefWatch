@@ -75,6 +75,10 @@ final class InMemoryCompetitionLibraryStore: CompetitionLibraryStoring {
         notifyChanges()
     }
 
+    func refreshFromRemote() async throws {
+        // No-op for in-memory store used in previews/tests
+    }
+
     // MARK: - Helpers
 
     private func notifyChanges() {
