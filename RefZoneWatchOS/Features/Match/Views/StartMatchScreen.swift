@@ -2,11 +2,8 @@
 //  StartMatchScreen.swift
 //  RefereeAssistant
 //
-//  Description: Orchestrates the Start Match flow by composing reusable
-//  components for selecting an existing match or creating a new one.
-//  This view wires environment state and lifecycle routing while delegating
-//  the UI to `StartMatchOptionsView`, `SavedMatchesListView`, and
-//  `MatchSettingsListView`.
+//  Description: Hosts the start-flow hub surface and emits navigation callbacks
+//  so the parent coordinator can push saved matches or match settings screens.
 //
 
 import SwiftUI
@@ -18,53 +15,31 @@ struct StartMatchScreen: View {
     let matchViewModel: MatchViewModel
     let lifecycle: MatchLifecycleCoordinator
     @Environment(\.dismiss) private var dismiss
-    @State private var path: [Route] = []
-
-    private enum Route: Hashable {
-        case savedMatches
-        case createMatch
-    }
+    let onNavigate: (MatchRoute) -> Void
 
     var body: some View {
-        NavigationStack(path: $path) {
-            StartMatchOptionsView(
-                onReset: handleReset,
-                onSelectMatch: { path.append(.savedMatches) },
-                onCreateMatch: { path.append(.createMatch) }
-            )
-            .background(theme.colors.backgroundPrimary.ignoresSafeArea())
-            .navigationTitle("Start Match")
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    if lifecycle.state == .idle {
-                        Button {
-                            modeSwitcherPresentation.wrappedValue = true
-                        } label: {
-                            Image(systemName: "chevron.backward")
-                        }
-                        .accessibilityLabel("Back")
+        StartMatchOptionsView(
+            onReset: handleReset,
+            onSelectMatch: { onNavigate(.savedMatches) },
+            onCreateMatch: { onNavigate(.createMatch) }
+        )
+        .background(theme.colors.backgroundPrimary.ignoresSafeArea())
+        .navigationTitle("Start Match")
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                if lifecycle.state == .idle {
+                    Button {
+                        modeSwitcherPresentation.wrappedValue = true
+                    } label: {
+                        Image(systemName: "chevron.backward")
                     }
-                }
-            }
-            .navigationDestination(for: Route.self) { route in
-                switch route {
-                case .savedMatches:
-                    SavedMatchesListView(matches: matchViewModel.savedMatches) { match in
-                        matchViewModel.selectMatch(match)
-                        proceedToKickoff()
-                    }
-                case .createMatch:
-                    MatchSettingsListView(matchViewModel: matchViewModel) { viewModel in
-                        configureMatch(with: viewModel)
-                        proceedToKickoff()
-                    }
+                    .accessibilityLabel("Back")
                 }
             }
         }
         .onChange(of: lifecycle.state) { newValue in
             // When lifecycle moves past idle, close the entire start flow and reset navigation.
             if newValue != .idle {
-                path.removeAll()
                 dismiss()
             }
         }
@@ -72,35 +47,18 @@ struct StartMatchScreen: View {
 }
 
 private extension StartMatchScreen {
-    /// Applies the current settings from the provided `MatchViewModel` to
-    /// configure the match before transitioning into kickoff.
-    func configureMatch(with viewModel: MatchViewModel) {
-        viewModel.configureMatch(
-            duration: viewModel.matchDuration,
-            periods: viewModel.numberOfPeriods,
-            halfTimeLength: viewModel.halfTimeLength,
-            hasExtraTime: viewModel.hasExtraTime,
-            hasPenalties: viewModel.hasPenalties
-        )
-    }
-
-    func proceedToKickoff() {
-        // Defer lifecycle transition to next run loop to allow current navigation
-        // transaction to complete. This prevents race between dismiss() and state change.
-        DispatchQueue.main.async {
-            lifecycle.goToKickoffFirst()
-        }
-    }
-
     func handleReset() {
-        // Clear match state. Note: path is managed by lifecycle onChange; removing
-        // path.removeAll() here prevents race condition during navigation append.
+        // Clear match state; navigation updates are coordinated by the parent.
         matchViewModel.resetMatch()
     }
 }
 
 struct StartMatchScreen_Previews: PreviewProvider {
     static var previews: some View {
-        StartMatchScreen(matchViewModel: MatchViewModel(haptics: WatchHaptics()), lifecycle: MatchLifecycleCoordinator())
+        StartMatchScreen(
+            matchViewModel: MatchViewModel(haptics: WatchHaptics()),
+            lifecycle: MatchLifecycleCoordinator(),
+            onNavigate: { _ in }
+        )
     }
 }

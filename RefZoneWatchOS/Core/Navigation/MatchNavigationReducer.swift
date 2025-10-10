@@ -1,6 +1,8 @@
 import Foundation
 import RefWatchCore
 
+typealias MatchPhase = MatchLifecycleCoordinator.State
+
 /// Reducer that keeps the navigation path in sync with lifecycle transitions.
 /// Clearing the stacked start-flow screens when leaving idle avoids back-stack
 /// ghosts once gameplay begins.

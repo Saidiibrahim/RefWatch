@@ -5,7 +5,7 @@ plan_file: ../../plans/PLAN_navigation_architecture_refactor.md
 title: Implement Lifecycle → Navigation Mapping
 phase: Phase A
 created: 2025-10-10
-status: Ready
+status: Completed
 priority: High
 estimated_minutes: 60
 dependencies: [TASK_03_flatten_navigation.md]
