@@ -5,7 +5,7 @@ plan_file: ../../plans/PLAN_navigation_architecture_refactor.md
 title: Add NavigationPath State to MatchRootView
 phase: Phase A
 created: 2025-10-10
-status: Ready
+status: Completed
 priority: High
 estimated_minutes: 20
 dependencies: [TASK_01_create_navigation_model.md]

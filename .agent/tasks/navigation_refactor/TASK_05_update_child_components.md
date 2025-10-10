@@ -5,7 +5,7 @@ plan_file: ../../plans/PLAN_navigation_architecture_refactor.md
 title: Update Child Components for Path-Based Navigation
 phase: Phase A
 created: 2025-10-10
-status: Ready
+status: Completed
 priority: Medium
 estimated_minutes: 45
 dependencies: [TASK_04_lifecycle_navigation_mapping.md]
