@@ -85,12 +85,17 @@ private extension StartMatchScreen {
     }
 
     func proceedToKickoff() {
-        lifecycle.goToKickoffFirst()
+        // Defer lifecycle transition to next run loop to allow current navigation
+        // transaction to complete. This prevents race between dismiss() and state change.
+        DispatchQueue.main.async {
+            lifecycle.goToKickoffFirst()
+        }
     }
 
     func handleReset() {
+        // Clear match state. Note: path is managed by lifecycle onChange; removing
+        // path.removeAll() here prevents race condition during navigation append.
         matchViewModel.resetMatch()
-        path.removeAll()
     }
 }
 

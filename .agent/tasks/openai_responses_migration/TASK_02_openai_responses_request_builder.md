@@ -5,7 +5,7 @@ plan_file: ../plans/PLAN_openai_responses_migration.md
 title: Implement new request builder with instructions field
 phase: Phase 2 - HTTP Client Update
 created: 2025-10-09
-status: Ready
+status: Completed
 priority: High
 estimated_minutes: 120
 dependencies: [TASK_01_openai_responses_payload_audit.md]
@@ -119,3 +119,11 @@ struct ResponsesConfig {
 ✅ Code compiles without warnings
 ✅ DEBUG logging shows correct JSON payload
 
+---
+
+## Implementation Notes (2025-10-10)
+- Swapped the endpoint to `https://api.openai.com/v1/responses` with an explicit 60s timeout and preserved streaming headers.
+- Added `ResponsesPayload`/`InputMessage`/`InputContent` encodable types to serialize the `instructions` plus trimmed chat history into the Responses API schema.
+- Replaced the JSON dictionary builder with `makeRequest(apiKey:payload:)`, which encodes the payload via a dedicated `JSONEncoder` and keeps the service interface unchanged.
+- Added DEBUG-only `OpenAIAssistantService.Testing` helpers so unit tests can exercise the builder without exposing the helpers to production callers.
+- Inlined documentation links (create, streaming, input items) above the streaming pipeline to keep engineers anchored to the latest OpenAI docs.

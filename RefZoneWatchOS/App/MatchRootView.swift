@@ -112,6 +112,9 @@ struct MatchRootView: View {
                     }
                 }
             }
+            .navigationDestination(isPresented: $isStartMatchActive) {
+                StartMatchScreen(matchViewModel: matchViewModel, lifecycle: lifecycle)
+            }
         }
         .environment(settingsViewModel)
         .background(theme.colors.backgroundPrimary.ignoresSafeArea())
@@ -162,12 +165,6 @@ struct MatchRootView: View {
         .onChange(of: matchViewModel.lastPersistenceError) { newValue, _ in
             if newValue != nil { showPersistenceError = true }
         }
-        .onChange(of: lifecycle.shouldPresentStartMatchScreen) { shouldPresent in
-            if shouldPresent {
-                isStartMatchActive = true
-                lifecycle.shouldPresentStartMatchScreen = false
-            }
-        }
         .alert("Save Failed", isPresented: $showPersistenceError) {
             Button("OK") { matchViewModel.lastPersistenceError = nil }
         } message: {
@@ -184,16 +181,8 @@ private extension MatchRootView {
     @ViewBuilder
     var heroSection: some View {
         Section {
-            NavigationLink(
-                isActive: Binding(
-                    get: { isStartMatchActive },
-                    set: { newValue in
-                        if !newValue { lifecycle.shouldPresentStartMatchScreen = false }
-                        isStartMatchActive = newValue
-                    }
-                )
-            ) {
-                StartMatchScreen(matchViewModel: matchViewModel, lifecycle: lifecycle)
+            Button {
+                isStartMatchActive = true
             } label: {
                 StartMatchHeroCard()
             }
