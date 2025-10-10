@@ -17,6 +17,8 @@ struct AssistantTabView: View {
     @State private var inlinePower: Double = 0
     @State private var inlineDebounceItem: DispatchWorkItem? = nil
     @State private var showVoiceMode = false
+    // Feature flag for the standalone voice mode flow.
+    private let isVoiceModeEnabled = false
 
     init() {
         if let svc = OpenAIAssistantService.fromBundleIfAvailable() {
@@ -176,16 +178,17 @@ struct AssistantTabView: View {
             .padding(.horizontal, 12)
             .background(Color(.secondarySystemBackground))
             .clipShape(Capsule())
-
-            // Big black button enters voice mode (distinct from inline mic)
-            Button(action: { showVoiceMode = true }) {
-                Circle()
-                    .fill(Color.black)
-                    .frame(width: 36, height: 36)
-                    .overlay(Image(systemName: "waveform").foregroundStyle(.white))
+            if isVoiceModeEnabled {
+                // Big black button enters voice mode (distinct from inline mic)
+                Button(action: { showVoiceMode = true }) {
+                    Circle()
+                        .fill(Color.black)
+                        .frame(width: 36, height: 36)
+                        .overlay(Image(systemName: "waveform").foregroundStyle(.white))
+                }
+                .accessibilityLabel("Voice Mode")
+                .buttonStyle(PressBounceStyle())
             }
-            .accessibilityLabel("Voice Mode")
-            .buttonStyle(PressBounceStyle())
         }
         .padding(.horizontal)
         .padding(.vertical, 8)
@@ -330,4 +333,9 @@ private struct WaveBars: View {
     }
 }
 
-#Preview { AssistantTabView() }
+#if DEBUG
+#Preview {
+    AssistantTabView()
+        .environmentObject(SupabaseAuthController(clientProvider: SupabaseClientProvider.shared))
+}
+#endif
