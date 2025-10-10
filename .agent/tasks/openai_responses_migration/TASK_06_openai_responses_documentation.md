@@ -5,7 +5,7 @@ plan_file: ../plans/PLAN_openai_responses_migration.md
 title: Document migration and clean up old code
 phase: Phase 6 - Documentation & Cleanup
 created: 2025-10-09
-status: Ready
+status: Completed
 priority: Medium
 estimated_minutes: 60
 dependencies: [TASK_05_openai_responses_validation_and_docs.md]
@@ -229,3 +229,11 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 ✅ Code passes linting/formatting checks
 ✅ Git commit message follows conventions
 ✅ No breaking changes to public interface
+
+---
+
+## Documentation Notes (2025-10-10)
+- Updated `OpenAIAssistantService.swift` header comment to record the migration date and reference the Responses API.
+- Added inline links to the official Responses API create, streaming, and input item docs directly above the streaming pipeline implementation.
+- Captured design/implementation details across TASK_01–TASK_05 files to provide a written audit trail for the migration decisions.
+- README changes were not required for this slice; secrets handling and feature flags remain accurate.

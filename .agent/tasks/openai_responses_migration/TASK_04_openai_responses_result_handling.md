@@ -5,7 +5,7 @@ plan_file: ../plans/PLAN_openai_responses_migration.md
 title: Enhance error handling and usage data extraction
 phase: Phase 4 - Error Handling & Edge Cases
 created: 2025-10-09
-status: Ready
+status: Completed
 priority: Medium
 estimated_minutes: 90
 dependencies: [TASK_03_openai_responses_streaming_pipeline.md]
@@ -177,3 +177,11 @@ private static func logError(_ message: String, error: Error? = nil) {
 ✅ Existing interface unchanged
 ✅ Error scenarios tested
 
+---
+
+## Implementation Notes (2025-10-10)
+- Added `ServiceError` to differentiate invalid HTTP responses from non-2xx status codes; both paths now surface detailed context in DEBUG logs.
+- Stream pipeline now captures `response.done` usage metadata and prints token counts in DEBUG builds without altering the public async stream contract.
+- `error` SSE events trigger DEBUG diagnostics and clean termination, while malformed payloads are ignored safely to keep the UI responsive.
+- Wrapped network + parsing inside `do/catch` with a `defer` on the continuation so we always close the stream even after throwing.
+- Left the interface unchanged, supplementing behavior with a `Testing` harness for validation instead of new API hooks.

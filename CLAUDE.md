@@ -84,6 +84,14 @@ RefZoneiOS/
 - `CardEventCoordinator` manages the entire card recording flow
 - Centralizes navigation and state management for multi-step processes
 
+**Navigation Architecture (Refactored - Phase A Complete):**
+- **Single NavigationStack**: All navigation in one stack in `MatchRootView` (NO nested stacks)
+- **Path-Based**: Uses `NavigationPath` with `MatchRoute` enum for type-safe routing
+- **Lifecycle Separation**: Domain state (`MatchLifecycleCoordinator`) separate from presentation (navigation path)
+- **Callback Pattern**: Child views use callbacks; parent handles routing decisions
+- See `.agent/plans/PLAN_navigation_architecture_refactor.md` for architecture details
+- Phase B (coordinator) deferred until iOS app development
+
 ### State Management Rules
 
 1. **ViewModels**: Annotate with `@Observable final class`

@@ -93,6 +93,9 @@ struct MatchKickOffView: View {
                         extraTimeHalfLengthMinutes: viewModel.extraTimeHalfLengthMinutes,
                         penaltyRounds: viewModel.penaltyInitialRounds
                     )
+                    withAnimation {
+                        isShowingMatchSettings = false
+                    }
                 }
             }
         }

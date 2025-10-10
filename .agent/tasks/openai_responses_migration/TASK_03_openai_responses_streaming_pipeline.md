@@ -5,7 +5,7 @@ plan_file: ../plans/PLAN_openai_responses_migration.md
 title: Redesign SSE parser for Responses API events
 phase: Phase 3 - SSE Parser Redesign
 created: 2025-10-09
-status: Ready
+status: Completed
 priority: High
 estimated_minutes: 180
 dependencies: [TASK_02_openai_responses_request_builder.md]
@@ -195,3 +195,11 @@ private struct UsageStats: Decodable {
 ✅ Output contract unchanged (`AsyncStream<String>`)
 ✅ Manual testing shows streaming text works
 
+---
+
+## Implementation Notes (2025-10-10)
+- Introduced `ResponsesStreamParser` with explicit state for the current event, accumulated `data:` fragments, and captured usage statistics.
+- Normalized SSE processing to support both continuation-based streaming and a closure-driven variant for unit testing.
+- Routed `response.output_text.delta`, `response.done`, and `error` events through dedicated decoding structs; deltas append text, `response.done` stores usage, and `error` triggers DEBUG logging plus termination.
+- Ignored unknown events while retaining DEBUG logging breadcrumbs so future event types can be diagnosed without crashing the stream.
+- Added a DEBUG `Testing.parseStream` helper that reuses the production parser to feed synthetic SSE lines in tests.
