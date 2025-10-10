@@ -7,12 +7,14 @@
 
 import RefWatchCore
 import SwiftUI
+import UIKit
 
 /// Streamlined sign-up flow that mirrors the design system and highlights what users
 /// gain by creating a RefZone account backed by Supabase auth.
 struct SignUpView: View {
     @EnvironmentObject private var coordinator: AuthenticationCoordinator
     @Environment(\.theme) private var theme
+    @Environment(\.colorScheme) private var colorScheme
     @StateObject private var viewModel: AuthenticationFormViewModel
     @FocusState private var focusedField: Field?
 
@@ -34,7 +36,8 @@ struct SignUpView: View {
                 .padding(.horizontal, 24)
                 .padding(.vertical, 32)
             }
-            .background(theme.colors.backgroundPrimary.ignoresSafeArea())
+            .scrollIndicators(.hidden)
+            .background(colors.background.ignoresSafeArea())
             .navigationTitle("Create Account")
             .toolbar { toolbar }
             .alert("Account", isPresented: Binding(
@@ -46,19 +49,25 @@ struct SignUpView: View {
                 Text(viewModel.alertMessage ?? "")
             }
         }
+        .tint(colors.accent)
     }
 }
 
 private extension SignUpView {
+    var colors: AuthenticationScreenColors {
+        AuthenticationScreenColors(theme: theme, colorScheme: colorScheme)
+    }
+
     var header: some View {
         VStack(spacing: 12) {
             Text("Create your RefZone account")
                 .font(.title2.bold())
+                .foregroundStyle(colors.primaryText)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             Text(viewModel.mode.footnote)
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(colors.secondaryText)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
@@ -73,71 +82,89 @@ private extension SignUpView {
                 .focused($focusedField, equals: .email)
                 .submitLabel(.next)
                 .onSubmit { focusedField = .password }
-                .padding()
-                .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .foregroundStyle(colors.primaryText)
+                .authenticationInputField(colors: colors)
 
             SecureField("Password", text: $viewModel.password)
                 .textContentType(.newPassword)
                 .focused($focusedField, equals: .password)
                 .submitLabel(.go)
                 .onSubmit(submitPrimaryAction)
-                .padding()
-                .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .foregroundStyle(colors.primaryText)
+                .authenticationInputField(colors: colors)
 
             Button(action: submitPrimaryAction) {
                 if viewModel.isPerformingAction {
                     ProgressView()
+                        .tint(colors.primaryActionForeground)
                         .frame(maxWidth: .infinity)
                 } else {
                     Text(viewModel.mode.primaryButtonTitle)
                         .frame(maxWidth: .infinity)
                 }
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(AuthenticationPrimaryButtonStyle(colors: colors))
             .disabled(viewModel.isPerformingAction || viewModel.email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || viewModel.password.count < 6)
         }
         .accessibilityElement(children: .contain)
     }
 
     var federatedSection: some View {
-        VStack(spacing: 12) {
-            HStack {
-                Rectangle().frame(height: 1).opacity(0.15)
-                Text("Or use a quick login")
+        VStack(spacing: 16) {
+            HStack(spacing: 12) {
+                RoundedRectangle(cornerRadius: 1)
+                    .frame(height: 1)
+                    .foregroundStyle(colors.separator)
+
+                Text("Or continue with")
                     .font(.footnote.weight(.semibold))
-                    .textCase(.uppercase)
-                    .foregroundStyle(.secondary)
-                Rectangle().frame(height: 1).opacity(0.15)
+                    // .textCase(.uppercase)
+                    .foregroundStyle(colors.secondaryText)
+
+                RoundedRectangle(cornerRadius: 1)
+                    .frame(height: 1)
+                    .foregroundStyle(colors.separator)
             }
 
             Button(action: signInWithApple) {
                 Label("Continue with Apple", systemImage: "applelogo")
-                    .frame(maxWidth: .infinity)
+                    .font(.body.weight(.semibold))
+                    .frame(maxWidth: .infinity, alignment: .center)
             }
-            .buttonStyle(.borderedProminent)
-            .tint(.black)
+            .buttonStyle(AuthenticationProviderButtonStyle(provider: .apple, colors: colors))
             .disabled(viewModel.isPerformingAction)
 
             Button(action: signInWithGoogle) {
-                Label("Continue with Google", systemImage: "globe")
-                    .frame(maxWidth: .infinity)
+                Label {
+                    Text("Continue with Google")
+                        .font(.body.weight(.semibold))
+                } icon: {
+                    Image(googleLogoAssetName)
+                        .resizable()
+                        .renderingMode(.original)
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 20, height: 20)
+                }
+                .frame(maxWidth: .infinity, alignment: .center)
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(AuthenticationProviderButtonStyle(provider: .google, colors: colors))
             .disabled(viewModel.isPerformingAction)
         }
     }
 
     var footer: some View {
         VStack(spacing: 12) {
-            Text("By creating an account you agree to sync match data with Supabase. You can delete your account at any time from Settings.")
+            Text("Creating an account keeps your match data backed up across RefZone. You can manage or delete it anytime from Settings.")
                 .font(.footnote)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(colors.secondaryText)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             Button("Already have an account? Sign in") {
                 coordinator.showSignIn()
             }
             .font(.footnote)
+            .fontWeight(.semibold)
+            .foregroundStyle(colors.accent)
         }
         .frame(maxWidth: .infinity)
     }
@@ -146,6 +173,10 @@ private extension SignUpView {
         ToolbarItem(placement: .cancellationAction) {
             Button("Cancel") { coordinator.dismiss() }
         }
+    }
+
+    var googleLogoAssetName: String {
+        colorScheme == .dark ? "google-logo-dark-round" : "google-logo-neutral-round"
     }
 
     func submitPrimaryAction() {

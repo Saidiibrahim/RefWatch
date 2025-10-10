@@ -44,9 +44,9 @@ final class AuthenticationFormViewModel: ObservableObject {
         var footnote: String {
             switch self {
             case .signIn:
-                return "Access Supabase sync, match history backups, and personalized insights."
+                return "Keep your match history in sync, backed up, and ready with personalized insights."
             case .signUp:
-                return "You'll receive an email to confirm your account. Verification may be required before the app signs you in."
+                return "Create your RefZone account to sync matches securely across your devices."
             }
         }
     }

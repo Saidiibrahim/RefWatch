@@ -22,7 +22,6 @@ struct SettingsTabView: View {
 
     @ObservedObject private var auth: SupabaseAuthController
     @EnvironmentObject private var syncDiagnostics: SyncDiagnosticsCenter
-    @EnvironmentObject private var themeManager: ThemeManager
     @EnvironmentObject private var authCoordinator: AuthenticationCoordinator
 
     @State private var defaultPeriod: Int = 45
@@ -58,9 +57,7 @@ struct SettingsTabView: View {
                 librarySection
                 diagnosticsSection
                 defaultsSection
-                appearanceSection
                 syncSection
-                supabaseSection
                 dataSection
             }
             .navigationTitle("Settings")
@@ -96,7 +93,7 @@ private extension SettingsTabView {
                     Text("You're not signed in")
                         .font(.headline)
 
-                    Text("RefZone on iPhone now requires a signed-in Supabase account. Sign in to access match history, schedules, trends, and team management.")
+                    Text("RefZone on iPhone now requires a signed-in account. Sign in to access match history, schedules, trends, and team management.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
 
@@ -127,24 +124,18 @@ private extension SettingsTabView {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                 }
-            case let .signedIn(userId, email, displayName):
+            case let .signedIn(_, _, displayName):
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         Image(systemName: "person.circle.fill")
                             .font(.system(size: 36))
                             .foregroundStyle(.tint)
                         VStack(alignment: .leading) {
-                            Text(displayName ?? email ?? "Signed in")
+                            Text(displayName ?? "Signed in")
                                 .font(.headline)
-                            if let email {
-                                Text(email)
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Text(userId)
-                                .font(.caption2)
+                            Text("You're connected with your RefZone account.")
+                                .font(.subheadline)
                                 .foregroundStyle(.secondary)
-                                .textSelection(.enabled)
                         }
                         Spacer()
                     }
@@ -217,20 +208,6 @@ private extension SettingsTabView {
         }
     }
 
-    var appearanceSection: some View {
-        Section("Appearance") {
-            Picker("Theme", selection: Binding(
-                get: { themeManager.variant },
-                set: { themeManager.apply($0) }
-            )) {
-                ForEach(ThemeVariant.allCases) { variant in
-                    Text(variant.displayName).tag(variant)
-                }
-            }
-            .pickerStyle(.segmented)
-        }
-    }
-
     var syncSection: some View {
         Section("Sync") {
             LabeledContent("Watch", value: connectivityStatusValue)
@@ -238,27 +215,6 @@ private extension SettingsTabView {
                 AppLog.connectivity.info("User requested resync from Settings")
             } label: {
                 Label("Resync Now", systemImage: "arrow.clockwise")
-            }
-        }
-    }
-
-    var supabaseSection: some View {
-        Section("Supabase Sync") {
-            switch auth.state {
-            case .signedOut:
-                Text("Sign in to enable Supabase match history and library sync across devices.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            case let .signedIn(userId, email, _):
-                LabeledContent("User ID", value: userId)
-                if let email, email.isEmpty == false {
-                    LabeledContent("Email") { Text(email) }
-                }
-                Button {
-                    requestManualSync()
-                } label: {
-                    Label("Sync Now", systemImage: "arrow.triangle.2.circlepath")
-                }
             }
         }
     }
@@ -276,17 +232,6 @@ private extension SettingsTabView {
 
     func signOut() {
         Task { await authViewModel.signOut() }
-    }
-
-    func requestManualSync() {
-        guard case .signedIn = auth.state else {
-            authViewModel.alertMessage = "Sign in to sync match history."
-            return
-        }
-        let success = matchSyncController?.requestManualSync() ?? false
-        if success == false {
-            authViewModel.alertMessage = "Match history sync requires an active Supabase session."
-        }
     }
 
     func refreshConnectivityStatus() {
@@ -320,3 +265,30 @@ private extension SettingsTabView {
         }
     }
 }
+
+#if DEBUG
+@MainActor
+private final class PreviewMatchHistoryStore: MatchHistoryStoring {
+    func loadAll() throws -> [CompletedMatch] { [] }
+    func save(_ match: CompletedMatch) throws { }
+    func delete(id: UUID) throws { }
+    func wipeAll() throws { }
+}
+
+#Preview("Settings") {
+    let authController = SupabaseAuthController(clientProvider: SupabaseClientProvider.shared)
+    let diagnostics = SyncDiagnosticsCenter()
+    let coordinator = AuthenticationCoordinator(authController: authController)
+
+    return SettingsTabView(
+        historyStore: PreviewMatchHistoryStore(),
+        scheduleStore: InMemoryScheduleStore(),
+        teamStore: InMemoryTeamLibraryStore(),
+        competitionStore: InMemoryCompetitionLibraryStore(),
+        venueStore: InMemoryVenueLibraryStore(),
+        authController: authController
+    )
+    .environmentObject(diagnostics)
+    .environmentObject(coordinator)
+}
+#endif
