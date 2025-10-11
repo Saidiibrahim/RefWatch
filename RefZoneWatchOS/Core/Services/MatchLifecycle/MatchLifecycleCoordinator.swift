@@ -24,6 +24,7 @@ final class MatchLifecycleCoordinator {
     }
 
     private(set) var state: State = .idle
+    var shouldPresentStartMatchScreen: Bool = false
 
     func resetToStart() {
         let old = state
@@ -96,5 +97,16 @@ final class MatchLifecycleCoordinator {
         #if DEBUG
         print("DEBUG: Lifecycle transition: \(old) → \(state) [goToFinished]")
         #endif
+    }
+
+    func requestStartMatchScreen() {
+        let old = state
+        if old != .idle {
+            state = .idle
+            #if DEBUG
+            print("DEBUG: Lifecycle transition: \(old) → \(state) [requestStartMatchScreen]")
+            #endif
+        }
+        shouldPresentStartMatchScreen = true
     }
 }

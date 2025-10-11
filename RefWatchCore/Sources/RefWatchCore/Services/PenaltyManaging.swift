@@ -8,6 +8,16 @@
 
 import Foundation
 
+public struct PenaltyUndoResult {
+    public let team: TeamSide
+    public let details: PenaltyAttemptDetails
+
+    public init(team: TeamSide, details: PenaltyAttemptDetails) {
+        self.team = team
+        self.details = details
+    }
+}
+
 public protocol PenaltyManaging: AnyObject {
     // Observables / State
     var isActive: Bool { get }
@@ -34,6 +44,8 @@ public protocol PenaltyManaging: AnyObject {
     func setFirstKicker(_ team: TeamSide)
     func markHasChosenFirstKicker(_ chosen: Bool)
     func recordAttempt(team: TeamSide, result: PenaltyAttemptDetails.Result, playerNumber: Int?)
+    func undoLastAttempt() -> PenaltyUndoResult?
+    func swapKickingOrder()
     func end()
 
     // Event callbacks
@@ -42,4 +54,3 @@ public protocol PenaltyManaging: AnyObject {
     var onDecided: ((TeamSide) -> Void)? { get set }
     var onEnd: (() -> Void)? { get set }
 }
-

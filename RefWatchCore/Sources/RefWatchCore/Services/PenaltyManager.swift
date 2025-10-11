@@ -30,10 +30,16 @@ public final class PenaltyManager: PenaltyManaging {
     private(set) public var homeTaken: Int = 0
     private(set) public var homeScored: Int = 0
     private(set) public var homeResults: [PenaltyAttemptDetails.Result] = []
+    private(set) public var homeAttempts: [PenaltyAttemptDetails] = []
 
     private(set) public var awayTaken: Int = 0
     private(set) public var awayScored: Int = 0
     private(set) public var awayResults: [PenaltyAttemptDetails.Result] = []
+    private(set) public var awayAttempts: [PenaltyAttemptDetails] = []
+
+    /// Tracks the actual order attempts were recorded so undo remains reliable even if
+    /// first-kicker swaps after play has started.
+    private var attemptStack: [TeamSide] = []
 
     // MARK: - Callbacks (wired by VM)
     public var onStart: (() -> Void)?
@@ -91,13 +97,50 @@ public final class PenaltyManager: PenaltyManaging {
             homeTaken += 1
             if result == .scored { homeScored += 1 }
             homeResults.append(result)
+            homeAttempts.append(details)
         } else {
             awayTaken += 1
             if result == .scored { awayScored += 1 }
             awayResults.append(result)
+            awayAttempts.append(details)
+        }
+
+        attemptStack.append(team)
+        computeDecisionIfNeeded()
+    }
+
+    @discardableResult
+    public func undoLastAttempt() -> PenaltyUndoResult? {
+        guard isActive else { return nil }
+        guard homeTaken > 0 || awayTaken > 0 else { return nil }
+
+        guard let lastTeam = attemptStack.popLast() else { return nil }
+
+        let undoneDetails: PenaltyAttemptDetails
+
+        switch lastTeam {
+        case .home:
+            guard homeTaken > 0, let details = homeAttempts.popLast(), let _ = homeResults.popLast() else { return nil }
+            homeTaken -= 1
+            if details.result == .scored { homeScored = max(0, homeScored - 1) }
+            undoneDetails = details
+        case .away:
+            guard awayTaken > 0, let details = awayAttempts.popLast(), let _ = awayResults.popLast() else { return nil }
+            awayTaken -= 1
+            if details.result == .scored { awayScored = max(0, awayScored - 1) }
+            undoneDetails = details
         }
 
         computeDecisionIfNeeded()
+        if !isDecided { didPlayDecisionHaptic = false }
+
+        return PenaltyUndoResult(team: lastTeam, details: undoneDetails)
+    }
+
+    public func swapKickingOrder() {
+        guard isActive else { return }
+        firstKicker = firstKicker == .home ? .away : .home
+        hasChosenFirstKicker = true
     }
 
     public func end() {
@@ -115,8 +158,9 @@ public final class PenaltyManager: PenaltyManaging {
         didPlayDecisionHaptic = false
         hasChosenFirstKicker = false
         firstKicker = .home
-        homeTaken = 0; homeScored = 0; homeResults.removeAll()
-        awayTaken = 0; awayScored = 0; awayResults.removeAll()
+        homeTaken = 0; homeScored = 0; homeResults.removeAll(); homeAttempts.removeAll()
+        awayTaken = 0; awayScored = 0; awayResults.removeAll(); awayAttempts.removeAll()
+        attemptStack.removeAll()
     }
 
     private func computeDecisionIfNeeded() {

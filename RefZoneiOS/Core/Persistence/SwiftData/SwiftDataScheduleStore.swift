@@ -6,99 +6,136 @@
 //
 
 import Foundation
+import Combine
 import SwiftData
+import RefWatchCore
 
 @MainActor
-final class SwiftDataScheduleStore: ScheduleStoring {
+final class SwiftDataScheduleStore: ScheduleStoring, ScheduleMetadataPersisting {
     private let container: ModelContainer
-    private let context: ModelContext
-    private let importFlagKey = "rw_schedule_imported_v1"
+    let context: ModelContext
+    private let dateProvider: () -> Date
+    private let changesSubject: CurrentValueSubject<[ScheduledMatch], Never>
+    private let auth: AuthenticationProviding
 
-    init(container: ModelContainer, importJSONOnFirstRun: Bool = true) {
+    init(
+        container: ModelContainer,
+        auth: AuthenticationProviding,
+        dateProvider: @escaping () -> Date = Date.init
+    ) {
         self.container = container
         self.context = ModelContext(container)
-        if importJSONOnFirstRun { importFromLegacyJSONIfNeeded() }
+        self.dateProvider = dateProvider
+        self.changesSubject = CurrentValueSubject([])
+        self.auth = auth
+        publishSnapshot()
     }
 
     func loadAll() -> [ScheduledMatch] {
-        let desc = FetchDescriptor<ScheduledMatchRecord>(sortBy: [SortDescriptor(\.kickoff, order: .forward)])
-        let rows = (try? context.fetch(desc)) ?? []
-        return rows.map { ScheduledMatch(id: $0.id, homeTeam: $0.homeName, awayTeam: $0.awayName, kickoff: $0.kickoff) }
+        snapshot()
     }
 
-    func save(_ item: ScheduledMatch) {
-        do {
-            if let existing = try fetchRecord(id: item.id) {
-                existing.homeName = item.homeTeam
-                existing.awayName = item.awayTeam
-                existing.kickoff = item.kickoff
-            } else {
-                let row = ScheduledMatchRecord(
-                    id: item.id,
-                    kickoff: item.kickoff,
-                    homeName: item.homeTeam,
-                    awayName: item.awayTeam
-                )
-                context.insert(row)
+    func save(_ item: ScheduledMatch) throws {
+        let ownerId = try requireSignedIn(operation: "save scheduled match")
+        if let existing = try record(id: item.id) {
+            existing.update(from: item, markModified: item.needsRemoteSync, dateProvider: dateProvider)
+            if existing.ownerSupabaseId != ownerId {
+                existing.ownerSupabaseId = ownerId
             }
+            existing.remoteUpdatedAt = item.remoteUpdatedAt
+            existing.needsRemoteSync = item.needsRemoteSync
+        } else {
+            let row = ScheduledMatchRecord(
+                id: item.id,
+                kickoff: item.kickoff,
+                homeName: item.homeTeam,
+                awayName: item.awayTeam,
+                competition: item.competition,
+                notes: item.notes,
+                status: item.status,
+                ownerSupabaseId: ownerId,
+                lastModifiedAt: dateProvider(),
+                remoteUpdatedAt: item.remoteUpdatedAt,
+                needsRemoteSync: item.needsRemoteSync,
+                sourceDeviceId: item.sourceDeviceId
+            )
+            if item.needsRemoteSync == false {
+                row.needsRemoteSync = false
+            }
+            context.insert(row)
+        }
+        try context.save()
+        publishSnapshot()
+    }
+
+    func delete(id: UUID) throws {
+        try requireSignedIn(operation: "delete scheduled match")
+        if let existing = try record(id: id) {
+            context.delete(existing)
             try context.save()
-        } catch {
-            // Best-effort; ignore for now
+            publishSnapshot()
         }
     }
 
-    func delete(id: UUID) {
-        do {
-            if let existing = try fetchRecord(id: id) {
-                context.delete(existing)
-                try context.save()
-            }
-        } catch { }
+    func wipeAll() throws {
+        try requireSignedIn(operation: "wipe scheduled matches")
+        try performWipeAll()
     }
 
-    func wipeAll() {
-        do {
-            let all = try context.fetch(FetchDescriptor<ScheduledMatchRecord>())
-            for item in all { context.delete(item) }
-            try context.save()
-        } catch { }
+    func wipeAllForLogout() throws {
+        try performWipeAll()
+    }
+
+    var changesPublisher: AnyPublisher<[ScheduledMatch], Never> {
+        changesSubject.eraseToAnyPublisher()
     }
 
     // MARK: - Helpers
-    private func fetchRecord(id: UUID) throws -> ScheduledMatchRecord? {
+    func record(id: UUID) throws -> ScheduledMatchRecord? {
         var desc = FetchDescriptor<ScheduledMatchRecord>(predicate: #Predicate { $0.id == id })
         desc.fetchLimit = 1
         return try context.fetch(desc).first
     }
 
-    private func importFromLegacyJSONIfNeeded() {
-        if UserDefaults.standard.bool(forKey: importFlagKey) { return }
-        // Re-build the legacy JSON path used by ScheduleService
-        let fileURL: URL
-        if let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
-            fileURL = docs.appendingPathComponent("scheduled_matches.json")
-        } else {
-            fileURL = FileManager.default.temporaryDirectory
-                .appendingPathComponent("appData", isDirectory: true)
-                .appendingPathComponent("scheduled_matches.json")
+    func publishSnapshot() {
+        changesSubject.send(snapshot())
+    }
+
+    private func snapshot() -> [ScheduledMatch] {
+        let desc = FetchDescriptor<ScheduledMatchRecord>(sortBy: [SortDescriptor(\.kickoff, order: .forward)])
+        let rows = (try? context.fetch(desc)) ?? []
+        return rows.map { record in
+            ScheduledMatch(
+                id: record.id,
+                homeTeam: record.homeName,
+                awayTeam: record.awayName,
+                kickoff: record.kickoff,
+                competition: record.competition,
+                notes: record.notes,
+                status: record.status,
+                ownerSupabaseId: record.ownerSupabaseId,
+                remoteUpdatedAt: record.remoteUpdatedAt,
+                needsRemoteSync: record.needsRemoteSync,
+                sourceDeviceId: record.sourceDeviceId
+            )
         }
-        guard FileManager.default.fileExists(atPath: fileURL.path) else {
-            UserDefaults.standard.set(true, forKey: importFlagKey)
-            return
+    }
+
+    private func requireSignedIn(operation: String) throws -> String {
+        guard let userId = auth.currentUserId else {
+            throw PersistenceAuthError.signedOut(operation: operation)
         }
-        do {
-            let data = try Data(contentsOf: fileURL)
-            let dec = JSONDecoder(); dec.dateDecodingStrategy = .iso8601
-            let items = try dec.decode([ScheduledMatch].self, from: data)
-            for it in items {
-                save(it)
-            }
-            // Mark as imported. Keep the legacy file to be safe; future runs will skip.
-            UserDefaults.standard.set(true, forKey: importFlagKey)
-        } catch {
-            // If import fails, still mark as imported to avoid repeated work
-            UserDefaults.standard.set(true, forKey: importFlagKey)
-        }
+        return userId
     }
 }
 
+private extension SwiftDataScheduleStore {
+    func performWipeAll() throws {
+        let all = try context.fetch(FetchDescriptor<ScheduledMatchRecord>())
+        for item in all { context.delete(item) }
+        if context.hasChanges {
+            try context.save()
+        }
+        publishSnapshot()
+    }
+}

@@ -12,6 +12,12 @@ public struct Match: Identifiable, Codable {
     public let id: UUID
     public var homeTeam: String
     public var awayTeam: String
+    public var homeTeamId: UUID?
+    public var awayTeamId: UUID?
+    public var competitionId: UUID?
+    public var competitionName: String?
+    public var venueId: UUID?
+    public var venueName: String?
     public var startTime: Date?
     public var duration: TimeInterval  // In seconds
     public var numberOfPeriods: Int
@@ -41,11 +47,23 @@ public struct Match: Identifiable, Codable {
         extraTimeHalfLength: TimeInterval = 15 * 60,
         hasExtraTime: Bool = false,
         hasPenalties: Bool = false,
-        penaltyInitialRounds: Int = 5
+        penaltyInitialRounds: Int = 5,
+        homeTeamId: UUID? = nil,
+        awayTeamId: UUID? = nil,
+        competitionId: UUID? = nil,
+        competitionName: String? = nil,
+        venueId: UUID? = nil,
+        venueName: String? = nil
     ) {
         self.id = id
         self.homeTeam = homeTeam
         self.awayTeam = awayTeam
+        self.homeTeamId = homeTeamId
+        self.awayTeamId = awayTeamId
+        self.competitionId = competitionId
+        self.competitionName = competitionName
+        self.venueId = venueId
+        self.venueName = venueName
         self.startTime = nil
         self.duration = duration
         self.numberOfPeriods = numberOfPeriods
@@ -66,4 +84,3 @@ public struct Match: Identifiable, Codable {
         self.awaySubs = 0
     }
 }
-

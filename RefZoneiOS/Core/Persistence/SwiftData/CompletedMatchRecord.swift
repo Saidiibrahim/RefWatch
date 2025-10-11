@@ -19,9 +19,21 @@ final class CompletedMatchRecord {
     var awayTeam: String
     var homeScore: Int
     var awayScore: Int
+    var homeTeamId: UUID?
+    var awayTeamId: UUID?
+    var competitionId: UUID?
+    var competitionName: String?
+    var venueId: UUID?
+    var venueName: String?
 
     // Full snapshot retained as encoded JSON for fidelity
     var payload: Data
+
+    // Supabase metadata
+    var remoteUpdatedAt: Date?
+    var needsRemoteSync: Bool
+    var lastSyncedAt: Date?
+    var sourceDeviceId: String?
 
     init(
         id: UUID,
@@ -31,7 +43,17 @@ final class CompletedMatchRecord {
         awayTeam: String,
         homeScore: Int,
         awayScore: Int,
-        payload: Data
+        homeTeamId: UUID? = nil,
+        awayTeamId: UUID? = nil,
+        competitionId: UUID? = nil,
+        competitionName: String? = nil,
+        venueId: UUID? = nil,
+        venueName: String? = nil,
+        payload: Data,
+        remoteUpdatedAt: Date? = nil,
+        needsRemoteSync: Bool = false,
+        lastSyncedAt: Date? = nil,
+        sourceDeviceId: String? = nil
     ) {
         self.id = id
         self.completedAt = completedAt
@@ -40,6 +62,16 @@ final class CompletedMatchRecord {
         self.awayTeam = awayTeam
         self.homeScore = homeScore
         self.awayScore = awayScore
+        self.homeTeamId = homeTeamId
+        self.awayTeamId = awayTeamId
+        self.competitionId = competitionId
+        self.competitionName = competitionName
+        self.venueId = venueId
+        self.venueName = venueName
         self.payload = payload
+        self.remoteUpdatedAt = remoteUpdatedAt
+        self.needsRemoteSync = needsRemoteSync
+        self.lastSyncedAt = lastSyncedAt
+        self.sourceDeviceId = sourceDeviceId
     }
 }

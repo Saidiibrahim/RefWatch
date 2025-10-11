@@ -14,4 +14,10 @@ final class AppRouter: ObservableObject {
     }
 
     @Published var selectedTab: Tab = .matches
+    @Published var authenticationRequest: AuthenticationCoordinator.Screen?
+
+    /// Presents the authentication flow and optionally specifies the starting screen.
+    func presentAuthentication(_ screen: AuthenticationCoordinator.Screen = .signIn) {
+        authenticationRequest = screen
+    }
 }

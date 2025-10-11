@@ -30,4 +30,13 @@ struct MatchLifecycleCoordinatorTests {
         lc.resetToStart()
         #expect(lc.state == .idle)
     }
+
+    @Test func test_goToKickoffFirst_is_idempotent() async throws {
+        let lc = MatchLifecycleCoordinator()
+
+        lc.goToKickoffFirst()
+        lc.goToKickoffFirst()
+
+        #expect(lc.state == .kickoffFirstHalf)
+    }
 }

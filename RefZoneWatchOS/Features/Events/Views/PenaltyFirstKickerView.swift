@@ -14,22 +14,26 @@ struct PenaltyFirstKickerView: View {
     let lifecycle: MatchLifecycleCoordinator
     @State private var isRouting = false
     @Environment(\.theme) private var theme
+    @Environment(\.watchLayoutScale) private var layout
 
     var body: some View {
-        VStack(spacing: theme.spacing.l) {
+        GeometryReader { _ in
+            VStack(alignment: .leading, spacing: layout.dimension(theme.spacing.m, minimum: theme.spacing.s)) {
+                header
 
-            // Buttons
-            HStack(spacing: theme.spacing.m) {
-                firstKickerButton(title: matchViewModel.homeTeamDisplayName, side: .home, color: theme.colors.accentPrimary)
-                firstKickerButton(title: matchViewModel.awayTeamDisplayName, side: .away, color: theme.colors.accentMuted)
+                HStack(spacing: layout.dimension(theme.spacing.s, minimum: theme.spacing.xs)) {
+                    firstKickerButton(title: matchViewModel.homeTeamDisplayName, side: .home, color: theme.colors.accentPrimary)
+                    firstKickerButton(title: matchViewModel.awayTeamDisplayName, side: .away, color: theme.colors.accentMuted)
+                }
+
+                Spacer(minLength: theme.spacing.xs)
             }
-            .padding(.horizontal, theme.components.cardHorizontalPadding)
-
-            Spacer()
+            .padding(.horizontal, theme.spacing.m)
+            .padding(.top, theme.spacing.s)
+            .padding(.bottom, layout.safeAreaBottomPadding)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         }
-        .padding(.top, theme.spacing.l)
         .background(theme.colors.backgroundPrimary.ignoresSafeArea())
-        .navigationTitle("First Kicker")
     }
 
     private func firstKickerButton(title: String, side: TeamSide, color: Color) -> some View {
@@ -54,20 +58,45 @@ struct PenaltyFirstKickerView: View {
             }
         }) {
             Text(title)
-                .font(theme.typography.cardHeadline)
+                .font(theme.typography.heroSubtitle)
                 .foregroundStyle(theme.colors.textInverted)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
                 .frame(maxWidth: .infinity)
-                .frame(height: theme.components.buttonHeight / 1.6)
-                .background(RoundedRectangle(cornerRadius: theme.components.cardCornerRadius, style: .continuous).fill(color))
+                .frame(height: layout.dimension(theme.components.buttonHeight * 0.85, minimum: 40))
+                .background(
+                    RoundedRectangle(cornerRadius: theme.components.cardCornerRadius, style: .continuous)
+                        .fill(color)
+                )
         }
         .buttonStyle(.plain)
         .disabled(isRouting)
         .accessibilityIdentifier(side == .home ? "firstKickerHomeBtn" : "firstKickerAwayBtn")
     }
 
-    
+    private var header: some View {
+        VStack(alignment: .leading, spacing: theme.spacing.xs) {
+            Text("First Kicker")
+                .font(theme.typography.heroSubtitle)
+                .foregroundStyle(theme.colors.textPrimary)
+
+            Text("Choose which team begins the shootout")
+                .font(theme.typography.cardMeta)
+                .foregroundStyle(theme.colors.textSecondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+        }
+    }
 }
 
-#Preview {
+#Preview("First Kicker – 41mm") {
     PenaltyFirstKickerView(matchViewModel: MatchViewModel(haptics: WatchHaptics()), lifecycle: MatchLifecycleCoordinator())
+        .watchLayoutScale(WatchLayoutScale(category: .compact))
+        .previewDevice("Apple Watch Series 9 (41mm)")
+}
+
+#Preview("First Kicker – Ultra") {
+    PenaltyFirstKickerView(matchViewModel: MatchViewModel(haptics: WatchHaptics()), lifecycle: MatchLifecycleCoordinator())
+        .watchLayoutScale(WatchLayoutScale(category: .expanded))
+        .previewDevice("Apple Watch Ultra 2 (49mm)")
 }

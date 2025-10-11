@@ -1,0 +1,61 @@
+@Tutorial(time: 20, title: "Build Custom Timer Face") {
+    @Intro(title: "Create a bespoke watch timer experience.") {
+        Learn how to add a new timer face style by extending ``TimerFaceStyle`` and supplying a SwiftUI view through ``TimerFaceFactory``.
+    }
+
+    @Section(title: "Add the Timer Face Style") {
+        @ContentAndMedia {
+            Begin by creating a new enum case on ``TimerFaceStyle`` and adding any persisted settings needed for configuration.
+        }
+        @Steps {
+            @Step {
+                Declare the new case on ``TimerFaceStyle``.
+            }
+            @Step {
+                Update ``TimerFaceFactory`` to return your custom SwiftUI view.
+            }
+        }
+    }
+
+    @Section(title: "Implement the SwiftUI View") {
+        @ContentAndMedia {
+            Build a view conforming to the expectations of ``TimerFaceModel``. Use Combine publishers to drive UI updates and keep interactions lightweight.
+        }
+        @Steps {
+            @Step {
+                Create `MyCustomTimerFaceView` that reads state from the provided model.
+            }
+            @Step {
+                Style the layout to highlight period time remaining and match status.
+            }
+        }
+    }
+
+    @Section(title: "Integrate With TimerView") {
+        @ContentAndMedia {
+            Wire the new face into ``TimerView`` by ensuring the selection UI exposes the style and the action sheet routes correctly.
+        }
+        @Steps {
+            @Step {
+                Update any match setup options that allow selecting the timer face.
+            }
+            @Step {
+                Verify the face appears when chosen and responds to pause/resume actions.
+            }
+        }
+    }
+
+    @Section(title: "Test the Experience") {
+        @ContentAndMedia {
+            Automate coverage using unit tests for your view model and interactive snapshots where possible.
+        }
+        @Steps {
+            @Step {
+                Add tests ensuring the new style maps correctly in ``TimerFaceFactory``.
+            }
+            @Step {
+                Run watchOS UI tests covering the new face interactions.
+            }
+        }
+    }
+}

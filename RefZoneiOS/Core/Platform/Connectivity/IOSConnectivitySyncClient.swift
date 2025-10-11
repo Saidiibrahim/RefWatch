@@ -34,6 +34,9 @@ final class IOSConnectivitySyncClient: NSObject {
     private let history: MatchHistoryStoring
     private let auth: AuthenticationProviding
     private let mediaHandler: WorkoutMediaCommandHandling?
+    private let stateQueue = DispatchQueue(label: "IOSConnectivitySyncClient.state")
+    private var signedInFlag: Bool = false
+    private var pendingMatches: [CompletedMatch] = []
     #if canImport(WatchConnectivity)
     private let queue = DispatchQueue(label: "IOSConnectivitySyncClient.decode")
     #endif
@@ -48,6 +51,10 @@ final class IOSConnectivitySyncClient: NSObject {
     func activate() {
         #if canImport(WatchConnectivity)
         guard WCSession.isSupported() else { return }
+        guard isSignedIn else {
+            AppLog.connectivity.info("Skipping WatchConnectivity activation while signed out")
+            return
+        }
         WCSession.default.delegate = self
         WCSession.default.activate()
         #endif
@@ -66,19 +73,23 @@ final class IOSConnectivitySyncClient: NSObject {
 
     // Exposed for tests to bypass WCSession
     func handleCompletedMatch(_ match: CompletedMatch) {
-        // Persist and notify on main actor (SwiftData stores are often main-actor isolated)
-        Task { @MainActor in
-            // Attach owner id if missing on the main actor (ClerkAuth accesses @MainActor values)
-            let snapshot = match.attachingOwnerIfMissing(using: auth)
-            do { try history.save(snapshot) } catch {
-                AppLog.history.error("Failed to save synced snapshot: \(error.localizedDescription, privacy: .public)")
-                NotificationCenter.default.post(name: .syncNonrecoverableError, object: nil, userInfo: [
-                    "error": "save failed",
-                    "context": "ios.connectivity.saveHistory"
-                ])
+        let shouldQueue = stateQueue.sync { () -> Bool in
+            guard signedInFlag else {
+                pendingMatches.append(match)
+                return true
             }
-            NotificationCenter.default.post(name: .matchHistoryDidChange, object: nil)
+            return false
         }
+
+        if shouldQueue {
+            AppLog.connectivity.notice("Queued completed match from watch while signed out")
+            NotificationCenter.default.post(name: .syncFallbackOccurred, object: nil, userInfo: [
+                "context": "ios.connectivity.queuedWhileSignedOut"
+            ])
+            return
+        }
+
+        persist(match)
     }
 
     /// Deactivates the WCSession delegate to avoid dangling references when the app
@@ -90,6 +101,61 @@ final class IOSConnectivitySyncClient: NSObject {
             WCSession.default.delegate = nil
         }
         #endif
+    }
+
+    func handleAuthState(_ state: AuthState) {
+        switch state {
+        case .signedOut:
+            let hadPending = stateQueue.sync { () -> Bool in
+                let previouslySignedIn = signedInFlag
+                signedInFlag = false
+                if previouslySignedIn { pendingMatches.removeAll() }
+                return previouslySignedIn
+            }
+            if hadPending {
+                AppLog.connectivity.notice("Discarded queued watch payloads after sign-out")
+                NotificationCenter.default.post(name: .syncFallbackOccurred, object: nil, userInfo: [
+                    "context": "ios.connectivity.discardedOnSignOut"
+                ])
+            } else {
+                AppLog.connectivity.notice("Watch sync paused: signed-out state")
+            }
+        case .signedIn:
+            let queued = stateQueue.sync { () -> [CompletedMatch] in
+                signedInFlag = true
+                let matches = pendingMatches
+                pendingMatches.removeAll()
+                return matches
+            }
+            guard queued.isEmpty == false else { return }
+            AppLog.connectivity.notice("Flushing \(queued.count) queued watch payload(s) after sign-in")
+            NotificationCenter.default.post(name: .syncFallbackOccurred, object: nil, userInfo: [
+                "context": "ios.connectivity.flushQueued"
+            ])
+            queued.forEach { persist($0) }
+        }
+    }
+}
+
+private extension IOSConnectivitySyncClient {
+    var isSignedIn: Bool {
+        stateQueue.sync { signedInFlag }
+    }
+
+    func persist(_ match: CompletedMatch) {
+        Task { @MainActor in
+            let snapshot = match.attachingOwnerIfMissing(using: auth)
+            do {
+                try history.save(snapshot)
+            } catch {
+                AppLog.history.error("Failed to save synced snapshot: \(error.localizedDescription, privacy: .public)")
+                NotificationCenter.default.post(name: .syncNonrecoverableError, object: nil, userInfo: [
+                    "error": "save failed",
+                    "context": "ios.connectivity.saveHistory"
+                ])
+            }
+            NotificationCenter.default.post(name: .matchHistoryDidChange, object: nil)
+        }
     }
 }
 

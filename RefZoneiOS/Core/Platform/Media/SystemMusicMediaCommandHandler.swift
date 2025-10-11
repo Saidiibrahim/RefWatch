@@ -22,7 +22,7 @@ final class SystemMusicMediaCommandHandler: WorkoutMediaCommandHandling {
         return
       }
 
-      var player = SystemMusicPlayer.shared
+      let player = SystemMusicPlayer.shared
 
       switch command {
       case .togglePlayPause:
@@ -49,7 +49,7 @@ final class SystemMusicMediaCommandHandler: WorkoutMediaCommandHandling {
   }
 
   private func ensureAuthorization() async -> Bool {
-    switch await MusicAuthorization.currentStatus {
+    switch MusicAuthorization.currentStatus {
     case .authorized:
       return true
     case .notDetermined:

@@ -7,6 +7,7 @@ import RefWatchCore
 public struct ProStoppageFace: View {
     @Environment(\.haptics) private var haptics
     @Environment(\.theme) private var theme
+    @Environment(\.watchLayoutScale) private var layout
     let model: TimerFaceModel
 
     public init(model: TimerFaceModel) { self.model = model }
@@ -118,7 +119,7 @@ public struct ProStoppageFace: View {
             }
         }
         .padding(.vertical, Constants.contentVerticalPaddingBase * scale)
-        .padding(.bottom, Constants.bottomInsetBase * scale)
+        .padding(.bottom, max(Constants.bottomInsetBase * scale, layout.timerBottomPadding * 0.6))
         // Main face tap toggles pause/resume like the Standard face
         .onTapGesture {
             haptics.play(.tap)

@@ -45,6 +45,53 @@ final class RefWatch_Watch_AppUITests: XCTestCase {
 // MARK: - End-to-end lifecycle UI test
 extension RefWatch_Watch_AppUITests {
     @MainActor
+    func testWorkoutControlsAreHittable() throws {
+        let app = XCUIApplication()
+        app.launch()
+
+        // Ensure we're on the match launcher before switching modes
+        XCTAssertTrue(app.staticTexts["Start Match"].waitForExistence(timeout: 3))
+
+        // Open the mode switcher from the toolbar chevron
+        let modeButton = app.buttons["chevron.backward"].exists ? app.buttons["chevron.backward"] : app.buttons["Back"]
+        XCTAssertTrue(modeButton.waitForExistence(timeout: 2))
+        modeButton.tap()
+
+        // Select Workout mode
+        let workoutOption = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Workout'")).firstMatch
+        XCTAssertTrue(workoutOption.waitForExistence(timeout: 3))
+        workoutOption.tap()
+
+        // Start a quick workout session
+        let quickStart = app.buttons["Outdoor Run"].exists ? app.buttons["Outdoor Run"] : app.buttons.firstMatch
+        XCTAssertTrue(quickStart.waitForExistence(timeout: 4))
+        quickStart.tap()
+
+        // Verify primary control tiles are hittable
+        let pauseButton = app.buttons["Pause"].exists ? app.buttons["Pause"] : app.buttons["Resume"]
+        XCTAssertTrue(pauseButton.waitForExistence(timeout: 6))
+        XCTAssertTrue(pauseButton.isHittable)
+
+        let segmentButton = app.buttons["Segment"]
+        XCTAssertTrue(segmentButton.waitForExistence(timeout: 2))
+        XCTAssertTrue(segmentButton.isHittable)
+
+        let endButton = app.buttons["End"]
+        XCTAssertTrue(endButton.waitForExistence(timeout: 2))
+        XCTAssertTrue(endButton.isHittable)
+
+        // Navigate back to match mode to avoid impacting subsequent tests
+        if app.buttons["chevron.backward"].waitForExistence(timeout: 2) {
+            app.buttons["chevron.backward"].tap()
+            let matchOption = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Match'"))
+                .firstMatch
+            if matchOption.waitForExistence(timeout: 2) {
+                matchOption.tap()
+            }
+        }
+    }
+
+    @MainActor
     func testCreate_Kickoff_Run_EndMatch_Idle() throws {
         let app = XCUIApplication()
         app.launch()
@@ -67,6 +114,7 @@ extension RefWatch_Watch_AppUITests {
         // Kickoff: select home and confirm
         XCTAssertTrue(app.buttons["homeTeamButton"].waitForExistence(timeout: 3))
         app.buttons["homeTeamButton"].tap()
+        XCTAssertTrue(app.buttons["kickoffConfirmButton"].isHittable)
         app.buttons["kickoffConfirmButton"].tap()
 
         // Long-press timer area to open actions
@@ -95,8 +143,13 @@ extension RefWatch_Watch_AppUITests {
         if app.buttons["Yes"].waitForExistence(timeout: 2) { app.buttons["Yes"].tap() }
 
         // Full time: end match and return home
-        XCTAssertTrue(app.buttons["endMatchButton"].waitForExistence(timeout: 3))
-        app.buttons["endMatchButton"].tap()
+        timer.press(forDuration: 1.0)
+        let endMatchAction = app.buttons["End Match"]
+        if endMatchAction.waitForExistence(timeout: 3) {
+            endMatchAction.tap()
+        } else if app.staticTexts["End Match"].waitForExistence(timeout: 1) {
+            app.staticTexts["End Match"].tap()
+        }
         if app.buttons["Yes"].waitForExistence(timeout: 2) { app.buttons["Yes"].tap() }
 
         // Validate we're back to idle
@@ -132,6 +185,7 @@ extension RefWatch_Watch_AppUITests {
         // Kickoff first half: select home and confirm
         XCTAssertTrue(app.buttons["homeTeamButton"].waitForExistence(timeout: 3))
         app.buttons["homeTeamButton"].tap()
+        XCTAssertTrue(app.buttons["kickoffConfirmButton"].isHittable)
         app.buttons["kickoffConfirmButton"].tap()
 
         // End first half
@@ -150,6 +204,7 @@ extension RefWatch_Watch_AppUITests {
 
         // Kickoff second half (auto-selected team); confirm
         XCTAssertTrue(app.buttons["kickoffConfirmButton"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["kickoffConfirmButton"].isHittable)
         app.buttons["kickoffConfirmButton"].tap()
 
         // End second half (regulation)
@@ -161,6 +216,7 @@ extension RefWatch_Watch_AppUITests {
         // ET1 kickoff: select home and confirm
         XCTAssertTrue(app.buttons["homeTeamButton"].waitForExistence(timeout: 3))
         app.buttons["homeTeamButton"].tap()
+        XCTAssertTrue(app.buttons["kickoffConfirmButton"].isHittable)
         app.buttons["kickoffConfirmButton"].tap()
 
         // End ET1
@@ -171,6 +227,7 @@ extension RefWatch_Watch_AppUITests {
 
         // ET2 kickoff: confirm (default selected)
         XCTAssertTrue(app.buttons["kickoffConfirmButton"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["kickoffConfirmButton"].isHittable)
         app.buttons["kickoffConfirmButton"].tap()
 
         // End ET2 -> penalties
@@ -186,18 +243,31 @@ extension RefWatch_Watch_AppUITests {
         // Early decision sequence: 3× (home score, away miss) => decided after 3 each
         for _ in 0..<3 {
             XCTAssertTrue(app.buttons["homeScorePenaltyBtn"].waitForExistence(timeout: 2))
+            XCTAssertTrue(app.buttons["homeScorePenaltyBtn"].isHittable)
             app.buttons["homeScorePenaltyBtn"].tap()
             XCTAssertTrue(app.buttons["awayMissPenaltyBtn"].waitForExistence(timeout: 2))
+            XCTAssertTrue(app.buttons["awayMissPenaltyBtn"].isHittable)
             app.buttons["awayMissPenaltyBtn"].tap()
         }
 
-        // End shootout
-        XCTAssertTrue(app.buttons["endShootoutButton"].waitForExistence(timeout: 3))
-        app.buttons["endShootoutButton"].tap()
+        // End shootout via panel long-press
+        let homePenaltyPanel = app.otherElements["homePenaltyPanel"]
+        XCTAssertTrue(homePenaltyPanel.waitForExistence(timeout: 3))
+        homePenaltyPanel.press(forDuration: 1.0)
+        if app.buttons["End Shootout"].waitForExistence(timeout: 3) {
+            app.buttons["End Shootout"].tap()
+        } else if app.staticTexts["End Shootout"].exists {
+            app.staticTexts["End Shootout"].tap()
+        }
 
         // Full time: end match
-        XCTAssertTrue(app.buttons["endMatchButton"].waitForExistence(timeout: 3))
-        app.buttons["endMatchButton"].tap()
+        timer.press(forDuration: 1.0)
+        let endMatchButton = app.buttons["End Match"]
+        if endMatchButton.waitForExistence(timeout: 3) {
+            endMatchButton.tap()
+        } else if app.staticTexts["End Match"].exists {
+            app.staticTexts["End Match"].tap()
+        }
         if app.buttons["Yes"].waitForExistence(timeout: 2) { app.buttons["Yes"].tap() }
 
         // Back to idle
@@ -207,6 +277,94 @@ extension RefWatch_Watch_AppUITests {
 
 // MARK: - Penalties Edge Cases
 extension RefWatch_Watch_AppUITests {
+    @MainActor
+    func testPenalty_SwapOrder_And_Undo_Interaction() throws {
+        let app = XCUIApplication()
+        app.launch()
+
+        // Navigate to penalties via full match flow
+        if app.buttons["Start Match"].exists { app.buttons["Start Match"].tap() } else { app.staticTexts["Start Match"].tap() }
+        if app.buttons["Create Match"].exists { app.buttons["Create Match"].tap() } else { app.staticTexts["Create Match"].tap() }
+
+        // Enable ET + Penalties
+        if app.switches["Extra Time"].waitForExistence(timeout: 2) { app.switches["Extra Time"].tap() }
+        if app.switches["Penalties"].waitForExistence(timeout: 2) { app.switches["Penalties"].tap() }
+        XCTAssertTrue(app.buttons["startMatchButton"].waitForExistence(timeout: 3))
+        app.buttons["startMatchButton"].tap()
+
+        // Kickoff and rush to penalties
+        XCTAssertTrue(app.buttons["homeTeamButton"].waitForExistence(timeout: 3))
+        app.buttons["homeTeamButton"].tap()
+        app.buttons["kickoffConfirmButton"].tap()
+
+        // End regulation halves quickly
+        let timer = app.otherElements["timerArea"]
+        for _ in 0..<2 { // First and second half
+            XCTAssertTrue(timer.waitForExistence(timeout: 3))
+            timer.press(forDuration: 1.0)
+            if app.buttons["End Half"].exists { app.buttons["End Half"].tap() }
+            if app.buttons["Yes"].waitForExistence(timeout: 2) { app.buttons["Yes"].tap() }
+            if app.buttons["kickoffConfirmButton"].waitForExistence(timeout: 2) { app.buttons["kickoffConfirmButton"].tap() }
+        }
+
+        // End ET1
+        XCTAssertTrue(app.buttons["homeTeamButton"].waitForExistence(timeout: 3))
+        app.buttons["homeTeamButton"].tap()
+        app.buttons["kickoffConfirmButton"].tap()
+        XCTAssertTrue(timer.waitForExistence(timeout: 3))
+        timer.press(forDuration: 1.0)
+        if app.buttons["End Half"].exists { app.buttons["End Half"].tap() }
+        if app.buttons["Yes"].waitForExistence(timeout: 2) { app.buttons["Yes"].tap() }
+
+        // End ET2 -> penalties
+        XCTAssertTrue(app.buttons["kickoffConfirmButton"].waitForExistence(timeout: 3))
+        app.buttons["kickoffConfirmButton"].tap()
+        XCTAssertTrue(timer.waitForExistence(timeout: 3))
+        timer.press(forDuration: 1.0)
+        if app.buttons["End Half"].exists { app.buttons["End Half"].tap() }
+        if app.buttons["Yes"].waitForExistence(timeout: 2) { app.buttons["Yes"].tap() }
+
+        // Choose first kicker
+        if app.buttons["firstKickerHomeBtn"].waitForExistence(timeout: 3) { app.buttons["firstKickerHomeBtn"].tap() }
+        else if app.buttons["firstKickerAwayBtn"].exists { app.buttons["firstKickerAwayBtn"].tap() }
+
+        // Record one attempt from each team
+        XCTAssertTrue(app.buttons["homeScorePenaltyBtn"].waitForExistence(timeout: 2))
+        app.buttons["homeScorePenaltyBtn"].tap()
+        XCTAssertTrue(app.buttons["awayMissPenaltyBtn"].waitForExistence(timeout: 2))
+        app.buttons["awayMissPenaltyBtn"].tap()
+
+        // Test swap order functionality via panel long-press
+        let homePenaltyPanel = app.otherElements["homePenaltyPanel"]
+        XCTAssertTrue(homePenaltyPanel.waitForExistence(timeout: 3))
+        homePenaltyPanel.press(forDuration: 1.0)
+
+        // Look for swap order option
+        if app.buttons["Swap Order"].waitForExistence(timeout: 2) {
+            app.buttons["Swap Order"].tap()
+        } else if app.staticTexts["Swap Order"].exists {
+            app.staticTexts["Swap Order"].tap()
+        }
+
+        // Test undo functionality - should work correctly even after order swap
+        if homePenaltyPanel.waitForExistence(timeout: 2) {
+            homePenaltyPanel.press(forDuration: 1.0)
+            if app.buttons["Undo Last"].waitForExistence(timeout: 2) {
+                app.buttons["Undo Last"].tap()
+            } else if app.staticTexts["Undo Last"].exists {
+                app.staticTexts["Undo Last"].tap()
+            }
+        }
+
+        // Verify we can still interact with penalty buttons after swap and undo
+        if app.buttons["homeScorePenaltyBtn"].waitForExistence(timeout: 2) {
+            XCTAssertTrue(app.buttons["homeScorePenaltyBtn"].isHittable)
+        }
+        if app.buttons["awayScorePenaltyBtn"].waitForExistence(timeout: 2) {
+            XCTAssertTrue(app.buttons["awayScorePenaltyBtn"].isHittable)
+        }
+    }
+
     @MainActor
     func testPenalty_FirstKicker_DoubleTap_IsSafe() throws {
         let app = XCUIApplication()

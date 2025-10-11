@@ -26,7 +26,7 @@ final class SwiftDataJournalStore: JournalEntryStoring {
     }
 
     // MARK: - Load
-    func loadEntries(for matchId: UUID) throws -> [JournalEntry] {
+    func loadEntries(for matchId: UUID) async throws -> [JournalEntry] {
         var desc = FetchDescriptor<JournalEntryRecord>(
             predicate: #Predicate { $0.matchId == matchId },
             sortBy: [SortDescriptor(\.updatedAt, order: .reverse)]
@@ -35,7 +35,7 @@ final class SwiftDataJournalStore: JournalEntryStoring {
         return try context.fetch(desc).map(Self.map)
     }
 
-    func loadLatest(for matchId: UUID) throws -> JournalEntry? {
+    func loadLatest(for matchId: UUID) async throws -> JournalEntry? {
         var desc = FetchDescriptor<JournalEntryRecord>(
             predicate: #Predicate { $0.matchId == matchId },
             sortBy: [SortDescriptor(\.updatedAt, order: .reverse)]
@@ -44,7 +44,7 @@ final class SwiftDataJournalStore: JournalEntryStoring {
         return try context.fetch(desc).first.map(Self.map)
     }
 
-    func loadRecent(limit: Int) throws -> [JournalEntry] {
+    func loadRecent(limit: Int) async throws -> [JournalEntry] {
         var desc = FetchDescriptor<JournalEntryRecord>(
             sortBy: [SortDescriptor(\.updatedAt, order: .reverse)]
         )
@@ -53,7 +53,8 @@ final class SwiftDataJournalStore: JournalEntryStoring {
     }
 
     // MARK: - Mutations
-    func upsert(_ entry: JournalEntry) throws {
+    func upsert(_ entry: JournalEntry) async throws {
+        try requireSignedIn(operation: "save journal entry")
         if let existing = try fetchRecord(id: entry.id) {
             existing.updatedAt = entry.updatedAt
             existing.ownerId = entry.ownerId ?? existing.ownerId
@@ -86,7 +87,8 @@ final class SwiftDataJournalStore: JournalEntryStoring {
         overall: String?,
         wentWell: String?,
         toImprove: String?
-    ) throws -> JournalEntry {
+    ) async throws -> JournalEntry {
+        try requireSignedIn(operation: "create journal entry")
         var entry = JournalEntry(
             matchId: matchId,
             ownerId: nil,
@@ -96,11 +98,12 @@ final class SwiftDataJournalStore: JournalEntryStoring {
             toImprove: toImprove
         )
         entry = attachOwnerIfNeeded(entry)
-        try upsert(entry)
+        try await upsert(entry)
         return entry
     }
 
-    func delete(id: UUID) throws {
+    func delete(id: UUID) async throws {
+        try requireSignedIn(operation: "delete journal entry")
         if let record = try fetchRecord(id: id) {
             context.delete(record)
             try context.save()
@@ -108,10 +111,20 @@ final class SwiftDataJournalStore: JournalEntryStoring {
         }
     }
 
-    func deleteAll(for matchId: UUID) throws {
+    func deleteAll(for matchId: UUID) async throws {
+        try requireSignedIn(operation: "delete journal entries")
         let all = try context.fetch(FetchDescriptor<JournalEntryRecord>(predicate: #Predicate { $0.matchId == matchId }))
         for r in all { context.delete(r) }
         try context.save()
+        NotificationCenter.default.post(name: .journalDidChange, object: nil)
+    }
+
+    func wipeAllForLogout() async throws {
+        let all = try context.fetch(FetchDescriptor<JournalEntryRecord>())
+        for record in all { context.delete(record) }
+        if context.hasChanges {
+            try context.save()
+        }
         NotificationCenter.default.post(name: .journalDidChange, object: nil)
     }
 
@@ -127,6 +140,12 @@ final class SwiftDataJournalStore: JournalEntryStoring {
         var e = entry
         e.ownerId = uid
         return e
+    }
+
+    private func requireSignedIn(operation: String) throws {
+        guard auth.currentUserId != nil else {
+            throw PersistenceAuthError.signedOut(operation: operation)
+        }
     }
 
     private static func map(_ r: JournalEntryRecord) -> JournalEntry {

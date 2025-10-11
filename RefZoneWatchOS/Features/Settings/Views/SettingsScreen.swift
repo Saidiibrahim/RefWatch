@@ -17,6 +17,7 @@ struct SettingsScreen: View {
     var body: some View {
         List {
             timerSection
+            disciplineSection
             substitutionsSection
         }
         .listStyle(.carousel)
@@ -67,6 +68,27 @@ private extension SettingsScreen {
             .listRowBackground(Color.clear)
         } header: {
             SettingsSectionHeader(title: "Timer")
+        }
+    }
+
+    @ViewBuilder
+    var disciplineSection: some View {
+        Section {
+            NavigationLink {
+                MisconductTemplateSelectionView(settingsViewModel: settingsViewModel)
+            } label: {
+                SettingsNavigationRow(
+                    title: "Misconduct Codes",
+                    value: settingsViewModel.activeMisconductTemplate.displayName,
+                    icon: "list.bullet.rectangle",
+                    valueIdentifier: "misconductTemplateCurrentSelection"
+                )
+            }
+            .accessibilityIdentifier("misconductTemplateRow")
+            .listRowInsets(cardRowInsets)
+            .listRowBackground(Color.clear)
+        } header: {
+            SettingsSectionHeader(title: "Discipline")
         }
     }
 

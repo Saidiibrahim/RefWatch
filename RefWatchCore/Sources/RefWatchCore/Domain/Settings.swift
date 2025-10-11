@@ -14,18 +14,21 @@ public struct Settings {
     // Substitution settings
     public var confirmSubstitutions: Bool
     public var substitutionOrderPlayerOffFirst: Bool
+    public var selectedMisconductTemplateID: String
 
     public init(
         exampleSetting: Bool = false,
         periodDuration: Int = 45,
         extraTimeDuration: Int = 15,
         confirmSubstitutions: Bool = true,
-        substitutionOrderPlayerOffFirst: Bool = true
+        substitutionOrderPlayerOffFirst: Bool = true,
+        selectedMisconductTemplateID: String = MisconductTemplateCatalog.defaultTemplateID
     ) {
         self.exampleSetting = exampleSetting
         self.periodDuration = periodDuration
         self.extraTimeDuration = extraTimeDuration
         self.confirmSubstitutions = confirmSubstitutions
         self.substitutionOrderPlayerOffFirst = substitutionOrderPlayerOffFirst
+        self.selectedMisconductTemplateID = selectedMisconductTemplateID
     }
 }

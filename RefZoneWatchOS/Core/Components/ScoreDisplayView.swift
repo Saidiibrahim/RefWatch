@@ -6,6 +6,7 @@ import RefWatchCore
 
 struct ScoreDisplayView: View {
     @Environment(\.theme) private var theme
+    @Environment(\.watchLayoutScale) private var layout
 
     let homeTeam: String
     let awayTeam: String
@@ -20,7 +21,7 @@ struct ScoreDisplayView: View {
             teamColumn(title: awayTeam, score: awayScore)
         }
         .padding(.horizontal, theme.components.cardHorizontalPadding)
-        .padding(.vertical, theme.spacing.s)
+        .padding(.vertical, verticalPadding)
     }
 
     private func teamColumn(title: String, score: Int) -> some View {
@@ -37,5 +38,11 @@ struct ScoreDisplayView: View {
                 .monospacedDigit()
         }
         .frame(maxWidth: .infinity)
+    }
+}
+
+private extension ScoreDisplayView {
+    var verticalPadding: CGFloat {
+        layout.category == .compact ? theme.spacing.xs : theme.spacing.s
     }
 }

@@ -18,8 +18,10 @@ struct MatchRootView: View {
     @State private var lifecycle: MatchLifecycleCoordinator
     @State private var showPersistenceError = false
     @State private var latestSummary: CompletedMatchSummary?
+    @State private var navigationPath: [MatchRoute] = []
     private let commandHandler = LiveActivityCommandHandler()
     private let livePublisher = LiveActivityStatePublisher(reloadKind: "RefZoneWidgets")
+    private let navigationReducer = MatchNavigationReducer()
     
     @MainActor
     init(matchViewModel: MatchViewModel? = nil) {
@@ -39,7 +41,7 @@ struct MatchRootView: View {
     }
     
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $navigationPath) {
             Group {
                 switch lifecycle.state {
                 case .idle:
@@ -100,7 +102,6 @@ struct MatchRootView: View {
                     )
                 }
             }
-            .navigationTitle("Match")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     if lifecycle.state == .idle {
@@ -111,6 +112,9 @@ struct MatchRootView: View {
                         }
                     }
                 }
+            }
+            .navigationDestination(for: MatchRoute.self) { route in
+                destination(for: route)
             }
         }
         .environment(settingsViewModel)
@@ -132,7 +136,7 @@ struct MatchRootView: View {
                 } else if matchViewModel.waitingForET2Start {
                     lifecycle.goToKickoffETSecond()
                 } else {
-                    lifecycle.resetToStart()
+                    setNavigationPath(for: .startFlow)
                 }
                 consumeWidgetCommand()
             }
@@ -150,10 +154,18 @@ struct MatchRootView: View {
                 latestSummary = matchViewModel.latestCompletedMatchSummary()
             }
         }
-        .onChange(of: lifecycle.state) { newState in
+        .onChange(of: lifecycle.state) { oldState, newState in
             #if DEBUG
-            print("DEBUG: MatchRootView.onChange lifecycle.state=\(newState)")
+            print("DEBUG: MatchRootView lifecycle transition: \(oldState) → \(newState)")
+            print("DEBUG: Navigation path before: \(navigationPath)")
             #endif
+
+            handleLifecycleNavigation(from: oldState, to: newState)
+
+            #if DEBUG
+            print("DEBUG: Navigation path after: \(navigationPath)")
+            #endif
+
             if newState != .idle {
                 appModeController.overrideForActiveSession(.match)
             }
@@ -177,8 +189,8 @@ private extension MatchRootView {
     @ViewBuilder
     var heroSection: some View {
         Section {
-            NavigationLink {
-                StartMatchScreen(matchViewModel: matchViewModel, lifecycle: lifecycle)
+            Button {
+                setNavigationPath(for: .startFlow)
             } label: {
                 StartMatchHeroCard()
             }
@@ -226,12 +238,59 @@ private extension MatchRootView {
         livePublisher.publish(for: matchViewModel)
     }
 
-
-
     var quickActionInsets: EdgeInsets {
         let vertical = theme.components.listRowVerticalInset
         let horizontal = theme.components.cardHorizontalPadding
         return EdgeInsets(top: vertical, leading: horizontal, bottom: vertical, trailing: horizontal)
+    }
+
+    func setNavigationPath(for route: MatchRoute) {
+        navigationPath = route.canonicalPath
+    }
+
+    @ViewBuilder
+    func destination(for route: MatchRoute) -> some View {
+        switch route {
+        case .startFlow:
+            StartMatchScreen(
+                matchViewModel: matchViewModel,
+                lifecycle: lifecycle,
+                onNavigate: setNavigationPath(for:)
+            )
+
+        case .savedMatches:
+            SavedMatchesListView(matches: matchViewModel.savedMatches) { match in
+                matchViewModel.selectMatch(match)
+                DispatchQueue.main.async {
+                    lifecycle.goToKickoffFirst()
+                }
+            }
+
+        case .createMatch:
+            MatchSettingsListView(matchViewModel: matchViewModel) { viewModel in
+                configureMatch(using: viewModel)
+                DispatchQueue.main.async {
+                    lifecycle.goToKickoffFirst()
+                }
+            }
+        }
+    }
+
+    func configureMatch(using viewModel: MatchViewModel) {
+        viewModel.configureMatch(
+            duration: viewModel.matchDuration,
+            periods: viewModel.numberOfPeriods,
+            halfTimeLength: viewModel.halfTimeLength,
+            hasExtraTime: viewModel.hasExtraTime,
+            hasPenalties: viewModel.hasPenalties
+        )
+    }
+
+    /// Maps lifecycle transitions to navigation updates.
+    /// The reducer clears stacked start-flow routes once gameplay begins
+    /// and guarantees a clean idle state when a match ends.
+    func handleLifecycleNavigation(from oldState: MatchPhase, to newState: MatchPhase) {
+        navigationReducer.reduce(path: &navigationPath, from: oldState, to: newState)
     }
 
 }

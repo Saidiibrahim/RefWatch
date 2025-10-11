@@ -9,7 +9,7 @@
 import Foundation
 
 @MainActor
-final class InMemoryTeamLibraryStore: TeamLibraryStoring {
+final class InMemoryTeamLibraryStore: TeamLibraryStoring, TeamLibraryMetadataPersisting {
     private var teams: [TeamRecord] = []
 
     func loadAllTeams() throws -> [TeamRecord] { teams.sorted { $0.name < $1.name } }
@@ -26,36 +26,52 @@ final class InMemoryTeamLibraryStore: TeamLibraryStoring {
 
     func createTeam(name: String, shortName: String?, division: String?) throws -> TeamRecord {
         let t = TeamRecord(name: name, shortName: shortName, division: division)
+        t.markLocallyModified()
         teams.append(t)
         return t
     }
 
-    func updateTeam(_ team: TeamRecord) throws { /* structs are reference models; nothing extra */ }
+    func updateTeam(_ team: TeamRecord) throws {
+        team.markLocallyModified()
+    }
 
     func deleteTeam(_ team: TeamRecord) throws { teams.removeAll { $0.id == team.id } }
 
     func addPlayer(to team: TeamRecord, name: String, number: Int?) throws -> PlayerRecord {
         let p = PlayerRecord(name: name, number: number, team: team)
         team.players.append(p)
+        team.markLocallyModified()
         return p
     }
 
-    func updatePlayer(_ player: PlayerRecord) throws { }
+    func updatePlayer(_ player: PlayerRecord) throws {
+        player.team?.markLocallyModified()
+    }
 
     func deletePlayer(_ player: PlayerRecord) throws {
-        player.team?.players.removeAll { $0.id == player.id }
+        if let team = player.team {
+            team.players.removeAll { $0.id == player.id }
+            team.markLocallyModified()
+        }
     }
 
     func addOfficial(to team: TeamRecord, name: String, roleRaw: String) throws -> TeamOfficialRecord {
         let o = TeamOfficialRecord(name: name, roleRaw: roleRaw, team: team)
         team.officials.append(o)
+        team.markLocallyModified()
         return o
     }
 
-    func updateOfficial(_ official: TeamOfficialRecord) throws { }
+    func updateOfficial(_ official: TeamOfficialRecord) throws {
+        official.team?.markLocallyModified()
+    }
 
     func deleteOfficial(_ official: TeamOfficialRecord) throws {
-        official.team?.officials.removeAll { $0.id == official.id }
+        if let team = official.team {
+            team.officials.removeAll { $0.id == official.id }
+            team.markLocallyModified()
+        }
     }
-}
 
+    func persistMetadataChanges(for team: TeamRecord) throws { }
+}
