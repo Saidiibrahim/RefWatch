@@ -10,6 +10,8 @@
 		7BEAA61A255544BFAD7DA0CA /* RefWorkoutCore in Frameworks */ = {isa = PBXBuildFile; productRef = 18DCFE891B8C4879B96A0263 /* RefWorkoutCore */; };
 		9654C2452E78EB46001941F3 /* RefWatchCore in Frameworks */ = {isa = PBXBuildFile; productRef = 9654C2442E78EB46001941F3 /* RefWatchCore */; };
 		966791932E80F18700FC49FB /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 966791922E80F18700FC49FB /* Supabase */; };
+		96AFA8252E99CE8A00334F2F /* RefZone.docc in Sources */ = {isa = PBXBuildFile; fileRef = 96AFA8242E99CE8A00334F2F /* RefZone.docc */; };
+		96AFA8262E99CE8A00334F2F /* RefZone.docc in Sources */ = {isa = PBXBuildFile; fileRef = 96AFA8242E99CE8A00334F2F /* RefZone.docc */; };
 		96BBA36C2E77BF07000A67FC /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 96BBA36B2E77BF07000A67FC /* WidgetKit.framework */; };
 		96BBA36E2E77BF07000A67FC /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 96BBA36D2E77BF07000A67FC /* SwiftUI.framework */; };
 		96BBA3792E77BF08000A67FC /* RefZoneWidgetsExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 96BBA36A2E77BF06000A67FC /* RefZoneWidgetsExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -107,6 +109,7 @@
 		964A4D712D32234A00D08376 /* RefZone Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "RefZone Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		964A4D832D32234B00D08376 /* RefZone Watch AppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "RefZone Watch AppTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		964A4D8D2D32234B00D08376 /* RefZone Watch AppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "RefZone Watch AppUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		96AFA8242E99CE8A00334F2F /* RefZone.docc */ = {isa = PBXFileReference; lastKnownFileType = folder.documentationcatalog; name = RefZone.docc; path = Documentation/RefZone.docc; sourceTree = "<group>"; };
 		96B8126E2E67CDA400B23EC0 /* RefZoneiOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = RefZoneiOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		96B8129E2E67CDA500B23EC0 /* RefZoneiOSTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RefZoneiOSTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		96B812AE2E67CDA500B23EC0 /* RefZoneiOSUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RefZoneiOSUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -308,6 +311,7 @@
 		964A4D642D32234A00D08376 = {
 			isa = PBXGroup;
 			children = (
+				96AFA8242E99CE8A00334F2F /* RefZone.docc */,
 				96BBA38C2E77C23E000A67FC /* RefZoneWidgetsExtension.entitlements */,
 				96BBA3632E77BAED000A67FC /* RefZone Watch App.entitlements */,
 				96BBA35E2E77B887000A67FC /* RefZoneWidgets */,
@@ -687,6 +691,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				9AF0AAB21D00000000000012 /* (null) in Sources */,
+				96AFA8252E99CE8A00334F2F /* RefZone.docc in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -708,6 +713,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				96AFA8262E99CE8A00334F2F /* RefZone.docc in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
