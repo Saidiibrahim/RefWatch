@@ -10,8 +10,12 @@ struct MatchKickOffView: View {
     let defaultSelectedTeam: Team?
     let etPhase: Int? // 1 or 2 for Extra Time phases; nil for regulation
     let lifecycle: MatchLifecycleCoordinator
-    
+
     @State private var selectedTeam: Team?
+    @State private var isShowingMatchSettings = false
+    @State private var isShowingDurationDialog = false
+    @Environment(\.theme) private var theme
+    @Environment(\.watchLayoutScale) private var layout
     
     enum Team {
         case home, away
@@ -60,89 +64,56 @@ struct MatchKickOffView: View {
     }
     
     var body: some View {
-        GeometryReader { geometry in
-            VStack(spacing: 0) {
-                // Header - more compact with improved font size
-                Text(screenTitle)
-                    .font(.system(size: 18, weight: .semibold))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal)
-                    .padding(.top, 4)
-                
-                Spacer(minLength: 8)
-                
-                // Team selection boxes - more compact layout
-                HStack(spacing: 10) {
-                    CompactTeamBox(
-                        teamName: matchViewModel.homeTeamDisplayName,
-                        score: matchViewModel.currentMatch?.homeScore ?? 0,
-                        isSelected: selectedTeam == .home,
-                        action: { selectedTeam = .home },
-                        accessibilityIdentifier: "homeTeamButton"
+        GeometryReader { _ in
+            ViewThatFits(in: .vertical) {
+                fullLayout
+                compactLayout
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
+        .background(theme.colors.backgroundPrimary.ignoresSafeArea())
+        .safeAreaInset(edge: .bottom) {
+            confirmButton
+                .padding(.top, confirmButtonTopPadding) // Use responsive padding
+                .padding(.horizontal, theme.spacing.m)
+                .padding(.bottom, layout.safeAreaBottomPadding)
+        }
+        .sheet(isPresented: $isShowingMatchSettings) {
+            NavigationStack {
+                MatchSettingsListView(
+                    matchViewModel: matchViewModel,
+                    primaryActionLabel: "Apply Settings"
+                ) { viewModel in
+                    viewModel.applySettingsToCurrentMatch(
+                        durationMinutes: viewModel.matchDuration,
+                        periods: viewModel.numberOfPeriods,
+                        halfTimeLengthMinutes: viewModel.halfTimeLength,
+                        hasExtraTime: viewModel.hasExtraTime,
+                        hasPenalties: viewModel.hasPenalties,
+                        extraTimeHalfLengthMinutes: viewModel.extraTimeHalfLengthMinutes,
+                        penaltyRounds: viewModel.penaltyInitialRounds
                     )
-                    .accessibilityLabel("Home")
-                    
-                    CompactTeamBox(
-                        teamName: matchViewModel.awayTeamDisplayName,
-                        score: matchViewModel.currentMatch?.awayScore ?? 0,
-                        isSelected: selectedTeam == .away,
-                        action: { selectedTeam = .away },
-                        accessibilityIdentifier: "awayTeamButton"
-                    )
-                    .accessibilityLabel("Away")
-                }
-                .padding(.horizontal)
-                
-                Spacer(minLength: 8)
-                
-                // Duration display - inline text instead of button
-                Text(perPeriodDurationLabel)
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.secondary)
-                    .padding(.vertical, 6)
-                    .padding(.horizontal, 12)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.gray.opacity(0.1))
-                    )
-                    .padding(.horizontal)
-                
-                Spacer(minLength: 12)
-                
-                // Start button - using IconButton component
-                IconButton(
-                    icon: "checkmark.circle.fill",
-                    color: selectedTeam != nil ? Color.green : Color.gray,
-                    size: 44
-                ) {
-                    guard let team = selectedTeam else { return }
-                    if let phase = etPhase {
-                        if phase == 1 {
-                            matchViewModel.setKickingTeamET1(team == .home)
-                            matchViewModel.startExtraTimeFirstHalfManually()
-                            lifecycle.goToSetup()
-                        } else {
-                            matchViewModel.startExtraTimeSecondHalfManually()
-                            lifecycle.goToSetup()
-                        }
-                    } else if isSecondHalf {
-                        matchViewModel.setKickingTeam(team == .home)
-                        matchViewModel.startSecondHalfManually()
-                        lifecycle.goToSetup()
-                    } else {
-                        // First half: match already configured in CreateMatchView
-                        matchViewModel.setKickingTeam(team == .home)
-                        matchViewModel.startMatch()
-                        lifecycle.goToSetup()
+                    withAnimation {
+                        isShowingMatchSettings = false
                     }
                 }
-                .disabled(selectedTeam == nil)
-                .accessibilityIdentifier("kickoffConfirmButton")
-                
-                Spacer(minLength: 4)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .confirmationDialog(
+            "Half Duration",
+            isPresented: $isShowingDurationDialog,
+            presenting: allowsDurationShortcut ? perPeriodDurationLabel : nil,
+            actions: { _ in
+                Button("Change Duration") {
+                    isShowingDurationDialog = false
+                    isShowingMatchSettings = true
+                }
+                Button("Cancel", role: .cancel) {}
+            },
+            message: { durationLabel in
+                Text(durationLabel)
+            }
+        )
         .navigationBarBackButtonHidden()
         .onAppear {
             // Set the default selected team for second half
@@ -184,5 +155,184 @@ struct MatchKickOffView: View {
             return "\(matchViewModel.matchDuration/2):00 ▼"
         }
     }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: theme.spacing.xs) {
+            Text(screenTitle)
+                .font(theme.typography.heroSubtitle)
+                .foregroundStyle(theme.colors.textPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+    }
+
+    private var fullLayout: some View {
+        VStack(alignment: .leading, spacing: theme.spacing.l) {
+            header
+
+            // Team buttons section
+            VStack(spacing: theme.spacing.m) {
+                HStack(spacing: theme.spacing.m) {
+                    kickoffTeamButton(
+                        title: matchViewModel.homeTeamDisplayName,
+                        score: matchViewModel.currentMatch?.homeScore ?? 0,
+                        isSelected: selectedTeam == .home,
+                        action: { selectedTeam = .home },
+                        accessibilityIdentifier: "homeTeamButton"
+                    )
+                    .accessibilityLabel("Home")
+
+                    kickoffTeamButton(
+                        title: matchViewModel.awayTeamDisplayName,
+                        score: matchViewModel.currentMatch?.awayScore ?? 0,
+                        isSelected: selectedTeam == .away,
+                        action: { selectedTeam = .away },
+                        accessibilityIdentifier: "awayTeamButton"
+                    )
+                    .accessibilityLabel("Away")
+                }
+            }
+
+            Spacer(minLength: theme.spacing.l)
+        }
+        .padding(.horizontal, theme.spacing.m)
+        .padding(.top, theme.spacing.m)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var compactLayout: some View {
+        VStack(alignment: .leading, spacing: theme.spacing.s) {
+            header
+
+            // Team buttons section with tighter spacing
+            VStack(spacing: theme.spacing.s) {
+                HStack(spacing: theme.spacing.s) {
+                    kickoffTeamButton(
+                        title: matchViewModel.homeTeamDisplayName,
+                        score: matchViewModel.currentMatch?.homeScore ?? 0,
+                        isSelected: selectedTeam == .home,
+                        action: { selectedTeam = .home },
+                        accessibilityIdentifier: "homeTeamButton"
+                    )
+                    .accessibilityLabel("Home")
+
+                    kickoffTeamButton(
+                        title: matchViewModel.awayTeamDisplayName,
+                        score: matchViewModel.currentMatch?.awayScore ?? 0,
+                        isSelected: selectedTeam == .away,
+                        action: { selectedTeam = .away },
+                        accessibilityIdentifier: "awayTeamButton"
+                    )
+                    .accessibilityLabel("Away")
+                }
+            }
+
+            Spacer(minLength: theme.spacing.xs)
+        }
+        .padding(.horizontal, theme.spacing.m)
+        .padding(.top, theme.spacing.s)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func kickoffTeamButton(
+        title: String,
+        score: Int,
+        isSelected: Bool,
+        action: @escaping () -> Void,
+        accessibilityIdentifier: String
+    ) -> some View {
+        CompactTeamBox(
+            teamName: title,
+            score: score,
+            isSelected: isSelected,
+            action: action,
+            accessibilityIdentifier: accessibilityIdentifier
+        )
+    }
+
+    // Responsive spacing for confirm button - more space needed on smaller screens
+    private var confirmButtonTopPadding: CGFloat {
+        switch layout.category {
+        case .compact:
+            return theme.spacing.xl // 24pt on compact screens for better visual balance
+        case .standard:
+            return theme.spacing.l  // 16pt on standard screens
+        case .expanded:
+            return theme.spacing.l  // 16pt on expanded screens (Ultra looks good already)
+        }
+    }
+
+    // Note: No additional bottom content padding is required now that
+    // the duration chip and confirm button are placed inside the inset.
+
+    private var confirmButton: some View {
+        ZStack {
+            IconButton(
+                icon: "checkmark.circle.fill",
+                color: selectedTeam != nil
+                    ? theme.colors.matchPositive
+                    : theme.colors.matchPositive.opacity(0.35)
+            ) { confirmKickOff() }
+            .disabled(selectedTeam == nil)
+            .accessibilityIdentifier("kickoffConfirmButton")
+            .animation(.easeInOut(duration: 0.2), value: selectedTeam != nil)
+        }
+        .simultaneousGesture(
+            LongPressGesture(minimumDuration: 0.8)
+                .onEnded { _ in
+                    guard allowsDurationShortcut else { return }
+                    isShowingDurationDialog = true
+                }
+        )
+    }
+
+    private var allowsDurationShortcut: Bool {
+        if isSecondHalf { return false }
+        if let phase = etPhase, phase != 1 { return false }
+        return true
+    }
+
+    private func confirmKickOff() {
+        guard let team = selectedTeam else { return }
+        if let phase = etPhase {
+            if phase == 1 {
+                matchViewModel.setKickingTeamET1(team == .home)
+                matchViewModel.startExtraTimeFirstHalfManually()
+                lifecycle.goToSetup()
+            } else {
+                matchViewModel.startExtraTimeSecondHalfManually()
+                lifecycle.goToSetup()
+            }
+        } else if isSecondHalf {
+            matchViewModel.setKickingTeam(team == .home)
+            matchViewModel.startSecondHalfManually()
+            lifecycle.goToSetup()
+        } else {
+            matchViewModel.setKickingTeam(team == .home)
+            matchViewModel.startMatch()
+            lifecycle.goToSetup()
+        }
+    }
 }
 
+#Preview("Kickoff – 41mm") {
+    let viewModel = MatchViewModel(haptics: WatchHaptics())
+    let lifecycle = MatchLifecycleCoordinator()
+    viewModel.configureMatch(duration: 90, periods: 2, halfTimeLength: 15, hasExtraTime: true, hasPenalties: true)
+
+    return MatchKickOffView(matchViewModel: viewModel, lifecycle: lifecycle)
+        .watchLayoutScale(WatchLayoutScale(category: .compact))
+        .previewDevice("Apple Watch Series 9 (41mm)")
+}
+
+#Preview("Kickoff – Ultra") {
+    let viewModel = MatchViewModel(haptics: WatchHaptics())
+    viewModel.configureMatch(duration: 120, periods: 2, halfTimeLength: 15, hasExtraTime: true, hasPenalties: true)
+    viewModel.updateScore(isHome: true, increment: true)
+    viewModel.updateScore(isHome: false, increment: true)
+    let lifecycle = MatchLifecycleCoordinator()
+
+    return MatchKickOffView(matchViewModel: viewModel, isSecondHalf: true, defaultSelectedTeam: .away, lifecycle: lifecycle)
+        .watchLayoutScale(WatchLayoutScale(category: .expanded))
+        .previewDevice("Apple Watch Ultra 2 (49mm)")
+}

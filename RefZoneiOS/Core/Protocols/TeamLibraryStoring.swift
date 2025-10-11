@@ -26,3 +26,8 @@ protocol TeamLibraryStoring {
     func updateOfficial(_ official: TeamOfficialRecord) throws
     func deleteOfficial(_ official: TeamOfficialRecord) throws
 }
+
+@MainActor
+protocol TeamLibraryMetadataPersisting {
+    func persistMetadataChanges(for team: TeamRecord) throws
+}

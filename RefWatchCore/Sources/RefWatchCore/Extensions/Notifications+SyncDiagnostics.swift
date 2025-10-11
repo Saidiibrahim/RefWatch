@@ -19,4 +19,8 @@ public extension Notification.Name {
     /// in release builds; consumers may observe this in DEBUG for diagnostics.
     /// userInfo may include: ["error": String, "context": String]
     public static let syncNonrecoverableError = Notification.Name("SyncNonrecoverableError")
+
+    /// Posted when repositories publish a status snapshot (pending counts, retry windows, auth state).
+    /// userInfo: ["component": String, "pendingPushes": Int, "pendingDeletions": Int, "signedIn": Bool, "nextRetry": Date?, "timestamp": Date]
+    public static let syncStatusUpdate = Notification.Name("SyncStatusUpdate")
 }

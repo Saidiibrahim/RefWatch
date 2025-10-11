@@ -100,6 +100,7 @@ private struct WorkoutSessionMainPage: View {
   let session: WorkoutSession
   let metrics: [WorkoutPrimaryMetric]
   @Environment(\.theme) private var theme
+  @Environment(\.watchLayoutScale) private var layout
   @Bindable private var timerModel: WorkoutTimerFaceModel
 
   init(session: WorkoutSession, metrics: [WorkoutPrimaryMetric], timerModel: WorkoutTimerFaceModel) {
@@ -144,7 +145,7 @@ private struct WorkoutSessionMainPage: View {
     }
     .padding(.horizontal, theme.spacing.s)
     .padding(.top, theme.spacing.s)
-    .padding(.bottom, theme.spacing.xs)
+    .padding(.bottom, layout.safeAreaBottomPadding)
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     .background(theme.colors.backgroundPrimary.ignoresSafeArea())
   }
@@ -152,6 +153,7 @@ private struct WorkoutSessionMainPage: View {
 
 private struct WorkoutSessionControlsPage: View {
   @Environment(\.theme) private var theme
+  @Environment(\.watchLayoutScale) private var layout
   @Bindable private var timerModel: WorkoutTimerFaceModel
   let session: WorkoutSession
   let isPaused: Bool
@@ -191,7 +193,7 @@ private struct WorkoutSessionControlsPage: View {
     VStack(alignment: .leading, spacing: theme.spacing.s) {
       controlsHeader
 
-      LazyVGrid(columns: controlColumns, spacing: theme.spacing.xs) {
+      LazyVGrid(columns: controlColumns, spacing: layout.dimension(theme.spacing.xs, minimum: theme.spacing.xs * 0.75)) {
         WorkoutControlTile(
           title: isPaused ? "Resume" : "Pause",
           systemImage: isPaused ? "play.fill" : "pause.fill",
@@ -257,13 +259,14 @@ private struct WorkoutSessionControlsPage: View {
     }
     .padding(.horizontal, theme.spacing.s)
     .padding(.top, theme.spacing.m)
-    .padding(.bottom, theme.spacing.xs)
+    .padding(.bottom, layout.safeAreaBottomPadding)
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     .background(theme.colors.backgroundPrimary.ignoresSafeArea())
   }
 
   private var controlColumns: [GridItem] {
-    [GridItem(.flexible(), spacing: theme.spacing.xs), GridItem(.flexible(), spacing: theme.spacing.xs)]
+    let spacing = layout.dimension(theme.spacing.xs, minimum: theme.spacing.xs * 0.75)
+    return [GridItem(.flexible(), spacing: spacing), GridItem(.flexible(), spacing: spacing)]
   }
 
   private var controlsHeader: some View {
@@ -281,17 +284,22 @@ private struct WorkoutSessionControlsPage: View {
   }
 
   private var tileStyle: WorkoutControlTile.Style {
+    let circle = layout.dimension(44, minimum: 38)
+    let icon = layout.dimension(19, minimum: 16, maximum: 24)
+    let verticalSpacing = theme.spacing.xs
     var style = WorkoutControlTile.Style()
-    style.circleDiameter = 44
-    style.iconSize = 19
-    style.titleFont = .system(size: 13, weight: .medium, design: .rounded)
+    style.circleDiameter = circle
+    style.iconSize = icon
+    style.titleFont = theme.typography.caption.weight(.medium)
     style.titleColor = theme.colors.textPrimary
-    style.verticalSpacing = theme.spacing.xs
-    style.tileVerticalPadding = theme.spacing.xs * 0.3
-    style.badgeFont = .system(size: 11, weight: .semibold, design: .rounded)
+    style.verticalSpacing = verticalSpacing
+    style.tileVerticalPadding = verticalSpacing * 0.4
+    style.badgeFont = theme.typography.caption.weight(.semibold)
     style.badgeHorizontalPadding = 4
     style.badgeVerticalPadding = 3
-    style.preferredHeight = style.circleDiameter + (style.verticalSpacing ?? theme.spacing.xs) + 24 + (style.tileVerticalPadding ?? theme.spacing.xs * 0.3) * 2
+    let spacing = style.verticalSpacing ?? verticalSpacing
+    let padding = style.tileVerticalPadding ?? verticalSpacing * 0.4
+    style.preferredHeight = style.circleDiameter + spacing + layout.dimension(22, minimum: 18) + padding * 2
     return style
   }
 }
@@ -299,6 +307,7 @@ private struct WorkoutSessionControlsPage: View {
 private struct WorkoutSessionMediaPage: View {
   @Environment(\.theme) private var theme
   @Environment(\.scenePhase) private var scenePhase
+  @Environment(\.watchLayoutScale) private var layout
   let kind: WorkoutKind
 
   @State private var viewModelReference: WorkoutSessionMediaViewModel
@@ -315,15 +324,22 @@ private struct WorkoutSessionMediaPage: View {
   var body: some View {
     Group {
       if #available(watchOS 10.0, *) {
-        content
+        ScrollView {
+          content
+            .padding(.horizontal, theme.spacing.m)
+            .padding(.top, theme.spacing.l)
+            .padding(.bottom, layout.safeAreaBottomPadding + theme.spacing.m)
+            .frame(maxWidth: .infinity, alignment: .top)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
       } else {
         legacyFallback
+          .padding(.horizontal, theme.spacing.m)
+          .padding(.top, theme.spacing.l)
+          .padding(.bottom, layout.safeAreaBottomPadding + theme.spacing.m)
+          .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
       }
     }
-    .padding(.horizontal, theme.spacing.m)
-    .padding(.top, theme.spacing.l)
-    .padding(.bottom, theme.spacing.m)
-    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     .background(theme.colors.backgroundPrimary.ignoresSafeArea())
     .onAppear { viewModelReference.activate() }
     .onDisappear { viewModelReference.deactivate() }
@@ -389,8 +405,8 @@ private struct WorkoutSessionMediaPage: View {
   }
 
   private var artworkTile: some View {
-    let cornerRadius: CGFloat = 22
-    let size: CGFloat = 120
+    let cornerRadius = layout.dimension(22, minimum: 18)
+    let size = layout.workoutArtworkSize
 
     return ZStack {
       RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
@@ -420,14 +436,14 @@ private struct WorkoutSessionMediaPage: View {
   @ViewBuilder
   private func placeholderIcon(size: CGFloat) -> some View {
     ZStack {
-      RoundedRectangle(cornerRadius: 18, style: .continuous)
+      RoundedRectangle(cornerRadius: max(16, layout.dimension(18, minimum: 14)), style: .continuous)
         .fill(theme.colors.backgroundElevated.opacity(0.6))
 
       Image(systemName: "applewatch")
         .font(.system(size: size * 0.32, weight: .medium))
         .foregroundStyle(theme.colors.accentSecondary)
     }
-    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+    .clipShape(RoundedRectangle(cornerRadius: max(16, layout.dimension(18, minimum: 14)), style: .continuous))
   }
 
   private var labels: some View {
@@ -448,10 +464,14 @@ private struct WorkoutSessionMediaPage: View {
   }
 
   private var transportControls: some View {
-    HStack(spacing: theme.spacing.l) {
+    let smallDiameter = layout.workoutTransportSmallDiameter
+    let largeDiameter = layout.workoutTransportLargeDiameter
+    let spacing = layout.dimension(theme.spacing.l, minimum: theme.spacing.m)
+
+    return HStack(spacing: spacing) {
       transportButton(
         systemName: "backward.fill",
-        diameter: 44,
+        diameter: smallDiameter,
         isDisabled: !viewModel.controlsAvailable || !viewModel.canSkipBackward,
         action: {
           haptics.play(.tap)
@@ -461,7 +481,7 @@ private struct WorkoutSessionMediaPage: View {
 
       transportButton(
         systemName: viewModel.isPlaying ? "pause.fill" : "play.fill",
-        diameter: 56,
+        diameter: largeDiameter,
         isDisabled: !viewModel.controlsAvailable,
         tint: theme.colors.accentPrimary,
         foreground: theme.colors.textInverted,
@@ -473,7 +493,7 @@ private struct WorkoutSessionMediaPage: View {
 
       transportButton(
         systemName: "forward.fill",
-        diameter: 44,
+        diameter: smallDiameter,
         isDisabled: !viewModel.controlsAvailable || !viewModel.canSkipForward,
         action: {
           haptics.play(.tap)
@@ -670,7 +690,7 @@ private struct WorkoutGlyph: View {
   }
 }
 
-#Preview("Workout Session") {
+#Preview("Workout Session – Metrics 41mm") {
   WorkoutSessionHostView(
     session: WorkoutSessionPreviewData.active,
     isPaused: false,
@@ -685,9 +705,11 @@ private struct WorkoutGlyph: View {
     onRequestNewSession: {}
   )
   .theme(DefaultTheme())
+  .watchLayoutScale(WatchLayoutScale(category: .compact))
+  .previewDevice("Apple Watch Series 9 (41mm)")
 }
 
-#Preview("Workout Session – Paused") {
+#Preview("Workout Session – Paused 45mm") {
   WorkoutSessionHostView(
     session: WorkoutSessionPreviewData.active,
     isPaused: true,
@@ -702,9 +724,11 @@ private struct WorkoutGlyph: View {
     onRequestNewSession: {}
   )
   .theme(DefaultTheme())
+  .watchLayoutScale(WatchLayoutScale(category: .standard))
+  .previewDevice("Apple Watch Series 9 (45mm)")
 }
 
-#Preview("Workout Session – Media") {
+#Preview("Workout Session – Media Ultra") {
   WorkoutSessionHostView(
     session: WorkoutSessionPreviewData.active,
     isPaused: false,
@@ -719,6 +743,8 @@ private struct WorkoutGlyph: View {
     onRequestNewSession: {}
   )
   .theme(DefaultTheme())
+  .watchLayoutScale(WatchLayoutScale(category: .expanded))
+  .previewDevice("Apple Watch Ultra 2 (49mm)")
 }
 
 private enum WorkoutSessionPreviewData {

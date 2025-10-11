@@ -27,6 +27,10 @@ A WatchOS app designed for football/soccer referees to manage matches efficientl
   - Quick access to saved matches
   - Match history
 
+## Account Requirement (iOS)
+
+The iPhone app now requires a signed-in Supabase account. All match history, schedules, and team edits are linked to the authenticated user. Your Apple Watch can still run matches offline; once you sign in on the phone, pending data syncs automatically.
+
 ## Tech Stack
 
 - Swift

@@ -15,12 +15,24 @@ struct MainTabView: View {
     @Environment(\.theme) private var theme
     let matchViewModel: MatchViewModel
     let historyStore: MatchHistoryStoring
+    let matchSyncController: MatchHistorySyncControlling?
     let scheduleStore: ScheduleStoring
     let teamStore: TeamLibraryStoring
+    let competitionStore: CompetitionLibraryStoring
+    let venueStore: VenueLibraryStoring
+    let authController: SupabaseAuthController
 
     var body: some View {
         TabView(selection: $router.selectedTab) {
-            MatchesTabView(matchViewModel: matchViewModel, historyStore: historyStore, scheduleStore: scheduleStore, teamStore: teamStore)
+            MatchesTabView(
+                matchViewModel: matchViewModel,
+                historyStore: historyStore,
+                matchSyncController: matchSyncController,
+                scheduleStore: scheduleStore,
+                teamStore: teamStore,
+                competitionStore: competitionStore,
+                venueStore: venueStore
+            )
                 .tabItem { Label("Matches", systemImage: "sportscourt") }
                 .tag(AppRouter.Tab.matches)
 
@@ -36,7 +48,15 @@ struct MainTabView: View {
                 .tabItem { Label("Assistant", systemImage: "brain.head.profile") }
                 .tag(AppRouter.Tab.assistant)
 
-            SettingsTabView(historyStore: historyStore, scheduleStore: scheduleStore, teamStore: teamStore)
+            SettingsTabView(
+                historyStore: historyStore,
+                matchSyncController: matchSyncController,
+                scheduleStore: scheduleStore,
+                teamStore: teamStore,
+                competitionStore: competitionStore,
+                venueStore: venueStore,
+                authController: authController
+            )
                 .tabItem { Label("Settings", systemImage: "gear") }
                 .tag(AppRouter.Tab.settings)
         }
@@ -46,11 +66,20 @@ struct MainTabView: View {
 
 #if DEBUG
 #Preview {
+    let clientProvider = SupabaseClientProvider.shared
+    let synchronizer = SupabaseUserProfileSynchronizer(clientProvider: clientProvider)
     MainTabView(
         matchViewModel: MatchViewModel(haptics: NoopHaptics()),
         historyStore: MatchHistoryService(),
-        scheduleStore: ScheduleService(),
-        teamStore: InMemoryTeamLibraryStore()
+        matchSyncController: nil,
+        scheduleStore: InMemoryScheduleStore(),
+        teamStore: InMemoryTeamLibraryStore(),
+        competitionStore: InMemoryCompetitionLibraryStore(),
+        venueStore: InMemoryVenueLibraryStore(),
+        authController: SupabaseAuthController(
+            clientProvider: clientProvider,
+            profileSynchronizer: synchronizer
+        )
     )
         .environmentObject(AppRouter.preview())
         .workoutServices(.inMemoryStub())

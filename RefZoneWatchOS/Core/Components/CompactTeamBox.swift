@@ -6,15 +6,19 @@
 //
 
 import SwiftUI
+import RefWatchCore
 
 /// Compact team box component optimized for watch screen space
 struct CompactTeamBox: View {
+    @Environment(\.theme) private var theme
+    @Environment(\.watchLayoutScale) private var layout
+
     let teamName: String
     let score: Int
     let isSelected: Bool
     let action: () -> Void
     let accessibilityIdentifier: String?
-    
+
     init(
         teamName: String,
         score: Int,
@@ -28,27 +32,47 @@ struct CompactTeamBox: View {
         self.action = action
         self.accessibilityIdentifier = accessibilityIdentifier
     }
-    
+
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 4) {
+            VStack(spacing: theme.spacing.xs) {
                 Text(teamName)
-                    .font(.system(size: 16, weight: .bold))
-                    .foregroundColor(.white)
-                
+                    .font(theme.typography.cardMeta.weight(.semibold))
+                    .foregroundStyle(textColor)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .layoutPriority(1)
+
                 Text("\(score)")
-                    .font(.system(size: 24, weight: .bold))
-                    .foregroundColor(.white)
+                    .font(theme.typography.timerSecondary)
+                    .foregroundStyle(textColor)
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
             }
             .frame(maxWidth: .infinity)
-            .frame(height: 65) // Reduced from 80pt for better fit
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(isSelected ? Color.green : Color.gray.opacity(0.7))
-            )
+            .frame(height: layout.compactTeamTileHeight)
+            .padding(.horizontal, theme.spacing.s)
+            .background(background)
+            .overlay(border)
         }
-        .buttonStyle(PlainButtonStyle())
+        .buttonStyle(.plain)
+        .contentShape(RoundedRectangle(cornerRadius: theme.components.cardCornerRadius, style: .continuous))
         .accessibilityIdentifier(accessibilityIdentifier ?? "teamBox_\(teamName)")
+    }
+
+    private var background: some View {
+        RoundedRectangle(cornerRadius: theme.components.cardCornerRadius, style: .continuous)
+            .fill(isSelected ? theme.colors.matchPositive : theme.colors.backgroundElevated)
+    }
+
+    private var border: some View {
+        RoundedRectangle(cornerRadius: theme.components.cardCornerRadius, style: .continuous)
+            .stroke(isSelected ? theme.colors.matchPositive.opacity(0.9) : theme.colors.outlineMuted.opacity(0.6), lineWidth: 1)
+    }
+
+    private var textColor: Color {
+        isSelected ? theme.colors.textInverted : theme.colors.textPrimary
     }
 }
 

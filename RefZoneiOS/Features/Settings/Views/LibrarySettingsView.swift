@@ -7,6 +7,8 @@ import SwiftUI
 
 struct LibrarySettingsView: View {
     let teamStore: TeamLibraryStoring
+    let competitionStore: CompetitionLibraryStoring
+    let venueStore: VenueLibraryStoring
 
     var body: some View {
         List {
@@ -14,10 +16,10 @@ struct LibrarySettingsView: View {
                 NavigationLink { TeamsListView(teamStore: teamStore) } label: {
                     Label("Teams", systemImage: "person.3")
                 }
-                NavigationLink { Text("Competitions (coming soon)").navigationTitle("Competitions") } label: {
+                NavigationLink { CompetitionsListView(store: competitionStore) } label: {
                     Label("Competitions", systemImage: "trophy")
                 }
-                NavigationLink { Text("Venues (coming soon)").navigationTitle("Venues") } label: {
+                NavigationLink { VenuesListView(store: venueStore) } label: {
                     Label("Venues", systemImage: "building.2")
                 }
             }
@@ -26,4 +28,12 @@ struct LibrarySettingsView: View {
     }
 }
 
-#Preview { NavigationStack { LibrarySettingsView(teamStore: InMemoryTeamLibraryStore()) } }
+#Preview {
+    NavigationStack {
+        LibrarySettingsView(
+            teamStore: InMemoryTeamLibraryStore(),
+            competitionStore: InMemoryCompetitionLibraryStore(),
+            venueStore: InMemoryVenueLibraryStore()
+        )
+    }
+}

@@ -68,6 +68,7 @@ public final class MatchViewModel {
     
     // Comprehensive match event tracking
     public private(set) var matchEvents: [MatchEventRecord] = []
+    public private(set) var pendingConfirmation: MatchEventConfirmation? = nil
     
     // Configuration mirrors
     public var matchDuration: Int = 90
@@ -329,6 +330,7 @@ public final class MatchViewModel {
         timer = nil
         stoppageTimer = nil
         backgroundRuntimeManager?.end(reason: .completed)
+        pendingConfirmation = nil
     }
     
     // MARK: - Match Statistics
@@ -355,6 +357,64 @@ public final class MatchViewModel {
         currentMatch = match
     }
 
+    private func revertGoal(for team: TeamSide) {
+        guard var match = currentMatch else { return }
+        if team == .home {
+            match.homeScore = max(0, match.homeScore - 1)
+        } else {
+            match.awayScore = max(0, match.awayScore - 1)
+        }
+        currentMatch = match
+    }
+
+    private func revertCard(for team: TeamSide, cardType: CardDetails.CardType) {
+        guard var match = currentMatch else { return }
+        switch (team, cardType) {
+        case (.home, .yellow):
+            match.homeYellowCards = max(0, match.homeYellowCards - 1)
+        case (.home, .red):
+            match.homeRedCards = max(0, match.homeRedCards - 1)
+        case (.away, .yellow):
+            match.awayYellowCards = max(0, match.awayYellowCards - 1)
+        case (.away, .red):
+            match.awayRedCards = max(0, match.awayRedCards - 1)
+        }
+        currentMatch = match
+    }
+
+    private func revertSubstitution(for team: TeamSide) {
+        guard var match = currentMatch else { return }
+        if team == .home {
+            match.homeSubs = max(0, match.homeSubs - 1)
+        } else {
+            match.awaySubs = max(0, match.awaySubs - 1)
+        }
+        currentMatch = match
+    }
+
+    private func setPendingConfirmationIfNeeded(for event: MatchEventRecord) {
+        guard shouldConfirm(event: event) else { return }
+        pendingConfirmation = MatchEventConfirmation(event: event)
+    }
+
+    private func shouldConfirm(event: MatchEventRecord) -> Bool {
+        switch event.eventType {
+        case .goal, .card, .substitution:
+            return true
+        default:
+            return false
+        }
+    }
+
+    private func isUndoable(_ event: MatchEventRecord) -> Bool {
+        switch event.eventType {
+        case .goal, .card, .substitution, .penaltyAttempt:
+            return true
+        default:
+            return false
+        }
+    }
+
     // MARK: - Configuration Helpers
     public func configureMatch(
         duration: Int,
@@ -375,6 +435,42 @@ public final class MatchViewModel {
         currentMatch = newMatch
         waitingForMatchStart = false
     }
+
+    /// Applies the current settings to the in-progress match without rebuilding it.
+    /// Preserves score, events, and custom team names while updating configuration fields.
+    public func applySettingsToCurrentMatch(
+        durationMinutes: Int,
+        periods: Int,
+        halfTimeLengthMinutes: Int,
+        hasExtraTime: Bool,
+        hasPenalties: Bool,
+        extraTimeHalfLengthMinutes: Int,
+        penaltyRounds: Int
+    ) {
+        matchDuration = durationMinutes
+        numberOfPeriods = periods
+        halfTimeLength = halfTimeLengthMinutes
+        self.hasExtraTime = hasExtraTime
+        self.hasPenalties = hasPenalties
+        self.extraTimeHalfLengthMinutes = extraTimeHalfLengthMinutes
+        penaltyInitialRounds = penaltyRounds
+
+        guard var match = currentMatch else { return }
+
+        match.duration = TimeInterval(durationMinutes * 60)
+        match.numberOfPeriods = periods
+        match.halfTimeLength = TimeInterval(halfTimeLengthMinutes * 60)
+        match.extraTimeHalfLength = TimeInterval(extraTimeHalfLengthMinutes * 60)
+        match.hasExtraTime = hasExtraTime
+        match.hasPenalties = hasPenalties
+        match.penaltyInitialRounds = max(1, penaltyRounds)
+
+        currentMatch = match
+
+        if !isMatchInProgress {
+            periodTimeRemaining = timerManager.configureInitialPeriodLabel(match: match, currentPeriod: currentPeriod)
+        }
+    }
     
     public func setKickingTeam(_ isHome: Bool) { homeTeamKickingOff = isHome }
     public func getSecondHalfKickingTeam() -> TeamSide { homeTeamKickingOff ? .away : .home }
@@ -385,7 +481,8 @@ public final class MatchViewModel {
     }
     
     // MARK: - Match Event Recording
-    public func recordEvent(_ eventType: MatchEventType, team: TeamSide? = nil, details: EventDetails) {
+    @discardableResult
+    public func recordEvent(_ eventType: MatchEventType, team: TeamSide? = nil, details: EventDetails) -> MatchEventRecord {
         let event = MatchEventRecord(
             matchTime: matchTime,
             period: currentPeriod,
@@ -394,6 +491,8 @@ public final class MatchViewModel {
             details: details
         )
         matchEvents.append(event)
+        setPendingConfirmationIfNeeded(for: event)
+        return event
     }
     
     public func recordGoal(
@@ -453,6 +552,45 @@ public final class MatchViewModel {
         recordEvent(eventType, team: nil, details: .general)
     }
 
+    @MainActor
+    public func clearPendingConfirmation(id: UUID? = nil) {
+        guard let current = pendingConfirmation else { return }
+        if let id, current.id != id { return }
+        pendingConfirmation = nil
+    }
+
+    @discardableResult
+    public func undoLastUserEvent() -> Bool {
+        guard let index = matchEvents.lastIndex(where: { isUndoable($0) }) else { return false }
+        let event = matchEvents[index]
+
+        switch event.eventType {
+        case .goal:
+            guard let team = event.team else { return false }
+            revertGoal(for: team)
+            matchEvents.remove(at: index)
+        case .card(let details):
+            guard let team = event.team else { return false }
+            revertCard(for: team, cardType: details.cardType)
+            matchEvents.remove(at: index)
+        case .substitution:
+            guard let team = event.team else { return false }
+            revertSubstitution(for: team)
+            matchEvents.remove(at: index)
+        case .penaltyAttempt:
+            return undoLastPenaltyAttempt()
+        default:
+            return false
+        }
+
+        if pendingConfirmation?.event.id == event.id {
+            pendingConfirmation = nil
+        }
+
+        haptics.play(.success)
+        return true
+    }
+
     // MARK: - Penalties Flow
     public func beginPenaltiesIfNeeded() {
         guard !penaltyManager.isActive else { return }
@@ -487,6 +625,31 @@ public final class MatchViewModel {
         stoppageTimer = nil
         isFullTime = true
         backgroundRuntimeManager?.end(reason: .completed)
+    }
+
+    @discardableResult
+    public func undoLastPenaltyAttempt() -> Bool {
+        guard let undoResult = penaltyManager.undoLastAttempt() else { return false }
+
+        if let index = matchEvents.lastIndex(where: { record in
+            if case .penaltyAttempt = record.eventType { return true }
+            return false
+        }) {
+            matchEvents.remove(at: index)
+        }
+
+        if undoResult.details.result == .scored {
+            haptics.play(.warning)
+        } else {
+            haptics.play(.tap)
+        }
+
+        return true
+    }
+
+    public func swapPenaltyOrder() {
+        penaltyManager.swapKickingOrder()
+        haptics.play(.tap)
     }
 
     public func setPenaltyFirstKicker(_ team: TeamSide) {
@@ -577,6 +740,7 @@ public final class MatchViewModel {
         matchEvents.removeAll()
         homeTeamKickingOffET1 = nil
         penaltyManager.end()
+        pendingConfirmation = nil
     }
     
     @MainActor
@@ -612,6 +776,7 @@ public final class MatchViewModel {
         isFullTime = true
         matchCompleted = true
         currentMatch = nil
+        pendingConfirmation = nil
     }
     
     public func abandonMatch() { recordMatchEvent(.matchEnd); endMatch() }

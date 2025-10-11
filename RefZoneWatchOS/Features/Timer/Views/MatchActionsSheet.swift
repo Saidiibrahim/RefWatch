@@ -6,14 +6,16 @@
 //
 
 import SwiftUI
+import WatchKit
 import RefWatchCore
 
-/// Sheet view presenting three action options for referees during a match
+/// Sheet view presenting four action options for referees during a match
 struct MatchActionsSheet: View {
     let matchViewModel: MatchViewModel
     var lifecycle: MatchLifecycleCoordinator? = nil
     @Environment(\.dismiss) private var dismiss
     @Environment(\.theme) private var theme
+    @Environment(\.watchLayoutScale) private var layout
     
     // State for controlling navigation destinations
     @State private var showingMatchLogs = false
@@ -21,78 +23,57 @@ struct MatchActionsSheet: View {
     @State private var showingEndHalfConfirmation = false
     
     var body: some View {
-        // Two equal columns with compact spacing to fit on one screen
-        let columns = Array(repeating: GridItem(.flexible(), spacing: theme.spacing.m), count: 2)
+        let endActionTitle = matchViewModel.isFullTime ? "End Match" : "End Half"
 
         NavigationStack {
             GeometryReader { proxy in
                 let hPadding = theme.components.cardHorizontalPadding
                 let colSpacing = theme.spacing.m
-                let cellWidth = (proxy.size.width - (hPadding * 2) - colSpacing) / 2
+                let cellWidth = max(0, (proxy.size.width - (hPadding * 2) - colSpacing) / 2)
 
-                ScrollView(.vertical) {
-                    VStack(spacing: theme.spacing.l) {
-                        // Top row: two primary actions
-                        LazyVGrid(columns: columns, alignment: .center, spacing: theme.spacing.l) {
-                            // Match Log
-                            ActionGridItem(
-                                title: "Match Log",
-                                icon: "list.bullet",
-                                color: theme.colors.accentSecondary,
-                                showBackground: false // Remove background for Match Actions sheet
-                            ) {
-                                showingMatchLogs = true
-                            }
+                ViewThatFits(in: .vertical) {
+                    // Standard spacing - for larger watches (45mm+)
+                    actionContent(
+                        cellWidth: cellWidth,
+                        horizontalSpacing: theme.spacing.l,
+                        verticalSpacing: theme.spacing.l,
+                        endActionTitle: endActionTitle
+                    )
 
-                            // Options
-                            ActionGridItem(
-                                title: "Options",
-                                icon: "ellipsis.circle",
-                                color: theme.colors.accentMuted,
-                                showBackground: false // Remove background for Match Actions sheet
-                            ) {
-                                showingOptions = true
-                            }
-                        }
-                        
-                        // Bottom row: single action centered to match column width
-                        if matchViewModel.isHalfTime {
-                            HStack {
-                                Spacer(minLength: 0)
-                                ActionGridItem(
-                                    title: "End Half",
-                                    icon: "checkmark.circle",
-                                    color: theme.colors.matchPositive,
-                                    expandHorizontally: false,
-                                    showBackground: false // Remove background for Match Actions sheet
-                                ) {
-                                    matchViewModel.endHalfTimeManually()
-                                    dismiss()
-                                }
-                                .frame(width: cellWidth)
-                                Spacer(minLength: 0)
-                            }
-                        } else {
-                            HStack {
-                                Spacer(minLength: 0)
-                                ActionGridItem(
-                                    title: "End Half",
-                                    icon: "checkmark.circle",
-                                    color: theme.colors.matchPositive,
-                                    expandHorizontally: false,
-                                    showBackground: false // Remove background for Match Actions sheet
-                                ) {
-                                    showingEndHalfConfirmation = true
-                                }
-                                .frame(width: cellWidth)
-                                Spacer(minLength: 0)
-                            }
-                        }
-                    }
-                    .padding(.horizontal, hPadding)
-                    .padding(.top, 2)
-                    .padding(.bottom, 4)
+                    // Medium spacing
+                    actionContent(
+                        cellWidth: cellWidth,
+                        horizontalSpacing: theme.spacing.m,
+                        verticalSpacing: theme.spacing.m,
+                        endActionTitle: endActionTitle
+                    )
+
+                    // Small spacing
+                    actionContent(
+                        cellWidth: cellWidth,
+                        horizontalSpacing: theme.spacing.s,
+                        verticalSpacing: theme.spacing.s,
+                        endActionTitle: endActionTitle
+                    )
+
+                    // Extra small spacing for 42mm watches
+                    actionContent(
+                        cellWidth: cellWidth,
+                        horizontalSpacing: theme.spacing.xs,
+                        verticalSpacing: theme.spacing.xs,
+                        endActionTitle: endActionTitle
+                    )
+
+                    // Ultra-compact for very small screens
+                    ultraCompactContent(
+                        cellWidth: cellWidth,
+                        endActionTitle: endActionTitle
+                    )
                 }
+                .padding(.horizontal, hPadding)
+                .padding(.top, 2)
+                .padding(.bottom, layout.safeAreaBottomPadding)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
             .navigationTitle("Match Actions")
             .background(theme.colors.backgroundPrimary)
@@ -110,6 +91,16 @@ struct MatchActionsSheet: View {
             titleVisibility: .hidden
         ) {
             Button("Yes") {
+                if matchViewModel.isFullTime {
+                    matchViewModel.finalizeMatch()
+                    DispatchQueue.main.async {
+                        lifecycle?.resetToStart()
+                        matchViewModel.resetMatch()
+                    }
+                    dismiss()
+                    return
+                }
+
                 let isFirstHalf = matchViewModel.currentPeriod == 1
                 matchViewModel.endCurrentPeriod()
                 if isFirstHalf {
@@ -119,11 +110,12 @@ struct MatchActionsSheet: View {
             }
             Button("No", role: .cancel) { }
         } message: {
-            Text(
-                (matchViewModel.currentMatch != nil && matchViewModel.currentPeriod == 2 && (matchViewModel.currentMatch?.numberOfPeriods ?? 2) == 2)
+            let prompt = matchViewModel.isFullTime
                 ? "Are you sure you want to 'End Match'?"
-                : "Are you sure you want to 'End Half'?"
-            )
+                : ((matchViewModel.currentMatch != nil && matchViewModel.currentPeriod == 2 && (matchViewModel.currentMatch?.numberOfPeriods ?? 2) == 2)
+                    ? "Are you sure you want to 'End Match'?"
+                    : "Are you sure you want to 'End Half'?")
+            Text(prompt)
         }
         .background(theme.colors.backgroundPrimary.ignoresSafeArea())
     }
@@ -132,4 +124,196 @@ struct MatchActionsSheet: View {
 
 #Preview {
     MatchActionsSheet(matchViewModel: MatchViewModel(haptics: WatchHaptics()))
+}
+
+private extension MatchActionsSheet {
+    @ViewBuilder
+    func actionContent(
+        cellWidth: CGFloat,
+        horizontalSpacing: CGFloat,
+        verticalSpacing: CGFloat,
+        endActionTitle: String
+    ) -> some View {
+        VStack(spacing: verticalSpacing) {
+            // Top row remains: Match Log + Options. We keep spacing adaptive via ViewThatFits.
+            topRow(cellWidth: cellWidth, spacing: horizontalSpacing)
+            // Bottom row now has two cells: Undo + End Half/Match.
+            bottomRow(cellWidth: cellWidth, spacing: horizontalSpacing, endActionTitle: endActionTitle)
+            Spacer(minLength: 0)
+        }
+    }
+
+    private func topRow(cellWidth: CGFloat, spacing: CGFloat) -> some View {
+        HStack(spacing: spacing) {
+            ActionGridItem(
+                title: "Match Log",
+                icon: "list.bullet",
+                color: theme.colors.accentSecondary,
+                showBackground: false
+            ) {
+                showingMatchLogs = true
+            }
+            .frame(width: cellWidth)
+
+            ActionGridItem(
+                title: "Options",
+                icon: "ellipsis.circle",
+                color: theme.colors.accentMuted,
+                showBackground: false
+            ) {
+                showingOptions = true
+            }
+            .frame(width: cellWidth)
+        }
+    }
+
+    // New bottom row for the 2x2 grid. Adds Undo placeholder and keeps End action logic.
+    @ViewBuilder
+    private func bottomRow(cellWidth: CGFloat, spacing: CGFloat, endActionTitle: String) -> some View {
+        HStack(spacing: spacing) {
+            // Undo placeholder — prints a debug message for now
+            ActionGridItem(
+                title: "Undo",
+                icon: "arrow.uturn.backward.circle",
+                color: theme.colors.accentMuted,
+                showBackground: false
+            ) {
+                if matchViewModel.undoLastUserEvent() {
+                    dismiss()
+                } else {
+                    WKInterfaceDevice.current().play(.failure)
+                    print("[MatchActionsSheet] Undo tapped but no undoable event found")
+                }
+            }
+            .frame(width: cellWidth)
+
+            // End Half/Match action follows existing behavior
+            if matchViewModel.isHalfTime {
+                ActionGridItem(
+                    title: endActionTitle,
+                    icon: "checkmark.circle",
+                    color: theme.colors.matchPositive,
+                    showBackground: false
+                ) {
+                    matchViewModel.endHalfTimeManually()
+                    dismiss()
+                }
+                .frame(width: cellWidth)
+            } else {
+                ActionGridItem(
+                    title: endActionTitle,
+                    icon: "checkmark.circle",
+                    color: theme.colors.matchPositive,
+                    showBackground: false
+                ) {
+                    showingEndHalfConfirmation = true
+                }
+                .frame(width: cellWidth)
+            }
+        }
+    }
+
+    // Ultra-compact layout for very small watches (42mm and smaller)
+    @ViewBuilder
+    private func ultraCompactContent(cellWidth: CGFloat, endActionTitle: String) -> some View {
+        VStack(spacing: theme.spacing.xs) {
+            // Top row with minimal spacing
+            HStack(spacing: theme.spacing.xs) {
+                compactActionItem(
+                    title: "Match Log",
+                    icon: "list.bullet",
+                    color: theme.colors.accentSecondary,
+                    width: cellWidth
+                ) {
+                    showingMatchLogs = true
+                }
+
+                compactActionItem(
+                    title: "Options",
+                    icon: "ellipsis.circle",
+                    color: theme.colors.accentMuted,
+                    width: cellWidth
+                ) {
+                    showingOptions = true
+                }
+            }
+
+            // Bottom row with minimal spacing
+            HStack(spacing: theme.spacing.xs) {
+                compactActionItem(
+                    title: "Undo",
+                    icon: "arrow.uturn.backward.circle",
+                    color: theme.colors.accentMuted,
+                    width: cellWidth
+                ) {
+                    if matchViewModel.undoLastUserEvent() {
+                        dismiss()
+                    } else {
+                        WKInterfaceDevice.current().play(.failure)
+                        print("[MatchActionsSheet] Undo tapped but no undoable event found")
+                    }
+                }
+
+                // End Half/Match action follows existing behavior
+                if matchViewModel.isHalfTime {
+                    compactActionItem(
+                        title: endActionTitle,
+                        icon: "checkmark.circle",
+                        color: theme.colors.matchPositive,
+                        width: cellWidth
+                    ) {
+                        matchViewModel.endHalfTimeManually()
+                        dismiss()
+                    }
+                } else {
+                    compactActionItem(
+                        title: endActionTitle,
+                        icon: "checkmark.circle",
+                        color: theme.colors.matchPositive,
+                        width: cellWidth
+                    ) {
+                        showingEndHalfConfirmation = true
+                    }
+                }
+            }
+
+            Spacer(minLength: 0)
+        }
+    }
+
+    // Compact action item for ultra-small layouts
+    @ViewBuilder
+    private func compactActionItem(
+        title: String,
+        icon: String,
+        color: Color,
+        width: CGFloat,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            VStack(spacing: theme.spacing.xs) {
+                ZStack {
+                    Circle()
+                        .fill(color)
+                        .frame(width: 36, height: 36) // Smaller than standard 44pt
+                    Image(systemName: icon)
+                        .font(.system(size: 16, weight: .medium)) // Smaller icon
+                        .foregroundStyle(theme.colors.textInverted)
+                }
+
+                Text(title)
+                    .font(theme.typography.cardMeta) // Smaller text
+                    .foregroundStyle(theme.colors.textPrimary)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(1) // Single line only
+                    .minimumScaleFactor(0.7) // More aggressive scaling
+            }
+            .frame(width: width, height: 52) // Much smaller height than standard 72pt
+            .padding(.vertical, theme.spacing.xs)
+            .padding(.horizontal, theme.spacing.xs)
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(Text(title))
+    }
 }

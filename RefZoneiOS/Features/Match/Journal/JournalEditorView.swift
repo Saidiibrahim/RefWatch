@@ -72,28 +72,30 @@ struct JournalEditorView: View {
     }
 
     private func save() {
-        do {
-            if var entry = existing {
-                entry.rating = rating == 0 ? nil : rating
-                entry.overall = overall.isEmpty ? nil : overall
-                entry.wentWell = wentWell.isEmpty ? nil : wentWell
-                entry.toImprove = toImprove.isEmpty ? nil : toImprove
-                entry.updatedAt = Date()
-                try store.upsert(entry)
-            } else {
-                _ = try store.create(
-                    matchId: matchId,
-                    rating: rating == 0 ? nil : rating,
-                    overall: overall.isEmpty ? nil : overall,
-                    wentWell: wentWell.isEmpty ? nil : wentWell,
-                    toImprove: toImprove.isEmpty ? nil : toImprove
-                )
+        Task { @MainActor in
+            do {
+                if var entry = existing {
+                    entry.rating = rating == 0 ? nil : rating
+                    entry.overall = overall.isEmpty ? nil : overall
+                    entry.wentWell = wentWell.isEmpty ? nil : wentWell
+                    entry.toImprove = toImprove.isEmpty ? nil : toImprove
+                    entry.updatedAt = Date()
+                    try await store.upsert(entry)
+                } else {
+                    _ = try await store.create(
+                        matchId: matchId,
+                        rating: rating == 0 ? nil : rating,
+                        overall: overall.isEmpty ? nil : overall,
+                        wentWell: wentWell.isEmpty ? nil : wentWell,
+                        toImprove: toImprove.isEmpty ? nil : toImprove
+                    )
+                }
+                onSaved?()
+                dismiss()
+            } catch {
+                errorMessage = error.localizedDescription
+                showError = true
             }
-            onSaved?()
-            dismiss()
-        } catch {
-            errorMessage = error.localizedDescription
-            showError = true
         }
     }
 }

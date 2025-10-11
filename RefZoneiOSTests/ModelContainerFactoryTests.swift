@@ -19,15 +19,18 @@ private struct MemoryOnlyBuilder: ModelContainerBuilding {
 final class ModelContainerFactoryTests: XCTestCase {
     func testFactory_fallsBackToInMemory_whenPersistentFails() throws {
         let schema = Schema([CompletedMatchRecord.self])
-        let (container, store) = ModelContainerFactory.makeStore(builder: MemoryOnlyBuilder(), schema: schema)
-        XCTAssertNotNil(container)
+        let (container, store) = try ModelContainerFactory.makeStore(builder: MemoryOnlyBuilder(), schema: schema)
+        XCTAssertEqual(container.configurations.first?.isStoredInMemoryOnly, true)
         XCTAssertTrue(store is SwiftDataMatchHistoryStore)
     }
 
-    func testFactory_fallsBackToJSON_whenBothFail() throws {
+    func testFactory_throws_whenAllBuildersFail() {
         let schema = Schema([CompletedMatchRecord.self])
-        let (container, store) = ModelContainerFactory.makeStore(builder: FailingBuilder(), schema: schema)
-        XCTAssertNil(container)
-        XCTAssertTrue(store is MatchHistoryService)
+        XCTAssertThrowsError(try ModelContainerFactory.makeStore(builder: FailingBuilder(), schema: schema)) { error in
+            guard case ModelContainerFactory.Error.unableToCreateContainer = error else {
+                XCTFail("Unexpected error thrown: \(error)")
+                return
+            }
+        }
     }
 }
