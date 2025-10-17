@@ -16,6 +16,11 @@ final class SyncDiagnosticsCenter: ObservableObject {
         var nextRetry: Date? = nil
         var signedIn: Bool = false
         var lastUpdated: Date = .distantPast
+        var pendingSnapshotChunks: Int = 0
+        var lastSnapshot: Date? = nil
+        var queuedSnapshots: Int = 0
+        var queuedDeltas: Int = 0
+        var connectivityStatus: AggregateSnapshotPayload.Settings.ConnectivityStatus = .unknown
     }
 
     enum Component: String {
@@ -23,6 +28,7 @@ final class SyncDiagnosticsCenter: ObservableObject {
         case teamLibrary = "team_library"
         case schedule = "schedule"
         case journal = "journal"
+        case aggregate = "aggregateSync"
     }
 
     @Published var lastErrorMessage: String? = nil
@@ -32,6 +38,7 @@ final class SyncDiagnosticsCenter: ObservableObject {
     @Published private(set) var matchStatus = SyncComponentStatus()
     @Published private(set) var teamStatus = SyncComponentStatus()
     @Published private(set) var scheduleStatus = SyncComponentStatus()
+    @Published private(set) var aggregateStatus = SyncComponentStatus()
 
     private let clock: () -> Date
     private var observerTokens: [NSObjectProtocol] = []
@@ -60,6 +67,14 @@ final class SyncDiagnosticsCenter: ObservableObject {
             snapshot.nextRetry = note.userInfo?["nextRetry"] as? Date
             snapshot.signedIn = note.userInfo?["signedIn"] as? Bool ?? false
             snapshot.lastUpdated = self.clock()
+            snapshot.pendingSnapshotChunks = note.userInfo?["pendingSnapshotChunks"] as? Int ?? 0
+            snapshot.lastSnapshot = note.userInfo?["lastSnapshot"] as? Date
+            snapshot.queuedSnapshots = note.userInfo?["queuedSnapshots"] as? Int ?? 0
+            snapshot.queuedDeltas = note.userInfo?["queuedDeltas"] as? Int ?? 0
+            if let connectivityRaw = note.userInfo?["connectivityStatus"] as? String,
+               let connectivity = AggregateSnapshotPayload.Settings.ConnectivityStatus(rawValue: connectivityRaw) {
+                snapshot.connectivityStatus = connectivity
+            }
             self.apply(status: snapshot, for: component)
         }
         observerTokens.append(status)
@@ -88,6 +103,8 @@ private extension SyncDiagnosticsCenter {
         case .journal:
             // Journals not yet synced; reserve for future use.
             break
+        case .aggregate:
+            aggregateStatus = status
         }
     }
 }

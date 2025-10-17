@@ -445,6 +445,19 @@ private extension SupabaseVenueLibraryRepository {
         applyOwnerIdentityIfNeeded(to: record)
     }
 
+    func fetchVenue(id: UUID) throws -> VenueRecord? {
+        var descriptor = FetchDescriptor<VenueRecord>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
+        return try store.context.fetch(descriptor).first
+    }
+
+    func requireOwnerUUIDForAggregate(operation: String) throws -> UUID {
+        guard let ownerUUID else {
+            throw PersistenceAuthError.signedOut(operation: operation)
+        }
+        return ownerUUID
+    }
+
     func describe(_ date: Date?) -> String {
         guard let date else { return "nil" }
         return isoFormatter.string(from: date)
@@ -452,5 +465,29 @@ private extension SupabaseVenueLibraryRepository {
 
     func describe(_ date: Date) -> String {
         isoFormatter.string(from: date)
+    }
+}
+
+extension SupabaseVenueLibraryRepository: AggregateVenueApplying {
+    func upsertVenue(from aggregate: AggregateSnapshotPayload.Venue) throws {
+        let ownerUUID = try requireOwnerUUIDForAggregate(operation: "aggregate venue upsert")
+        let record = try store.upsertFromAggregate(aggregate, ownerSupabaseId: ownerUUID.uuidString)
+        pendingDeletions.remove(record.id)
+        backlog.removePendingDeletion(id: record.id)
+        pendingPushes.insert(record.id)
+        scheduleProcessingTask()
+        publishSyncStatus()
+    }
+
+    func deleteVenue(id: UUID) throws {
+        _ = try requireOwnerUUIDForAggregate(operation: "aggregate venue delete")
+        if (try fetchVenue(id: id)) != nil {
+            try store.deleteVenue(id: id)
+        }
+        pendingPushes.remove(id)
+        pendingDeletions.insert(id)
+        backlog.addPendingDeletion(id: id)
+        scheduleProcessingTask()
+        publishSyncStatus()
     }
 }

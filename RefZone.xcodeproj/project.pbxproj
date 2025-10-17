@@ -24,8 +24,17 @@
 		96F51E932E6852D400C27CF8 /* RefWatchCore in Frameworks */ = {isa = PBXBuildFile; productRef = 96F51E922E6852D400C27CF8 /* RefWatchCore */; };
 		96F51E952E68530000C27CF8 /* RefWatchCore in Frameworks */ = {isa = PBXBuildFile; productRef = 96F51E942E68530000C27CF8 /* RefWatchCore */; };
 		96FEE6042E72E22A00EDD7BD /* RefZone Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 964A4D712D32234A00D08376 /* RefZone Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		9AF0AAB21D00000000000012 /* (null) in Sources */ = {isa = PBXBuildFile; };
 		D4AE10A877A7463C927BA283 /* RefWorkoutCore in Frameworks */ = {isa = PBXBuildFile; productRef = 47EA131A5D1744F5B9E3B2B9 /* RefWorkoutCore */; };
+		96FCD1012EA0C00100AB0001 /* WatchAggregateModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96FCD0012E9CF84000AB1234 /* WatchAggregateModels.swift */; };
+		96FCD1022EA0C00100AB0002 /* WatchAggregateDataStores.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96FCD0022E9CF84000AB1234 /* WatchAggregateDataStores.swift */; };
+		96FCD1032EA0C00100AB0003 /* WatchAggregateModelSchema.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96FCD0032E9CF84000AB1234 /* WatchAggregateModelSchema.swift */; };
+		96FCD1042EA0C00100AB0004 /* WatchAggregateContainerFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96FCD0042E9CF84000AB1234 /* WatchAggregateContainerFactory.swift */; };
+		96FCD1052EA0C00100AB0005 /* WatchAggregateSyncCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96FCD0202E9CF84000AB7890 /* WatchAggregateSyncCoordinator.swift */; };
+		96FCD1062EA0C00100AB0006 /* AggregateSyncEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96FCD0222E9CF84000AB6789 /* AggregateSyncEnvironment.swift */; };
+		96FCD1072EA0C00100AB0007 /* WatchConnectivitySyncClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96FCD0232E9CF84000AB4567 /* WatchConnectivitySyncClient.swift */; };
+		96FCD2102EA0C20100AB0001 /* AggregateDeltaApplying.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96FCD2002EA0C10100AB0001 /* AggregateDeltaApplying.swift */; };
+		96FCD2112EA0C20100AB0002 /* AggregateDeltaAckStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96FCD2012EA0C10100AB0002 /* AggregateDeltaAckStore.swift */; };
+		96FCD2122EA0C20100AB0003 /* AggregateDeltaCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96FCD2022EA0C10100AB0003 /* AggregateDeltaCoordinator.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -140,6 +149,16 @@
 		9AF0AAA11D0000000000000F /* RefZoneWatchOS/Core/Protocols/PersistenceProviding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RefZoneWatchOS/Core/Protocols/PersistenceProviding.swift; sourceTree = "<group>"; };
 		9AF0AAA11D00000000000010 /* RefZoneWatchOS/Core/Protocols/ConnectivitySyncProviding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RefZoneWatchOS/Core/Protocols/ConnectivitySyncProviding.swift; sourceTree = "<group>"; };
 		9AF0AAA11D00000000000011 /* RefZoneWatchOS/Core/Components/TimerFaces/ProStoppageFace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RefZoneWatchOS/Core/Components/TimerFaces/ProStoppageFace.swift; sourceTree = "<group>"; };
+		96FCD0012E9CF84000AB1234 /* WatchAggregateModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchAggregateModels.swift; sourceTree = "<group>"; };
+		96FCD0022E9CF84000AB1234 /* WatchAggregateDataStores.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchAggregateDataStores.swift; sourceTree = "<group>"; };
+		96FCD0032E9CF84000AB1234 /* WatchAggregateModelSchema.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchAggregateModelSchema.swift; sourceTree = "<group>"; };
+		96FCD0042E9CF84000AB1234 /* WatchAggregateContainerFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchAggregateContainerFactory.swift; sourceTree = "<group>"; };
+		96FCD0202E9CF84000AB7890 /* WatchAggregateSyncCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchAggregateSyncCoordinator.swift; sourceTree = "<group>"; };
+		96FCD0222E9CF84000AB6789 /* AggregateSyncEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AggregateSyncEnvironment.swift; sourceTree = "<group>"; };
+		96FCD0232E9CF84000AB4567 /* WatchConnectivitySyncClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchConnectivitySyncClient.swift; sourceTree = "<group>"; };
+		96FCD2002EA0C10100AB0001 /* AggregateDeltaApplying.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RefZoneiOS/Core/Platform/Connectivity/AggregateDeltaApplying.swift; sourceTree = "<group>"; };
+		96FCD2012EA0C10100AB0002 /* AggregateDeltaAckStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RefZoneiOS/Core/Platform/Connectivity/AggregateDeltaAckStore.swift; sourceTree = "<group>"; };
+		96FCD2022EA0C10100AB0003 /* AggregateDeltaCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RefZoneiOS/Core/Platform/Connectivity/AggregateDeltaCoordinator.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -329,6 +348,38 @@
 			);
 			sourceTree = "<group>";
 		};
+		96FCD0102E9CF84000AB5678 /* Persistence */ = {
+			isa = PBXGroup;
+			children = (
+				96FCD0112E9CF84000AB5678 /* SwiftData */,
+			);
+			name = Persistence;
+			path = RefZoneWatchOS/Core/Persistence;
+			sourceTree = "<group>";
+		};
+		96FCD0112E9CF84000AB5678 /* SwiftData */ = {
+			isa = PBXGroup;
+			children = (
+				96FCD0042E9CF84000AB1234 /* WatchAggregateContainerFactory.swift */,
+				96FCD0032E9CF84000AB1234 /* WatchAggregateModelSchema.swift */,
+				96FCD0022E9CF84000AB1234 /* WatchAggregateDataStores.swift */,
+				96FCD0012E9CF84000AB1234 /* WatchAggregateModels.swift */,
+			);
+			name = SwiftData;
+			path = SwiftData;
+			sourceTree = "<group>";
+		};
+		96FCD0212E9CF84000AB5679 /* Connectivity */ = {
+			isa = PBXGroup;
+			children = (
+                96FCD0222E9CF84000AB6789 /* AggregateSyncEnvironment.swift */,
+                96FCD0232E9CF84000AB4567 /* WatchConnectivitySyncClient.swift */,
+                96FCD0202E9CF84000AB7890 /* WatchAggregateSyncCoordinator.swift */,
+			);
+			name = Connectivity;
+			path = RefZoneWatchOS/Core/Platform/Connectivity;
+			sourceTree = "<group>";
+		};
 		964A4D6C2D32234A00D08376 /* Products */ = {
 			isa = PBXGroup;
 			children = (
@@ -389,6 +440,8 @@
 				9AF0AAA11D0000000000000E /* RefZoneWatchOS/Core/Protocols/HapticsProviding.swift */,
 				9AF0AAA11D0000000000000F /* RefZoneWatchOS/Core/Protocols/PersistenceProviding.swift */,
 				9AF0AAA11D00000000000010 /* RefZoneWatchOS/Core/Protocols/ConnectivitySyncProviding.swift */,
+				96FCD0212E9CF84000AB5679 /* Connectivity */,
+				96FCD0102E9CF84000AB5678 /* Persistence */,
 				9AF0AAA11D0000000000000D /* RefZoneWatchOS/Features/Match/ViewModels/MatchViewModel.swift */,
 				9AF0AAA11D00000000000011 /* RefZoneWatchOS/Core/Components/TimerFaces/ProStoppageFace.swift */,
 			);
@@ -690,8 +743,14 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				9AF0AAB21D00000000000012 /* (null) in Sources */,
 				96AFA8252E99CE8A00334F2F /* RefZone.docc in Sources */,
+				96FCD1012EA0C00100AB0001 /* WatchAggregateModels.swift in Sources */,
+				96FCD1022EA0C00100AB0002 /* WatchAggregateDataStores.swift in Sources */,
+				96FCD1032EA0C00100AB0003 /* WatchAggregateModelSchema.swift in Sources */,
+				96FCD1042EA0C00100AB0004 /* WatchAggregateContainerFactory.swift in Sources */,
+				96FCD1052EA0C00100AB0005 /* WatchAggregateSyncCoordinator.swift in Sources */,
+				96FCD1062EA0C00100AB0006 /* AggregateSyncEnvironment.swift in Sources */,
+				96FCD1072EA0C00100AB0007 /* WatchConnectivitySyncClient.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -714,6 +773,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				96AFA8262E99CE8A00334F2F /* RefZone.docc in Sources */,
+				96FCD2102EA0C20100AB0001 /* AggregateDeltaApplying.swift in Sources */,
+				96FCD2112EA0C20100AB0002 /* AggregateDeltaAckStore.swift in Sources */,
+				96FCD2122EA0C20100AB0003 /* AggregateDeltaCoordinator.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -936,7 +998,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.9.1;
+				MARKETING_VERSION = 0.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.IbrahimSaidi.RefZone.watchkitapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -988,7 +1050,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.9.1;
+				MARKETING_VERSION = 0.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.IbrahimSaidi.RefZone.watchkitapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -1108,7 +1170,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.9.1;
+				MARKETING_VERSION = 0.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.IbrahimSaidi.RefZone;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
@@ -1148,7 +1210,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.9.1;
+				MARKETING_VERSION = 0.0.0;
 				ONLY_ACTIVE_ARCH = NO;
 				PRODUCT_BUNDLE_IDENTIFIER = com.IbrahimSaidi.RefZone;
 				PRODUCT_NAME = "$(TARGET_NAME)";

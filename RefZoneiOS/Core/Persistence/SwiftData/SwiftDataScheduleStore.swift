@@ -69,7 +69,7 @@ final class SwiftDataScheduleStore: ScheduleStoring, ScheduleMetadataPersisting 
     }
 
     func delete(id: UUID) throws {
-        try requireSignedIn(operation: "delete scheduled match")
+        _ = try requireSignedIn(operation: "delete scheduled match")
         if let existing = try record(id: id) {
             context.delete(existing)
             try context.save()
@@ -78,7 +78,7 @@ final class SwiftDataScheduleStore: ScheduleStoring, ScheduleMetadataPersisting 
     }
 
     func wipeAll() throws {
-        try requireSignedIn(operation: "wipe scheduled matches")
+        _ = try requireSignedIn(operation: "wipe scheduled matches")
         try performWipeAll()
     }
 
@@ -89,6 +89,8 @@ final class SwiftDataScheduleStore: ScheduleStoring, ScheduleMetadataPersisting 
     var changesPublisher: AnyPublisher<[ScheduledMatch], Never> {
         changesSubject.eraseToAnyPublisher()
     }
+
+    func refreshFromRemote() async throws { }
 
     // MARK: - Helpers
     func record(id: UUID) throws -> ScheduledMatchRecord? {
@@ -116,7 +118,8 @@ final class SwiftDataScheduleStore: ScheduleStoring, ScheduleMetadataPersisting 
                 ownerSupabaseId: record.ownerSupabaseId,
                 remoteUpdatedAt: record.remoteUpdatedAt,
                 needsRemoteSync: record.needsRemoteSync,
-                sourceDeviceId: record.sourceDeviceId
+                sourceDeviceId: record.sourceDeviceId,
+                lastModifiedAt: record.lastModifiedAt
             )
         }
     }
@@ -129,13 +132,61 @@ final class SwiftDataScheduleStore: ScheduleStoring, ScheduleMetadataPersisting 
     }
 }
 
-private extension SwiftDataScheduleStore {
-    func performWipeAll() throws {
+extension SwiftDataScheduleStore {
+    private func performWipeAll() throws {
         let all = try context.fetch(FetchDescriptor<ScheduledMatchRecord>())
         for item in all { context.delete(item) }
         if context.hasChanges {
             try context.save()
         }
         publishSnapshot()
+    }
+
+    // MARK: - Aggregate Delta Support
+
+    func upsertFromAggregate(_ aggregate: AggregateSnapshotPayload.Schedule, ownerSupabaseId ownerId: String) throws -> ScheduledMatchRecord {
+        if let existing = try record(id: aggregate.id) {
+            existing.homeName = aggregate.homeName
+            existing.awayName = aggregate.awayName
+            existing.kickoff = aggregate.kickoff
+            existing.competition = aggregate.competition
+            existing.notes = aggregate.notes
+            existing.statusRaw = aggregate.statusRaw
+            existing.sourceDeviceId = aggregate.sourceDeviceId
+            existing.ownerSupabaseId = ownerId
+            existing.lastModifiedAt = aggregate.lastModifiedAt
+            existing.remoteUpdatedAt = aggregate.remoteUpdatedAt
+            existing.needsRemoteSync = true
+            try context.save()
+            publishSnapshot()
+            return existing
+        } else {
+            let record = ScheduledMatchRecord(
+                id: aggregate.id,
+                kickoff: aggregate.kickoff,
+                homeName: aggregate.homeName,
+                awayName: aggregate.awayName,
+                competition: aggregate.competition,
+                notes: aggregate.notes,
+                status: ScheduledMatch.Status(rawValue: aggregate.statusRaw) ?? .scheduled,
+                ownerSupabaseId: ownerId,
+                lastModifiedAt: aggregate.lastModifiedAt,
+                remoteUpdatedAt: aggregate.remoteUpdatedAt,
+                needsRemoteSync: true,
+                sourceDeviceId: aggregate.sourceDeviceId
+            )
+            context.insert(record)
+            try context.save()
+            publishSnapshot()
+            return record
+        }
+    }
+
+    func deleteSchedule(id: UUID) throws {
+        if let existing = try record(id: id) {
+            context.delete(existing)
+            try context.save()
+            publishSnapshot()
+        }
     }
 }

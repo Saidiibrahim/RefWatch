@@ -438,6 +438,19 @@ private extension SupabaseCompetitionLibraryRepository {
         applyOwnerIdentityIfNeeded(to: record)
     }
 
+    func fetchCompetition(id: UUID) throws -> CompetitionRecord? {
+        var descriptor = FetchDescriptor<CompetitionRecord>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
+        return try store.context.fetch(descriptor).first
+    }
+
+    func requireOwnerUUIDForAggregate(operation: String) throws -> UUID {
+        guard let ownerUUID else {
+            throw PersistenceAuthError.signedOut(operation: operation)
+        }
+        return ownerUUID
+    }
+
     func describe(_ date: Date?) -> String {
         guard let date else { return "nil" }
         return isoFormatter.string(from: date)
@@ -445,5 +458,29 @@ private extension SupabaseCompetitionLibraryRepository {
 
     func describe(_ date: Date) -> String {
         isoFormatter.string(from: date)
+    }
+}
+
+extension SupabaseCompetitionLibraryRepository: AggregateCompetitionApplying {
+    func upsertCompetition(from aggregate: AggregateSnapshotPayload.Competition) throws {
+        let ownerUUID = try requireOwnerUUIDForAggregate(operation: "aggregate competition upsert")
+        let record = try store.upsertFromAggregate(aggregate, ownerSupabaseId: ownerUUID.uuidString)
+        pendingDeletions.remove(record.id)
+        backlog.removePendingDeletion(id: record.id)
+        pendingPushes.insert(record.id)
+        scheduleProcessingTask()
+        publishSyncStatus()
+    }
+
+    func deleteCompetition(id: UUID) throws {
+        _ = try requireOwnerUUIDForAggregate(operation: "aggregate competition delete")
+        if (try fetchCompetition(id: id)) != nil {
+            try store.deleteCompetition(id: id)
+        }
+        pendingPushes.remove(id)
+        pendingDeletions.insert(id)
+        backlog.addPendingDeletion(id: id)
+        scheduleProcessingTask()
+        publishSyncStatus()
     }
 }

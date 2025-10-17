@@ -90,9 +90,6 @@ struct RefZoneiOSApp: App {
         let historyRepo: MatchHistoryStoring = matchRepo
         let matchSyncController: MatchHistorySyncControlling? = matchRepo
 
-        let vm = MatchViewModel(history: historyRepo, haptics: IOSHaptics())
-        let controller = ConnectivitySyncController(history: historyRepo, auth: authController)
-
         let jStore: JournalEntryStoring = SupabaseJournalRepository(
             authStateProvider: authController
         )
@@ -119,6 +116,16 @@ struct RefZoneiOSApp: App {
         let vStore: VenueLibraryStoring = SupabaseVenueLibraryRepository(
             store: swiftVenueStore,
             authStateProvider: authController
+        )
+
+        let vm = MatchViewModel(history: historyRepo, haptics: IOSHaptics())
+        let controller = ConnectivitySyncController(
+            history: historyRepo,
+            auth: authController,
+            teamStore: tStore,
+            competitionStore: cStore,
+            venueStore: vStore,
+            scheduleStore: schedStore
         )
 
         // Assign to stored properties/wrappers
@@ -209,7 +216,8 @@ struct RefZoneiOSApp: App {
                 teamStore: teamStore,
                 competitionStore: competitionStore,
                 venueStore: venueStore,
-                authController: authController
+                authController: authController,
+                connectivityController: syncController
             )
         case .signedOut:
             SignedOutGateView()
