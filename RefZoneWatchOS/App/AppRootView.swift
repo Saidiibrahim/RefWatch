@@ -4,6 +4,7 @@ import RefWorkoutCore
 
 struct AppRootView: View {
   @EnvironmentObject private var appModeController: AppModeController
+  @EnvironmentObject private var aggregateEnvironment: AggregateSyncEnvironment
   @Environment(\.workoutServices) private var workoutServices
   @State private var workoutViewID = UUID()
   @State private var showModeSwitcher = false
@@ -13,7 +14,7 @@ struct AppRootView: View {
     Group {
       switch appModeController.currentMode {
       case .match:
-        MatchRootView()
+        MatchRootView(connectivity: aggregateEnvironment.connectivity)
       case .workout:
         WorkoutRootView(
           services: workoutServices,
@@ -63,26 +64,53 @@ private extension AppRootView {
 #Preview("Match Mode") {
   let controller = AppModeController()
   controller.select(.match, persist: false)
+  let environment = makePreviewAggregateEnvironment()
   
   return AppRootView()
     .environmentObject(controller)
+    .environmentObject(environment)
     .workoutServices(.inMemoryStub())
 }
 
 #Preview("Workout Mode") {
   let controller = AppModeController()
   controller.select(.workout, persist: false)
+  let environment = makePreviewAggregateEnvironment()
   
   return AppRootView()
     .environmentObject(controller)
+    .environmentObject(environment)
     .workoutServices(.inMemoryStub())
 }
 
 #Preview("No Selection (Shows Switcher)") {
   let controller = AppModeController()
   // Don't set a selection to trigger the switcher
+  let environment = makePreviewAggregateEnvironment()
   
   return AppRootView()
     .environmentObject(controller)
+    .environmentObject(environment)
     .workoutServices(.inMemoryStub())
+}
+
+@MainActor
+private func makePreviewAggregateEnvironment() -> AggregateSyncEnvironment {
+  let container = try! WatchAggregateContainerFactory.makeContainer(inMemory: true)
+  let library = WatchAggregateLibraryStore(container: container)
+  let chunk = WatchAggregateSnapshotChunkStore(container: container)
+  let delta = WatchAggregateDeltaOutboxStore(container: container)
+  let coordinator = WatchAggregateSyncCoordinator(
+    libraryStore: library,
+    chunkStore: chunk,
+    deltaStore: delta
+  )
+  let connectivity = WatchConnectivitySyncClient(session: nil, aggregateCoordinator: coordinator)
+  return AggregateSyncEnvironment(
+    libraryStore: library,
+    chunkStore: chunk,
+    deltaStore: delta,
+    coordinator: coordinator,
+    connectivity: connectivity
+  )
 }

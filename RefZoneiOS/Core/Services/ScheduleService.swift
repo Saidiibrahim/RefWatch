@@ -17,6 +17,7 @@ protocol ScheduleStoring {
     func delete(id: UUID) throws
     func wipeAll() throws
     var changesPublisher: AnyPublisher<[ScheduledMatch], Never> { get }
+    func refreshFromRemote() async throws
 }
 
 @MainActor
@@ -55,6 +56,8 @@ final class InMemoryScheduleStore: ScheduleStoring {
     var changesPublisher: AnyPublisher<[ScheduledMatch], Never> {
         subject.eraseToAnyPublisher()
     }
+
+    func refreshFromRemote() async throws { }
 
     private func publish() {
         subject.send(loadAll())

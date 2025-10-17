@@ -19,6 +19,7 @@ struct SettingsTabView: View {
     var teamStore: TeamLibraryStoring? = nil
     var competitionStore: CompetitionLibraryStoring? = nil
     var venueStore: VenueLibraryStoring? = nil
+    var connectivityController: ConnectivitySyncController? = nil
 
     @ObservedObject private var auth: SupabaseAuthController
     @EnvironmentObject private var syncDiagnostics: SyncDiagnosticsCenter
@@ -38,6 +39,7 @@ struct SettingsTabView: View {
         teamStore: TeamLibraryStoring? = nil,
         competitionStore: CompetitionLibraryStoring? = nil,
         venueStore: VenueLibraryStoring? = nil,
+        connectivityController: ConnectivitySyncController? = nil,
         authController: SupabaseAuthController
     ) {
         self.historyStore = historyStore
@@ -46,6 +48,7 @@ struct SettingsTabView: View {
         self.teamStore = teamStore
         self.competitionStore = competitionStore
         self.venueStore = venueStore
+        self.connectivityController = connectivityController
         self._auth = ObservedObject(initialValue: authController)
         self._authViewModel = StateObject(wrappedValue: SettingsAuthViewModel(auth: authController))
     }
@@ -79,7 +82,10 @@ struct SettingsTabView: View {
             } message: {
                 Text("This will permanently remove match history and scheduled matches stored locally on this iPhone. This action cannot be undone.")
             }
-            .onAppear(perform: refreshConnectivityStatus)
+            .onAppear { updateConnectivityStatus(with: syncDiagnostics.aggregateStatus) }
+            .onReceive(syncDiagnostics.$aggregateStatus) { status in
+                updateConnectivityStatus(with: status)
+            }
         }
     }
 }
@@ -210,9 +216,17 @@ private extension SettingsTabView {
 
     var syncSection: some View {
         Section("Sync") {
+            let status = syncDiagnostics.aggregateStatus
             LabeledContent("Watch", value: connectivityStatusValue)
+            LabeledContent("Queued Snapshots", value: "\(status.queuedSnapshots)")
+            LabeledContent("Queued Deltas", value: "\(status.queuedDeltas)")
+            LabeledContent("Pending Chunks", value: "\(status.pendingSnapshotChunks)")
+            LabeledContent("Last Snapshot", value: formattedDate(status.lastSnapshot))
+            let lastUpdated = status.lastUpdated == .distantPast ? nil : status.lastUpdated
+            LabeledContent("Last Updated", value: formattedDate(lastUpdated))
             Button {
                 AppLog.connectivity.info("User requested resync from Settings")
+                connectivityController?.triggerManualAggregateSync()
             } label: {
                 Label("Resync Now", systemImage: "arrow.clockwise")
             }
@@ -234,26 +248,32 @@ private extension SettingsTabView {
         Task { await authViewModel.signOut() }
     }
 
-    func refreshConnectivityStatus() {
-        #if canImport(WatchConnectivity)
-        if WCSession.isSupported() {
-            let session = WCSession.default
-            switch session.activationState {
-            case .notActivated:
-                connectivityStatusValue = "Not Activated"
-            case .inactive:
-                connectivityStatusValue = "Inactive"
-            case .activated:
-                connectivityStatusValue = session.isReachable ? "Reachable" : "Activated"
-            @unknown default:
-                connectivityStatusValue = "Unknown"
+    func updateConnectivityStatus(with status: SyncDiagnosticsCenter.SyncComponentStatus) {
+        switch status.connectivityStatus {
+        case .reachable:
+            if status.pendingSnapshotChunks > 0 {
+                connectivityStatusValue = "Syncing (\(status.pendingSnapshotChunks))"
+            } else if status.queuedDeltas > 0 {
+                connectivityStatusValue = "Queued (\(status.queuedDeltas))"
+            } else {
+                connectivityStatusValue = "Reachable"
             }
-        } else {
-            connectivityStatusValue = "Unsupported"
+        case .unreachable:
+            if status.pendingSnapshotChunks > 0 {
+                connectivityStatusValue = "Waiting (\(status.pendingSnapshotChunks))"
+            } else if status.queuedDeltas > 0 {
+                connectivityStatusValue = "Queued (\(status.queuedDeltas))"
+            } else {
+                connectivityStatusValue = "Unreachable"
+            }
+        case .unknown:
+            connectivityStatusValue = status.signedIn ? "Unknown" : "Signed Out"
         }
-        #else
-        connectivityStatusValue = "Unavailable"
-        #endif
+    }
+
+    func formattedDate(_ date: Date?) -> String {
+        guard let date else { return "Never" }
+        return date.formatted(date: .abbreviated, time: .shortened)
     }
 
     func wipeHistory() {
@@ -286,6 +306,7 @@ private final class PreviewMatchHistoryStore: MatchHistoryStoring {
         teamStore: InMemoryTeamLibraryStore(),
         competitionStore: InMemoryCompetitionLibraryStore(),
         venueStore: InMemoryVenueLibraryStore(),
+        connectivityController: nil,
         authController: authController
     )
     .environmentObject(diagnostics)

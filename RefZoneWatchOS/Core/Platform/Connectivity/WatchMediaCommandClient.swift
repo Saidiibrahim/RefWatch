@@ -96,23 +96,30 @@ final class WatchMediaCommandClient: NSObject, WorkoutMediaCommandSending {
 #if canImport(WatchConnectivity)
 @MainActor
 extension WatchMediaCommandClient: WCSessionDelegate {
-  func session(
+  nonisolated func session(
     _ session: WCSession,
     activationDidCompleteWith activationState: WCSessionActivationState,
     error: Error?
   ) {
-    dispatchAvailability()
+    Task { @MainActor [weak self] in
+      self?.dispatchAvailability()
+    }
   }
 
-  func sessionReachabilityDidChange(_ session: WCSession) {
-    dispatchAvailability()
+  nonisolated func sessionReachabilityDidChange(_ session: WCSession) {
+    Task { @MainActor [weak self] in
+      self?.dispatchAvailability()
+    }
   }
 
-  func session(_ session: WCSession, didReceiveMessage message: [String : Any]) { }
-  func session(_ session: WCSession, didReceiveUserInfo userInfo: [String : Any] = [:]) { }
+  nonisolated func session(_ session: WCSession, didReceiveMessage message: [String : Any]) { }
 
-  func sessionCompanionAppInstalledDidChange(_ session: WCSession) {
-    dispatchAvailability()
+  nonisolated func session(_ session: WCSession, didReceiveUserInfo userInfo: [String : Any] = [:]) { }
+
+  nonisolated func sessionCompanionAppInstalledDidChange(_ session: WCSession) {
+    Task { @MainActor [weak self] in
+      self?.dispatchAvailability()
+    }
   }
 
 }

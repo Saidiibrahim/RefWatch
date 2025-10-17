@@ -132,4 +132,48 @@ final class SwiftDataCompetitionLibraryStore: CompetitionLibraryStoring {
             log.error("Failed to load competitions for change notification: \(error.localizedDescription, privacy: .public)")
         }
     }
+
+    // MARK: - Aggregate Delta Support
+
+    func fetchCompetition(id: UUID) throws -> CompetitionRecord? {
+        var descriptor = FetchDescriptor<CompetitionRecord>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
+        return try context.fetch(descriptor).first
+    }
+
+    func upsertFromAggregate(_ aggregate: AggregateSnapshotPayload.Competition, ownerSupabaseId ownerId: String) throws -> CompetitionRecord {
+        let record: CompetitionRecord
+        if let existing = try fetchCompetition(id: aggregate.id) {
+            record = existing
+        } else {
+            record = CompetitionRecord(
+                id: aggregate.id,
+                name: aggregate.name,
+                level: aggregate.level,
+                ownerSupabaseId: ownerId,
+                lastModifiedAt: aggregate.lastModifiedAt,
+                remoteUpdatedAt: aggregate.remoteUpdatedAt,
+                needsRemoteSync: true
+            )
+            context.insert(record)
+        }
+
+        record.name = aggregate.name
+        record.level = aggregate.level
+        record.ownerSupabaseId = ownerId
+        record.lastModifiedAt = aggregate.lastModifiedAt
+        record.remoteUpdatedAt = aggregate.remoteUpdatedAt
+        record.needsRemoteSync = true
+
+        try context.save()
+        notifyChanges()
+        return record
+    }
+
+    func deleteCompetition(id: UUID) throws {
+        guard let existing = try fetchCompetition(id: id) else { return }
+        context.delete(existing)
+        try context.save()
+        notifyChanges()
+    }
 }
