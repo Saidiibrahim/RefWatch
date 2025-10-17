@@ -10,6 +10,7 @@ import RefWatchCore
 
 struct SettingsScreen: View {
     @Environment(\.theme) private var theme
+    @EnvironmentObject private var aggregateSync: AggregateSyncEnvironment
     @Bindable var settingsViewModel: SettingsViewModel
     // Persisted timer face selection used by TimerView host
     @AppStorage("timer_face_style") private var timerFaceStyleRaw: String = TimerFaceStyle.standard.rawValue
@@ -19,6 +20,7 @@ struct SettingsScreen: View {
             timerSection
             disciplineSection
             substitutionsSection
+            syncSection
         }
         .listStyle(.carousel)
         .scrollContentBackground(.hidden)
@@ -30,11 +32,32 @@ struct SettingsScreen: View {
 
 struct SettingsScreen_Previews: PreviewProvider {
     static var previews: some View {
+        let environment: AggregateSyncEnvironment = {
+            let container = try! WatchAggregateContainerFactory.makeContainer(inMemory: true)
+            let library = WatchAggregateLibraryStore(container: container)
+            let chunk = WatchAggregateSnapshotChunkStore(container: container)
+            let delta = WatchAggregateDeltaOutboxStore(container: container)
+            let coordinator = WatchAggregateSyncCoordinator(
+                libraryStore: library,
+                chunkStore: chunk,
+                deltaStore: delta
+            )
+            let connectivity = WatchConnectivitySyncClient(session: nil, aggregateCoordinator: coordinator)
+            return AggregateSyncEnvironment(
+                libraryStore: library,
+                chunkStore: chunk,
+                deltaStore: delta,
+                coordinator: coordinator,
+                connectivity: connectivity
+            )
+        }()
+
         Group {
             NavigationStack {
                 SettingsScreen(settingsViewModel: SettingsViewModel())
             }
             .theme(DefaultTheme())
+            .environmentObject(environment)
             .previewDisplayName("Standard")
 
             NavigationStack {
@@ -42,6 +65,7 @@ struct SettingsScreen_Previews: PreviewProvider {
             }
             .theme(DefaultTheme())
             .environment(\.sizeCategory, .accessibilityLarge)
+            .environmentObject(environment)
             .previewDisplayName("Accessibility Large")
         }
     }
@@ -126,6 +150,43 @@ private extension SettingsScreen {
         }
     }
 
+    @ViewBuilder
+    var syncSection: some View {
+        Section {
+            Button {
+                aggregateSync.connectivity.requestManualAggregateSync()
+            } label: {
+                SettingsNavigationRow(
+                    title: "Resync Library",
+                    value: syncHeadline,
+                    icon: "arrow.clockwise",
+                    valueIdentifier: nil
+                )
+            }
+            .buttonStyle(.plain)
+            .listRowInsets(cardRowInsets)
+            .listRowBackground(Color.clear)
+
+            ThemeCardContainer(role: .secondary, minHeight: 72) {
+                VStack(alignment: .leading, spacing: theme.spacing.xs) {
+                    Text(syncDetailHeading)
+                        .font(theme.typography.cardHeadline)
+                        .foregroundStyle(theme.colors.textPrimary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    Text(syncDetailBody)
+                        .font(theme.typography.cardMeta)
+                        .foregroundStyle(theme.colors.textSecondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            .listRowInsets(cardRowInsets)
+            .listRowBackground(Color.clear)
+        } header: {
+            SettingsSectionHeader(title: "Sync")
+        }
+    }
+
 
 
     var cardRowInsets: EdgeInsets {
@@ -139,6 +200,44 @@ private extension SettingsScreen {
 
     var substitutionOrderLabel: String {
         settingsViewModel.settings.substitutionOrderPlayerOffFirst ? "Player Off First" : "Player On First"
+    }
+
+    var syncHeadline: String {
+        let status = aggregateSync.status
+        if status.pendingSnapshotChunks > 0 {
+            return "Applying snapshot…"
+        }
+        if status.queuedSnapshots > 0 || status.queuedDeltas > 0 {
+            return "Waiting on iPhone"
+        }
+        return status.reachable ? "Up to date" : "Awaiting Connection"
+    }
+
+    var syncDetailHeading: String {
+        aggregateSync.status.requiresBackfill ? "Backfill required" : "Library status"
+    }
+
+    var syncDetailBody: String {
+        let status = aggregateSync.status
+        var lines: [String] = []
+        let connectivity = status.lastConnectivityStatusRaw ?? "unknown"
+        lines.append("Connectivity: \(connectivity.capitalized)")
+        lines.append("Reachable: \(status.reachable ? "Yes" : "No")")
+        lines.append("Pending chunks: \(status.pendingSnapshotChunks)")
+        lines.append("Queued snapshots: \(status.queuedSnapshots)")
+        lines.append("Queued deltas: \(status.queuedDeltas)")
+        if let lastSnapshot = status.lastSnapshotGeneratedAt {
+            lines.append("Last snapshot: \(lastSnapshot.formatted(date: .abbreviated, time: .shortened))")
+        } else {
+            lines.append("Last snapshot: Never")
+        }
+        if let supabase = status.lastSupabaseSync {
+            lines.append("Last Supabase sync: \(supabase.formatted(date: .abbreviated, time: .shortened))")
+        }
+        if status.requiresBackfill {
+            lines.append("Backfill pending: Yes")
+        }
+        return lines.joined(separator: "\n")
     }
 }
 

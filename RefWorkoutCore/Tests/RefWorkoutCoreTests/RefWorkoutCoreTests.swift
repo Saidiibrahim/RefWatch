@@ -64,4 +64,50 @@ final class RefWorkoutCoreTests: XCTestCase {
     XCTAssertEqual(session.totalDuration, 900)
     XCTAssertEqual(session.elapsedDuration(), 900)
   }
+
+  func testWorkoutAuthorizationStatusOptionalLimitations() {
+    let status = WorkoutAuthorizationStatus(
+      state: .authorized,
+      deniedMetrics: [.vo2Max]
+    )
+
+    XCTAssertTrue(status.hasOptionalLimitations)
+    XCTAssertTrue(status.deniedRequiredMetrics.isEmpty)
+    XCTAssertEqual(status.deniedOptionalMetrics, [.vo2Max])
+  }
+
+  func testWorkoutAuthorizationStatusRequiredLimitations() {
+    let status = WorkoutAuthorizationStatus(
+      state: .limited,
+      deniedMetrics: [.distance, .heartRate]
+    )
+
+    XCTAssertTrue(status.hasRequiredLimitations)
+    XCTAssertFalse(status.hasOptionalLimitations)
+    XCTAssertEqual(status.deniedRequiredMetrics, [.distance, .heartRate])
+    XCTAssertTrue(status.deniedOptionalMetrics.isEmpty)
+  }
+
+  func testWorkoutLiveMetricsStreamFromStub() async throws {
+    let tracker = WorkoutSessionTrackerStub()
+    let stream = tracker.liveMetricsStream()
+    let metrics = WorkoutLiveMetrics(
+      sessionId: UUID(),
+      elapsedTime: 12,
+      totalDistance: 1500,
+      activeEnergy: 42,
+      heartRate: 128,
+      averagePace: 300
+    )
+
+    let captureTask = Task { () -> WorkoutLiveMetrics? in
+      var iterator = stream.makeAsyncIterator()
+      return await iterator.next()
+    }
+
+    await tracker.sendLiveMetrics(metrics)
+    let received = await captureTask.value
+
+    XCTAssertEqual(received, metrics)
+  }
 }
