@@ -1,7 +1,7 @@
 import Foundation
 
 public final class WorkoutAuthorizationManagerStub: WorkoutAuthorizationManaging {
-  public var status: WorkoutAuthorizationStatus
+  public let status: WorkoutAuthorizationStatus
 
   public init(status: WorkoutAuthorizationStatus = WorkoutAuthorizationStatus(state: .notDetermined)) {
     self.status = status
@@ -20,11 +20,12 @@ public actor WorkoutSessionTrackerStub: WorkoutSessionTracking {
   public private(set) var sessions: [UUID: WorkoutSession] = [:]
   public private(set) var events: [UUID: [WorkoutEvent]] = [:]
   public private(set) var pausedSessions: Set<UUID> = []
+  private var liveMetricsContinuations: [UUID: AsyncStream<WorkoutLiveMetrics>.Continuation] = [:]
 
   public init() {}
 
   public func startSession(configuration: WorkoutSessionConfiguration) async throws -> WorkoutSession {
-    var model = WorkoutSession(
+    let model = WorkoutSession(
       state: .active,
       kind: configuration.kind,
       title: configuration.title,
@@ -66,17 +67,56 @@ public actor WorkoutSessionTrackerStub: WorkoutSessionTracking {
     sessionEvents.append(event)
     events[sessionId] = sessionEvents
   }
+
+  public nonisolated func liveMetricsStream() -> AsyncStream<WorkoutLiveMetrics> {
+    AsyncStream { continuation in
+      let token = UUID()
+      Task {
+        await self.registerContinuation(token: token, continuation: continuation)
+      }
+      continuation.onTermination = { @Sendable _ in
+        Task {
+          await self.removeContinuation(token: token)
+        }
+      }
+    }
+  }
+
+  public func sendLiveMetrics(_ metrics: WorkoutLiveMetrics) async {
+    for continuation in liveMetricsContinuations.values {
+      continuation.yield(metrics)
+    }
+  }
+
+  public func finishLiveMetrics() async {
+    for continuation in liveMetricsContinuations.values {
+      continuation.finish()
+    }
+    liveMetricsContinuations.removeAll()
+  }
+
+  private func registerContinuation(
+    token: UUID,
+    continuation: AsyncStream<WorkoutLiveMetrics>.Continuation
+  ) {
+    liveMetricsContinuations[token] = continuation
+  }
+
+  private func removeContinuation(token: UUID) {
+    liveMetricsContinuations.removeValue(forKey: token)
+  }
 }
 
 public extension WorkoutServices {
   static func inMemoryStub(
     presets: [WorkoutPreset] = [],
-    historySessions: [WorkoutSession] = []
+    historySessions: [WorkoutSession] = [],
+    authorizationStatus: WorkoutAuthorizationStatus = WorkoutAuthorizationStatus(state: .authorized)
   ) -> WorkoutServices {
     let history = InMemoryWorkoutHistoryStore(initialSessions: historySessions)
     let presetsStore = InMemoryWorkoutPresetStore(initialPresets: presets)
     let tracker = WorkoutSessionTrackerStub()
-    let authorization = WorkoutAuthorizationManagerStub(status: WorkoutAuthorizationStatus(state: .authorized))
+    let authorization = WorkoutAuthorizationManagerStub(status: authorizationStatus)
     return WorkoutServices(
       authorizationManager: authorization,
       sessionTracker: tracker,

@@ -9,6 +9,7 @@ final class IOSHealthKitWorkoutTracker: NSObject, WorkoutSessionTracking {
   private let healthStore: HKHealthStore
   private var activeSessions: [UUID: ManagedSession] = [:]
   private var sessionLookup: [ObjectIdentifier: UUID] = [:]
+  private var liveMetricsContinuations: [UUID: AsyncStream<WorkoutLiveMetrics>.Continuation] = [:]
 
   init(healthStore: HKHealthStore = HKHealthStore()) {
     self.healthStore = healthStore
@@ -234,6 +235,20 @@ final class IOSHealthKitWorkoutTracker: NSObject, WorkoutSessionTracking {
     managed.events.append(event)
   }
 
+  func liveMetricsStream() -> AsyncStream<WorkoutLiveMetrics> {
+    AsyncStream { continuation in
+      let token = UUID()
+      continuation.onTermination = { @Sendable _ in
+        Task { @MainActor in
+          self.liveMetricsContinuations.removeValue(forKey: token)
+        }
+      }
+      Task { @MainActor in
+        self.liveMetricsContinuations[token] = continuation
+      }
+    }
+  }
+
   private func updateSummary(_ session: inout WorkoutSession, using workout: HKWorkout, builder: Any?) {
     session.summary.duration = workout.endDate.timeIntervalSince(workout.startDate)
     if let distance = workout.totalDistance?.doubleValue(for: HKUnit.meter()) {
@@ -275,6 +290,97 @@ final class IOSHealthKitWorkoutTracker: NSObject, WorkoutSessionTracking {
       session.summary.activeEnergy = energy
     }
     // Note: Heart rate data would require separate HealthKit queries for legacy sessions
+  }
+
+  private func updateSummary(_ session: inout WorkoutSession, with metrics: WorkoutLiveMetrics) {
+    if let elapsed = metrics.elapsedTime {
+      session.summary.duration = elapsed
+    }
+    if let distance = metrics.totalDistance {
+      session.summary.totalDistance = distance
+    }
+    if let energy = metrics.activeEnergy {
+      session.summary.activeEnergy = energy
+    }
+  }
+
+  private func broadcastLiveMetrics(_ metrics: WorkoutLiveMetrics) {
+    for continuation in liveMetricsContinuations.values {
+      continuation.yield(metrics)
+    }
+  }
+
+  @available(iOS 26.0, *)
+  private func metrics(
+    for builder: HKLiveWorkoutBuilder,
+    session: ManagedSession,
+    collectedTypes: Set<HKSampleType>?
+  ) -> WorkoutLiveMetrics? {
+    let timestamp = Date()
+    var metrics = WorkoutLiveMetrics(sessionId: session.model.id, timestamp: timestamp)
+    var didUpdate = false
+
+    let elapsed = builder.elapsedTime
+    if elapsed > 0 {
+      metrics.elapsedTime = elapsed
+      didUpdate = true
+    }
+
+    if let distanceType = HKQuantityType.quantityType(forIdentifier: .distanceWalkingRunning) {
+      if collectedTypes == nil || collectedTypes?.contains(distanceType) == true {
+        if let stats = builder.statistics(for: distanceType),
+           let sum = stats.sumQuantity()?.doubleValue(for: HKUnit.meter()) {
+          metrics.totalDistance = sum
+          didUpdate = true
+        }
+      }
+    }
+
+    if let energyType = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned) {
+      if collectedTypes == nil || collectedTypes?.contains(energyType) == true {
+        if let stats = builder.statistics(for: energyType),
+           let sum = stats.sumQuantity()?.doubleValue(for: HKUnit.kilocalorie()) {
+          metrics.activeEnergy = sum
+          didUpdate = true
+        }
+      }
+    }
+
+    if let heartRateType = HKQuantityType.quantityType(forIdentifier: .heartRate) {
+      if collectedTypes == nil || collectedTypes?.contains(heartRateType) == true {
+        if let stats = builder.statistics(for: heartRateType) {
+          let heartUnit = HKUnit.count().unitDivided(by: HKUnit.minute())
+          if let recent = stats.mostRecentQuantity()?.doubleValue(for: heartUnit) {
+            metrics.heartRate = recent
+            didUpdate = true
+          }
+          if let average = stats.averageQuantity()?.doubleValue(for: heartUnit) {
+            session.model.summary.averageHeartRate = average
+          }
+          if let maximum = stats.maximumQuantity()?.doubleValue(for: heartUnit) {
+            session.model.summary.maximumHeartRate = maximum
+          }
+        }
+      }
+    }
+
+    if let distance = metrics.totalDistance ?? session.model.summary.totalDistance,
+       distance > 0,
+       elapsed > 5 {
+      let kilometres = distance / 1_000
+      if kilometres > 0 {
+        metrics.averagePace = elapsed / kilometres
+        didUpdate = true
+      }
+    }
+
+    if !didUpdate {
+      return nil
+    }
+
+    updateSummary(&session.model, with: metrics)
+    session.latestMetrics = metrics
+    return metrics
   }
 
   private func makeWorkoutConfiguration(for kind: WorkoutKind) throws -> HKWorkoutConfiguration {
@@ -347,7 +453,18 @@ extension IOSHealthKitWorkoutTracker: HKWorkoutSessionDelegate {
 // MARK: - HKLiveWorkoutBuilderDelegate (iOS 26.0+)
 @available(iOS 26.0, *)
 extension IOSHealthKitWorkoutTracker: HKLiveWorkoutBuilderDelegate {
-  nonisolated func workoutBuilder(_ workoutBuilder: HKLiveWorkoutBuilder, didCollectDataOf collectedTypes: Set<HKSampleType>) {}
+  nonisolated func workoutBuilder(_ workoutBuilder: HKLiveWorkoutBuilder, didCollectDataOf collectedTypes: Set<HKSampleType>) {
+    Task { @MainActor in
+      guard
+        let session = workoutBuilder.workoutSession,
+        let managed = self.managedSession(for: session),
+        let metrics = self.metrics(for: workoutBuilder, session: managed, collectedTypes: collectedTypes)
+      else {
+        return
+      }
+      self.broadcastLiveMetrics(metrics)
+    }
+  }
 
   nonisolated func workoutBuilderDidCollectEvent(_ workoutBuilder: HKLiveWorkoutBuilder) {
     Task { @MainActor in
@@ -366,7 +483,32 @@ extension IOSHealthKitWorkoutTracker: HKLiveWorkoutBuilderDelegate {
     }
   }
 
-  nonisolated func workoutBuilderDidCollectData(_ workoutBuilder: HKLiveWorkoutBuilder) {}
+  nonisolated func workoutBuilderDidCollectData(_ workoutBuilder: HKLiveWorkoutBuilder) {
+    Task { @MainActor in
+      guard
+        let session = workoutBuilder.workoutSession,
+        let managed = self.managedSession(for: session),
+        let metrics = self.metrics(for: workoutBuilder, session: managed, collectedTypes: nil)
+      else {
+        return
+      }
+      self.broadcastLiveMetrics(metrics)
+    }
+  }
+
+  nonisolated func workoutBuilderDidCollectMetrics(_ workoutBuilder: HKLiveWorkoutBuilder) {
+    Task { @MainActor in
+      guard
+        let session = workoutBuilder.workoutSession,
+        let managed = self.managedSession(for: session),
+        let metrics = self.metrics(for: workoutBuilder, session: managed, collectedTypes: nil)
+      else {
+        return
+      }
+      self.broadcastLiveMetrics(metrics)
+    }
+  }
+
   nonisolated func workoutBuilderDidFinishCollection(_ workoutBuilder: HKLiveWorkoutBuilder) {}
 }
 
@@ -376,6 +518,7 @@ private final class ManagedSession {
   let builder: Any? // Can be HKLiveWorkoutBuilder or HKWorkoutBuilder for legacy sessions
   var model: WorkoutSession
   var events: [WorkoutEvent]
+  var latestMetrics: WorkoutLiveMetrics?
 
   init(configuration: WorkoutSessionConfiguration, session: HKWorkoutSession?, builder: Any?, model: WorkoutSession) {
     self.configuration = configuration
@@ -383,6 +526,7 @@ private final class ManagedSession {
     self.builder = builder
     self.model = model
     self.events = []
+    self.latestMetrics = nil
   }
 }
 
