@@ -162,6 +162,10 @@ struct RefZoneiOSApp: App {
                     router.authenticationRequest = nil
                 }
                 .onChange(of: scenePhase) { phase in
+                    // Keep WCSession alive while signed in, even when backgrounded.
+                    // Only stop on explicit sign-out (handled in auth state onChange).
+                    // This ensures the watch can sync library data and completed matches
+                    // even when the iOS app is not in the foreground.
                     switch phase {
                     case .active:
                         if authController.isSignedIn {
@@ -170,7 +174,8 @@ struct RefZoneiOSApp: App {
                             syncController.stop()
                         }
                     case .inactive, .background:
-                        syncController.stop()
+                        // Don't stop - keep session alive for background transfers
+                        break
                     @unknown default:
                         break
                     }
