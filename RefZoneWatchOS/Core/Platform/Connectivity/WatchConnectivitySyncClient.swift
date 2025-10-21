@@ -86,7 +86,9 @@ final class WatchConnectivitySyncClient: NSObject, ConnectivitySyncProviding {
         "data": data
       ]
       if session.isReachable {
-        session.sendMessage(payload) { _ in
+        session.sendMessage(payload) { error in
+          // Only fallback to durable transfer on ERROR
+          // (WCSessioning protocol internally provides replyHandler: nil)
           NotificationCenter.default.post(
             name: .syncFallbackOccurred,
             object: nil,
@@ -118,7 +120,9 @@ final class WatchConnectivitySyncClient: NSObject, ConnectivitySyncProviding {
       "payload": data
     ]
     if session.isReachable {
-      session.sendMessage(payload) { _ in
+      session.sendMessage(payload) { error in
+        // Only fallback to durable transfer on ERROR
+        // (WCSessioning protocol internally provides replyHandler: nil)
         NotificationCenter.default.post(
           name: .syncFallbackOccurred,
           object: nil,
