@@ -8,102 +8,109 @@
 import RefWatchCore
 import SwiftUI
 
-/// A focused welcome screen that explains the benefits of signing in and
-/// communicates that an account is required to use RefZone on iPhone.
+/// A focused welcome experience that highlights key RefZone touchpoints before sign-in.
 struct WelcomeView: View {
-    @EnvironmentObject private var coordinator: AuthenticationCoordinator
-    @Environment(\.theme) private var theme
+  @EnvironmentObject private var coordinator: AuthenticationCoordinator
+  @Environment(\.theme) private var theme
+  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
-    var body: some View {
-        ZStack {
-            theme.colors.backgroundPrimary.ignoresSafeArea()
+  @State private var currentSlideIndex = 0
 
-            ScrollView {
-                VStack(spacing: 32) {
-                    header
-                    featureList
-                    primaryActions
-                    privacyNote
-                }
-                .padding(.horizontal, 32)
-                .padding(.top, 80)
-                .padding(.bottom, 48)
-            }
+  private var slides: [WelcomeSlide] {
+    WelcomeSlide.defaultSlides(theme: theme)
+  }
+
+  var body: some View {
+    ZStack {
+      theme.colors.backgroundPrimary.ignoresSafeArea()
+
+      ScrollView(.vertical, showsIndicators: false) {
+        VStack(spacing: theme.spacing.stackXL) {
+          carousel
+          OnboardingPageIndicator(total: slides.count, currentIndex: currentSlideIndex)
+          primaryActions
+          privacyNote
         }
+        .padding(.horizontal, horizontalPadding)
+        .padding(.vertical, theme.spacing.stackXL)
+        .frame(maxWidth: .infinity)
+      }
     }
+    .onChange(of: slides.count) { _, newCount in
+      currentSlideIndex = min(currentSlideIndex, max(newCount - 1, 0))
+    }
+  }
 }
 
 private extension WelcomeView {
-    var header: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "sportscourt.fill")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 88, height: 88)
-                .foregroundStyle(theme.colors.accentSecondary)
-                .accessibilityHidden(true)
+  var horizontalPadding: CGFloat {
+    dynamicTypeSize.isAccessibilitySize ? theme.spacing.stackXL : theme.spacing.stackXL * CGFloat(1.5)
+  }
 
-            Text("Welcome to RefZone")
-                .font(.largeTitle.bold())
-                .multilineTextAlignment(.center)
-
-            Text("Sign in to sync across devices, unlock match insights, and keep your officiating sharp.")
-                .font(.title3)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-        }
+  var carousel: some View {
+    TabView(selection: $currentSlideIndex) {
+      ForEach(Array(slides.enumerated()), id: \.element.id) { index, slide in
+        OnboardingCardView(slide: slide)
+          .padding(.horizontal, theme.spacing.stackSM)
+          .tag(index)
+          .accessibilityAddTraits(index == currentSlideIndex ? .isSelected : [])
+      }
     }
+    .frame(height: cardHeight)
+    .tabViewStyle(.page(indexDisplayMode: .never))
+    .accessibilityElement(children: .contain)
+    .accessibilityLabel(Text(slides[safe: currentSlideIndex]?.title ?? ""))
+    .accessibilityHint(Text(slides[safe: currentSlideIndex]?.subtitle ?? ""))
+  }
 
-    var featureList: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Label("Secure Supabase backups for match history", systemImage: "lock.shield")
-            Label("Personalized trends and officiating insights", systemImage: "chart.line.uptrend.xyaxis")
-            Label("Sync with your Apple Watch and teammates", systemImage: "applewatch")
-        }
-        .font(.headline)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .accessibilityElement(children: .contain)
+  var primaryActions: some View {
+    VStack(spacing: theme.spacing.stackLG) {
+      Button {
+        coordinator.showSignIn()
+      } label: {
+        Text(NSLocalizedString("welcome.actions.signIn", value: "Sign In", comment: "Primary CTA to sign in from the welcome carousel"))
+          .frame(maxWidth: .infinity)
+      }
+      .buttonStyle(.borderedProminent)
+      .accessibilityHint(Text(NSLocalizedString("welcome.actions.signIn.hint", value: "Opens the sign-in form", comment: "Accessibility hint for sign-in button")))
+
+      Button {
+        coordinator.showSignUp()
+      } label: {
+        Text(NSLocalizedString("welcome.actions.createAccount", value: "Create Account", comment: "Secondary CTA to create a new RefZone account"))
+          .frame(maxWidth: .infinity)
+      }
+      .buttonStyle(.bordered)
+      .accessibilityHint(Text(NSLocalizedString("welcome.actions.createAccount.hint", value: "Opens the account creation form", comment: "Accessibility hint for create account button")))
     }
+  }
 
-    var primaryActions: some View {
-        VStack(spacing: 16) {
-            Button {
-                coordinator.showSignIn()
-            } label: {
-                Text("Sign In")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .accessibilityHint("Opens the sign-in form")
+  var privacyNote: some View {
+    Text(NSLocalizedString("welcome.privacyNote", value: "An active RefZone account is required on iPhone. Your Apple Watch can still log matches offline and will sync once you sign in here.", comment: "Footer note explaining onboarding requirements"))
+      .font(theme.typography.caption)
+      .foregroundStyle(theme.colors.textSecondary)
+      .multilineTextAlignment(.center)
+      .padding(.horizontal)
+      .accessibilityHint(Text(NSLocalizedString("welcome.privacyNote.hint", value: "Explains why signing in is required on iPhone", comment: "Accessibility hint for the welcome privacy note")))
+  }
 
-            Button {
-                coordinator.showSignUp()
-            } label: {
-                Text("Create Account")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.bordered)
-            .accessibilityHint("Opens the account creation form")
-        }
-    }
+  var cardHeight: CGFloat {
+    dynamicTypeSize.isAccessibilitySize ? 480 : 420
+  }
+}
 
-    var privacyNote: some View {
-        Text("An active RefZone account is required on iPhone. Your Apple Watch can still log matches offline and will sync once you sign in here.")
-            .font(.footnote)
-            .foregroundStyle(.secondary)
-            .multilineTextAlignment(.center)
-            .padding(.horizontal)
-    }
+private extension Collection {
+  subscript(safe index: Index) -> Element? {
+    indices.contains(index) ? self[index] : nil
+  }
 }
 
 #if DEBUG
 #Preview {
-    WelcomeView()
-        .environmentObject(AuthenticationCoordinator(authController: SupabaseAuthController(
-            clientProvider: SupabaseClientProvider.shared
-        )))
-        .theme(DefaultTheme())
+  WelcomeView()
+    .environmentObject(AuthenticationCoordinator(authController: SupabaseAuthController(
+      clientProvider: SupabaseClientProvider.shared
+    )))
+    .theme(DefaultTheme())
 }
 #endif

@@ -6,9 +6,12 @@
 //
 
 import Foundation
+import Combine
 
 @MainActor
 protocol TeamLibraryStoring {
+    var changesPublisher: AnyPublisher<[TeamRecord], Never> { get }
+
     // Teams
     func loadAllTeams() throws -> [TeamRecord]
     func searchTeams(query: String) throws -> [TeamRecord]
@@ -25,6 +28,8 @@ protocol TeamLibraryStoring {
     func addOfficial(to team: TeamRecord, name: String, roleRaw: String) throws -> TeamOfficialRecord
     func updateOfficial(_ official: TeamOfficialRecord) throws
     func deleteOfficial(_ official: TeamOfficialRecord) throws
+
+    func refreshFromRemote() async throws
 }
 
 @MainActor

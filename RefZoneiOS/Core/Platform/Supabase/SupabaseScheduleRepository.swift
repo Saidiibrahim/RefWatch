@@ -117,6 +117,20 @@ final class SupabaseScheduleRepository: ScheduleStoring {
   var changesPublisher: AnyPublisher<[ScheduledMatch], Never> {
     store.changesPublisher
   }
+
+  func refreshFromRemote() async throws {
+    guard let ownerUUID else {
+      throw PersistenceAuthError.signedOut(operation: "refresh scheduled matches")
+    }
+    do {
+      try await flushPendingDeletions()
+      try await pushDirtyMatches()
+      try await pullRemoteUpdates(for: ownerUUID)
+    } catch {
+      log.error("Scheduled match refresh failed: \(error.localizedDescription, privacy: .public)")
+      throw error
+    }
+  }
  }
 
 // MARK: - Identity Handling
@@ -420,5 +434,27 @@ private extension SupabaseScheduleRepository {
       throw PersistenceAuthError.signedOut(operation: operation)
     }
     return ownerUUID
+  }
+}
+
+extension SupabaseScheduleRepository: AggregateScheduleApplying {
+  func upsertSchedule(from aggregate: AggregateSnapshotPayload.Schedule) throws {
+    let ownerUUID = try requireOwnerUUID(operation: "aggregate schedule upsert")
+    let record = try store.upsertFromAggregate(aggregate, ownerSupabaseId: ownerUUID.uuidString)
+    pendingDeletions.remove(record.id)
+    backlog.removePendingDeletion(id: record.id)
+    pendingPushes.insert(record.id)
+    scheduleProcessingTask()
+    publishSyncStatus()
+  }
+
+  func deleteSchedule(id: UUID) throws {
+    _ = try requireOwnerUUID(operation: "aggregate schedule delete")
+    try store.deleteSchedule(id: id)
+    pendingPushes.remove(id)
+    pendingDeletions.insert(id)
+    backlog.addPendingDeletion(id: id)
+    scheduleProcessingTask()
+    publishSyncStatus()
   }
 }

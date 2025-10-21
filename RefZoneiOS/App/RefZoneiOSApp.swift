@@ -90,9 +90,6 @@ struct RefZoneiOSApp: App {
         let historyRepo: MatchHistoryStoring = matchRepo
         let matchSyncController: MatchHistorySyncControlling? = matchRepo
 
-        let vm = MatchViewModel(history: historyRepo, haptics: IOSHaptics())
-        let controller = ConnectivitySyncController(history: historyRepo, auth: authController)
-
         let jStore: JournalEntryStoring = SupabaseJournalRepository(
             authStateProvider: authController
         )
@@ -119,6 +116,16 @@ struct RefZoneiOSApp: App {
         let vStore: VenueLibraryStoring = SupabaseVenueLibraryRepository(
             store: swiftVenueStore,
             authStateProvider: authController
+        )
+
+        let vm = MatchViewModel(history: historyRepo, haptics: IOSHaptics())
+        let controller = ConnectivitySyncController(
+            history: historyRepo,
+            auth: authController,
+            teamStore: tStore,
+            competitionStore: cStore,
+            venueStore: vStore,
+            scheduleStore: schedStore
         )
 
         // Assign to stored properties/wrappers
@@ -155,6 +162,10 @@ struct RefZoneiOSApp: App {
                     router.authenticationRequest = nil
                 }
                 .onChange(of: scenePhase) { phase in
+                    // Keep WCSession alive while signed in, even when backgrounded.
+                    // Only stop on explicit sign-out (handled in auth state onChange).
+                    // This ensures the watch can sync library data and completed matches
+                    // even when the iOS app is not in the foreground.
                     switch phase {
                     case .active:
                         if authController.isSignedIn {
@@ -163,7 +174,8 @@ struct RefZoneiOSApp: App {
                             syncController.stop()
                         }
                     case .inactive, .background:
-                        syncController.stop()
+                        // Don't stop - keep session alive for background transfers
+                        break
                     @unknown default:
                         break
                     }
@@ -209,7 +221,8 @@ struct RefZoneiOSApp: App {
                 teamStore: teamStore,
                 competitionStore: competitionStore,
                 venueStore: venueStore,
-                authController: authController
+                authController: authController,
+                connectivityController: syncController
             )
         case .signedOut:
             SignedOutGateView()

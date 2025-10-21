@@ -75,16 +75,22 @@ final class WorkoutModeViewModel: ObservableObject {
   @Published private(set) var isActiveSessionPaused = false
   @Published private(set) var lapCount = 0
   @Published private(set) var isRecordingSegment = false
+  @Published private(set) var liveMetrics: WorkoutLiveMetrics?
   @Published var errorMessage: String?
   @Published var isPerformingAction = false
   @Published var recoveryAction: String?
 
   private let services: WorkoutServices
   private unowned let appModeController: AppModeController
+  private var metricsTask: Task<Void, Never>?
 
   init(services: WorkoutServices, appModeController: AppModeController) {
     self.services = services
     self.appModeController = appModeController
+  }
+
+  deinit {
+    metricsTask?.cancel()
   }
 
   /// Clears all active session state to ensure UI consistency
@@ -93,6 +99,41 @@ final class WorkoutModeViewModel: ObservableObject {
     self.isActiveSessionPaused = false
     self.lapCount = 0
     self.isRecordingSegment = false
+    self.liveMetrics = nil
+    metricsTask?.cancel()
+    metricsTask = nil
+  }
+
+  private func beginConsumingLiveMetrics(for sessionId: UUID) {
+    metricsTask?.cancel()
+    let stream = services.sessionTracker.liveMetricsStream()
+    metricsTask = Task { @MainActor [weak self] in
+      guard let self else { return }
+      for await metrics in stream {
+        guard metrics.sessionId == sessionId else { continue }
+        self.liveMetrics = metrics
+        if let active = self.activeSession, active.id == sessionId {
+          self.activeSession = self.sessionUpdating(active, with: metrics)
+        }
+      }
+    }
+  }
+
+  private func sessionUpdating(_ session: WorkoutSession, with metrics: WorkoutLiveMetrics) -> WorkoutSession {
+    var updated = session
+    if let elapsed = metrics.elapsedTime {
+      updated.summary.duration = elapsed
+    }
+    if let distance = metrics.totalDistance {
+      updated.summary.totalDistance = distance
+    }
+    if let energy = metrics.activeEnergy {
+      updated.summary.activeEnergy = energy
+    }
+    if let heart = metrics.heartRate {
+      updated.summary.averageHeartRate = heart
+    }
+    return updated
   }
 
   func bootstrap() async {
@@ -152,6 +193,7 @@ final class WorkoutModeViewModel: ObservableObject {
         self.isActiveSessionPaused = false
         self.lapCount = 0
         self.isRecordingSegment = false
+        self.beginConsumingLiveMetrics(for: session.id)
         self.appModeController.select(.workout)
         self.errorMessage = nil
         self.recoveryAction = nil
@@ -195,6 +237,7 @@ final class WorkoutModeViewModel: ObservableObject {
         self.isActiveSessionPaused = false
         self.lapCount = 0
         self.isRecordingSegment = false
+        self.beginConsumingLiveMetrics(for: session.id)
         self.appModeController.select(.workout)
         self.errorMessage = nil
         self.recoveryAction = nil
@@ -232,6 +275,9 @@ final class WorkoutModeViewModel: ObservableObject {
       do {
         // End the HealthKit session first
         let finished = try await self.services.sessionTracker.endSession(id: sessionID, at: Date())
+        metricsTask?.cancel()
+        metricsTask = nil
+        liveMetrics = nil
 
         // Try to save to history - if this fails, we still want to clear the UI state
         do {
@@ -287,6 +333,9 @@ final class WorkoutModeViewModel: ObservableObject {
         self.isActiveSessionPaused = false
         self.lapCount = 0
         self.isRecordingSegment = false
+        self.liveMetrics = nil
+        self.metricsTask?.cancel()
+        self.metricsTask = nil
         self.errorMessage = nil
         self.recoveryAction = nil
       } catch let sessionError as WorkoutSessionError {
@@ -354,6 +403,7 @@ final class WorkoutModeViewModel: ObservableObject {
       do {
         try await self.services.sessionTracker.pauseSession(id: sessionID)
         self.isActiveSessionPaused = true
+        self.metricsTask?.cancel()
         self.errorMessage = nil
         self.recoveryAction = nil
       } catch let sessionError as WorkoutSessionError {
@@ -389,6 +439,7 @@ final class WorkoutModeViewModel: ObservableObject {
       do {
         try await self.services.sessionTracker.resumeSession(id: sessionID)
         self.isActiveSessionPaused = false
+        self.beginConsumingLiveMetrics(for: sessionID)
         self.errorMessage = nil
         self.recoveryAction = nil
       } catch let sessionError as WorkoutSessionError {

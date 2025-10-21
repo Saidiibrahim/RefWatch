@@ -137,4 +137,54 @@ final class SwiftDataVenueLibraryStore: VenueLibraryStoring {
             log.error("Failed to load venues for change notification: \(error.localizedDescription, privacy: .public)")
         }
     }
+
+    // MARK: - Aggregate Delta Support
+
+    func fetchVenue(id: UUID) throws -> VenueRecord? {
+        var descriptor = FetchDescriptor<VenueRecord>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
+        return try context.fetch(descriptor).first
+    }
+
+    func upsertFromAggregate(_ aggregate: AggregateSnapshotPayload.Venue, ownerSupabaseId ownerId: String) throws -> VenueRecord {
+        let record: VenueRecord
+        if let existing = try fetchVenue(id: aggregate.id) {
+            record = existing
+        } else {
+            record = VenueRecord(
+                id: aggregate.id,
+                name: aggregate.name,
+                city: aggregate.city,
+                country: aggregate.country,
+                latitude: aggregate.latitude,
+                longitude: aggregate.longitude,
+                ownerSupabaseId: ownerId,
+                lastModifiedAt: aggregate.lastModifiedAt,
+                remoteUpdatedAt: aggregate.remoteUpdatedAt,
+                needsRemoteSync: true
+            )
+            context.insert(record)
+        }
+
+        record.name = aggregate.name
+        record.city = aggregate.city
+        record.country = aggregate.country
+        record.latitude = aggregate.latitude
+        record.longitude = aggregate.longitude
+        record.ownerSupabaseId = ownerId
+        record.lastModifiedAt = aggregate.lastModifiedAt
+        record.remoteUpdatedAt = aggregate.remoteUpdatedAt
+        record.needsRemoteSync = true
+
+        try context.save()
+        notifyChanges()
+        return record
+    }
+
+    func deleteVenue(id: UUID) throws {
+        guard let existing = try fetchVenue(id: id) else { return }
+        context.delete(existing)
+        try context.save()
+        notifyChanges()
+    }
 }

@@ -7,10 +7,16 @@
 //
 
 import Foundation
+import Combine
 
 @MainActor
 final class InMemoryTeamLibraryStore: TeamLibraryStoring, TeamLibraryMetadataPersisting {
     private var teams: [TeamRecord] = []
+    private let subject = CurrentValueSubject<[TeamRecord], Never>([])
+
+    var changesPublisher: AnyPublisher<[TeamRecord], Never> {
+        subject.eraseToAnyPublisher()
+    }
 
     func loadAllTeams() throws -> [TeamRecord] { teams.sorted { $0.name < $1.name } }
 
@@ -28,24 +34,31 @@ final class InMemoryTeamLibraryStore: TeamLibraryStoring, TeamLibraryMetadataPer
         let t = TeamRecord(name: name, shortName: shortName, division: division)
         t.markLocallyModified()
         teams.append(t)
+        publish()
         return t
     }
 
     func updateTeam(_ team: TeamRecord) throws {
         team.markLocallyModified()
+        publish()
     }
 
-    func deleteTeam(_ team: TeamRecord) throws { teams.removeAll { $0.id == team.id } }
+    func deleteTeam(_ team: TeamRecord) throws {
+        teams.removeAll { $0.id == team.id }
+        publish()
+    }
 
     func addPlayer(to team: TeamRecord, name: String, number: Int?) throws -> PlayerRecord {
         let p = PlayerRecord(name: name, number: number, team: team)
         team.players.append(p)
         team.markLocallyModified()
+        publish()
         return p
     }
 
     func updatePlayer(_ player: PlayerRecord) throws {
         player.team?.markLocallyModified()
+        publish()
     }
 
     func deletePlayer(_ player: PlayerRecord) throws {
@@ -53,17 +66,20 @@ final class InMemoryTeamLibraryStore: TeamLibraryStoring, TeamLibraryMetadataPer
             team.players.removeAll { $0.id == player.id }
             team.markLocallyModified()
         }
+        publish()
     }
 
     func addOfficial(to team: TeamRecord, name: String, roleRaw: String) throws -> TeamOfficialRecord {
         let o = TeamOfficialRecord(name: name, roleRaw: roleRaw, team: team)
         team.officials.append(o)
         team.markLocallyModified()
+        publish()
         return o
     }
 
     func updateOfficial(_ official: TeamOfficialRecord) throws {
         official.team?.markLocallyModified()
+        publish()
     }
 
     func deleteOfficial(_ official: TeamOfficialRecord) throws {
@@ -71,7 +87,14 @@ final class InMemoryTeamLibraryStore: TeamLibraryStoring, TeamLibraryMetadataPer
             team.officials.removeAll { $0.id == official.id }
             team.markLocallyModified()
         }
+        publish()
     }
 
-    func persistMetadataChanges(for team: TeamRecord) throws { }
+    func persistMetadataChanges(for team: TeamRecord) throws { publish() }
+
+    func refreshFromRemote() async throws { }
+
+    private func publish() {
+        subject.send(teams.sorted { $0.name < $1.name })
+    }
 }
