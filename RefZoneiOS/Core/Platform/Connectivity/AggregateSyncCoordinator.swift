@@ -89,12 +89,15 @@ final class AggregateSyncCoordinator {
 
 private extension AggregateSyncCoordinator {
     func sendManualStatusUpdate() {
+        // Query real-time status from client instead of using cached coordinator values.
+        // This ensures the watch receives accurate pending counts after transfers complete.
+        let queueStatus = client.currentSnapshotQueueStatus()
         client.sendManualSyncStatus(
             ManualSyncStatusMessage(
                 reachable: client.reachabilityStatus() == .reachable,
-                queued: lastSnapshotChunkCount,
-                queuedDeltas: queuedAcknowledgedDeltaCount,
-                pendingSnapshotChunks: lastSnapshotChunkCount,
+                queued: queueStatus.queuedSnapshots,
+                queuedDeltas: queueStatus.queuedDeltas,
+                pendingSnapshotChunks: queueStatus.pendingChunks,
                 lastSnapshot: lastSnapshotAt
             )
         )
