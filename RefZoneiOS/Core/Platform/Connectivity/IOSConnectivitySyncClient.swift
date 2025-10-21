@@ -161,6 +161,17 @@ final class IOSConnectivitySyncClient: NSObject {
         #endif
     }
 
+    /// Returns real-time snapshot queue status for diagnostics and manual status messages.
+    func currentSnapshotQueueStatus() -> (queuedSnapshots: Int, pendingChunks: Int, queuedDeltas: Int) {
+        stateQueue.sync {
+            (
+                queuedSnapshots: aggregateSnapshots.count,
+                pendingChunks: pendingSnapshotChunks,
+                queuedDeltas: pendingAggregateDeltas.count
+            )
+        }
+    }
+
     func sendManualSyncStatus(_ status: ManualSyncStatusMessage) {
         #if canImport(WatchConnectivity)
         guard WCSession.isSupported() else { return }
@@ -180,18 +191,7 @@ final class IOSConnectivitySyncClient: NSObject {
             "payload": data
         ]
         let session = WCSession.default
-        if session.isReachable {
-            session.sendMessage(payload, replyHandler: nil) { [weak self] error in
-                self?.queue.async { [weak self] in
-                    self?.handleSendMessageError(error, payload: payload, context: "ios.aggregate.status.send")
-                }
-            }
-        } else {
-            NotificationCenter.default.post(name: .syncFallbackOccurred, object: nil, userInfo: [
-                "context": "ios.aggregate.status.unreachable"
-            ])
-            session.transferUserInfo(payload)
-        }
+        sendWithFallback(payload, context: "ios.aggregate.status.send", session: session)
         #endif
     }
 
@@ -268,13 +268,28 @@ private extension IOSConnectivitySyncClient {
     }
 
     func enqueueAggregateDelta(_ envelope: AggregateDeltaEnvelope) {
-        let state = stateQueue.sync { () -> (Bool, Bool, Bool) in
+        let state = stateQueue.sync { () -> (Bool, Bool, Bool, Bool) in
+            // Check for duplicate using idempotencyKey to prevent double processing
+            // when deltas arrive via both sendMessage and transferUserInfo.
+            let isDuplicate = pendingAggregateDeltas.contains {
+                $0.idempotencyKey == envelope.idempotencyKey
+            }
+            if isDuplicate {
+                AppLog.connectivity.debug("Dropping duplicate aggregate delta idempotencyKey=\(envelope.idempotencyKey.uuidString, privacy: .public)")
+                return (false, false, false, true)
+            }
             pendingAggregateDeltas.append(envelope)
-            return (signedInFlag, aggregateDeltaHandler != nil, isProcessingAggregateDeltas)
+            return (signedInFlag, aggregateDeltaHandler != nil, isProcessingAggregateDeltas, false)
         }
         let signedIn = state.0
         let handlerAvailable = state.1
         let processing = state.2
+        let duplicate = state.3
+
+        if duplicate {
+            return
+        }
+
         if handlerAvailable && signedIn && processing == false {
             processPendingAggregateDeltas()
         } else if handlerAvailable == false || signedIn == false {
@@ -287,28 +302,30 @@ private extension IOSConnectivitySyncClient {
     func flushAggregateSnapshots() {
         #if canImport(WatchConnectivity)
         guard WCSession.isSupported() else { return }
+        let session = WCSession.default
+
+        // Gate on activation state to prevent "session has not been activated" errors.
+        // Snapshots will be retried automatically from activationDidCompleteWith callback.
+        guard session.activationState == .activated else {
+            AppLog.connectivity.info("Deferring aggregate snapshot flush until WCSession activation completes")
+            return
+        }
+
         let snapshots = stateQueue.sync { aggregateSnapshots }
         guard snapshots.isEmpty == false else { return }
 
-        let session = WCSession.default
+        // Send each snapshot using sendMessage with fallback to transferUserInfo on error.
+        // This ensures single delivery per snapshot instead of duplicate transmissions.
         for data in snapshots {
             let payload: [String: Any] = [
                 "type": "aggregatesSnapshot",
                 "payload": data
             ]
-
-            if session.isReachable {
-                session.sendMessage(payload, replyHandler: nil) { error in
-                    AppLog.connectivity.error("sendMessage failed (ios.aggregate.snapshot.send): \(error.localizedDescription, privacy: .public)")
-                    NotificationCenter.default.post(name: .syncFallbackOccurred, object: nil, userInfo: [
-                        "context": "ios.aggregate.snapshot.send"
-                    ])
-                }
-            }
-
-            session.transferUserInfo(payload)
+            sendWithFallback(payload, context: "ios.aggregate.snapshot.send", session: session)
         }
 
+        // Update application context with the last chunk for background delivery.
+        // This provides a lightweight snapshot when the watch wakes up.
         if let last = snapshots.last {
             do {
                 try session.updateApplicationContext(["aggregatesSnapshot": last])
@@ -321,6 +338,14 @@ private extension IOSConnectivitySyncClient {
                 }
             }
         }
+
+        // Clear bookkeeping after handing off to WCSession.
+        // This ensures diagnostics reflect reality instead of permanently showing stale counters.
+        stateQueue.sync {
+            aggregateSnapshots.removeAll()
+            pendingSnapshotChunks = 0
+        }
+        postAggregateStatus()
         #endif
     }
 
@@ -361,6 +386,35 @@ private extension IOSConnectivitySyncClient {
             WCSession.default.transferUserInfo(payload)
         }
         #endif
+    }
+
+    /// Sends payload using sendMessage with fallback to transferUserInfo only on error.
+    /// This ensures single delivery instead of duplicate transmissions.
+    func sendWithFallback(
+        _ payload: [String: Any],
+        context: String,
+        session: WCSession
+    ) {
+        if session.isReachable {
+            session.sendMessage(
+                payload,
+                replyHandler: { _ in
+                    // Success - do nothing (no fallback needed)
+                },
+                errorHandler: { [weak self] error in
+                    // Only fallback to durable transfer on ERROR
+                    self?.queue.async { [weak self] in
+                        self?.handleSendMessageError(error, payload: payload, context: context)
+                    }
+                }
+            )
+        } else {
+            // Not reachable - skip sendMessage entirely, use durable transfer
+            NotificationCenter.default.post(name: .syncFallbackOccurred, object: nil, userInfo: [
+                "context": "\(context).unreachable"
+            ])
+            session.transferUserInfo(payload)
+        }
     }
 
     func processPendingAggregateDeltas() {
