@@ -30,6 +30,10 @@ final class SupabaseTeamLibraryRepository: TeamLibraryStoring {
   private var processingTask: Task<Void, Never>?
   private var remoteCursor: Date?
 
+  var changesPublisher: AnyPublisher<[TeamRecord], Never> {
+    store.changesPublisher
+  }
+
   init(
     store: SwiftDataTeamLibraryStore,
     authStateProvider: SupabaseAuthStateProviding,
@@ -141,6 +145,20 @@ final class SupabaseTeamLibraryRepository: TeamLibraryStoring {
       enqueuePush(for: teamId)
     }
   }
+
+  func refreshFromRemote() async throws {
+    guard let ownerUUID else {
+      throw PersistenceAuthError.signedOut(operation: "refresh team library")
+    }
+    do {
+      try await flushPendingDeletions()
+      try await pushDirtyTeams()
+      try await pullRemoteUpdates(for: ownerUUID)
+    } catch {
+      log.error("Team library refresh failed: \(error.localizedDescription, privacy: .public)")
+      throw error
+    }
+  }
  }
 
 // MARK: - Identity Handling & Sync Scheduling
@@ -241,6 +259,29 @@ private extension SupabaseTeamLibraryRepository {
   }
 }
 
+extension SupabaseTeamLibraryRepository: AggregateTeamApplying {
+  func upsertTeam(from aggregate: AggregateSnapshotPayload.Team) throws {
+    let ownerUUID = try requireOwnerUUIDForAggregate(operation: "aggregate team upsert")
+    let record = try store.upsertFromAggregate(aggregate, ownerSupabaseId: ownerUUID.uuidString)
+    pendingDeletions.remove(record.id)
+    backlog.removePendingDeletion(id: record.id)
+    enqueuePush(for: record.id)
+  }
+
+  func deleteTeam(id: UUID) throws {
+    _ = try requireOwnerUUIDForAggregate(operation: "aggregate team delete")
+    if let existing = try fetchTeam(with: id) {
+      try deleteTeam(existing)
+    } else {
+      pendingPushes.remove(id)
+      pendingDeletions.insert(id)
+      backlog.addPendingDeletion(id: id)
+      scheduleProcessingTask()
+      publishSyncStatus()
+    }
+  }
+}
+
 // MARK: - Remote Operations
 
 private extension SupabaseTeamLibraryRepository {
@@ -280,6 +321,7 @@ private extension SupabaseTeamLibraryRepository {
       )
       try metadataPersistor.persistMetadataChanges(for: team)
       remoteCursor = max(remoteCursor ?? syncResult.updatedAt, syncResult.updatedAt)
+      store.publishChanges()
     } catch {
       pendingPushes.insert(teamId)
       log.error("Supabase team push failed id=\(teamId.uuidString, privacy: .public) error=\(error.localizedDescription, privacy: .public)")
@@ -324,6 +366,13 @@ private extension SupabaseTeamLibraryRepository {
     return try store.context.fetch(descriptor).first
   }
 
+  func requireOwnerUUIDForAggregate(operation: String) throws -> UUID {
+    guard let ownerUUID else {
+      throw PersistenceAuthError.signedOut(operation: operation)
+    }
+    return ownerUUID
+  }
+
   func mergeRemoteTeams(_ remoteTeams: [SupabaseTeamLibraryAPI.RemoteTeam], ownerUUID: UUID) throws {
     var didChange = false
     for remote in remoteTeams {
@@ -342,6 +391,7 @@ private extension SupabaseTeamLibraryRepository {
     }
     if didChange {
       try store.context.save()
+      store.publishChanges()
     }
   }
 

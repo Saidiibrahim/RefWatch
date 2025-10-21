@@ -16,8 +16,14 @@ public final class MatchViewModel {
     // MARK: - Properties
     public internal(set) var currentMatch: Match?
     public private(set) var savedMatches: [Match]
+    public private(set) var libraryTeams: [MatchLibraryTeam]
+    public private(set) var libraryCompetitions: [MatchLibraryCompetition]
+    public private(set) var libraryVenues: [MatchLibraryVenue]
+    public private(set) var librarySchedules: [MatchLibrarySchedule]
     private let history: MatchHistoryStoring
     private let backgroundRuntimeManager: BackgroundRuntimeManaging?
+    private var librarySavedMatches: [Match]
+    private var localSavedMatches: [Match]
     
     public var newMatch: Match
     public var isMatchInProgress: Bool = false
@@ -127,9 +133,13 @@ public final class MatchViewModel {
         self.haptics = haptics
         self.connectivity = connectivity
         self.backgroundRuntimeManager = backgroundRuntimeManager
-        self.savedMatches = [
-            Match(homeTeam: "Leeds United", awayTeam: "Newcastle United")
-        ]
+        self.savedMatches = []
+        self.libraryTeams = []
+        self.libraryCompetitions = []
+        self.libraryVenues = []
+        self.librarySchedules = []
+        self.librarySavedMatches = []
+        self.localSavedMatches = []
         self.newMatch = Match()
     }
 
@@ -152,12 +162,81 @@ public final class MatchViewModel {
     // MARK: - Match Management
     public func createMatch() {
         currentMatch = newMatch
-        savedMatches.append(newMatch)
+        localSavedMatches.append(newMatch)
+        refreshSavedMatches()
         newMatch = Match()
+        applyDefaultTeamsIfNeeded()
     }
     
     public func selectMatch(_ match: Match) {
         currentMatch = match
+    }
+
+    // MARK: - Library Integration
+    public func updateLibrary(with snapshot: MatchLibrarySnapshot) {
+        libraryTeams = snapshot.teams.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        libraryCompetitions = snapshot.competitions.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        libraryVenues = snapshot.venues.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        librarySchedules = snapshot.schedules.sorted { $0.kickoff < $1.kickoff }
+
+        librarySavedMatches = librarySchedules.map { schedule in
+            var match = Match(id: schedule.id, homeTeam: schedule.homeName, awayTeam: schedule.awayName)
+            match.startTime = schedule.kickoff
+            match.competitionName = schedule.competitionName
+            match.venueName = schedule.venueName
+            return match
+        }
+
+        refreshSavedMatches()
+        applyDefaultTeamsIfNeeded()
+    }
+
+    private func refreshSavedMatches() {
+        let libraryIds = Set(librarySavedMatches.map { $0.id })
+        let uniqueLocal = localSavedMatches.filter { libraryIds.contains($0.id) == false }
+        let combined = librarySavedMatches + uniqueLocal
+        savedMatches = combined.sorted { lhs, rhs in
+            switch (lhs.startTime, rhs.startTime) {
+            case let (lhsDate?, rhsDate?):
+                return lhsDate < rhsDate
+            case (nil, .some):
+                return false
+            case (.some, nil):
+                return true
+            default:
+                return lhs.id.uuidString < rhs.id.uuidString
+            }
+        }
+    }
+
+    private func applyDefaultTeamsIfNeeded(force: Bool = false) {
+        var updatedMatch = newMatch
+
+        if force || newMatch.homeTeam == "HOM" {
+            if let firstTeam = libraryTeams.first {
+                updatedMatch.homeTeam = firstTeam.name
+                updatedMatch.homeTeamId = firstTeam.id
+                homeTeam = firstTeam.name
+            } else if force {
+                homeTeam = updatedMatch.homeTeam
+            }
+        }
+
+        if force || newMatch.awayTeam == "AWA" {
+            if let awayCandidate = libraryTeams.dropFirst().first {
+                updatedMatch.awayTeam = awayCandidate.name
+                updatedMatch.awayTeamId = awayCandidate.id
+                awayTeam = awayCandidate.name
+            } else if force, let firstTeam = libraryTeams.first {
+                updatedMatch.awayTeam = firstTeam.name
+                updatedMatch.awayTeamId = firstTeam.id
+                awayTeam = firstTeam.name
+            } else if force {
+                awayTeam = updatedMatch.awayTeam
+            }
+        }
+
+        newMatch = updatedMatch
     }
     
     // MARK: - Timer Control
@@ -741,6 +820,7 @@ public final class MatchViewModel {
         homeTeamKickingOffET1 = nil
         penaltyManager.end()
         pendingConfirmation = nil
+        applyDefaultTeamsIfNeeded()
     }
     
     @MainActor

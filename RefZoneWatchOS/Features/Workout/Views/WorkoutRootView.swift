@@ -18,6 +18,7 @@ struct WorkoutRootView: View {
         if let session = viewModel.activeSession {
           WorkoutSessionHostView(
             session: session,
+            liveMetrics: viewModel.liveMetrics,
             isPaused: viewModel.isActiveSessionPaused,
             isEnding: viewModel.isPerformingAction,
             isRecordingSegment: viewModel.isRecordingSegment,

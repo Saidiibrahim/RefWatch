@@ -20,16 +20,24 @@ struct WorkoutHomeView: View {
 
   var body: some View {
     List {
-      if authorization.state != .authorized {
+      if authorization.state != .authorized || authorization.hasOptionalLimitations {
         Section("Permissions") {
-          WorkoutPermissionsCard(
-            message: authorizationMessage,
-            buttonTitle: authorizationButtonTitle,
-            isBusy: isBusy,
-            onRequestAccess: onRequestAccess
-          )
-          .listRowInsets(cardInsets)
-          .listRowBackground(Color.clear)
+          if authorization.state != .authorized {
+            WorkoutPermissionsCard(
+              message: authorizationMessage,
+              buttonTitle: authorizationButtonTitle,
+              isBusy: isBusy,
+              onRequestAccess: onRequestAccess
+            )
+            .listRowInsets(cardInsets)
+            .listRowBackground(Color.clear)
+          }
+
+          if let diagnosticsMessage {
+            WorkoutAuthorizationDiagnosticsBadge(message: diagnosticsMessage)
+              .listRowInsets(cardInsets)
+              .listRowBackground(Color.clear)
+          }
         }
       }
 
@@ -110,6 +118,15 @@ private extension WorkoutHomeView {
     case .authorized:
       return ""
     }
+  }
+
+  var diagnosticsMessage: String? {
+    let optionalMetrics = authorization.deniedOptionalMetrics
+    guard !optionalMetrics.isEmpty else { return nil }
+
+    let names = optionalMetrics.map(\.displayName).sorted()
+    let prefix = names.count == 1 ? "Optional metric unavailable" : "Optional metrics unavailable"
+    return "\(prefix): \(names.joined(separator: ", "))"
   }
 
   var authorizationButtonTitle: String {
@@ -349,6 +366,31 @@ private struct WorkoutPermissionsCard: View {
     }
     .buttonStyle(.plain)
     .disabled(isBusy)
+  }
+}
+
+private struct WorkoutAuthorizationDiagnosticsBadge: View {
+  @Environment(\.theme) private var theme
+  let message: String
+
+  var body: some View {
+    HStack(spacing: theme.spacing.xs) {
+      Image(systemName: "info.circle")
+        .font(theme.typography.iconSecondary)
+        .foregroundStyle(theme.colors.accentSecondary)
+
+      Text(message)
+        .font(theme.typography.cardMeta)
+        .foregroundStyle(theme.colors.accentSecondary)
+        .multilineTextAlignment(.leading)
+    }
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .padding(.vertical, theme.spacing.xs)
+    .padding(.horizontal, theme.spacing.s)
+    .background(
+      Capsule()
+        .fill(theme.colors.accentSecondary.opacity(0.16))
+    )
   }
 }
 

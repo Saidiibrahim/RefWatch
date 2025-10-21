@@ -6,11 +6,13 @@
 //
 
 import SwiftUI
+import Combine
 import RefWatchCore
 
 struct MatchRootView: View {
     @Environment(\.theme) private var theme
     @EnvironmentObject private var appModeController: AppModeController
+    @EnvironmentObject private var aggregateEnvironment: AggregateSyncEnvironment
     @Environment(\.modeSwitcherPresentation) private var modeSwitcherPresentation
     @State private var backgroundRuntimeController: BackgroundRuntimeSessionController
     @State private var matchViewModel: MatchViewModel
@@ -24,7 +26,7 @@ struct MatchRootView: View {
     private let navigationReducer = MatchNavigationReducer()
     
     @MainActor
-    init(matchViewModel: MatchViewModel? = nil) {
+    init(matchViewModel: MatchViewModel? = nil, connectivity: ConnectivitySyncProviding? = nil) {
         let runtimeController = BackgroundRuntimeSessionController()
         _backgroundRuntimeController = State(initialValue: runtimeController)
         if let matchViewModel {
@@ -33,7 +35,7 @@ struct MatchRootView: View {
             _matchViewModel = State(initialValue: MatchViewModel(
                 haptics: WatchHaptics(),
                 backgroundRuntime: runtimeController,
-                connectivity: WatchConnectivitySyncClient()
+                connectivity: connectivity
             ))
         }
         _settingsViewModel = State(initialValue: SettingsViewModel())
@@ -121,6 +123,12 @@ struct MatchRootView: View {
         .background(theme.colors.backgroundPrimary.ignoresSafeArea())
         .task {
             latestSummary = matchViewModel.latestCompletedMatchSummary()
+        }
+        .task {
+            matchViewModel.updateLibrary(with: aggregateEnvironment.librarySnapshot)
+        }
+        .onReceive(aggregateEnvironment.$librarySnapshot) { snapshot in
+            matchViewModel.updateLibrary(with: snapshot)
         }
         .onOpenURL { url in
             // Deep link from Smart Stack widget

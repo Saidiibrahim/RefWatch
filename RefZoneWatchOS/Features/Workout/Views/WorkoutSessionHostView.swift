@@ -6,6 +6,7 @@ import RefWorkoutCore
 
 struct WorkoutSessionHostView: View {
   let session: WorkoutSession
+  let liveMetrics: WorkoutLiveMetrics?
   let isPaused: Bool
   let isEnding: Bool
   let isRecordingSegment: Bool
@@ -23,6 +24,7 @@ struct WorkoutSessionHostView: View {
 
   init(
     session: WorkoutSession,
+    liveMetrics: WorkoutLiveMetrics?,
     isPaused: Bool,
     isEnding: Bool,
     isRecordingSegment: Bool,
@@ -35,6 +37,7 @@ struct WorkoutSessionHostView: View {
     onRequestNewSession: @escaping () -> Void
   ) {
     self.session = session
+    self.liveMetrics = liveMetrics
     self.isPaused = isPaused
     self.isEnding = isEnding
     self.isRecordingSegment = isRecordingSegment
@@ -66,7 +69,7 @@ struct WorkoutSessionHostView: View {
 
       WorkoutSessionMainPage(
         session: session,
-        metrics: primaryMetrics,
+        liveMetrics: liveMetrics,
         timerModel: timerModel
       )
       .tag(WorkoutSessionTab.metrics)
@@ -98,15 +101,27 @@ struct WorkoutSessionHostView: View {
 
 private struct WorkoutSessionMainPage: View {
   let session: WorkoutSession
-  let metrics: [WorkoutPrimaryMetric]
+  let liveMetrics: WorkoutLiveMetrics?
   @Environment(\.theme) private var theme
   @Environment(\.watchLayoutScale) private var layout
   @Bindable private var timerModel: WorkoutTimerFaceModel
 
-  init(session: WorkoutSession, metrics: [WorkoutPrimaryMetric], timerModel: WorkoutTimerFaceModel) {
+  init(session: WorkoutSession, liveMetrics: WorkoutLiveMetrics?, timerModel: WorkoutTimerFaceModel) {
     self.session = session
-    self.metrics = metrics
+    self.liveMetrics = liveMetrics
     _timerModel = Bindable(timerModel)
+  }
+
+  private var metrics: [WorkoutPrimaryMetric] {
+    let energy = WorkoutMetricFormatter.activeEnergy(liveMetrics?.activeEnergy ?? session.summary.activeEnergy)
+    let heartRate = WorkoutMetricFormatter.heartRate(liveMetrics?.heartRate ?? session.summary.averageHeartRate)
+    let distance = WorkoutMetricFormatter.distance(liveMetrics?.totalDistance ?? session.summary.totalDistance)
+
+    return [
+      WorkoutPrimaryMetric(title: "Active Energy", value: energy.value, unit: energy.unit),
+      WorkoutPrimaryMetric(title: "Heart Rate", value: heartRate.value, unit: heartRate.unit),
+      WorkoutPrimaryMetric(title: "Distance", value: distance.value, unit: distance.unit)
+    ]
   }
 
   var body: some View {
@@ -549,31 +564,19 @@ enum WorkoutSessionTab: Hashable {
   case media
 }
 
-private extension WorkoutSessionHostView {
-  var primaryMetrics: [WorkoutPrimaryMetric] {
-    let energy = formattedActiveEnergy(session.summary.activeEnergy)
-    let heartRate = formattedHeartRate(session.summary.averageHeartRate)
-    let distance = formattedDistance(session.summary.totalDistance)
-
-    return [
-      WorkoutPrimaryMetric(title: "Active Energy", value: energy.value, unit: energy.unit),
-      WorkoutPrimaryMetric(title: "Heart Rate", value: heartRate.value, unit: heartRate.unit),
-      WorkoutPrimaryMetric(title: "Distance", value: distance.value, unit: distance.unit)
-    ]
-  }
-
-  func formattedActiveEnergy(_ kilocalories: Double?) -> (value: String, unit: String?) {
+private enum WorkoutMetricFormatter {
+  static func activeEnergy(_ kilocalories: Double?) -> (value: String, unit: String?) {
     guard let kilocalories else { return ("--", nil) }
     let kilojoules = kilocalories * 4.184
     return (kilojoules.formatted(.number.precision(.fractionLength(0))), "kJ")
   }
 
-  func formattedHeartRate(_ rate: Double?) -> (value: String, unit: String?) {
+  static func heartRate(_ rate: Double?) -> (value: String, unit: String?) {
     guard let rate else { return ("--", nil) }
     return (Int(rate.rounded()).formatted(), "bpm")
   }
 
-  func formattedDistance(_ meters: Double?) -> (value: String, unit: String?) {
+  static func distance(_ meters: Double?) -> (value: String, unit: String?) {
     guard let meters else { return ("--", nil) }
     if meters >= 1000 {
       let kilometres = meters / 1000
@@ -693,6 +696,7 @@ private struct WorkoutGlyph: View {
 #Preview("Workout Session – Metrics 41mm") {
   WorkoutSessionHostView(
     session: WorkoutSessionPreviewData.active,
+    liveMetrics: WorkoutSessionPreviewData.liveMetrics,
     isPaused: false,
     isEnding: false,
     isRecordingSegment: false,
@@ -712,6 +716,7 @@ private struct WorkoutGlyph: View {
 #Preview("Workout Session – Paused 45mm") {
   WorkoutSessionHostView(
     session: WorkoutSessionPreviewData.active,
+    liveMetrics: WorkoutSessionPreviewData.liveMetrics,
     isPaused: true,
     isEnding: false,
     isRecordingSegment: false,
@@ -731,6 +736,7 @@ private struct WorkoutGlyph: View {
 #Preview("Workout Session – Media Ultra") {
   WorkoutSessionHostView(
     session: WorkoutSessionPreviewData.active,
+    liveMetrics: WorkoutSessionPreviewData.liveMetrics,
     isPaused: false,
     isEnding: false,
     isRecordingSegment: false,
@@ -765,8 +771,17 @@ private enum WorkoutSessionPreviewData {
       averageHeartRate: 134,
       maximumHeartRate: 168,
       totalDistance: 4_200,
+      activeEnergy: 310,
       duration: 1_200
     ),
     presetId: UUID()
+  )
+
+  static let liveMetrics = WorkoutLiveMetrics(
+    sessionId: active.id,
+    elapsedTime: 1_260,
+    totalDistance: 4_580,
+    activeEnergy: 328,
+    heartRate: 138
   )
 }

@@ -28,6 +28,7 @@ struct ScheduledMatch: Identifiable, Codable, Hashable {
     var remoteUpdatedAt: Date?
     var needsRemoteSync: Bool = false
     var sourceDeviceId: String?
+    var lastModifiedAt: Date?
 
     init(
         id: UUID = UUID(),
@@ -40,7 +41,8 @@ struct ScheduledMatch: Identifiable, Codable, Hashable {
         ownerSupabaseId: String? = nil,
         remoteUpdatedAt: Date? = nil,
         needsRemoteSync: Bool = false,
-        sourceDeviceId: String? = nil
+        sourceDeviceId: String? = nil,
+        lastModifiedAt: Date? = nil
     ) {
         self.id = id
         self.homeTeam = homeTeam
@@ -53,5 +55,6 @@ struct ScheduledMatch: Identifiable, Codable, Hashable {
         self.remoteUpdatedAt = remoteUpdatedAt
         self.needsRemoteSync = needsRemoteSync
         self.sourceDeviceId = sourceDeviceId
+        self.lastModifiedAt = lastModifiedAt
     }
 }

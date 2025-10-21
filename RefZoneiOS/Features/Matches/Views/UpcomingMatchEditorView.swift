@@ -92,7 +92,8 @@ struct UpcomingMatchEditorView: View {
             homeTeam: homeName.trimmingCharacters(in: .whitespacesAndNewlines),
             awayTeam: awayName.trimmingCharacters(in: .whitespacesAndNewlines),
             kickoff: kickoff,
-            needsRemoteSync: true
+            needsRemoteSync: true,
+            lastModifiedAt: Date()
         )
         do {
             try scheduleStore.save(item)

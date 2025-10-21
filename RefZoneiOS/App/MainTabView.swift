@@ -21,6 +21,7 @@ struct MainTabView: View {
     let competitionStore: CompetitionLibraryStoring
     let venueStore: VenueLibraryStoring
     let authController: SupabaseAuthController
+    let connectivityController: ConnectivitySyncController?
 
     var body: some View {
         TabView(selection: $router.selectedTab) {
@@ -55,6 +56,7 @@ struct MainTabView: View {
                 teamStore: teamStore,
                 competitionStore: competitionStore,
                 venueStore: venueStore,
+                connectivityController: connectivityController,
                 authController: authController
             )
                 .tabItem { Label("Settings", systemImage: "gear") }
@@ -79,7 +81,8 @@ struct MainTabView: View {
         authController: SupabaseAuthController(
             clientProvider: clientProvider,
             profileSynchronizer: synchronizer
-        )
+        ),
+        connectivityController: nil
     )
         .environmentObject(AppRouter.preview())
         .workoutServices(.inMemoryStub())

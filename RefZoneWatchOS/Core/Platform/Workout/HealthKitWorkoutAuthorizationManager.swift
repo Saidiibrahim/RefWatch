@@ -8,6 +8,8 @@ final class HealthKitWorkoutAuthorizationManager: WorkoutAuthorizationManaging {
   private let healthStore: HKHealthStore
   private let shareTypes: Set<HKSampleType>
   private let readTypes: Set<HKObjectType>
+  private let requiredReadTypes: [WorkoutAuthorizationMetric: HKQuantityType]
+  private let optionalReadTypes: [WorkoutAuthorizationMetric: HKQuantityType]
   private var lastPromptedAt: Date?
 
   init(healthStore: HKHealthStore = HKHealthStore()) {
@@ -15,24 +17,32 @@ final class HealthKitWorkoutAuthorizationManager: WorkoutAuthorizationManaging {
 
     var share: Set<HKSampleType> = [HKObjectType.workoutType()]
     var read: Set<HKObjectType> = [HKObjectType.workoutType()]
+    var requiredReads: [WorkoutAuthorizationMetric: HKQuantityType] = [:]
+    var optionalReads: [WorkoutAuthorizationMetric: HKQuantityType] = [:]
 
     if let distance = HKQuantityType.quantityType(forIdentifier: .distanceWalkingRunning) {
       share.insert(distance)
       read.insert(distance)
+      requiredReads[.distance] = distance
     }
     if let heartRate = HKQuantityType.quantityType(forIdentifier: .heartRate) {
       read.insert(heartRate)
+      requiredReads[.heartRate] = heartRate
     }
     if let energy = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned) {
       share.insert(energy)
       read.insert(energy)
+      requiredReads[.activeEnergy] = energy
     }
     if let vo2 = HKQuantityType.quantityType(forIdentifier: .vo2Max) {
       read.insert(vo2)
+      optionalReads[.vo2Max] = vo2
     }
 
     shareTypes = share
     readTypes = read
+    requiredReadTypes = requiredReads
+    optionalReadTypes = optionalReads
   }
 
   func authorizationStatus() async -> WorkoutAuthorizationStatus {
@@ -49,8 +59,14 @@ final class HealthKitWorkoutAuthorizationManager: WorkoutAuthorizationManaging {
     case .sharingDenied:
       return WorkoutAuthorizationStatus(state: .denied, lastPromptedAt: lastPromptedAt)
     case .sharingAuthorized:
-      let limited = hasLimitedReadAccess()
-      return WorkoutAuthorizationStatus(state: limited ? .limited : .authorized, lastPromptedAt: lastPromptedAt)
+      let deniedRequired = deniedRequiredMetrics()
+      let deniedOptional = deniedOptionalMetrics()
+      let state: WorkoutAuthorizationStatus.State = deniedRequired.isEmpty ? .authorized : .limited
+      return WorkoutAuthorizationStatus(
+        state: state,
+        lastPromptedAt: lastPromptedAt,
+        deniedMetrics: deniedRequired.union(deniedOptional)
+      )
     @unknown default:
       return WorkoutAuthorizationStatus(state: .denied, lastPromptedAt: lastPromptedAt)
     }
@@ -80,21 +96,32 @@ final class HealthKitWorkoutAuthorizationManager: WorkoutAuthorizationManaging {
     }
   }
 
-  private func hasLimitedReadAccess() -> Bool {
-    readTypes.contains { objectType in
-      guard let quantityType = objectType as? HKQuantityType else { return false }
+  private func deniedRequiredMetrics() -> Set<WorkoutAuthorizationMetric> {
+    Set(requiredReadTypes.compactMap { metric, quantityType in
       let status = healthStore.authorizationStatus(for: quantityType)
       switch status {
       case .sharingAuthorized:
-        return false
-      case .sharingDenied:
-        return true
-      case .notDetermined:
-        return false
+        return nil
+      case .sharingDenied, .notDetermined:
+        return metric
       @unknown default:
-        return true
+        return metric
       }
-    }
+    })
+  }
+
+  private func deniedOptionalMetrics() -> Set<WorkoutAuthorizationMetric> {
+    Set(optionalReadTypes.compactMap { metric, quantityType in
+      let status = healthStore.authorizationStatus(for: quantityType)
+      switch status {
+      case .sharingAuthorized, .notDetermined:
+        return nil
+      case .sharingDenied:
+        return metric
+      @unknown default:
+        return metric
+      }
+    })
   }
 }
 

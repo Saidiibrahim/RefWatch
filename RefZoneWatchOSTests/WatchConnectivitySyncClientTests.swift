@@ -7,6 +7,8 @@ final class MockWCSession: WCSessioning {
     var isReachable: Bool
     var sendShouldError: Bool
     private(set) var transferred: [[String: Any]] = []
+    var delegate: WCSessionDelegate?
+    var receivedApplicationContext: [String : Any] = [:]
 
     init(isReachable: Bool, sendShouldError: Bool) {
         self.isReachable = isReachable

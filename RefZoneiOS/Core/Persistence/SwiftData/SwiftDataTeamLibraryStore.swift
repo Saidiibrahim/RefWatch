@@ -8,17 +8,33 @@
 import Foundation
 import SwiftData
 import RefWatchCore
+import Combine
+import OSLog
 
 @MainActor
 final class SwiftDataTeamLibraryStore: TeamLibraryStoring, TeamLibraryMetadataPersisting {
     private let container: ModelContainer
     let context: ModelContext
     private let auth: AuthenticationProviding
+    private let log = AppLog.supabase
+    private let changesSubject: CurrentValueSubject<[TeamRecord], Never>
 
     init(container: ModelContainer, auth: AuthenticationProviding) {
         self.container = container
         self.context = ModelContext(container)
         self.auth = auth
+        let initial: [TeamRecord]
+        do {
+            initial = try context.fetch(FetchDescriptor<TeamRecord>(sortBy: [SortDescriptor(\.name, order: .forward)]))
+        } catch {
+            log.error("Failed to load initial teams for publisher bootstrap: \(error.localizedDescription, privacy: .public)")
+            initial = []
+        }
+        self.changesSubject = CurrentValueSubject(initial)
+    }
+
+    var changesPublisher: AnyPublisher<[TeamRecord], Never> {
+        changesSubject.eraseToAnyPublisher()
     }
 
     // MARK: - Teams
@@ -45,6 +61,7 @@ final class SwiftDataTeamLibraryStore: TeamLibraryStoring, TeamLibraryMetadataPe
         team.markLocallyModified(ownerSupabaseId: ownerId)
         context.insert(team)
         try context.save()
+        publishChanges()
         return team
     }
 
@@ -53,12 +70,14 @@ final class SwiftDataTeamLibraryStore: TeamLibraryStoring, TeamLibraryMetadataPe
         // TeamRecord is reference type in ModelContext; fields mutated directly by caller.
         team.markLocallyModified(ownerSupabaseId: ownerId)
         try context.save()
+        publishChanges()
     }
 
     func deleteTeam(_ team: TeamRecord) throws {
-        try requireSignedIn(operation: "delete team")
+        _ = try requireSignedIn(operation: "delete team")
         context.delete(team)
         try context.save()
+        publishChanges()
     }
 
     // MARK: - Players
@@ -69,6 +88,7 @@ final class SwiftDataTeamLibraryStore: TeamLibraryStoring, TeamLibraryMetadataPe
         context.insert(p)
         team.markLocallyModified(ownerSupabaseId: ownerId)
         try context.save()
+        publishChanges()
         return p
     }
 
@@ -76,6 +96,7 @@ final class SwiftDataTeamLibraryStore: TeamLibraryStoring, TeamLibraryMetadataPe
         let ownerId = try requireSignedIn(operation: "update player")
         player.team?.markLocallyModified(ownerSupabaseId: ownerId)
         try context.save()
+        publishChanges()
     }
 
     func deletePlayer(_ player: PlayerRecord) throws {
@@ -86,6 +107,7 @@ final class SwiftDataTeamLibraryStore: TeamLibraryStoring, TeamLibraryMetadataPe
         }
         context.delete(player)
         try context.save()
+        publishChanges()
     }
 
     // MARK: - Officials
@@ -96,6 +118,7 @@ final class SwiftDataTeamLibraryStore: TeamLibraryStoring, TeamLibraryMetadataPe
         context.insert(o)
         team.markLocallyModified(ownerSupabaseId: ownerId)
         try context.save()
+        publishChanges()
         return o
     }
 
@@ -103,6 +126,7 @@ final class SwiftDataTeamLibraryStore: TeamLibraryStoring, TeamLibraryMetadataPe
         let ownerId = try requireSignedIn(operation: "update official")
         official.team?.markLocallyModified(ownerSupabaseId: ownerId)
         try context.save()
+        publishChanges()
     }
 
     func deleteOfficial(_ official: TeamOfficialRecord) throws {
@@ -113,12 +137,14 @@ final class SwiftDataTeamLibraryStore: TeamLibraryStoring, TeamLibraryMetadataPe
         }
         context.delete(official)
         try context.save()
+        publishChanges()
     }
 
     func persistMetadataChanges(for team: TeamRecord) throws {
-        try requireSignedIn(operation: "persist team metadata")
+        _ = try requireSignedIn(operation: "persist team metadata")
         // Metadata adjustments do not require additional mutations; simply saving commits changes.
         try context.save()
+        publishChanges()
     }
 
     func wipeAllForLogout() throws {
@@ -127,12 +153,140 @@ final class SwiftDataTeamLibraryStore: TeamLibraryStoring, TeamLibraryMetadataPe
         if context.hasChanges {
             try context.save()
         }
+        publishChanges()
     }
+
+    func refreshFromRemote() async throws { }
 
     private func requireSignedIn(operation: String) throws -> String {
         guard let userId = auth.currentUserId else {
             throw PersistenceAuthError.signedOut(operation: operation)
         }
         return userId
+    }
+
+    func publishChanges() {
+        do {
+            let all = try loadAllTeams()
+            changesSubject.send(all)
+        } catch {
+            log.error("Failed to publish team changes: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    // MARK: - Aggregate Delta Support
+
+    func fetchTeam(id: UUID) throws -> TeamRecord? {
+        var descriptor = FetchDescriptor<TeamRecord>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
+        return try context.fetch(descriptor).first
+    }
+
+    func upsertFromAggregate(_ aggregate: AggregateSnapshotPayload.Team, ownerSupabaseId ownerId: String) throws -> TeamRecord {
+        let record: TeamRecord
+        if let existing = try fetchTeam(id: aggregate.id) {
+            record = existing
+        } else {
+            record = TeamRecord(
+                id: aggregate.id,
+                name: aggregate.name,
+                shortName: aggregate.shortName,
+                division: aggregate.division,
+                primaryColorHex: aggregate.primaryColorHex,
+                secondaryColorHex: aggregate.secondaryColorHex,
+                ownerSupabaseId: ownerId,
+                lastModifiedAt: aggregate.lastModifiedAt,
+                remoteUpdatedAt: aggregate.remoteUpdatedAt,
+                needsRemoteSync: true
+            )
+            context.insert(record)
+        }
+
+        record.name = aggregate.name
+        record.shortName = aggregate.shortName
+        record.division = aggregate.division
+        record.primaryColorHex = aggregate.primaryColorHex
+        record.secondaryColorHex = aggregate.secondaryColorHex
+        record.ownerSupabaseId = ownerId
+        record.lastModifiedAt = aggregate.lastModifiedAt
+        record.remoteUpdatedAt = aggregate.remoteUpdatedAt
+        record.needsRemoteSync = true
+
+        // Players
+        var seenPlayerIDs = Set<UUID>()
+        let existingPlayers = Dictionary(uniqueKeysWithValues: record.players.map { ($0.id, $0) })
+        for player in aggregate.players {
+            seenPlayerIDs.insert(player.id)
+            if let existing = existingPlayers[player.id] {
+                existing.name = player.name
+                existing.number = player.number
+                existing.position = player.position
+                existing.notes = player.notes
+            } else {
+                let newPlayer = PlayerRecord(
+                    id: player.id,
+                    name: player.name,
+                    number: player.number,
+                    position: player.position,
+                    notes: player.notes,
+                    team: record
+                )
+                record.players.append(newPlayer)
+                context.insert(newPlayer)
+            }
+        }
+        if record.players.isEmpty == false {
+            record.players.removeAll { player in
+                if seenPlayerIDs.contains(player.id) {
+                    return false
+                }
+                context.delete(player)
+                return true
+            }
+        }
+
+        // Officials
+        var seenOfficialIDs = Set<UUID>()
+        let existingOfficials = Dictionary(uniqueKeysWithValues: record.officials.map { ($0.id, $0) })
+        for official in aggregate.officials {
+            seenOfficialIDs.insert(official.id)
+            if let existing = existingOfficials[official.id] {
+                existing.name = official.name
+                existing.roleRaw = official.roleRaw
+                existing.phone = official.phone
+                existing.email = official.email
+            } else {
+                let newOfficial = TeamOfficialRecord(
+                    id: official.id,
+                    name: official.name,
+                    roleRaw: official.roleRaw,
+                    phone: official.phone,
+                    email: official.email,
+                    team: record
+                )
+                record.officials.append(newOfficial)
+                context.insert(newOfficial)
+            }
+        }
+        if record.officials.isEmpty == false {
+            record.officials.removeAll { official in
+                if seenOfficialIDs.contains(official.id) {
+                    return false
+                }
+                context.delete(official)
+                return true
+            }
+        }
+
+        try context.save()
+        publishChanges()
+        return record
+    }
+
+    func deleteTeam(id: UUID) throws {
+        guard let existing = try fetchTeam(id: id) else { return }
+        context.delete(existing)
+        try context.save()
+        publishChanges()
     }
 }
