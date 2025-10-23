@@ -164,8 +164,8 @@ struct RefZoneiOSApp: App {
                     // One-time healing: if any completed matches reference a schedule still marked scheduled,
                     // flip that schedule to completed to keep watch/iOS lists clean.
                     Task { @MainActor in
-                        let completed = (try? swiftHistoryStore.loadAll()) ?? []
-                        let schedules = schedStore.loadAll()
+                        let completed = (try? self.historyStore.loadAll()) ?? []
+                        let schedules = self.scheduleStore.loadAll()
                         var changed: [ScheduledMatch] = []
                         for snapshot in completed {
                             if let sid = snapshot.scheduledMatchId, let idx = schedules.firstIndex(where: { $0.id == sid }) {
@@ -173,7 +173,7 @@ struct RefZoneiOSApp: App {
                                 if sc.status == .scheduled { sc.status = .completed; changed.append(sc) }
                             }
                         }
-                        for s in changed { try? schedStore.save(s) }
+                        for s in changed { try? self.scheduleStore.save(s) }
                     }
                 }
                 .onReceive(router.$authenticationRequest.compactMap { $0 }) { screen in

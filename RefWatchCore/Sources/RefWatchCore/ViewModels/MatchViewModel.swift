@@ -296,7 +296,7 @@ public final class MatchViewModel {
                             try? await updater.markScheduleInProgress(scheduledId: scheduledId)
                         } else {
                             // On watchOS, bridge to iOS via connectivity if available.
-                            (connectivity as? ConnectivitySyncProvidingExtended)?.sendScheduleStatusUpdate(scheduledId: scheduledId)
+                            (connectivity as? ConnectivitySyncProvidingExtended)?.sendScheduleStatusUpdate(scheduledId: scheduledId, status: "in_progress")
                         }
                     }
                 }
