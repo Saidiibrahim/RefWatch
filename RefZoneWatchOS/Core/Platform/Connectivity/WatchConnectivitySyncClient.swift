@@ -115,7 +115,7 @@ final class WatchConnectivitySyncClient: NSObject, ConnectivitySyncProvidingExte
       "status": status
     ]
     if session.isReachable {
-      session.sendMessage(payload, replyHandler: nil) { _ in
+      session.sendMessage(payload) { _ in
         Task { @MainActor in
           _ = session.transferUserInfo(payload)
         }
