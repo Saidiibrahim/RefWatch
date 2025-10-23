@@ -15,6 +15,8 @@ struct TeamDetailsView: View {
     @State private var selectedPlayerNumber: Int?
     @State private var showingPlayerNumberInput = false
     @State private var selectedGoalType: GoalDetails.GoalType?
+    @State private var showingYellowCard = false
+    @State private var showingRedCard = false
     @Environment(\.theme) private var theme
     @Environment(\.watchLayoutScale) private var layout
 
@@ -46,6 +48,22 @@ struct TeamDetailsView: View {
                     }
                 )
             }
+        }
+        .sheet(isPresented: $showingYellowCard) {
+            CardEventFlow(
+                cardType: .yellow,
+                team: teamType,
+                matchViewModel: matchViewModel,
+                setupViewModel: setupViewModel
+            )
+        }
+        .sheet(isPresented: $showingRedCard) {
+            CardEventFlow(
+                cardType: .red,
+                team: teamType,
+                matchViewModel: matchViewModel,
+                setupViewModel: setupViewModel
+            )
         }
     }
     
@@ -83,25 +101,13 @@ struct TeamDetailsView: View {
 
     private var eventGridItems: [AdaptiveEventGridItem] {
         [
-            AdaptiveEventGridItem(icon: "square.fill", color: .yellow, label: "Yellow", onTap: {
+            AdaptiveEventGridItem(icon: "square.fill", color: .yellow, label: "Yellow") {
                 WKInterfaceDevice.current().play(haptic(for: "square.fill"))
-            }) {
-                CardEventFlow(
-                    cardType: .yellow,
-                    team: teamType,
-                    matchViewModel: matchViewModel,
-                    setupViewModel: setupViewModel
-                )
+                showingYellowCard = true
             },
-            AdaptiveEventGridItem(icon: "square.fill", color: .red, label: "Red", onTap: {
+            AdaptiveEventGridItem(icon: "square.fill", color: .red, label: "Red") {
                 WKInterfaceDevice.current().play(haptic(for: "square.fill"))
-            }) {
-                CardEventFlow(
-                    cardType: .red,
-                    team: teamType,
-                    matchViewModel: matchViewModel,
-                    setupViewModel: setupViewModel
-                )
+                showingRedCard = true
             },
             AdaptiveEventGridItem(icon: "arrow.up.arrow.down", color: .blue, label: "Sub", onTap: {
                 WKInterfaceDevice.current().play(haptic(for: "arrow.up.arrow.down"))

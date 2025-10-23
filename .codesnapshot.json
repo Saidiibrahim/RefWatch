@@ -1,0 +1,15 @@
+{
+    "directories": [
+        "RefWatchCore/Sources/Protocols",
+        "RefWatchCore/Sources/ViewModels",
+        "RefZoneiOS/Config",
+        "RefZoneiOS/Features",
+        "RefZoneiOS/Core",
+        "RefZoneWatchOS/Features",
+        "RefZoneWatchOS/Core"
+    ],
+    "output_file": "code_snapshot.md",
+    "include_extensions": [".swift"],
+    "exclude_dirs": ["Pods", ".git", "build", ".cursor", ".build"],
+    "exclude_files": ["Config/Secrets.xcconfig", ".cursorrules", "CLAUDE.md", "AGENTS.md", "README.md"]
+}

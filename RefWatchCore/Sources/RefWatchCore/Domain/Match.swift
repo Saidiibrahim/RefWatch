@@ -10,6 +10,7 @@ import Foundation
 
 public struct Match: Identifiable, Codable {
     public let id: UUID
+    public var scheduledMatchId: UUID?
     public var homeTeam: String
     public var awayTeam: String
     public var homeTeamId: UUID?
@@ -39,6 +40,7 @@ public struct Match: Identifiable, Codable {
     
     public init(
         id: UUID = UUID(),
+        scheduledMatchId: UUID? = nil,
         homeTeam: String = "HOM",
         awayTeam: String = "AWA",
         duration: TimeInterval = 90 * 60,
@@ -56,6 +58,7 @@ public struct Match: Identifiable, Codable {
         venueName: String? = nil
     ) {
         self.id = id
+        self.scheduledMatchId = scheduledMatchId
         self.homeTeam = homeTeam
         self.awayTeam = awayTeam
         self.homeTeamId = homeTeamId

@@ -33,6 +33,7 @@ extension Notification.Name {
 final class IOSConnectivitySyncClient: NSObject {
     private let history: MatchHistoryStoring
     private let auth: AuthenticationProviding
+    private let scheduleStore: ScheduleStoring?
     private let mediaHandler: WorkoutMediaCommandHandling?
     private let stateQueue = DispatchQueue(label: "IOSConnectivitySyncClient.state")
     private var signedInFlag: Bool = false
@@ -49,9 +50,15 @@ final class IOSConnectivitySyncClient: NSObject {
     private let queue = DispatchQueue(label: "IOSConnectivitySyncClient.decode")
 #endif
 
-    init(history: MatchHistoryStoring, auth: AuthenticationProviding, mediaHandler: WorkoutMediaCommandHandling? = nil) {
+    init(
+        history: MatchHistoryStoring,
+        auth: AuthenticationProviding,
+        scheduleStore: ScheduleStoring? = nil,
+        mediaHandler: WorkoutMediaCommandHandling? = nil
+    ) {
         self.history = history
         self.auth = auth
+        self.scheduleStore = scheduleStore
         self.mediaHandler = mediaHandler
         super.init()
     }
@@ -251,11 +258,43 @@ private extension IOSConnectivitySyncClient {
         stateQueue.sync { signedInFlag }
     }
 
+    @MainActor
+    private func markScheduleCompleted(_ snapshot: CompletedMatch) {
+        guard let scheduleStore else { return }
+
+        // FIXED: Use scheduledMatchId from the snapshot, not match.id
+        guard let scheduledId = snapshot.match.scheduledMatchId else {
+            // OK - manually created matches have no schedule link
+            #if DEBUG
+            AppLog.connectivity.debug("Completed match has no scheduledMatchId - skipping schedule update")
+            #endif
+            return
+        }
+
+        if let schedule = scheduleStore.loadAll().first(where: { $0.id == scheduledId }) {
+            var updated = schedule
+            updated.status = .completed
+            try? scheduleStore.save(updated)
+
+            #if DEBUG
+            AppLog.connectivity.debug("✅ Watch completion: marked schedule \(scheduledId.uuidString, privacy: .public) completed")
+            #endif
+        } else {
+            #if DEBUG
+            NotificationCenter.default.post(name: .syncFallbackOccurred, object: nil, userInfo: [
+                "context": "ios.connectivity.scheduleNotFound",
+                "scheduledId": scheduledId.uuidString
+            ])
+            #endif
+        }
+    }
+
     func persist(_ match: CompletedMatch) {
         Task { @MainActor in
             let snapshot = match.attachingOwnerIfMissing(using: auth)
             do {
                 try history.save(snapshot)
+                markScheduleCompleted(snapshot)  // FIXED: Pass snapshot, not ID
             } catch {
                 AppLog.history.error("Failed to save synced snapshot: \(error.localizedDescription, privacy: .public)")
                 NotificationCenter.default.post(name: .syncNonrecoverableError, object: nil, userInfo: [
@@ -297,6 +336,31 @@ private extension IOSConnectivitySyncClient {
                 "context": "ios.aggregate.delta.queued"
             ])
         }
+    }
+
+    // MARK: - Schedule status updates from Watch
+    @MainActor
+    func handleScheduleStatusUpdate(_ payload: [String: Any]) {
+        guard let scheduleStore else { return }
+        guard let idString = payload["scheduledId"] as? String, let scheduledId = UUID(uuidString: idString) else {
+            AppLog.connectivity.error("Malformed scheduleStatusUpdate payload")
+            return
+        }
+        guard let status = payload["status"] as? String else { return }
+        let all = scheduleStore.loadAll()
+        guard var schedule = all.first(where: { $0.id == scheduledId }) else { return }
+        switch status.lowercased() {
+        case "in_progress":
+            schedule.status = .inProgress
+        case "completed":
+            schedule.status = .completed
+        case "canceled":
+            schedule.status = .canceled
+        default:
+            schedule.status = .scheduled
+        }
+        try? scheduleStore.save(schedule)
+        AppLog.connectivity.debug("📲 Applied scheduleStatusUpdate id=\(scheduledId.uuidString, privacy: .public) status=\(status, privacy: .public)")
     }
 
     func flushAggregateSnapshots() {
@@ -476,6 +540,9 @@ extension IOSConnectivitySyncClient: WCSessionDelegate {
         guard let type = message["type"] as? String else { return }
 
         switch type {
+        case "scheduleStatusUpdate":
+            handleScheduleStatusUpdate(message)
+
         case "completedMatch":
             guard let data = message["data"] as? Data else {
                 DispatchQueue.main.async {
@@ -557,6 +624,9 @@ extension IOSConnectivitySyncClient: WCSessionDelegate {
         guard let type = userInfo["type"] as? String else { return }
 
         switch type {
+        case "scheduleStatusUpdate":
+            handleScheduleStatusUpdate(userInfo)
+
         case "completedMatch":
             guard let data = userInfo["data"] as? Data else {
                 DispatchQueue.main.async {

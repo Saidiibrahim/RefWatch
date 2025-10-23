@@ -57,8 +57,8 @@ final class LiveActivityStatePublisher: LiveActivityPublishing {
     return LiveActivityState(
       version: 1,
       matchIdentifier: match.id.uuidString,
-      homeAbbr: match.homeTeam,
-      awayAbbr: match.awayTeam,
+      homeAbbr: model.homeTeamDisplayName,
+      awayAbbr: model.awayTeamDisplayName,
       homeScore: match.homeScore,
       awayScore: match.awayScore,
       periodLabel: periodLabel,

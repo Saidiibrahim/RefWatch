@@ -219,7 +219,7 @@ private extension AggregateSnapshotBuilder {
             kickoff: match.kickoff,
             competition: match.competition,
             notes: match.notes,
-            statusRaw: match.status.rawValue,
+            statusRaw: match.status.databaseValue,
             sourceDeviceId: match.sourceDeviceId
         )
     }
