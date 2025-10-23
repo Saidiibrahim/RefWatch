@@ -74,13 +74,13 @@ import RefWatchCore
             print("DEBUG: Cannot record card - missing reason")
             return
         }
-        
+
         print("DEBUG: Recording card - Type: \(cardType), Reason: \(reason), Player: \(String(describing: selectedPlayerNumber)), Official: \(String(describing: selectedOfficialRole))")
-        
+
         // Use canonical card type directly
         let recipientType: CardRecipientType = selectedRecipient ?? .player
         let team: TeamSide = selectedTeam == .home ? .home : .away
-        
+
         // Use new comprehensive recordCard method
         matchViewModel.recordCard(
             team: team,
@@ -90,8 +90,18 @@ import RefWatchCore
             officialRole: selectedOfficialRole,
             reason: reason
         )
-        
+
         setupViewModel.setSelectedTab(1)
         print("DEBUG: Successfully recorded card using new system, navigating to middle screen...")
+    }
+
+    /// Resets the coordinator to its initial state.
+    /// Called when CardEventFlow appears to ensure fresh state on each presentation.
+    func resetToInitialState() {
+        currentStep = .recipient
+        selectedRecipient = nil
+        selectedPlayerNumber = nil
+        selectedOfficialRole = nil
+        selectedReason = nil
     }
 } 

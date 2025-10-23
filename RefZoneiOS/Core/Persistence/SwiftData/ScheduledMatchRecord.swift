@@ -60,7 +60,7 @@ final class ScheduledMatchRecord {
         self.awayName = awayName
         self.competition = competition
         self.notes = notes
-        self.statusRaw = status.rawValue
+        self.statusRaw = status.databaseValue
         self.ownerSupabaseId = ownerSupabaseId
         self.lastModifiedAt = lastModifiedAt
         self.remoteUpdatedAt = remoteUpdatedAt
@@ -71,8 +71,8 @@ final class ScheduledMatchRecord {
 
 extension ScheduledMatchRecord {
     var status: ScheduledMatch.Status {
-        get { ScheduledMatch.Status(rawValue: statusRaw) ?? .scheduled }
-        set { statusRaw = newValue.rawValue }
+        get { ScheduledMatch.Status(fromDatabase: statusRaw) }
+        set { statusRaw = newValue.databaseValue }
     }
 
     func update(from item: ScheduledMatch, markModified: Bool = true, dateProvider: () -> Date = Date.init) {
@@ -106,6 +106,6 @@ extension ScheduledMatchRecord {
         remoteUpdatedAt = updatedAt
         needsRemoteSync = false
         lastModifiedAt = synchronizedAt
-        statusRaw = status.rawValue
+        statusRaw = status.databaseValue
     }
 }

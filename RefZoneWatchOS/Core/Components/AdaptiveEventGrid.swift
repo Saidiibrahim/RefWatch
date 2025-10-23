@@ -6,14 +6,24 @@ struct AdaptiveEventGridItem: Identifiable {
     let icon: String
     let color: Color
     let label: String
-    let destination: AnyView
+    let destination: AnyView?
     let onTap: (() -> Void)?
 
+    /// Initialize with a navigation destination
     init(icon: String, color: Color, label: String, onTap: (() -> Void)? = nil, @ViewBuilder destination: () -> some View) {
         self.icon = icon
         self.color = color
         self.label = label
         self.destination = AnyView(destination())
+        self.onTap = onTap
+    }
+
+    /// Initialize as a tap-only button (no navigation)
+    init(icon: String, color: Color, label: String, onTap: @escaping () -> Void) {
+        self.icon = icon
+        self.color = color
+        self.label = label
+        self.destination = nil
         self.onTap = onTap
     }
 }
@@ -85,18 +95,33 @@ struct AdaptiveEventGrid: View {
         }
     }
 
+    @ViewBuilder
     private func eventButton(for item: AdaptiveEventGridItem) -> some View {
-        NavigationLink(destination: item.destination) {
-            EventButtonView(
-                icon: item.icon,
-                color: item.color,
-                label: item.label,
-                isNavigationLabel: true
+        if let destination = item.destination {
+            // Navigation button
+            NavigationLink(destination: destination) {
+                EventButtonView(
+                    icon: item.icon,
+                    color: item.color,
+                    label: item.label,
+                    isNavigationLabel: true
+                )
+            }
+            .buttonStyle(.plain)
+            .simultaneousGesture(
+                TapGesture().onEnded { item.onTap?() }
             )
+        } else {
+            // Tap-only button
+            Button(action: { item.onTap?() }) {
+                EventButtonView(
+                    icon: item.icon,
+                    color: item.color,
+                    label: item.label,
+                    isNavigationLabel: false
+                )
+            }
+            .buttonStyle(.plain)
         }
-        .buttonStyle(.plain)
-        .simultaneousGesture(
-            TapGesture().onEnded { item.onTap?() }
-        )
     }
 }

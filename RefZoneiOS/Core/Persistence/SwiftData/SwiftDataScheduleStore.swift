@@ -168,7 +168,7 @@ extension SwiftDataScheduleStore {
                 awayName: aggregate.awayName,
                 competition: aggregate.competition,
                 notes: aggregate.notes,
-                status: ScheduledMatch.Status(rawValue: aggregate.statusRaw) ?? .scheduled,
+                status: ScheduledMatch.Status(fromDatabase: aggregate.statusRaw),
                 ownerSupabaseId: ownerId,
                 lastModifiedAt: aggregate.lastModifiedAt,
                 remoteUpdatedAt: aggregate.remoteUpdatedAt,

@@ -24,6 +24,12 @@ public final class MatchViewModel {
     private let backgroundRuntimeManager: BackgroundRuntimeManaging?
     private var librarySavedMatches: [Match]
     private var localSavedMatches: [Match]
+    private enum LibraryScheduleStatus {
+        case scheduled
+        case inProgress
+        case completed
+        case canceled
+    }
     
     public var newMatch: Match
     public var isMatchInProgress: Bool = false
@@ -93,7 +99,8 @@ public final class MatchViewModel {
     private let penaltyManager: PenaltyManaging
     private let haptics: HapticsProviding
     private let connectivity: ConnectivitySyncProviding?
-    
+    private let scheduleStatusUpdater: MatchScheduleStatusUpdating?
+
     // Persistence error feedback surfaced to UI (optional alert)
     public var lastPersistenceError: String? = nil
     
@@ -126,13 +133,15 @@ public final class MatchViewModel {
         penaltyManager: PenaltyManaging = PenaltyManager(),
         haptics: HapticsProviding = NoopHaptics(),
         connectivity: ConnectivitySyncProviding? = nil,
-        backgroundRuntimeManager: BackgroundRuntimeManaging? = nil
+        backgroundRuntimeManager: BackgroundRuntimeManaging? = nil,
+        scheduleStatusUpdater: MatchScheduleStatusUpdating? = nil
     ) {
         self.history = history
         self.penaltyManager = penaltyManager
         self.haptics = haptics
         self.connectivity = connectivity
         self.backgroundRuntimeManager = backgroundRuntimeManager
+        self.scheduleStatusUpdater = scheduleStatusUpdater
         self.savedMatches = []
         self.libraryTeams = []
         self.libraryCompetitions = []
@@ -179,8 +188,24 @@ public final class MatchViewModel {
         libraryVenues = snapshot.venues.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
         librarySchedules = snapshot.schedules.sorted { $0.kickoff < $1.kickoff }
 
-        librarySavedMatches = librarySchedules.map { schedule in
-            var match = Match(id: schedule.id, homeTeam: schedule.homeName, awayTeam: schedule.awayName)
+        // Upcoming-only filter for watch "Select Match" list
+        // - Show only schedules that are truly upcoming (status == .scheduled)
+        // - Exclude in-progress/completed/canceled
+        // - Exclude past kickoffs; allow a small grace window to avoid race conditions
+        let now = Date()
+        let graceSeconds: TimeInterval = 10 * 60 // 10-minute grace
+        let upcomingScheduled = librarySchedules.filter { schedule in
+            let status = decodeScheduleStatus(schedule.statusRaw)
+            return status == .scheduled && schedule.kickoff >= now.addingTimeInterval(-graceSeconds)
+        }
+
+        librarySavedMatches = upcomingScheduled.map { schedule in
+            var match = Match(
+                id: schedule.id,  // Use schedule.id as match.id for watch display/selection
+                scheduledMatchId: schedule.id,  // Also link to schedule for status updates
+                homeTeam: schedule.homeName,
+                awayTeam: schedule.awayName
+            )
             match.startTime = schedule.kickoff
             match.competitionName = schedule.competitionName
             match.venueName = schedule.venueName
@@ -238,7 +263,19 @@ public final class MatchViewModel {
 
         newMatch = updatedMatch
     }
-    
+
+    private func decodeScheduleStatus(_ raw: String) -> LibraryScheduleStatus {
+        switch raw.lowercased() {
+        case "in_progress":
+            return .inProgress
+        case "completed":
+            return .completed
+        case "canceled":
+            return .canceled
+        default:
+            return .scheduled
+        }
+    }
     // MARK: - Timer Control
     public func startMatch() {
         guard currentMatch != nil else { return }
@@ -252,6 +289,18 @@ public final class MatchViewModel {
                 currentMatch = m
             }
             if let match = currentMatch {
+                // If this match originated from a schedule, mark the schedule in progress.
+                if let scheduledId = match.scheduledMatchId {
+                    Task { @MainActor in
+                        if let updater = scheduleStatusUpdater {
+                            try? await updater.markScheduleInProgress(scheduledId: scheduledId)
+                        } else {
+                            // On watchOS, bridge to iOS via connectivity if available.
+                            (connectivity as? ConnectivitySyncProvidingExtended)?.sendScheduleStatusUpdate(scheduledId: scheduledId)
+                        }
+                    }
+                }
+
                 refreshRuntimeSession(with: match)
                 self.periodTimeRemaining = timerManager.configureInitialPeriodLabel(match: match, currentPeriod: currentPeriod)
             }
@@ -826,6 +875,7 @@ public final class MatchViewModel {
     @MainActor
     public func finalizeMatch() {
         recordMatchEvent(.matchEnd)
+
         if let match = currentMatch {
             let snapshot = CompletedMatch(
                 match: match,
@@ -834,6 +884,15 @@ public final class MatchViewModel {
             do {
                 try history.save(snapshot)
                 connectivity?.sendCompletedMatch(snapshot)
+                localSavedMatches.removeAll { $0.id == match.id }
+                refreshSavedMatches()
+
+                // Mark schedule as completed if this was a scheduled match (iOS-only)
+                if let scheduledId = match.scheduledMatchId {
+                    Task { @MainActor in
+                        try? await scheduleStatusUpdater?.markScheduleCompleted(scheduledId: scheduledId)
+                    }
+                }
             } catch {
                 lastPersistenceError = error.localizedDescription
                 haptics.play(.failure)

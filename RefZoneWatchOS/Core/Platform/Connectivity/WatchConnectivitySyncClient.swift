@@ -11,7 +11,7 @@ import RefWatchCore
 import WatchConnectivity
 #endif
 
-final class WatchConnectivitySyncClient: NSObject, ConnectivitySyncProviding {
+final class WatchConnectivitySyncClient: NSObject, ConnectivitySyncProvidingExtended {
 #if canImport(WatchConnectivity)
   private let session: WCSessioning?
   private let queue = DispatchQueue(label: "WatchConnectivitySyncClient")
@@ -99,6 +99,29 @@ final class WatchConnectivitySyncClient: NSObject, ConnectivitySyncProviding {
       } else {
         session.transferUserInfo(payload)
       }
+    }
+#endif
+  }
+
+  // MARK: - Schedule status update (lightweight)
+  /// Sends a lightweight schedule status update to the paired iPhone.
+  /// Intended for flipping a scheduled match to in_progress at kickoff.
+  func sendScheduleStatusUpdate(scheduledId: UUID, status: String = "in_progress") {
+#if canImport(WatchConnectivity)
+    guard let session else { return }
+    let payload: [String: Any] = [
+      "type": "scheduleStatusUpdate",
+      "scheduledId": scheduledId.uuidString,
+      "status": status
+    ]
+    if session.isReachable {
+      session.sendMessage(payload, replyHandler: nil) { _ in
+        Task { @MainActor in
+          _ = session.transferUserInfo(payload)
+        }
+      }
+    } else {
+      _ = session.transferUserInfo(payload)
     }
 #endif
   }
