@@ -50,6 +50,22 @@ struct MatchRootView: View {
                     List {
                         heroSection
                         quickActionsSection
+                        Section {
+                            Button {
+                                aggregateEnvironment.connectivity.requestManualAggregateSync()
+                            } label: {
+                                HStack {
+                                    Spacer()
+                                    ProgressView()
+                                        .opacity(0)
+                                    Text("Sync from iPhone")
+                                    Spacer()
+                                }
+                            }
+                            .buttonStyle(.plain)
+                            .listRowInsets(quickActionInsets)
+                            .listRowBackground(Color.clear)
+                        }
                     }
                     .listStyle(.carousel)
                     .scrollContentBackground(.hidden)

@@ -20,6 +20,7 @@ struct MatchHistoryView: View {
   @State private var items: [CompletedMatch] = []
   @Environment(\.scenePhase) private var scenePhase
   @Environment(\.theme) private var theme
+  @EnvironmentObject private var aggregateEnvironment: AggregateSyncEnvironment
 
   var body: some View {
     List {
@@ -49,7 +50,43 @@ struct MatchHistoryView: View {
   }
 
   private func reload() {
-    items = matchViewModel.loadRecentCompletedMatches()
+    // Merge local JSON history with inbound iPhone summaries persisted via aggregate store
+    let local = matchViewModel.loadRecentCompletedMatches(limit: 100)
+    let inbound: [CompletedMatch] = {
+      let records = (try? aggregateEnvironment.libraryStore.fetchInboundHistory(limit: 100, cutoffDays: 90)) ?? []
+      return records.map { rec in
+        var match = Match(
+          id: rec.id,
+          homeTeam: rec.homeName,
+          awayTeam: rec.awayName
+        )
+        match.homeScore = rec.homeScore
+        match.awayScore = rec.awayScore
+        match.competitionName = rec.competitionName
+        match.venueName = rec.venueName
+        return CompletedMatch(id: rec.id, completedAt: rec.completedAt, match: match, events: [])
+      }
+    }()
+    // Deduplicate by id with smart conflict resolution:
+    // Prefer local if it has full event data OR if it's newer
+    var byId: [UUID: CompletedMatch] = [:]
+    for item in inbound {
+      byId[item.id] = item
+    }
+    for item in local {
+      if let existing = byId[item.id] {
+        // Prefer local if it has events (richer data) OR if it's newer
+        if item.events.isEmpty == false || item.completedAt > existing.completedAt {
+          byId[item.id] = item
+        }
+        // Otherwise keep the iPhone version
+      } else {
+        byId[item.id] = item
+      }
+    }
+    let merged = Array(byId.values)
+      .sorted { $0.completedAt > $1.completedAt }
+    items = Array(merged.prefix(100))
   }
 
   private func delete(at offsets: IndexSet) {
@@ -114,8 +151,15 @@ struct MatchHistoryDetailView: View {
                             .font(theme.typography.cardHeadline)
                             .foregroundStyle(theme.colors.textPrimary)
 
-                        ForEach(snapshot.events.reversed()) { event in
-                            MatchEventDetailRow(event: event)
+                        if snapshot.events.isEmpty {
+                            Text("Match completed on iPhone")
+                                .font(theme.typography.cardMeta)
+                                .foregroundStyle(theme.colors.textSecondary)
+                                .padding(.vertical, theme.spacing.s)
+                        } else {
+                            ForEach(snapshot.events.reversed()) { event in
+                                MatchEventDetailRow(event: event)
+                            }
                         }
                     }
                     .padding(.vertical, theme.spacing.m)
@@ -160,9 +204,20 @@ private struct MatchHistoryRow: View {
             .font(theme.typography.cardHeadline)
             .foregroundStyle(theme.colors.textPrimary)
 
-          Text(dateText)
-            .font(theme.typography.cardMeta)
-            .foregroundStyle(theme.colors.textSecondary)
+          HStack(spacing: theme.spacing.xs) {
+            Text(dateText)
+              .font(theme.typography.cardMeta)
+              .foregroundStyle(theme.colors.textSecondary)
+
+            if snapshot.events.isEmpty {
+              Text("•")
+                .font(theme.typography.cardMeta)
+                .foregroundStyle(theme.colors.textSecondary)
+              Text("from iPhone")
+                .font(theme.typography.cardMeta)
+                .foregroundStyle(theme.colors.accentSecondary)
+            }
+          }
         }
 
         Spacer(minLength: theme.spacing.m)

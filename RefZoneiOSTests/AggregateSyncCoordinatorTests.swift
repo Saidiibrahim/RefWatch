@@ -22,6 +22,7 @@ final class AggregateSyncCoordinatorTests: XCTestCase {
             competitionStore: competitionStore,
             venueStore: venueStore,
             scheduleStore: scheduleStore,
+            historyStore: history,
             auth: auth,
             client: client
         )
