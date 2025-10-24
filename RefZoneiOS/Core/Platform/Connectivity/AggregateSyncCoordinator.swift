@@ -15,11 +15,14 @@ final class AggregateSyncCoordinator {
     private let competitionStore: CompetitionLibraryStoring
     private let venueStore: VenueLibraryStoring
     private let scheduleStore: ScheduleStoring
+    private let historyStore: MatchHistoryStoring
     private let auth: SupabaseAuthStateProviding
     private let client: IOSConnectivitySyncClient
     private let builder: AggregateSnapshotBuilder
 
     private var cancellables = Set<AnyCancellable>()
+    private var historyObserver: NSObjectProtocol?
+    private var snapshotRefreshTask: Task<Void, Never>?
     private var lastSupabaseRefresh: Date?
     private var lastSnapshotAt: Date?
     private var lastSnapshotChunkCount: Int = 0
@@ -32,6 +35,7 @@ final class AggregateSyncCoordinator {
         competitionStore: CompetitionLibraryStoring,
         venueStore: VenueLibraryStoring,
         scheduleStore: ScheduleStoring,
+        historyStore: MatchHistoryStoring,
         auth: SupabaseAuthStateProviding,
         client: IOSConnectivitySyncClient,
         builder: AggregateSnapshotBuilder = AggregateSnapshotBuilder(),
@@ -41,6 +45,7 @@ final class AggregateSyncCoordinator {
         self.competitionStore = competitionStore
         self.venueStore = venueStore
         self.scheduleStore = scheduleStore
+        self.historyStore = historyStore
         self.auth = auth
         self.client = client
         self.builder = builder
@@ -49,6 +54,26 @@ final class AggregateSyncCoordinator {
 
     func start() {
         subscribeToStores()
+
+        // Remove old observer if exists to prevent duplicates
+        if let observer = historyObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+
+        // Store the observer token for cleanup in stop()
+        historyObserver = NotificationCenter.default.addObserver(
+            forName: .matchHistoryDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            // Debounce snapshot refreshes to avoid rapid rebuilds
+            self?.snapshotRefreshTask?.cancel()
+            self?.snapshotRefreshTask = Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(500))
+                self?.requestSnapshotRefresh()
+            }
+        }
+
         client.setManualSyncRequestHandler { [weak self] request in
             guard let self else { return }
             Task { await self.handleManualSyncRequest(request) }
@@ -59,6 +84,17 @@ final class AggregateSyncCoordinator {
     func stop() {
         cancellables.forEach { $0.cancel() }
         cancellables.removeAll()
+
+        // Cancel any pending debounced snapshot refresh
+        snapshotRefreshTask?.cancel()
+        snapshotRefreshTask = nil
+
+        // Remove NotificationCenter observer to prevent leak
+        if let observer = historyObserver {
+            NotificationCenter.default.removeObserver(observer)
+            historyObserver = nil
+        }
+
         client.setManualSyncRequestHandler(nil)
     }
 
@@ -150,11 +186,30 @@ private extension AggregateSyncCoordinator {
             requiresBackfill: ackIds.isEmpty == false || lastSnapshotChunkCount > 1
         )
 
+        // Build bounded history summaries (last 90 days or up to 100 items)
+        let recent = ((try? historyStore.loadAll()) ?? [])
+            .filter { $0.completedAt >= Calendar.current.date(byAdding: .day, value: -90, to: Date()) ?? Date.distantPast }
+            .sorted { $0.completedAt > $1.completedAt }
+        let limited = Array(recent.prefix(100))
+        let summaries: [AggregateSnapshotPayload.HistorySummary] = limited.map { snap in
+            AggregateSnapshotPayload.HistorySummary(
+                id: snap.id,
+                completedAt: snap.completedAt,
+                homeName: snap.match.homeTeam,
+                awayName: snap.match.awayTeam,
+                homeScore: snap.match.homeScore,
+                awayScore: snap.match.awayScore,
+                competitionName: snap.match.competitionName,
+                venueName: snap.match.venueName
+            )
+        }
+
         let payloads = builder.makeSnapshots(
             teams: teams,
             competitions: competitions,
             venues: venues,
             schedules: schedules,
+            history: summaries,
             acknowledgedChangeIds: ackIds,
             generatedAt: generatedAt,
             lastSyncedAt: lastSnapshotAt,

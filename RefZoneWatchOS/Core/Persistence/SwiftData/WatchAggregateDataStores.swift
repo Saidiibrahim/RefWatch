@@ -47,6 +47,17 @@ final class WatchAggregateLibraryStore {
     return try context.fetch(descriptor)
   }
 
+  func fetchInboundHistory(limit: Int = 100, cutoffDays: Int = 90) throws -> [AggregateHistoryRecord] {
+    let cutoff = Calendar.current.date(byAdding: .day, value: -cutoffDays, to: Date()) ?? Date.distantPast
+    let predicate = #Predicate<AggregateHistoryRecord> { $0.completedAt >= cutoff }
+    var descriptor = FetchDescriptor<AggregateHistoryRecord>(
+      predicate: predicate,
+      sortBy: [SortDescriptor(\.completedAt, order: .reverse)]
+    )
+    descriptor.fetchLimit = max(1, limit)
+    return try context.fetch(descriptor)
+  }
+
   func replaceLibrary(with payload: AggregateSnapshotPayload) throws {
     try truncateLibrary()
 
@@ -139,6 +150,43 @@ final class WatchAggregateLibraryStore {
       context.insert(record)
     }
 
+    // Upsert inbound history summaries
+    // Keep bounded by trimming older entries beyond 100 if needed
+    let summaries = payload.history
+    if summaries.isEmpty == false {
+      // Simple upsert by id
+      for item in summaries {
+        if let existing = try? fetchHistoryRecord(id: item.id) {
+          existing.completedAt = item.completedAt
+          existing.homeName = item.homeName
+          existing.awayName = item.awayName
+          existing.homeScore = item.homeScore
+          existing.awayScore = item.awayScore
+          existing.competitionName = item.competitionName
+          existing.venueName = item.venueName
+        } else {
+          let rec = AggregateHistoryRecord(
+            id: item.id,
+            completedAt: item.completedAt,
+            homeName: item.homeName,
+            awayName: item.awayName,
+            homeScore: item.homeScore,
+            awayScore: item.awayScore,
+            competitionName: item.competitionName,
+            venueName: item.venueName
+          )
+          context.insert(rec)
+        }
+      }
+
+      // Trim to 100 newest
+      let all = try fetchInboundHistory(limit: Int.max, cutoffDays: 3650)
+      if all.count > 100 {
+        let toDelete = Array(all.suffix(from: 100))
+        toDelete.forEach { context.delete($0) }
+      }
+    }
+
     if context.hasChanges {
       try context.save()
     }
@@ -187,11 +235,19 @@ final class WatchAggregateLibraryStore {
     try deleteAll(of: AggregateCompetitionRecord.self)
     try deleteAll(of: AggregateVenueRecord.self)
     try deleteAll(of: AggregateScheduleRecord.self)
+    try deleteAll(of: AggregateHistoryRecord.self)
     try deleteAll(of: AggregatePlayerRecord.self)
     try deleteAll(of: AggregateTeamOfficialRecord.self)
     if context.hasChanges {
       try context.save()
     }
+  }
+
+  private func fetchHistoryRecord(id: UUID) throws -> AggregateHistoryRecord? {
+    let predicate = #Predicate<AggregateHistoryRecord> { $0.id == id }
+    var descriptor = FetchDescriptor<AggregateHistoryRecord>(predicate: predicate)
+    descriptor.fetchLimit = 1
+    return try context.fetch(descriptor).first
   }
 }
 
