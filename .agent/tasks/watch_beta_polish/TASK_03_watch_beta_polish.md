@@ -5,7 +5,9 @@ plan_file: ../../plans/watch_beta_polish/PLAN.md
 title: Surface real team names in kickoff & goal flows
 phase: Phase 3 – Presentation Polish
 created: 2025-02-15
-status: Ready
+updated: 2025-02-15
+status: Completed
+completed: 2025-02-15
 priority: Medium
 estimated_minutes: 60
 dependencies: [01]
@@ -41,3 +43,7 @@ Replace placeholder “HOM/AVA” labels with actual team names sourced from `Ma
 ## Notes
 
 - Consider caching trimmed (max length) variants if we encounter extremely long club strings; otherwise rely on `minimumScaleFactor` adjustments.
+
+## Outcome
+
+- `TeamDetailsView` and `GoalTypeSelectionView` now drive labels from `MatchViewModel` display names with whitespace fallbacks, keeping accessibility labels in sync.

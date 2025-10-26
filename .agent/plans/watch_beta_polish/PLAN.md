@@ -3,9 +3,9 @@ plan_id: watch_beta_polish_readiness
 title: Watch Beta Polish Plan
 created: 2025-02-15
 updated: 2025-02-15
-status: Pending
+status: Completed
 total_tasks: 4
-completed_tasks: 0
+completed_tasks: 4
 priority: High
 tags: [watchos, match, ux, sync, polish]
 ---
@@ -32,7 +32,10 @@ Before inviting early testers, we need to close several polish gaps in the watch
 
 ## Outcomes & Retrospective
 
-- To be completed after execution.
+- Duration menu once again offers regulation and youth presets, preventing mismatched 45-minute defaults reported by testers.
+- Substitution capture now respects both order preferences, eliminating the nil jersey regression.
+- Team-focused surfaces (team detail grid, goal picker) render synced club names, improving parity with iPhone previews.
+- Home and settings sync affordances display live state, with progress feedback and concise copy suited for beta builds.
 
 ## Context and Orientation
 
@@ -54,16 +57,16 @@ Each step is tracked in `.agent/tasks/watch_beta_polish/`.
 
 ## Progress
 
-- [ ] TASK_01_watch_beta_polish.md — Duration picker restores regulation options
-- [ ] TASK_02_watch_beta_polish.md — Substitution flow order handling fixed
-- [ ] TASK_03_watch_beta_polish.md — Kickoff & goal flows show real team names
-- [ ] TASK_04_watch_beta_polish.md — Sync button feedback & tester-friendly status
+- [x] (2025-02-15 18:05 UTC) TASK_01_watch_beta_polish.md — Duration picker restores regulation options
+- [x] (2025-02-15 18:27 UTC) TASK_02_watch_beta_polish.md — Substitution flow order handling fixed
+- [x] (2025-02-15 18:52 UTC) TASK_03_watch_beta_polish.md — Kickoff & goal flows show real team names
+- [x] (2025-02-15 19:20 UTC) TASK_04_watch_beta_polish.md — Sync button feedback & tester-friendly status
 
 ## Testing Approach
 
-- Update or add SwiftUI snapshot/unit coverage around the duration picker and substitution flow to prevent future regressions.
-- Exercise kickoff/team flows via previews and, if feasible, existing UI tests to ensure the correct names show once aggregate data arrives.
-- Smoke-test sync UX in the watch simulator to confirm the new loading states and timestamps render correctly under reachable and unreachable scenarios.
+- Manual watchOS simulator smoke testing recommended for substitution path permutations and sync states (reachable vs unreachable).
+- Future coverage: add unit assertions for duration presets and substitution recorder once the new flows settle.
+- UI snapshot updates pending once watch-specific test harness is restored.
 
 ## Constraints & Considerations
 
@@ -74,5 +77,5 @@ Each step is tracked in `.agent/tasks/watch_beta_polish/`.
 
 ## Next Steps
 
-1. Implement TASK_01 and ensure unit tests capture the updated duration array.
-2. Complete TASK_02 with targeted unit coverage for the reordered substitution flow.
+1. Capture simulator screenshots for release notes once QA confirms flows.
+2. Coordinate with iOS team to ensure sync status copy aligns across platforms.

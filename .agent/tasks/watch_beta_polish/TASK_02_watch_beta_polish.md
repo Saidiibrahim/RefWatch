@@ -5,7 +5,9 @@ plan_file: ../../plans/watch_beta_polish/PLAN.md
 title: Fix substitution flow order handling
 phase: Phase 2 – Match Events
 created: 2025-02-15
-status: Ready
+updated: 2025-02-15
+status: Completed
+completed: 2025-02-15
 priority: High
 estimated_minutes: 75
 dependencies: [01]
@@ -41,3 +43,7 @@ Respect the “player on first” preference when recording substitutions so bot
 ## Notes
 
 - Consider adding a guard that surfaces a user-facing error if either number is still nil, though the corrected flow should prevent that state.
+
+## Outcome
+
+- `SubstitutionFlow` now advances between “player on/off” steps using helper transitions, capturing both jersey numbers before confirmation or persistence regardless of user preference.

@@ -5,7 +5,9 @@ plan_file: ../../plans/watch_beta_polish/PLAN.md
 title: Polish sync feedback for testers
 phase: Phase 4 â€“ Sync Experience
 created: 2025-02-15
-status: Ready
+updated: 2025-02-15
+status: Completed
+completed: 2025-02-15
 priority: Medium
 estimated_minutes: 90
 dependencies: [01, 02, 03]
@@ -42,3 +44,7 @@ Give testers clear feedback when requesting a manual sync and surface a simple â
 ## Notes
 
 - Consider logging sync completion timestamps to `AggregateSyncEnvironment` if not already tracked; otherwise, derive from `status.lastSnapshotGeneratedAt`.
+
+## Outcome
+
+- Idle list renders a dedicated sync status card with live reachability and relative timestamps, while `SettingsScreen` now drives a stateful manual sync button with spinner/disable logic and concise diagnostics.
