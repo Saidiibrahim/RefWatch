@@ -224,34 +224,31 @@ private struct WorkoutQuickStartCard: View {
   let isBusy: Bool
 
   var body: some View {
-    ThemeCardContainer(role: .secondary, minHeight: 80) {
-      HStack(spacing: theme.spacing.s) {
-        WorkoutCardIcon(symbol: icon, tint: theme.colors.accentSecondary)
+    // Styled to match SettingsNavigationRow for consistency across the app
+    ThemeCardContainer(role: .secondary, minHeight: 72) {
+      HStack(spacing: theme.spacing.m) {
+        Image(systemName: icon)
+          .font(.title2)
+          .foregroundStyle(theme.colors.accentSecondary)
 
         VStack(alignment: .leading, spacing: theme.spacing.xs) {
           Text(title)
             .font(theme.typography.cardHeadline)
             .foregroundStyle(theme.colors.textPrimary)
             .lineLimit(1)
-            .minimumScaleFactor(0.75)
 
           Text(subtitle)
             .font(theme.typography.cardMeta)
             .foregroundStyle(theme.colors.textSecondary)
             .lineLimit(1)
-            .minimumScaleFactor(0.75)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
 
-        Spacer(minLength: theme.spacing.s)
-
+        // Only show accessory when busy - no chevron for action buttons
         if isBusy {
           ProgressView()
             .progressViewStyle(.circular)
             .tint(theme.colors.textSecondary)
-        } else {
-          Image(systemName: "chevron.forward")
-            .font(theme.typography.iconSecondary)
-            .foregroundStyle(theme.colors.textSecondary)
         }
       }
     }
@@ -265,34 +262,29 @@ private struct WorkoutPresetCard: View {
   let isBusy: Bool
 
   var body: some View {
-    ThemeCardContainer(role: .secondary, minHeight: 80) {
-      HStack(spacing: theme.spacing.s) {
+    // Styled to match SettingsNavigationRow for consistency across the app
+    ThemeCardContainer(role: .secondary, minHeight: 72) {
+      HStack(spacing: theme.spacing.m) {
         VStack(alignment: .leading, spacing: theme.spacing.xs) {
           Text(title)
             .font(theme.typography.cardHeadline)
             .foregroundStyle(theme.colors.textPrimary)
             .lineLimit(1)
-            .minimumScaleFactor(0.75)
 
           if !subtitle.isEmpty {
             Text(subtitle)
               .font(theme.typography.cardMeta)
               .foregroundStyle(theme.colors.textSecondary)
               .lineLimit(1)
-              .minimumScaleFactor(0.75)
           }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
 
-        Spacer(minLength: theme.spacing.s)
-
+        // Only show accessory when busy - no chevron for action buttons
         if isBusy {
           ProgressView()
             .progressViewStyle(.circular)
             .tint(theme.colors.textSecondary)
-        } else {
-          Image(systemName: "chevron.forward")
-            .font(theme.typography.iconSecondary)
-            .foregroundStyle(theme.colors.textSecondary)
         }
       }
     }
@@ -421,24 +413,6 @@ private struct WorkoutEmptyPresetsCard: View {
         .disabled(isBusy)
       }
       .frame(maxWidth: .infinity, alignment: .leading)
-    }
-  }
-}
-
-private struct WorkoutCardIcon: View {
-  @Environment(\.theme) private var theme
-  let symbol: String
-  let tint: Color
-
-  var body: some View {
-    ZStack {
-      RoundedRectangle(cornerRadius: theme.components.controlCornerRadius, style: .continuous)
-        .fill(tint.opacity(0.22))
-        .frame(width: 36, height: 36)
-
-      Image(systemName: symbol)
-        .font(theme.typography.iconAccent)
-        .foregroundStyle(theme.colors.textPrimary)
     }
   }
 }
