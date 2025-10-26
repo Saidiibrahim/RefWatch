@@ -31,41 +31,54 @@ struct StartMatchOptionsView: View {
   var body: some View {
     ScrollView {
       VStack(spacing: theme.components.listVerticalSpacing) {
-        Button {
-          onReset()
+        // Match the visual style and sizing used in settings rows for consistency.
+        optionRow(title: "Select Match", icon: "folder") {
           onSelectMatch()
-        } label: {
-          MenuCard(
-            title: "Select Match",
-            subtitle: nil,
-            icon: "folder",
-            tint: theme.colors.accentSecondary,
-            accessoryIcon: "chevron.forward",
-            minHeight: 88,
-            role: .secondary
-          )
         }
-        .buttonStyle(.plain)
+        .accessibilityIdentifier("selectMatchRow")
 
-        Button {
-          onReset()
+        optionRow(title: "Create Match", icon: "plus.circle.fill") {
           onCreateMatch()
-        } label: {
-          MenuCard(
-            title: "Create Match",
-            subtitle: nil,
-            icon: "plus.circle.fill",
-            tint: theme.colors.textInverted,
-            accessoryIcon: "chevron.forward",
-            minHeight: 88,
-            role: .positive
-          )
         }
-        .buttonStyle(.plain)
+        .accessibilityIdentifier("createMatchRow")
       }
       .padding(.horizontal, theme.components.cardHorizontalPadding)
       .padding(.vertical, theme.components.listRowVerticalInset * 2)
     }
+  }
+}
+
+private extension StartMatchOptionsView {
+  /// Builds a tappable option row styled like `SettingsNavigationRow`.
+  /// - Parameters:
+  ///   - title: Display title for the row.
+  ///   - icon: System image name shown leading the title.
+  ///   - action: Callback invoked after we reset any in-flight match state.
+  func optionRow(title: String, icon: String, action: @escaping () -> Void) -> some View {
+    Button {
+      // Always reset state before proceeding to a start flow to avoid
+      // leaking partially configured data between navigation paths.
+      onReset()
+      action()
+    } label: {
+      ThemeCardContainer(role: .secondary, minHeight: 72) {
+        HStack(spacing: theme.spacing.m) {
+          Image(systemName: icon)
+            .font(.title2)
+            .foregroundStyle(theme.colors.accentSecondary)
+
+          VStack(alignment: .leading, spacing: theme.spacing.xs) {
+            Text(title)
+              .font(theme.typography.cardHeadline)
+              .foregroundStyle(theme.colors.textPrimary)
+              .frame(maxWidth: .infinity, alignment: .leading)
+          }
+
+          Spacer()
+        }
+      }
+    }
+    .buttonStyle(.plain)
   }
 }
 
