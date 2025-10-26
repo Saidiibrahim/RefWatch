@@ -8,6 +8,7 @@
 import SwiftUI
 import SwiftData
 import Combine
+import Foundation
 import RefWatchCore
 
 struct MatchRootView: View {
@@ -50,6 +51,7 @@ struct MatchRootView: View {
                 case .idle:
                     List {
                         heroSection
+                        syncStatusSection
                         quickActionsSection
                     }
                     .listStyle(.carousel)
@@ -309,6 +311,39 @@ private extension MatchRootView {
         }
     }
 
+    @ViewBuilder
+    var syncStatusSection: some View {
+        Section {
+            ThemeCardContainer(role: .secondary, minHeight: 72) {
+                VStack(alignment: .leading, spacing: theme.spacing.xs) {
+                    HStack(spacing: theme.spacing.s) {
+                        Image(systemName: syncStatusIconName)
+                            .font(.title2)
+                            .foregroundStyle(theme.colors.accentSecondary)
+
+                        Text(syncStatusHeadline)
+                            .font(theme.typography.cardHeadline)
+                            .foregroundStyle(theme.colors.textPrimary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                        if isSyncActivityInFlight {
+                            ProgressView()
+                                .progressViewStyle(.circular)
+                                .scaleEffect(0.7)
+                        }
+                    }
+
+                    Text(syncStatusDetail)
+                        .font(theme.typography.cardMeta)
+                        .foregroundStyle(theme.colors.textSecondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            .listRowInsets(quickActionInsets)
+            .listRowBackground(Color.clear)
+        }
+    }
+
     func consumeWidgetCommand() {
         guard commandHandler.processPendingCommand(model: matchViewModel) != nil else { return }
         livePublisher.publish(for: matchViewModel)
@@ -368,7 +403,50 @@ private extension MatchRootView {
     func handleLifecycleNavigation(from oldState: MatchPhase, to newState: MatchPhase) {
         navigationReducer.reduce(path: &navigationPath, from: oldState, to: newState)
     }
+    
+    private var syncStatusIconName: String {
+        if isSyncActivityInFlight {
+            return "arrow.triangle.2.circlepath"
+        }
+        return aggregateEnvironment.status.reachable ? "checkmark.circle" : "exclamationmark.circle"
+    }
 
+    private var isSyncActivityInFlight: Bool {
+        let status = aggregateEnvironment.status
+        return status.pendingSnapshotChunks > 0 || status.queuedDeltas > 0
+    }
+
+    private var syncStatusHeadline: String {
+        let status = aggregateEnvironment.status
+        if status.pendingSnapshotChunks > 0 {
+            return "Syncing library…"
+        }
+        if status.queuedSnapshots > 0 || status.queuedDeltas > 0 {
+            return "Waiting on iPhone"
+        }
+        return status.reachable ? "Library up to date" : "Awaiting connection"
+    }
+
+    private var syncStatusDetail: String {
+        let status = aggregateEnvironment.status
+        let lastApplied = status.lastSnapshotAppliedAt ?? status.lastSnapshotGeneratedAt
+        let lastSyncText: String
+        if let lastApplied {
+            lastSyncText = "Last synced \(relativeSyncString(from: lastApplied))"
+        } else if status.requiresBackfill {
+            lastSyncText = "Sync required before matches"
+        } else {
+            lastSyncText = "No sync yet"
+        }
+        let reachability = status.reachable ? "iPhone reachable" : "iPhone unavailable"
+        return "\(lastSyncText) • \(reachability)"
+    }
+
+    private func relativeSyncString(from date: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .short
+        return formatter.localizedString(for: date, relativeTo: Date())
+    }
 }
 
 enum ThemeCardRole {

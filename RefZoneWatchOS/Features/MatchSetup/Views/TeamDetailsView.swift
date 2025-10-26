@@ -89,14 +89,14 @@ struct TeamDetailsView: View {
     }
 
     private var header: some View {
-        Text(teamType == .home ? "HOM" : "AWA")
+        Text(teamDisplayName)
             .font(theme.typography.label.weight(.semibold))
             .foregroundStyle(theme.colors.textSecondary)
             .textCase(.uppercase)
             .lineLimit(1)
             .minimumScaleFactor(0.7)
             .padding(.top, theme.spacing.xs)
-            .accessibilityLabel(teamType == .home ? "Home" : "Away")
+            .accessibilityLabel(teamDisplayName)
     }
 
     private var eventGridItems: [AdaptiveEventGridItem] {
@@ -121,7 +121,10 @@ struct TeamDetailsView: View {
             AdaptiveEventGridItem(icon: "soccerball", color: .green, label: "Goal", onTap: {
                 WKInterfaceDevice.current().play(haptic(for: "soccerball"))
             }) {
-                GoalTypeSelectionView(team: teamType) { goalType in
+                GoalTypeSelectionView(
+                    team: teamType,
+                    teamDisplayName: teamDisplayName
+                ) { goalType in
                     selectedGoalType = goalType
                     showingPlayerNumberInput = true
                 }
@@ -140,6 +143,14 @@ struct TeamDetailsView: View {
         default:
             return .notification
         }
+    }
+
+    private var teamDisplayName: String {
+        let rawName = teamType == .home ? matchViewModel.homeTeamDisplayName : matchViewModel.awayTeamDisplayName
+        if rawName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return teamType == .home ? "Home" : "Away"
+        }
+        return rawName
     }
 }
 

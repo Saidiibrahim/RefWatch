@@ -122,7 +122,7 @@ private extension MatchSettingsListView {
     NavigationLink {
       SettingPickerView(
         title: "Duration",
-        values: [40, 45, 50],
+        values: [30, 35, 40, 45, 50, 60, 70, 80, 90],
         selection: $matchViewModel.matchDuration,
         formatter: { "\($0) min" }
       )

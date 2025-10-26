@@ -5,7 +5,9 @@ plan_file: ../../plans/watch_beta_polish/PLAN.md
 title: Restore regulation match durations in picker
 phase: Phase 1 – Match Configuration
 created: 2025-02-15
-status: Ready
+updated: 2025-02-15
+status: Completed
+completed: 2025-02-15
 priority: High
 estimated_minutes: 45
 dependencies: []
@@ -40,3 +42,7 @@ Ensure referees can pick standard 90-minute matches plus common youth/extra form
 ## Notes
 
 - Longer-term improvement: hydrate the list from aggregate schedule metadata, but that requires watch/iPhone contract updates and is out-of-scope here.
+
+## Outcome
+
+- `MatchSettingsListView` now sources `[30, 35, 40, 45, 50, 60, 70, 80, 90]`, restoring regulation play while keeping existing bindings intact.

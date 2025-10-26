@@ -38,42 +38,26 @@ struct SubstitutionFlow: View {
                     team: team,
                     goalType: nil,
                     cardType: nil,
-                    context: settingsViewModel.settings.substitutionOrderPlayerOffFirst ? "player off" : "player on",
+                    context: "player off",
                     onComplete: { number in
-                        if settingsViewModel.settings.substitutionOrderPlayerOffFirst {
-                            playerOffNumber = number
-                            step = .playerOn
-                        } else {
-                            playerOnNumber = number
-                            step = .playerOn
-                        }
+                        playerOffNumber = number
+                        advanceAfterCapturingPlayerOff()
                     }
                 )
-                
+
             case .playerOn:
                 PlayerNumberInputView(
                     team: team,
                     goalType: nil,
                     cardType: nil,
-                    context: settingsViewModel.settings.substitutionOrderPlayerOffFirst ? "player on" : "player off",
+                    context: "player on",
                     onComplete: { number in
-                        if settingsViewModel.settings.substitutionOrderPlayerOffFirst {
-                            playerOnNumber = number
-                        } else {
-                            playerOffNumber = number
-                        }
-                        
-                        // Check if confirmation is enabled
-                        if settingsViewModel.settings.confirmSubstitutions {
-                            step = .confirmation
-                        } else {
-                            // Record substitution immediately without confirmation
-                            recordSubstitution()
-                        }
+                        playerOnNumber = number
+                        advanceAfterCapturingPlayerOn()
                     }
                 )
                 .navigationBarBackButtonHidden(false)
-                
+
             case .confirmation:
                 confirmationView
                     // .navigationTitle("Confirm Substitution")
@@ -156,6 +140,30 @@ struct SubstitutionFlow: View {
         
         // Dismiss the entire flow
         dismiss()
+    }
+
+    private func advanceAfterCapturingPlayerOff() {
+        if playerOnNumber == nil {
+            step = .playerOn
+        } else {
+            transitionToConfirmationOrRecord()
+        }
+    }
+
+    private func advanceAfterCapturingPlayerOn() {
+        if playerOffNumber == nil {
+            step = .playerOff
+        } else {
+            transitionToConfirmationOrRecord()
+        }
+    }
+
+    private func transitionToConfirmationOrRecord() {
+        if settingsViewModel.settings.confirmSubstitutions {
+            step = .confirmation
+        } else {
+            recordSubstitution()
+        }
     }
 }
 
