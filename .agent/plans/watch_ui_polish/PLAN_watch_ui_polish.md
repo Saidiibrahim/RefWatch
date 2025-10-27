@@ -1,43 +1,60 @@
-# ExecPlan: watch_ui_polish
+---
+plan_id: watch_ui_polish_beta_readiness
+title: Watch UI Polish Plan
+created: 2025-10-26
+updated: 2025-10-26
+status: In Progress
+total_tasks: 2
+completed_tasks: 0
+priority: High
+tags: [watchos, ui, polish]
+---
+
+# Watch UI Polish Plan
 
 ## Purpose / Big Picture
-Polish the watchOS experience before beta by eliminating unfinished actions and clarifying the team setup screens. The work should (1) prevent users from tapping a "Choose colours" row that only shows a placeholder alert, and (2) surface real team names plus contextual guidance in the team detail views so referees instantly know which side they are editing.
+Polish the watchOS experience ahead of beta builds by removing unfinished affordances and clarifying the team setup tabs. We will 1) prevent referees from tapping a "Choose colours" option that only displays a placeholder alert, and 2) surface the actual team names with contextual copy inside the home/away event grids so referees immediately know which side they are editing.
 
-## Suprises & Discoveries
-- Observation: _None yet_
-- Evidence: _None yet_
+## Surprises & Discoveries
+- Observation: The "Choose colours" action in the in-match options sheet still triggers a "coming soon" alert, signalling unfinished work.  
+  Evidence: `RefZoneWatchOS/Features/Timer/Views/MatchOptionsView.swift:37-69`
+- Observation: Team tabs continue to render hard-coded `"HOM"`/`"AWA"` headers with no supporting guidance.  
+  Evidence: `RefZoneWatchOS/Features/MatchSetup/Views/TeamDetailsView.swift:55-76`
 
 ## Decision Log
-- Decision: _None yet_
-- Rationale: _N/A_
-- Date/Author: _N/A_
+- Decision: Hide the unfinished "Choose colours" action for testers and replace it with explanatory copy rather than a tappable card.  
+  Rationale: Prevents accidental taps while acknowledging the feature roadmap without junk drawer alerts.  
+  Date/Author: 2025-10-26 / Codex
+- Decision: Promote actual `MatchViewModel` team names and add role hints ("Manage home events") directly in `TeamDetailsView`.  
+  Rationale: Reinforces orientation during quick swipes between tabs, especially when synced library data supplies club names.  
+  Date/Author: 2025-10-26 / Codex
 
 ## Outcomes & Retrospective
-_Pending completion of the plan._
+_To be populated once the plan is delivered._
 
 ## Context and Orientation
-The watch app uses SwiftUI with feature-first organization.
-- `RefZoneWatchOS/Features/Timer/Views/MatchOptionsView.swift` presents match management actions via a carousel list in a `NavigationStack`. The "Choose colours" `ActionButton` currently triggers an alert explaining the feature is coming soon.
-- `RefZoneWatchOS/Features/MatchSetup/Views/TeamDetailsView.swift` renders the home/away event grids. It shows hard-coded headers (`"HOM"`/`"AWA"`) regardless of the match configuration and lacks descriptive copy to orient the referee.
-- `ActionButton` is a reusable component (see `RefZoneWatchOS/Core/Components/ActionButton.swift`, already themed) used for options rows.
-- `MatchViewModel` exposes `homeTeamDisplayName`/`awayTeamDisplayName`, which are used elsewhere (e.g., timer score display) and can replace the static abbreviations.
+The watch app uses SwiftUI with feature-first folders and a shared theming environment.
+- `RefZoneWatchOS/Features/Timer/Views/MatchOptionsView.swift` hosts the in-match options list, built from reused `ActionButton` rows and currently surfacing the placeholder colour picker alert.
+- `RefZoneWatchOS/Core/Components/ActionButton.swift` defines the theming for those list rows; we can swap an action for static guidance without altering the component API.
+- `RefZoneWatchOS/Features/MatchSetup/Views/TeamDetailsView.swift` renders the home/away event grids; it already exposes `matchViewModel` with dynamic `homeTeamDisplayName` / `awayTeamDisplayName` plus `watchLayoutScale` for typography adjustments.
+- `MatchViewModel` (see `RefZoneWatchOS/App/MatchRootView.swift`) persists the selected team names and is the single source of truth for display names across the watch app.
 
 ## Plan of Work
-1. **Match options cleanup**: In `MatchOptionsView`, conditionally hide or visually downgrade the "Choose colours" entry until colours are supported. Replace the tap with explanatory secondary text so the list reads intentional for beta users.
-2. **Team header improvements**: In `TeamDetailsView`, display the configured team name with safe truncation and add a short subtitle (e.g., "Manage home events") so each tab communicates its purpose. Ensure large and compact layouts remain balanced.
-3. Update previews if needed to reflect new copy and verify layout on 41mm and Ultra devices.
+1. **Match options cleanup** — Remove the tappable "Choose colours" entry from the options list and replace it with static roadmap copy so the sheet only contains actionable controls.
+2. **Team header improvements** — Swap the `"HOM"`/`"AWA"` labels for dynamic team names, add a short descriptive subtitle, and update accessibility to announce both name and role.
 
 ## Concrete Steps
-- See tasks under `.agent/tasks/watch_ui_polish/`.
+Each implementation step is tracked in `.agent/tasks/watch_ui_polish/`.
 
 ## Progress
-[ ] (TASK_01_watch_ui_polish.md) Remove or gate the "Choose colours" action from MatchOptionsView.
-[ ] (TASK_02_watch_ui_polish.md) Replace "HOM/AWA" headers with contextual team info in TeamDetailsView.
+- [ ] (TASK_01_watch_ui_polish.md) Remove or gate the "Choose colours" action from MatchOptionsView.
+- [ ] (TASK_02_watch_ui_polish.md) Replace "HOM/AWA" headers with contextual team info in TeamDetailsView.
 
 ## Testing Approach
-Targeted SwiftUI preview inspection for the affected views (`MatchOptionsView`, `TeamDetailsView`). If time permits, run the watchOS scheme to confirm layout alignment, but focus on visual verification via previews or simulator snapshots.
+- Use SwiftUI previews for `MatchOptionsView` and `TeamDetailsView` to validate layout on compact and expanded watch sizes.
+- Spot-check on an Apple Watch Series 9 (41mm) simulator to ensure truncation, subtitles, and accessibility announcements behave as expected.
 
 ## Constraints & Considerations
-- Avoid exposing unfinished features to testers.
-- Maintain existing theming by reusing the `theme` environment values and respecting `watchLayoutScale` sizing.
-- Ensure accessibility labels remain accurate when header text changes.
+- Avoid introducing feature flags that diverge from production; prefer static copy or conditional rows.
+- Preserve the carousel list spacing so removal of a row does not collapse section padding.
+- Ensure subtitle copy respects localization considerations (temporary English-only string acceptable for beta, but keep neutral tone).

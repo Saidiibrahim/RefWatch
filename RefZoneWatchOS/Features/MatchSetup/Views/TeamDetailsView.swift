@@ -89,14 +89,25 @@ struct TeamDetailsView: View {
     }
 
     private var header: some View {
-        Text(teamDisplayName)
-            .font(theme.typography.label.weight(.semibold))
-            .foregroundStyle(theme.colors.textSecondary)
-            .textCase(.uppercase)
-            .lineLimit(1)
-            .minimumScaleFactor(0.7)
-            .padding(.top, theme.spacing.xs)
-            .accessibilityLabel(teamDisplayName)
+        VStack(alignment: .leading, spacing: theme.spacing.xs) {
+            Text(teamDisplayName)
+                .font(theme.typography.label.weight(.semibold))
+                .foregroundStyle(theme.colors.textSecondary)
+                .textCase(.uppercase)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+
+            Text(teamRoleSubtitle)
+                .font(theme.typography.cardMeta)
+                .foregroundStyle(theme.colors.textSecondary.opacity(0.8))
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.top, theme.spacing.xs)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(teamDisplayNameAccessibility)")
+        .accessibilityHint(teamRoleSubtitle)
     }
 
     private var eventGridItems: [AdaptiveEventGridItem] {
@@ -151,6 +162,15 @@ struct TeamDetailsView: View {
             return teamType == .home ? "Home" : "Away"
         }
         return rawName
+    }
+
+    private var teamDisplayNameAccessibility: String {
+        let role = teamType == .home ? "home team" : "away team"
+        return "\(teamDisplayName), \(role)"
+    }
+
+    private var teamRoleSubtitle: String {
+        teamType == .home ? "Manage home events" : "Manage away events"
     }
 }
 
