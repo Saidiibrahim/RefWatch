@@ -86,13 +86,14 @@ Add `rebuildSelectionItems()` call after updating `self.authorization = status` 
 **File**: `RefZoneWatchOS/Features/Workout/ViewModels/WorkoutModeViewModel.swift`
 **Location**: Line 645 (at start of `beginStartingSession()`)
 
-Insert authorization check before proceeding with session start. If `!authorization.isAuthorized`, set presentation state to error with `WorkoutError.authorizationDenied` and return early.
+Run `cancelPendingDwell()` before checking authorization so dwell locks always clear, then guard on `authorization.isAuthorized` before toggling `isPerformingAction`. When the guard fails, surface `.authorizationDenied` via the presentation state and accompanying error/recovery strings.
 
-#### Step 3: Update Authorization Copy - Messages
-**File**: `RefZoneWatchOS/Features/Workout/ViewModels/WorkoutModeViewModel.swift`
-**Location**: Lines 222-236 (`authorizationMessage(for:)`)
+#### Step 3: Update Authorization Copy - Messages & Errors
+**Files**:
+- `RefZoneWatchOS/Features/Workout/ViewModels/WorkoutModeViewModel.swift` (lines 222-236 `authorizationMessage(for:)` and the authorization card title cases)
+- `RefZoneWatchOS/Features/Workout/ViewModels/WorkoutModeViewModel.swift` (lines 20-47 `WorkoutError.authorizationDenied` strings)
 
-Revise all message strings to explicitly mention "on your paired iPhone" or "on iPhone" so users understand where to look for the permission dialog.
+Revise all authorization messaging to explicitly mention the paired iPhone. This includes the card subtitle helper, the authorization tile titles (e.g., "Grant on iPhone"), and the error/recovery text that appears in preview and alert flows.
 
 #### Step 4: Update Authorization Copy - Button Titles
 **File**: `RefZoneWatchOS/Features/Workout/Views/WorkoutHomeView.swift`
