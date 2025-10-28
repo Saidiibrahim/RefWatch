@@ -189,7 +189,7 @@ private struct WorkoutSessionControlsPage: View {
   }
 
   var body: some View {
-    ScrollView(.vertical, showsIndicators: false) {
+    ScrollView(.vertical) {
       VStack(alignment: .leading, spacing: theme.spacing.s) {
         controlsHeader
 
@@ -259,6 +259,7 @@ private struct WorkoutSessionControlsPage: View {
       .padding(.top, theme.spacing.m)
       .padding(.bottom, layout.safeAreaBottomPadding)
     }
+    .scrollIndicators(.visible)
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .background(theme.colors.backgroundPrimary.ignoresSafeArea())
   }

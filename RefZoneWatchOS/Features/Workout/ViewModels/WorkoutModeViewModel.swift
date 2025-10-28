@@ -182,13 +182,23 @@ struct WorkoutSelectionItem: Identifiable, Equatable {
   var diagnosticsDescription: String? {
     switch content {
     case .authorization(_, let diagnostics):
-      guard !diagnostics.isEmpty else { return nil }
-      let names = diagnostics.map(\.displayName).sorted()
-      let prefix = names.count == 1 ? "Optional metric unavailable" : "Optional metrics unavailable"
-      return "\(prefix): \(names.joined(separator: ", "))"
+      return WorkoutSelectionItem.authorizationDiagnosticsSummary(for: diagnostics)
     default:
       return nil
     }
+  }
+
+  static func authorizationDiagnosticsSummary(for metrics: [WorkoutAuthorizationMetric]) -> String? {
+    guard !metrics.isEmpty else { return nil }
+    let names = metrics.map(\.displayName).sorted()
+    if names.count == 1 {
+      return "Optional metric off: \(names[0])"
+    }
+    if names.count == 2 {
+      return "Optional metrics off: \(names[0]), \(names[1])"
+    }
+    let remaining = names.count - 2
+    return "Optional metrics off: \(names[0]), \(names[1]) +\(remaining)"
   }
 
   var authorizationStatus: WorkoutAuthorizationStatus? {

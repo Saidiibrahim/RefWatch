@@ -10,14 +10,16 @@ phase: Phase 1 - Critical Bug Fixes
 
 ## Objective
 
-Update all user-facing authorization messages and button titles to explicitly mention that permission grants happen on the paired iPhone, not on the watch. This eliminates user confusion when they tap "Grant Access" and nothing appears on their watch screen.
+Update all user-facing authorization messaging (titles, subtitles, errors, buttons) to explicitly mention that permission grants happen on the paired iPhone, not on the watch. This eliminates user confusion when they tap "Grant Access" and nothing appears on their watch screen.
 
 ## Problem
 
-Current copy in two locations makes no reference to iPhone:
+Current copy in four key touchpoints makes no reference to iPhone:
 
 1. **Authorization Messages** (`WorkoutModeViewModel.swift:222-236`): Subtitle text shown on authorization card
-2. **Button Titles** (`WorkoutHomeView.swift:247-258`): CTA button text
+2. **Authorization Titles** (`WorkoutModeViewModel.swift:128-139`): Headline text for the authorization tile
+3. **Error Copy** (`WorkoutModeViewModel.swift:18-47`): Strings surfaced by `WorkoutError.authorizationDenied`
+4. **Button Titles** (`WorkoutHomeView.swift:247-258`): CTA button text
 
 Users tap "Grant Access" expecting a watch dialog, but the permission sheet appears on their iPhone. Without this context, users think the app is broken.
 
@@ -71,7 +73,69 @@ private static func authorizationMessage(for status: WorkoutAuthorizationStatus)
 - `.limited`: "Grant full access..." → "Grant full access **on iPhone**..."
 - `.authorized` with optional limitations: "Enable them..." → "Enable them **on iPhone**..."
 
-### Part B: Update Button Titles
+### Part B: Update Authorization Titles
+
+**Location**: `RefZoneWatchOS/Features/Workout/ViewModels/WorkoutModeViewModel.swift:128-139`
+
+**Current Code**:
+```swift
+case .notDetermined:
+  return "Grant Health Access"
+case .denied:
+  return "Health Access Denied"
+case .limited:
+  return "Limited Health Access"
+case .authorized:
+  return "Health Access"
+```
+
+**Updated Code**:
+```swift
+case .notDetermined:
+  return "Grant on iPhone"
+case .denied:
+  return "Access Denied on iPhone"
+case .limited:
+  return "Limited Access on iPhone"
+case .authorized:
+  return "Manage on iPhone"
+```
+
+**Changes Summary**:
+- Each headline now references the iPhone, setting expectations before users read the subtitle.
+- The authorized headline matches upcoming button copy when optional metrics are missing, keeping messaging consistent.
+
+### Part C: Update Error Copy
+
+**Location**: `RefZoneWatchOS/Features/Workout/ViewModels/WorkoutModeViewModel.swift:18-47`
+
+**Current Code**:
+```swift
+case .authorizationDenied:
+  return "HealthKit access denied. Please enable workout permissions in Settings."
+
+...
+
+case .authorizationDenied:
+  return "Go to Settings > Privacy & Security > Health > RefWatch and enable workout permissions."
+```
+
+**Updated Code**:
+```swift
+case .authorizationDenied:
+  return "HealthKit access denied. Manage workout permissions on your paired iPhone."
+
+...
+
+case .authorizationDenied:
+  return "On your iPhone, open Settings > Health > Data Access & Devices > RefWatch to enable workout permissions."
+```
+
+**Changes Summary**:
+- Error banners and alerts now direct users straight to the paired iPhone instead of the vague "Settings" wording.
+- Recovery copy references the current iOS navigation path for clarity.
+
+### Part D: Update Button Titles
 
 **Location**: `RefZoneWatchOS/Features/Workout/Views/WorkoutHomeView.swift:247-258`
 
@@ -153,21 +217,24 @@ Using concise "Verb + on iPhone" format:
 **Visual Review**:
 1. Reset HealthKit permissions
 2. Open RefWatch workout mode
-3. Read authorization card subtitle → should mention "paired iPhone"
-4. Read button text → should say "Grant on iPhone"
-5. Verify text fits within card bounds (no truncation)
-6. Test with Larger Text accessibility setting → verify text still readable
+3. Confirm authorization card title reads "Grant on iPhone"
+4. Read authorization card subtitle → should mention "paired iPhone"
+5. Read button text → should say "Grant on iPhone"
+6. Verify text fits within card bounds (no truncation)
+7. Test with Larger Text accessibility setting → verify title/subtitle/button remain legible
 
 **State Coverage**:
 Test all authorization states to verify copy:
 
-| State | Expected Subtitle | Expected Button |
-|-------|------------------|-----------------|
-| Not Determined | "Grant access on your paired iPhone to track..." | "Grant on iPhone" |
-| Denied | "Enable Health permissions on iPhone Settings..." | "Fix on iPhone" |
-| Limited | "Grant full access on iPhone for complete..." | "Update on iPhone" |
-| Authorized (with optional denied) | "Optional metrics are disabled. Enable them on iPhone..." | "Update on iPhone" |
-| Authorized (full) | "Health permissions are active." | (card hidden) |
+| State | Expected Title | Expected Subtitle | Expected Button |
+|-------|----------------|-------------------|-----------------|
+| Not Determined | "Grant on iPhone" | "Grant access on your paired iPhone to track..." | "Grant on iPhone" |
+| Denied | "Access Denied on iPhone" | "Enable Health permissions on iPhone Settings..." | "Fix on iPhone" |
+| Limited | "Limited Access on iPhone" | "Grant full access on iPhone for complete..." | "Update on iPhone" |
+| Authorized (with optional denied) | "Manage on iPhone" | "Optional metrics are disabled. Enable them on iPhone..." | "Update on iPhone" |
+| Authorized (full) | (card hidden) | "Health permissions are active." | (card hidden) |
+
+When authorization is denied and the just-in-time guard (TASK_02) triggers, the error banner/alert should reuse the new "Manage workout permissions on your paired iPhone" messaging.
 
 **Interaction Flow**:
 1. Tap "Grant on iPhone" button
@@ -192,6 +259,8 @@ Test all authorization states to verify copy:
 ### Copy Review Checklist
 
 - [ ] Every authorization message mentions "iPhone" or "paired iPhone"
+- [ ] Authorization card titles mention "iPhone"
+- [ ] Error description and recovery copy mention the iPhone flow
 - [ ] Button titles clearly indicate action happens on iPhone
 - [ ] Copy is concise enough for small watch screen
 - [ ] Language is consistent across all states
@@ -201,7 +270,9 @@ Test all authorization states to verify copy:
 ## Files Modified
 
 - `RefZoneWatchOS/Features/Workout/ViewModels/WorkoutModeViewModel.swift`
-  - Lines 224-234: Update all authorization message strings to mention iPhone
+  - Lines 128-139: Update authorization tile titles to reference the iPhone
+  - Lines 224-234: Update all authorization message strings to mention the paired iPhone
+  - Lines 18-47: Update `WorkoutError.authorizationDenied` strings to direct users to iPhone settings
 
 - `RefZoneWatchOS/Features/Workout/Views/WorkoutHomeView.swift`
   - Lines 249-256: Update all button title strings to include "on iPhone"
