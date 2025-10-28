@@ -125,7 +125,7 @@ private struct WorkoutSessionMainPage: View {
   }
 
   var body: some View {
-    VStack(alignment: .leading, spacing: theme.spacing.xs) {
+    VStack(alignment: .leading, spacing: theme.spacing.m) {
       // Just the workout icon at the top
       WorkoutGlyph(kind: session.kind)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -135,15 +135,16 @@ private struct WorkoutSessionMainPage: View {
         .hapticsProvider(WatchHaptics())
 
       // Metrics
-      VStack(spacing: 2) {
+      VStack(spacing: theme.spacing.s) {
         ForEach(metrics) { metric in
           WorkoutPrimaryMetricView(metric: metric)
         }
       }
+      .padding(.top, theme.spacing.m)
       .frame(maxWidth: .infinity, alignment: .leading)
     }
     .padding(.horizontal, theme.spacing.s)
-    .padding(.top, theme.spacing.xs)
+    .padding(.top, layout.dimension(theme.spacing.xl, minimum: theme.spacing.l))
     .padding(.bottom, layout.safeAreaBottomPadding)
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     .background(theme.colors.backgroundPrimary.ignoresSafeArea())
@@ -575,22 +576,36 @@ private struct WorkoutPrimaryMetric: Identifiable {
 
 private struct WorkoutPrimaryMetricView: View {
   @Environment(\.theme) private var theme
+  @Environment(\.watchLayoutScale) private var layout
   let metric: WorkoutPrimaryMetric
 
+  private var valueFont: Font {
+    .system(
+      size: layout.dimension(30, minimum: 26, maximum: 34),
+      weight: .semibold,
+      design: .rounded
+    ).monospacedDigit()
+  }
+
+  private var labelFont: Font {
+    .system(size: layout.dimension(12, minimum: 10, maximum: 13), weight: .medium)
+  }
+
   var body: some View {
-    HStack(alignment: .lastTextBaseline, spacing: theme.spacing.xs) {
-      HStack(alignment: .lastTextBaseline, spacing: 2) {
+    HStack(alignment: .lastTextBaseline, spacing: theme.spacing.s) {
+      HStack(alignment: .lastTextBaseline, spacing: theme.spacing.xs) {
         Text(metric.value)
-          .font(.system(size: 26, weight: .semibold, design: .rounded).monospacedDigit())
+          .font(valueFont)
           .foregroundStyle(theme.colors.textPrimary)
           .lineLimit(1)
-          .minimumScaleFactor(0.7)
+          .minimumScaleFactor(0.75)
           .layoutPriority(1)
 
         if let unit = metric.unit {
           Text(unit.uppercased())
-            .font(.system(size: 11, weight: .regular))
-            .foregroundStyle(theme.colors.textSecondary)
+            .font(labelFont)
+            .tracking(0.6)
+            .foregroundStyle(theme.colors.textSecondary.opacity(0.9))
             .lineLimit(1)
             .minimumScaleFactor(0.7)
         }
@@ -599,7 +614,8 @@ private struct WorkoutPrimaryMetricView: View {
       Spacer()
 
       Text(metric.title.uppercased())
-        .font(.system(size: 11, weight: .regular))
+        .font(labelFont)
+        .tracking(0.6)
         .foregroundStyle(theme.colors.textSecondary)
         .multilineTextAlignment(.trailing)
         .lineLimit(1)
@@ -611,15 +627,25 @@ private struct WorkoutPrimaryMetricView: View {
 private struct WorkoutPrimaryTimerView: View {
   @Environment(\.theme) private var theme
   @Environment(\.haptics) private var haptics
+  @Environment(\.watchLayoutScale) private var layout
   @Bindable var timerModel: WorkoutTimerFaceModel
 
   init(timerModel: WorkoutTimerFaceModel) {
     _timerModel = Bindable(timerModel)
   }
 
+  private var timerFont: Font {
+    .system(
+      size: layout.dimension(44, minimum: 40, maximum: 52),
+      weight: .bold,
+      design: .rounded
+    ).monospacedDigit()
+  }
+
   var body: some View {
     Text(timerModel.matchTime)
-      .font(theme.typography.timerPrimary)
+      .font(timerFont)
+      .tracking(-0.5)
       .foregroundStyle(timerModel.isPaused ? theme.colors.textSecondary : theme.colors.accentSecondary)
       .frame(maxWidth: .infinity, alignment: .leading)
       .contentShape(Rectangle())
@@ -636,17 +662,26 @@ private struct WorkoutPrimaryTimerView: View {
 
 private struct WorkoutGlyph: View {
   @Environment(\.theme) private var theme
+  @Environment(\.watchLayoutScale) private var layout
   let kind: WorkoutKind
 
   var body: some View {
     Circle()
-      .fill(theme.colors.backgroundSecondary)
-      .frame(width: 48, height: 48)
+      .fill(theme.colors.accentSecondary.opacity(0.2))
+      .frame(width: glyphDiameter, height: glyphDiameter)
       .overlay(
         Image(systemName: iconName)
-          .font(.system(size: 22, weight: .semibold))
+          .font(.system(size: iconSize, weight: .semibold))
           .foregroundStyle(theme.colors.accentSecondary)
       )
+  }
+
+  private var glyphDiameter: CGFloat {
+    layout.dimension(44, minimum: 40, maximum: 48)
+  }
+
+  private var iconSize: CGFloat {
+    layout.dimension(20, minimum: 18, maximum: 22)
   }
 
   private var iconName: String {
