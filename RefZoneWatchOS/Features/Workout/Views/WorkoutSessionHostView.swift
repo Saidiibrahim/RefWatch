@@ -125,7 +125,7 @@ private struct WorkoutSessionMainPage: View {
   }
 
   var body: some View {
-    VStack(alignment: .leading, spacing: theme.spacing.m) {
+    VStack(alignment: .leading, spacing: theme.spacing.xs) {
       // Just the workout icon at the top
       WorkoutGlyph(kind: session.kind)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -135,7 +135,7 @@ private struct WorkoutSessionMainPage: View {
         .hapticsProvider(WatchHaptics())
 
       // Metrics
-      VStack(spacing: theme.spacing.xs) {
+      VStack(spacing: 2) {
         ForEach(metrics) { metric in
           WorkoutPrimaryMetricView(metric: metric)
         }
@@ -143,7 +143,7 @@ private struct WorkoutSessionMainPage: View {
       .frame(maxWidth: .infinity, alignment: .leading)
     }
     .padding(.horizontal, theme.spacing.s)
-    .padding(.top, theme.spacing.s)
+    .padding(.top, theme.spacing.xs)
     .padding(.bottom, layout.safeAreaBottomPadding)
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     .background(theme.colors.backgroundPrimary.ignoresSafeArea())
@@ -584,9 +584,9 @@ private struct WorkoutPrimaryMetricView: View {
 
   var body: some View {
     HStack(alignment: .lastTextBaseline, spacing: theme.spacing.xs) {
-      HStack(alignment: .lastTextBaseline, spacing: theme.spacing.xs) {
+      HStack(alignment: .lastTextBaseline, spacing: 2) {
         Text(metric.value)
-          .font(.system(size: 30, weight: .semibold, design: .rounded).monospacedDigit())
+          .font(.system(size: 26, weight: .semibold, design: .rounded).monospacedDigit())
           .foregroundStyle(theme.colors.textPrimary)
           .lineLimit(1)
           .minimumScaleFactor(0.7)
@@ -594,7 +594,7 @@ private struct WorkoutPrimaryMetricView: View {
 
         if let unit = metric.unit {
           Text(unit.uppercased())
-            .font(theme.typography.cardMeta)
+            .font(.system(size: 11, weight: .regular))
             .foregroundStyle(theme.colors.textSecondary)
             .lineLimit(1)
             .minimumScaleFactor(0.7)
@@ -604,7 +604,7 @@ private struct WorkoutPrimaryMetricView: View {
       Spacer()
 
       Text(metric.title.uppercased())
-        .font(theme.typography.cardMeta)
+        .font(.system(size: 11, weight: .regular))
         .foregroundStyle(theme.colors.textSecondary)
         .multilineTextAlignment(.trailing)
         .lineLimit(1)
@@ -623,22 +623,19 @@ private struct WorkoutPrimaryTimerView: View {
   }
 
   var body: some View {
-    VStack(alignment: .leading, spacing: theme.spacing.xs) {
-      Text(timerModel.matchTime)
-        .font(theme.typography.timerPrimary)
-        .foregroundStyle(timerModel.isPaused ? theme.colors.textSecondary : theme.colors.accentSecondary)
-    }
-    .frame(maxWidth: .infinity, alignment: .leading)
-    .padding(.vertical, theme.spacing.s)
-    .contentShape(Rectangle())
-    .onTapGesture {
-      haptics.play(.tap)
-      if timerModel.isPaused {
-        timerModel.resumeMatch()
-      } else {
-        timerModel.pauseMatch()
+    Text(timerModel.matchTime)
+      .font(theme.typography.timerPrimary)
+      .foregroundStyle(timerModel.isPaused ? theme.colors.textSecondary : theme.colors.accentSecondary)
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .contentShape(Rectangle())
+      .onTapGesture {
+        haptics.play(.tap)
+        if timerModel.isPaused {
+          timerModel.resumeMatch()
+        } else {
+          timerModel.pauseMatch()
+        }
       }
-    }
   }
 }
 
