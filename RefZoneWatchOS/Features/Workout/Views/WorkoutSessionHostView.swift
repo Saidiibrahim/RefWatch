@@ -125,32 +125,16 @@ private struct WorkoutSessionMainPage: View {
   }
 
   var body: some View {
-    VStack(alignment: .leading, spacing: theme.spacing.s) {
-      HStack(alignment: .center, spacing: theme.spacing.xs) {
-        WorkoutGlyph(kind: session.kind)
+    VStack(alignment: .leading, spacing: theme.spacing.m) {
+      // Just the workout icon at the top
+      WorkoutGlyph(kind: session.kind)
+        .frame(maxWidth: .infinity, alignment: .leading)
 
-        VStack(alignment: .leading, spacing: theme.spacing.xs) {
-          Text(session.title)
-            .font(theme.typography.cardHeadline)
-            .foregroundStyle(theme.colors.textPrimary)
-            .lineLimit(1)
-            .minimumScaleFactor(0.8)
-
-          Text(session.kind.displayName.uppercased())
-            .font(theme.typography.label)
-            .foregroundStyle(theme.colors.textSecondary)
-        }
-
-        Spacer(minLength: theme.spacing.xs)
-
-        Text(timerModel.isPaused ? "Paused" : "Active")
-          .font(theme.typography.label)
-          .foregroundStyle(timerModel.isPaused ? theme.colors.matchWarning : theme.colors.accentSecondary)
-      }
-
+      // Timer display
       WorkoutPrimaryTimerView(timerModel: timerModel)
         .hapticsProvider(WatchHaptics())
 
+      // Metrics
       VStack(spacing: theme.spacing.xs) {
         ForEach(metrics) { metric in
           WorkoutPrimaryMetricView(metric: metric)
