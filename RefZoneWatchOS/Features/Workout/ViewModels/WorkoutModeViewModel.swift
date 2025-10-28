@@ -3,7 +3,7 @@ import RefWatchCore
 import RefWorkoutCore
 
 /// Domain-specific errors for workout operations
-enum WorkoutError: LocalizedError {
+enum WorkoutError: LocalizedError, Equatable {
     case authorizationDenied
     case healthDataUnavailable
     case authorizationRequestFailed
@@ -66,6 +66,251 @@ enum WorkoutError: LocalizedError {
     }
 }
 
+struct WorkoutSelectionDwellConfiguration {
+  let dwellDuration: TimeInterval
+  let velocityThreshold: Double
+
+  static let standard = WorkoutSelectionDwellConfiguration(dwellDuration: 1.25, velocityThreshold: 0.15)
+}
+
+enum WorkoutSelectionDwellState: Equatable {
+  case idle
+  case pending(itemID: WorkoutSelectionItem.ID, startedAt: Date)
+  case locked(itemID: WorkoutSelectionItem.ID, completedAt: Date)
+}
+
+enum WorkoutPresentationState: Equatable {
+  case list
+  case preview(WorkoutSelectionItem)
+  case starting(WorkoutSelectionItem)
+  case session(WorkoutSession)
+  case error(WorkoutSelectionItem, WorkoutError)
+}
+
+struct WorkoutSelectionItem: Identifiable, Equatable {
+  enum ID: Hashable {
+    case authorization
+    case lastCompleted(UUID)
+    case quickStart(WorkoutKind)
+    case preset(UUID)
+    case emptyPresets
+  }
+
+  enum Content: Equatable {
+    case authorization(status: WorkoutAuthorizationStatus, diagnostics: [WorkoutAuthorizationMetric])
+    case lastCompleted(session: WorkoutSession)
+    case quickStart(kind: WorkoutKind)
+    case preset(preset: WorkoutPreset)
+    case emptyPresets
+  }
+
+  enum Interaction: Equatable {
+    case preview
+    case informational
+  }
+
+  let id: ID
+  let content: Content
+
+  var interaction: Interaction {
+    switch content {
+    case .authorization, .emptyPresets:
+      return .informational
+    case .lastCompleted, .quickStart, .preset:
+      return .preview
+    }
+  }
+
+  var allowsDwell: Bool {
+    interaction == .preview
+  }
+
+  var title: String {
+    switch content {
+    case .authorization(let status, _):
+      switch status.state {
+      case .notDetermined:
+        return "Grant Health Access"
+      case .denied:
+        return "Health Access Denied"
+      case .limited:
+        return "Limited Health Access"
+      case .authorized:
+        return "Health Access"
+      }
+    case .lastCompleted(let session):
+      return session.title
+    case .quickStart(let kind):
+      return kind.displayName
+    case .preset(let preset):
+      return preset.title
+    case .emptyPresets:
+      return "Sync Workouts"
+    }
+  }
+
+  var subtitle: String? {
+    switch content {
+    case .authorization(let status, _):
+      return WorkoutSelectionItem.authorizationMessage(for: status)
+    case .lastCompleted(let session):
+      return WorkoutSelectionItem.summary(for: session)
+    case .quickStart(let kind):
+      return WorkoutSelectionItem.quickStartSubtitle(for: kind)
+    case .preset(let preset):
+      return WorkoutSelectionItem.presetSummary(preset)
+    case .emptyPresets:
+      return "Create workouts on iPhone"
+    }
+  }
+
+  var iconSystemName: String? {
+    switch content {
+    case .authorization:
+      return "heart.text.square"
+    case .lastCompleted(let session):
+      return WorkoutSelectionItem.icon(for: session.kind)
+    case .quickStart(let kind):
+      return WorkoutSelectionItem.icon(for: kind)
+    case .preset(let preset):
+      return WorkoutSelectionItem.icon(for: preset.kind)
+    case .emptyPresets:
+      return "iphone"
+    }
+  }
+
+  var diagnosticsDescription: String? {
+    switch content {
+    case .authorization(_, let diagnostics):
+      guard !diagnostics.isEmpty else { return nil }
+      let names = diagnostics.map(\.displayName).sorted()
+      let prefix = names.count == 1 ? "Optional metric unavailable" : "Optional metrics unavailable"
+      return "\(prefix): \(names.joined(separator: ", "))"
+    default:
+      return nil
+    }
+  }
+
+  var authorizationStatus: WorkoutAuthorizationStatus? {
+    if case .authorization(let status, _) = content {
+      return status
+    }
+    return nil
+  }
+
+  var lastCompletedSession: WorkoutSession? {
+    if case .lastCompleted(let session) = content {
+      return session
+    }
+    return nil
+  }
+
+  var quickStartKind: WorkoutKind? {
+    if case .quickStart(let kind) = content {
+      return kind
+    }
+    return nil
+  }
+
+  var preset: WorkoutPreset? {
+    if case .preset(let preset) = content {
+      return preset
+    }
+    return nil
+  }
+
+  private static func authorizationMessage(for status: WorkoutAuthorizationStatus) -> String {
+    switch status.state {
+    case .notDetermined:
+      return "Allow RefZone to collect pace, distance, and heart rate."
+    case .denied:
+      return "Enable Health permissions in Settings to track workouts."
+    case .limited:
+      return "Grant full access for complete workout analytics."
+    case .authorized:
+      if status.hasOptionalLimitations {
+        return "Optional metrics are disabled. Enable them for richer stats."
+      }
+      return "Health permissions are active."
+    }
+  }
+
+  private static func summary(for session: WorkoutSession) -> String {
+    var components: [String] = []
+    if let duration = session.totalDuration ?? session.summary.duration {
+      components.append(formatDuration(duration))
+    }
+    if let distance = session.summary.totalDistance {
+      components.append(formatKilometres(distance))
+    }
+    return components.joined(separator: " • ")
+  }
+
+  private static func presetSummary(_ preset: WorkoutPreset) -> String {
+    var values: [String] = []
+    let duration = preset.totalPlannedDuration
+    if duration > 0 {
+      values.append(formatDuration(duration))
+    }
+    let distance = preset.totalPlannedDistance
+    if distance > 0 {
+      values.append(formatKilometres(distance))
+    }
+    return values.joined(separator: " • ")
+  }
+
+  private static func quickStartSubtitle(for kind: WorkoutKind) -> String {
+    switch kind {
+    case .outdoorRun, .indoorRun:
+      return "Auto-pause + splits"
+    case .outdoorWalk:
+      return "Distance & pace logging"
+    case .indoorCycle:
+      return "Cadence ready"
+    case .strength:
+      return "Supersets tracking"
+    case .mobility:
+      return "Guided intervals"
+    case .refereeDrill:
+      return "Match sprint repeats"
+    case .custom:
+      return "Build your own"
+    }
+  }
+
+  private static func icon(for kind: WorkoutKind) -> String {
+    switch kind {
+    case .outdoorRun, .indoorRun:
+      return "figure.run"
+    case .outdoorWalk:
+      return "figure.walk"
+    case .indoorCycle:
+      return "bicycle"
+    case .strength:
+      return "dumbbell"
+    case .mobility:
+      return "figure.cooldown"
+    case .refereeDrill:
+      return "whistle"
+    case .custom:
+      return "star"
+    }
+  }
+
+  static func formatDuration(_ time: TimeInterval) -> String {
+    let formatter = DateComponentsFormatter()
+    formatter.unitsStyle = .abbreviated
+    formatter.allowedUnits = [.hour, .minute]
+    formatter.zeroFormattingBehavior = [.dropAll]
+    return formatter.string(from: time) ?? "0m"
+  }
+
+  static func formatKilometres(_ meters: Double) -> String {
+    let kilometres = meters / 1000
+    return String(format: "%.1f km", kilometres)
+  }
+}
+
 @MainActor
 final class WorkoutModeViewModel: ObservableObject {
   @Published private(set) var authorization: WorkoutAuthorizationStatus = WorkoutAuthorizationStatus(state: .notDetermined)
@@ -79,18 +324,38 @@ final class WorkoutModeViewModel: ObservableObject {
   @Published var errorMessage: String?
   @Published var isPerformingAction = false
   @Published var recoveryAction: String?
+  @Published private(set) var selectionItems: [WorkoutSelectionItem] = []
+  @Published var focusedSelectionID: WorkoutSelectionItem.ID?
+  @Published private(set) var presentationState: WorkoutPresentationState = .list
+  @Published private(set) var dwellState: WorkoutSelectionDwellState = .idle
+
+  var selectionDwellConfiguration: WorkoutSelectionDwellConfiguration {
+    dwellConfiguration
+  }
 
   private let services: WorkoutServices
   private unowned let appModeController: AppModeController
   private var metricsTask: Task<Void, Never>?
+  private var dwellTask: Task<Void, Never>?
+  private var lastObservedVelocity: Double = 0
+  private var lastCommittedSelectionID: WorkoutSelectionItem.ID?
+  private let dwellConfiguration: WorkoutSelectionDwellConfiguration
+  private let quickStartKinds: [WorkoutKind] = [.outdoorRun, .outdoorWalk, .strength, .mobility]
 
-  init(services: WorkoutServices, appModeController: AppModeController) {
+  init(
+    services: WorkoutServices,
+    appModeController: AppModeController,
+    dwellConfiguration: WorkoutSelectionDwellConfiguration = .standard
+  ) {
     self.services = services
     self.appModeController = appModeController
+    self.dwellConfiguration = dwellConfiguration
+    self.rebuildSelectionItems()
   }
 
   deinit {
     metricsTask?.cancel()
+    dwellTask?.cancel()
   }
 
   /// Clears all active session state to ensure UI consistency
@@ -102,6 +367,11 @@ final class WorkoutModeViewModel: ObservableObject {
     self.liveMetrics = nil
     metricsTask?.cancel()
     metricsTask = nil
+    presentationState = .list
+    if let lastCommittedSelectionID,
+       selectionItems.contains(where: { $0.id == lastCommittedSelectionID }) {
+      focusedSelectionID = lastCommittedSelectionID
+    }
   }
 
   private func beginConsumingLiveMetrics(for sessionId: UUID) {
@@ -136,6 +406,282 @@ final class WorkoutModeViewModel: ObservableObject {
     return updated
   }
 
+  private func rebuildSelectionItems() {
+    var items: [WorkoutSelectionItem] = []
+
+    if shouldShowAuthorizationItem {
+      let diagnostics = Array(authorization.deniedOptionalMetrics)
+      items.append(
+        WorkoutSelectionItem(
+          id: .authorization,
+          content: .authorization(status: authorization, diagnostics: diagnostics)
+        )
+      )
+    }
+
+    if let lastCompletedSession {
+      items.append(
+        WorkoutSelectionItem(
+          id: .lastCompleted(lastCompletedSession.id),
+          content: .lastCompleted(session: lastCompletedSession)
+        )
+      )
+    }
+
+    for kind in quickStartKinds where kind != .custom {
+      items.append(
+        WorkoutSelectionItem(
+          id: .quickStart(kind),
+          content: .quickStart(kind: kind)
+        )
+      )
+    }
+
+    if presets.isEmpty {
+      items.append(WorkoutSelectionItem(id: .emptyPresets, content: .emptyPresets))
+    } else {
+      for preset in presets {
+        items.append(
+          WorkoutSelectionItem(
+            id: .preset(preset.id),
+            content: .preset(preset: preset)
+          )
+        )
+      }
+    }
+
+    selectionItems = items
+
+    if let currentFocus = focusedSelectionID, !items.contains(where: { $0.id == currentFocus }) {
+      focusedSelectionID = nil
+    }
+
+    switch presentationState {
+    case .preview(let item), .starting(let item):
+      if !items.contains(item) {
+        presentationState = .list
+      }
+    default:
+      break
+    }
+
+    if presentationState == .list, focusedSelectionID == nil, let lastCommittedSelectionID {
+      if items.contains(where: { $0.id == lastCommittedSelectionID }) {
+        focusedSelectionID = lastCommittedSelectionID
+      }
+    }
+  }
+
+  private var shouldShowAuthorizationItem: Bool {
+    !authorization.isAuthorized || authorization.hasOptionalLimitations
+  }
+
+  private func selectionItem(for preset: WorkoutPreset) -> WorkoutSelectionItem {
+    if let existing = selectionItems.first(where: { $0.preset?.id == preset.id }) {
+      return existing
+    }
+    return WorkoutSelectionItem(id: .preset(preset.id), content: .preset(preset: preset))
+  }
+
+  private func selectionItem(for kind: WorkoutKind) -> WorkoutSelectionItem {
+    if let existing = selectionItems.first(where: { $0.quickStartKind == kind }) {
+      return existing
+    }
+    return WorkoutSelectionItem(id: .quickStart(kind), content: .quickStart(kind: kind))
+  }
+
+  func updateFocusedSelection(to itemID: WorkoutSelectionItem.ID?, crownVelocity: Double) {
+    lastObservedVelocity = crownVelocity
+
+    guard presentationState == .list else {
+      cancelPendingDwell()
+      focusedSelectionID = itemID
+      return
+    }
+
+    if focusedSelectionID != itemID {
+      focusedSelectionID = itemID
+      cancelPendingDwell()
+      guard let itemID else { return }
+      startDwellIfEligible(for: itemID, velocity: crownVelocity)
+    } else {
+      guard let itemID else {
+        cancelPendingDwell()
+        return
+      }
+
+      if abs(crownVelocity) > dwellConfiguration.velocityThreshold {
+        cancelPendingDwell()
+      } else if case .idle = dwellState {
+        startDwellIfEligible(for: itemID, velocity: crownVelocity)
+      }
+    }
+  }
+
+  func cancelDwellDueToMotion() {
+    cancelPendingDwell()
+  }
+
+  private func startDwellIfEligible(for itemID: WorkoutSelectionItem.ID, velocity: Double) {
+    guard abs(velocity) <= dwellConfiguration.velocityThreshold else { return }
+    guard let item = selectionItems.first(where: { $0.id == itemID }), item.allowsDwell else { return }
+
+    dwellTask?.cancel()
+    let startDate = Date()
+    dwellState = .pending(itemID: itemID, startedAt: startDate)
+
+    let dwellDuration = dwellConfiguration.dwellDuration
+    dwellTask = Task { [weak self] in
+      guard dwellDuration > 0 else { return }
+      let delay = UInt64(dwellDuration * 1_000_000_000)
+      try? await Task.sleep(nanoseconds: delay)
+      await MainActor.run {
+        self?.completeDwell(for: itemID, expectedStartDate: startDate)
+      }
+    }
+  }
+
+  private func completeDwell(for itemID: WorkoutSelectionItem.ID, expectedStartDate: Date) {
+    guard case .pending(let pendingID, let startedAt) = dwellState, pendingID == itemID, startedAt == expectedStartDate else {
+      return
+    }
+
+    dwellTask = nil
+
+    guard focusedSelectionID == itemID else {
+      dwellState = .idle
+      return
+    }
+
+    guard abs(lastObservedVelocity) <= dwellConfiguration.velocityThreshold else {
+      dwellState = .idle
+      return
+    }
+
+    guard let item = selectionItems.first(where: { $0.id == itemID }), item.allowsDwell else {
+      dwellState = .idle
+      return
+    }
+
+    guard presentationState == .list else {
+      dwellState = .idle
+      return
+    }
+
+    dwellState = .locked(itemID: itemID, completedAt: Date())
+    lastCommittedSelectionID = itemID
+    presentationState = .preview(item)
+  }
+
+  private func cancelPendingDwell() {
+    dwellTask?.cancel()
+    dwellTask = nil
+    dwellState = .idle
+  }
+
+  func requestPreview(for item: WorkoutSelectionItem) {
+    guard item.allowsDwell else { return }
+    cancelPendingDwell()
+    lastCommittedSelectionID = item.id
+    focusedSelectionID = item.id
+    presentationState = .preview(item)
+  }
+
+  func returnToList() {
+    cancelPendingDwell()
+    presentationState = .list
+    if let lastCommittedSelectionID,
+       selectionItems.contains(where: { $0.id == lastCommittedSelectionID }) {
+      focusedSelectionID = lastCommittedSelectionID
+    } else {
+      focusedSelectionID = selectionItems.first?.id
+    }
+    errorMessage = nil
+    recoveryAction = nil
+  }
+
+  func startSelection(for item: WorkoutSelectionItem) {
+    switch item.content {
+    case .quickStart(let kind):
+      quickStart(kind: kind)
+    case .preset(let preset):
+      startPreset(preset)
+    case .lastCompleted(let session):
+      let selectionItem = selectionItems.first(where: { $0.id == item.id }) ?? item
+      if let presetID = session.presetId,
+         let preset = presets.first(where: { $0.id == presetID }) {
+        let configuration = WorkoutSessionConfiguration(
+          kind: preset.kind,
+          presetId: preset.id,
+          title: preset.title,
+          segments: preset.segments,
+          metadata: ["source": "repeat_preset"]
+        )
+        beginStartingSession(selectionItem: selectionItem, configuration: configuration)
+      } else {
+        var metadata: [String: String] = ["source": "repeat_last"]
+        if let priorSource = session.metadata["source"] {
+          metadata["previousSource"] = priorSource
+        }
+        let configuration = WorkoutSessionConfiguration(
+          kind: session.kind,
+          title: session.title,
+          segments: session.segments,
+          metadata: metadata
+        )
+        beginStartingSession(selectionItem: selectionItem, configuration: configuration)
+      }
+    case .authorization, .emptyPresets:
+      break
+    }
+  }
+
+  private func beginStartingSession(selectionItem: WorkoutSelectionItem, configuration: WorkoutSessionConfiguration) {
+    Task { @MainActor in
+      self.isPerformingAction = true
+      defer { self.isPerformingAction = false }
+      self.cancelPendingDwell()
+      self.presentationState = .starting(selectionItem)
+      self.lastCommittedSelectionID = selectionItem.id
+      do {
+        let session = try await self.services.sessionTracker.startSession(configuration: configuration)
+        self.activeSession = session
+        self.isActiveSessionPaused = false
+        self.lapCount = 0
+        self.isRecordingSegment = false
+        self.beginConsumingLiveMetrics(for: session.id)
+        self.appModeController.select(.workout)
+        self.errorMessage = nil
+        self.recoveryAction = nil
+        self.presentationState = .session(session)
+      } catch let sessionError as WorkoutSessionError {
+        let workoutError = self.mapStartError(sessionError)
+        self.errorMessage = workoutError.errorDescription
+        self.recoveryAction = workoutError.recoveryAction
+        self.presentationState = .error(selectionItem, workoutError)
+      } catch {
+        let workoutError = WorkoutError.sessionStartFailed(reason: error.localizedDescription)
+        self.errorMessage = workoutError.errorDescription
+        self.recoveryAction = workoutError.recoveryAction
+        self.presentationState = .error(selectionItem, workoutError)
+      }
+    }
+  }
+
+  private func mapStartError(_ sessionError: WorkoutSessionError) -> WorkoutError {
+    switch sessionError {
+    case .healthDataUnavailable:
+      return .healthDataUnavailable
+    case .sessionNotFound:
+      return .sessionNotFound
+    case .collectionBeginFailed,
+         .collectionEndFailed:
+      return .collectionFailed(reason: sessionError.localizedDescription)
+    case .finishFailed:
+      return .sessionFinishFailed(reason: sessionError.localizedDescription)
+    }
+  }
+
   func bootstrap() async {
     await refreshAuthorization()
     await loadPresets()
@@ -144,6 +690,7 @@ final class WorkoutModeViewModel: ObservableObject {
 
   func refreshAuthorization() async {
     authorization = await services.authorizationManager.authorizationStatus()
+    rebuildSelectionItems()
   }
 
   func requestAuthorization() {
@@ -177,93 +724,25 @@ final class WorkoutModeViewModel: ObservableObject {
   }
 
   func startPreset(_ preset: WorkoutPreset) {
-    Task { @MainActor in
-      self.isPerformingAction = true
-      defer { self.isPerformingAction = false }
-      do {
-        let configuration = WorkoutSessionConfiguration(
-          kind: preset.kind,
-          presetId: preset.id,
-          title: preset.title,
-          segments: preset.segments,
-          metadata: ["source": "preset"]
-        )
-        let session = try await self.services.sessionTracker.startSession(configuration: configuration)
-        self.activeSession = session
-        self.isActiveSessionPaused = false
-        self.lapCount = 0
-        self.isRecordingSegment = false
-        self.beginConsumingLiveMetrics(for: session.id)
-        self.appModeController.select(.workout)
-        self.errorMessage = nil
-        self.recoveryAction = nil
-      } catch let sessionError as WorkoutSessionError {
-        let workoutError: WorkoutError = {
-          switch sessionError {
-          case .healthDataUnavailable:
-            return .healthDataUnavailable
-          case .sessionNotFound:
-            return .sessionNotFound
-          case .collectionBeginFailed:
-            return .collectionFailed(reason: sessionError.localizedDescription)
-          case .collectionEndFailed:
-            return .collectionFailed(reason: sessionError.localizedDescription)
-          case .finishFailed:
-            return .sessionFinishFailed(reason: sessionError.localizedDescription)
-          }
-        }()
-        self.errorMessage = workoutError.errorDescription
-        self.recoveryAction = workoutError.recoveryAction
-      } catch {
-        let workoutError = WorkoutError.sessionStartFailed(reason: error.localizedDescription)
-        self.errorMessage = workoutError.errorDescription
-        self.recoveryAction = workoutError.recoveryAction
-      }
-    }
+    let selectionItem = selectionItem(for: preset)
+    let configuration = WorkoutSessionConfiguration(
+      kind: preset.kind,
+      presetId: preset.id,
+      title: preset.title,
+      segments: preset.segments,
+      metadata: ["source": "preset"]
+    )
+    beginStartingSession(selectionItem: selectionItem, configuration: configuration)
   }
 
   func quickStart(kind: WorkoutKind) {
-    Task { @MainActor in
-      self.isPerformingAction = true
-      defer { self.isPerformingAction = false }
-      do {
-        let configuration = WorkoutSessionConfiguration(
-          kind: kind,
-          title: kind.displayName,
-          metadata: ["source": "quick_start"]
-        )
-        let session = try await self.services.sessionTracker.startSession(configuration: configuration)
-        self.activeSession = session
-        self.isActiveSessionPaused = false
-        self.lapCount = 0
-        self.isRecordingSegment = false
-        self.beginConsumingLiveMetrics(for: session.id)
-        self.appModeController.select(.workout)
-        self.errorMessage = nil
-        self.recoveryAction = nil
-      } catch let sessionError as WorkoutSessionError {
-        let workoutError: WorkoutError = {
-          switch sessionError {
-          case .healthDataUnavailable:
-            return .healthDataUnavailable
-          case .sessionNotFound:
-            return .sessionNotFound
-          case .collectionBeginFailed:
-            return .collectionFailed(reason: sessionError.localizedDescription)
-          case .collectionEndFailed:
-            return .collectionFailed(reason: sessionError.localizedDescription)
-          case .finishFailed:
-            return .sessionFinishFailed(reason: sessionError.localizedDescription)
-          }
-        }()
-        self.errorMessage = workoutError.errorDescription
-        self.recoveryAction = workoutError.recoveryAction
-      } catch {
-        let workoutError = WorkoutError.sessionStartFailed(reason: error.localizedDescription)
-        self.errorMessage = workoutError.errorDescription
-        self.recoveryAction = workoutError.recoveryAction
-      }
-    }
+    let selectionItem = selectionItem(for: kind)
+    let configuration = WorkoutSessionConfiguration(
+      kind: kind,
+      title: kind.displayName,
+      metadata: ["source": "quick_start"]
+    )
+    beginStartingSession(selectionItem: selectionItem, configuration: configuration)
   }
 
   func endActiveSession() {
@@ -338,6 +817,11 @@ final class WorkoutModeViewModel: ObservableObject {
         self.metricsTask = nil
         self.errorMessage = nil
         self.recoveryAction = nil
+        self.presentationState = .list
+        if let lastCommittedSelectionID,
+           self.selectionItems.contains(where: { $0.id == lastCommittedSelectionID }) {
+          self.focusedSelectionID = lastCommittedSelectionID
+        }
       } catch let sessionError as WorkoutSessionError {
         let workoutError: WorkoutError = {
           switch sessionError {
@@ -474,6 +958,7 @@ final class WorkoutModeViewModel: ObservableObject {
         presets = [WorkoutModeBootstrap.samplePreset]
         try await services.presetStore.savePreset(WorkoutModeBootstrap.samplePreset)
       }
+      rebuildSelectionItems()
     } catch {
       let workoutError = WorkoutError.presetLoadFailed(reason: error.localizedDescription)
       errorMessage = workoutError.errorDescription
@@ -485,6 +970,7 @@ final class WorkoutModeViewModel: ObservableObject {
     do {
       let sessions = try await services.historyStore.loadSessions(limit: 1)
       lastCompletedSession = sessions.first
+      rebuildSelectionItems()
     } catch {
       let workoutError = WorkoutError.historyPersistenceFailed(reason: error.localizedDescription)
       errorMessage = workoutError.errorDescription

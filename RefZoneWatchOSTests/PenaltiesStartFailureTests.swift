@@ -5,6 +5,7 @@
 
 import Testing
 @testable import RefZone_Watch_App
+import RefWatchCore
 
 // A simple fake that never activates on begin(), allowing us to simulate
 // a failure path for startPenalties(withFirstKicker:).
@@ -42,11 +43,12 @@ final class FakePenaltyManagerNeverBegins: PenaltyManaging {
     var onEnd: (() -> Void)?
 }
 
+@MainActor
 struct PenaltiesStartFailureTests {
     @Test
     func test_startPenalties_whenManagerBeginFails_returnsFalse() async throws {
         let failing = FakePenaltyManagerNeverBegins()
-        let vm = MatchViewModel(penaltyManager: failing)
+        let vm = MatchViewModel(history: InMemoryHistoryStore(), penaltyManager: failing)
 
         // Configure a match to ensure period math is valid
         vm.configureMatch(duration: 90, periods: 2, halfTimeLength: 15, hasExtraTime: true, hasPenalties: true)

@@ -7,6 +7,7 @@ import Foundation
 import Testing
 @testable import RefZone_Watch_App
 
+@MainActor
 struct MatchHistoryServiceConcurrencyTests {
 
     @Test
@@ -29,7 +30,9 @@ struct MatchHistoryServiceConcurrencyTests {
                         match: match,
                         events: [e]
                     )
-                    try? svc.save(cm)
+                    await MainActor.run {
+                        try? svc.save(cm)
+                    }
                 }
             }
         }

@@ -14,37 +14,10 @@ struct WorkoutRootView: View {
 
   var body: some View {
     NavigationStack {
-      Group {
-        if let session = viewModel.activeSession {
-          WorkoutSessionHostView(
-            session: session,
-            liveMetrics: viewModel.liveMetrics,
-            isPaused: viewModel.isActiveSessionPaused,
-            isEnding: viewModel.isPerformingAction,
-            isRecordingSegment: viewModel.isRecordingSegment,
-            lapCount: viewModel.lapCount,
-            onPause: viewModel.pauseActiveSession,
-            onResume: viewModel.resumeActiveSession,
-            onEnd: viewModel.endActiveSession,
-            onMarkSegment: viewModel.markSegment,
-            onRequestNewSession: viewModel.abandonActiveSession
-          )
-        } else {
-          WorkoutHomeView(
-            authorization: viewModel.authorization,
-            presets: viewModel.presets,
-            lastCompleted: viewModel.lastCompletedSession,
-            isBusy: viewModel.isPerformingAction,
-            onRequestAccess: viewModel.requestAuthorization,
-            onStartPreset: viewModel.startPreset,
-            onQuickStart: viewModel.quickStart,
-            onReload: viewModel.reloadContent
-          )
-        }
-      }
+      content
       .navigationTitle("Workout")
       .toolbar {
-        if viewModel.activeSession == nil {
+        if case .list = viewModel.presentationState {
           ToolbarItem(placement: .cancellationAction) {
             Button {
               modeSwitcherPresentation.wrappedValue = true
@@ -72,7 +45,13 @@ struct WorkoutRootView: View {
       await viewModel.bootstrap()
     }
     .onChange(of: viewModel.errorMessage) { message in
-      presentError = message != nil
+      let isSelectionError: Bool
+      if case .error = viewModel.presentationState {
+        isSelectionError = true
+      } else {
+        isSelectionError = false
+      }
+      presentError = message != nil && !isSelectionError
     }
     .alert("Workout Error", isPresented: $presentError) {
       Button("OK", role: .cancel) {
@@ -81,6 +60,72 @@ struct WorkoutRootView: View {
       }
     } message: {
       Text(viewModel.errorMessage ?? "An unknown error occurred.")
+    }
+  }
+}
+
+private extension WorkoutRootView {
+  @ViewBuilder
+  var content: some View {
+    switch viewModel.presentationState {
+    case .list:
+      WorkoutHomeView(
+        items: viewModel.selectionItems,
+        focusedSelectionID: viewModel.focusedSelectionID,
+        dwellState: viewModel.dwellState,
+        dwellConfiguration: viewModel.selectionDwellConfiguration,
+        isBusy: viewModel.isPerformingAction,
+        onFocusChange: viewModel.updateFocusedSelection,
+        onSelect: viewModel.requestPreview,
+        onRequestAccess: viewModel.requestAuthorization,
+        onReloadPresets: viewModel.reloadPresets
+      )
+
+    case .preview(let item):
+      WorkoutSessionPreviewView(
+        item: item,
+        isStarting: false,
+        error: nil,
+        onStart: { viewModel.startSelection(for: item) },
+        onRetry: { viewModel.startSelection(for: item) },
+        onReturnToList: viewModel.returnToList
+      )
+
+    case .starting(let item):
+      WorkoutSessionPreviewView(
+        item: item,
+        isStarting: true,
+        error: nil,
+        onStart: {},
+        onRetry: { viewModel.startSelection(for: item) },
+        onReturnToList: viewModel.returnToList
+      )
+
+    case .error(let item, let error):
+      WorkoutSessionPreviewView(
+        item: item,
+        isStarting: false,
+        error: error,
+        onStart: { viewModel.startSelection(for: item) },
+        onRetry: { viewModel.startSelection(for: item) },
+        onReturnToList: viewModel.returnToList
+      )
+
+    case .session(let session):
+      WorkoutSessionHostView(
+        session: viewModel.activeSession ?? session,
+        liveMetrics: viewModel.liveMetrics,
+        isPaused: viewModel.isActiveSessionPaused,
+        isEnding: viewModel.isPerformingAction,
+        isRecordingSegment: viewModel.isRecordingSegment,
+        lapCount: viewModel.lapCount,
+        onPause: viewModel.pauseActiveSession,
+        onResume: viewModel.resumeActiveSession,
+        onEnd: viewModel.endActiveSession,
+        onMarkSegment: viewModel.markSegment,
+        onRequestNewSession: viewModel.abandonActiveSession
+      )
+      .workoutCrownReturnGesture(onReturn: viewModel.returnToList)
     }
   }
 }

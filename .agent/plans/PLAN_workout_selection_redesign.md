@@ -40,6 +40,17 @@
 5. **Testing & Iteration**  
    Add unit tests around the new state machine, dwell timer behavior, and error handling. Update snapshot/previews for the new UI and run watchOS previews/manual smoke tests. Ensure backwards compatibility for history/presets and verify interactions with the mode switcher, concurrent sessions, and HealthKit failure scenarios.
 
+## Experience Contract *(2025-02-18)*
+- **Catalog ordering** — Present items in the following sequence: (1) authorization tile (shown whenever `authorization.state != .authorized` or optional metrics are denied), (2) last completed workout tile when available, (3) quick starts (`outdoorRun`, `outdoorWalk`, `strength`, `mobility`), (4) saved presets in the order returned by `WorkoutPresetStore`. Empty presets render a dedicated “Add presets in RefZone iPhone” informational tile instead of a blank slot. All catalog entries conform to the upcoming `WorkoutSelectionItem` model.
+- **Permission messaging** — Authorization tile surfaces the current status string (re-using `WorkoutPermissionsCard` copy) and exposes a single primary action that routes to `onRequestAccess`. Diagnostics badges (optional metric warnings) render as part of the authorization tile footer so that the carousel does not need a second entry.
+- **Recent workout** — The “last completed” tile mirrors the summary from `WorkoutSummaryCard` (duration + distance) and allows a quick relaunch by dwelling; the preview view will highlight that this is a repeat of the previous session.
+- **Dwell mechanics** — Dwell triggers after **1.25 s** of stable focus where absolute crown velocity remains below **0.15 rad/s** and scroll offset change stays under **6 pt**. Velocity spikes or kinetic scrolling immediately cancel the pending dwell. A `.success` haptic plays on lock and the preview animates in without requiring a tap.
+- **Return gesture** — While in preview or session, a counter-clockwise crown rotation of at least **15°** with the crown at rest for **0.3 s** re-exposes the carousel list without terminating the start attempt. This relies on the same velocity heuristics as dwell cancellation.
+- **Persistence** — The last focused selection ID is cached in-memory inside `WorkoutModeViewModel` and restored when returning from preview/session so referees resume from their previous item.
+
+### Open Questions
+- None at this time; decisions above align with the product brief. Update this section if design feedback revises dwell duration or catalog ordering.
+
 ## Concrete Steps
 - `.agent/tasks/workout_selection_redesign/TASK_01.md` – Capture UX contract, workout catalog ordering, and permission handling updates. *(Phase 1)*
 - `.agent/tasks/workout_selection_redesign/TASK_02.md` – Extend `WorkoutModeViewModel` with selection/presentation state and supporting models. *(Phase 2)*
@@ -47,10 +58,10 @@
 - `.agent/tasks/workout_selection_redesign/TASK_04.md` – Integrate preview/session flow, wire start actions, and add tests. *(Phase 4–5)*
 
 ## Progress
-- [ ] (TASK_01_workout_selection_redesign.md) UX definition & open questions. *(2025-02-??)*
-- [ ] (TASK_02_workout_selection_redesign.md) ViewModel state extensions. *(2025-02-??)*
-- [ ] (TASK_03_workout_selection_redesign.md) Carousel UI implementation. *(2025-02-??)*
-- [ ] (TASK_04_workout_selection_redesign.md) Flow integration & tests. *(2025-02-??)*
+- [x] (TASK_01_workout_selection_redesign.md) UX definition & open questions. *(2025-02-18)*
+- [x] (TASK_02_workout_selection_redesign.md) ViewModel state extensions. *(2025-02-18)*
+- [x] (TASK_03_workout_selection_redesign.md) Carousel UI implementation. *(2025-02-20)*
+- [x] (TASK_04_workout_selection_redesign.md) Flow integration & tests — preview polish complete, new haptics/tests added, pending follow-up on simulator crash impacting watch test run. *(2025-02-27)*
 
 ## Testing Approach
 - Unit-test dwell timer and presentation state transitions in `WorkoutModeViewModel` using the in-memory services stubs found in `RefWorkoutCore/Sources/RefWorkoutCore/Services/WorkoutServiceMocks.swift` and existing watchOS tests.
