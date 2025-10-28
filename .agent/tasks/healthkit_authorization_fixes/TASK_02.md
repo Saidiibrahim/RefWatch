@@ -89,10 +89,10 @@ If we later need to allow "limited" states that still include all required metri
 ### Error Handling
 
 Using `WorkoutError.authorizationDenied` provides:
-- **Error Description**: "HealthKit access denied. Please enable workout permissions in Settings."
-- **Recovery Action**: "Go to Settings > Privacy & Security > Health > RefWatch and enable workout permissions."
+- **Error Description**: "HealthKit access denied. Manage workout permissions on your paired iPhone."
+- **Recovery Action**: "On your iPhone, open Settings > Health > Data Access & Devices > RefWatch to enable workout permissions."
 
-These messages are already defined in `WorkoutModeViewModel.swift:18-46`.
+These messages live in `WorkoutModeViewModel.swift:18-47` and are updated in TASK_03.
 
 ### Presentation State
 
@@ -137,7 +137,7 @@ Current approach uses `presentationState = .error()` which likely shows an error
 2. Open RefWatch workout mode
 3. Scroll past authorization card
 4. Tap any workout (quick start, preset, or last completed)
-5. **Expected**: Error view with "HealthKit access denied" message and recovery action pointing to Settings
+5. **Expected**: Error view with "HealthKit access denied. Manage workout permissions on your paired iPhone." message and the updated recovery action
 6. **Bug if**: Generic collection error or attempt to start session
 
 **Test Case 2: Partial Permissions (if applicable)**

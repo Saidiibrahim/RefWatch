@@ -90,7 +90,7 @@ Run `cancelPendingDwell()` before checking authorization so dwell locks always c
 
 #### Step 3: Update Authorization Copy - Messages & Errors
 **Files**:
-- `RefZoneWatchOS/Features/Workout/ViewModels/WorkoutModeViewModel.swift` (lines 222-236 `authorizationMessage(for:)` and the authorization card title cases)
+- `RefZoneWatchOS/Features/Workout/ViewModels/WorkoutModeViewModel.swift` (lines 128-139 authorization card titles and lines 222-236 `authorizationMessage(for:)`)
 - `RefZoneWatchOS/Features/Workout/ViewModels/WorkoutModeViewModel.swift` (lines 20-47 `WorkoutError.authorizationDenied` strings)
 
 Revise all authorization messaging to explicitly mention the paired iPhone. This includes the card subtitle helper, the authorization tile titles (e.g., "Grant on iPhone"), and the error/recovery text that appears in preview and alert flows.
@@ -132,7 +132,7 @@ Tasks are documented in `.agent/tasks/healthkit_authorization_fixes/`:
 ### Phase 1: Critical Bugs
 - [ ] (TASK_01.md) Fix requestAuthorization() to rebuild selection items after authorization grant
 - [ ] (TASK_02.md) Add pre-flight authorization check in beginStartingSession()
-- [ ] (TASK_03.md) Update all authorization messages and button titles to reference iPhone
+- [ ] (TASK_03.md) Update all authorization messaging (titles, subtitles, errors, buttons) to reference the iPhone
 
 ### Phase 2: UX Enhancements
 - [ ] (TASK_04.md) Create first-launch welcome sheet with authorization primer

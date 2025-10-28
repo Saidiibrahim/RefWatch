@@ -146,60 +146,17 @@ private struct WorkoutSelectionTileView: View {
     }
   }
 
+  @ViewBuilder
   private var tileContent: some View {
-    VStack(spacing: theme.spacing.m) {
-      iconView
-        .frame(height: 42)
-
-      VStack(spacing: theme.spacing.xs) {
-        Text(item.title)
-          .font(theme.typography.cardHeadline)
-          .foregroundStyle(theme.colors.textPrimary)
-          .multilineTextAlignment(.center)
-          .lineLimit(2)
-
-        if let subtitle = item.subtitle {
-          Text(subtitle)
-            .font(theme.typography.cardMeta)
-            .foregroundStyle(theme.colors.textSecondary)
-            .multilineTextAlignment(.center)
-            .lineLimit(2)
-        }
+    if case .authorization(let status, let diagnostics) = item.content {
+      tileContainer(contentSpacing: theme.spacing.m, verticalPadding: theme.spacing.m) {
+        authorizationContent(status: status, diagnostics: diagnostics)
       }
-
-      if let diagnostics = item.diagnosticsDescription {
-        Text(diagnostics)
-          .font(theme.typography.caption)
-          .foregroundStyle(theme.colors.accentSecondary)
-          .multilineTextAlignment(.center)
-      }
-
-      if case .authorization = item.content {
-        primaryButton(title: authorizationButtonTitle, action: onRequestAccess)
+    } else {
+      tileContainer {
+        standardTileContent
       }
     }
-    .padding(.vertical, theme.spacing.l)
-    .padding(.horizontal, theme.spacing.s)
-    .frame(maxWidth: .infinity)
-    .background(theme.colors.backgroundPrimary)
-    .overlay(alignment: .topTrailing) {
-      dwellIndicator
-    }
-    .overlay(alignment: .bottom) {
-      if case .locked(let id, _) = dwellState, id == item.id {
-        Rectangle()
-          .fill(theme.colors.accentSecondary)
-          .frame(height: 2)
-      } else {
-        Rectangle()
-          .fill(theme.colors.outlineMuted.opacity(0.3))
-          .frame(height: 1)
-      }
-    }
-    .scaleEffect(isFocused ? 1.02 : 0.94)
-    .opacity(isFocused ? 1.0 : 0.6)
-    .animation(.spring(response: 0.28, dampingFraction: 0.86), value: isFocused)
-    .opacity(isBusy && item.interaction == .preview ? 0.5 : 1)
   }
 
   @ViewBuilder
@@ -240,6 +197,104 @@ private struct WorkoutSelectionTileView: View {
     }
     .buttonStyle(.plain)
     .disabled(isBusy)
+  }
+
+  private func tileContainer<Content: View>(contentSpacing: CGFloat? = nil, verticalPadding: CGFloat? = nil, @ViewBuilder content: () -> Content) -> some View {
+    VStack(spacing: contentSpacing ?? theme.spacing.m) {
+      content()
+    }
+    .padding(.vertical, verticalPadding ?? theme.spacing.l)
+    .padding(.horizontal, theme.spacing.s)
+    .frame(maxWidth: .infinity)
+    .background(theme.colors.backgroundPrimary)
+    .overlay(alignment: .topTrailing) {
+      dwellIndicator
+    }
+    .overlay(alignment: .bottom) {
+      if case .locked(let id, _) = dwellState, id == item.id {
+        Rectangle()
+          .fill(theme.colors.accentSecondary)
+          .frame(height: 2)
+      } else {
+        Rectangle()
+          .fill(theme.colors.outlineMuted.opacity(0.3))
+          .frame(height: 1)
+      }
+    }
+    .scaleEffect(isFocused ? 1.02 : 0.94)
+    .opacity(isFocused ? 1.0 : 0.6)
+    .animation(.spring(response: 0.28, dampingFraction: 0.86), value: isFocused)
+    .opacity(isBusy && item.interaction == .preview ? 0.5 : 1)
+  }
+
+  private var standardTileContent: some View {
+    VStack(spacing: theme.spacing.m) {
+      iconView
+        .frame(height: 42)
+
+      VStack(spacing: theme.spacing.xs) {
+        Text(item.title)
+          .font(theme.typography.cardHeadline)
+          .foregroundStyle(theme.colors.textPrimary)
+          .multilineTextAlignment(.center)
+          .lineLimit(2)
+
+        if let subtitle = item.subtitle {
+          Text(subtitle)
+            .font(theme.typography.cardMeta)
+            .foregroundStyle(theme.colors.textSecondary)
+            .multilineTextAlignment(.center)
+            .lineLimit(2)
+            .minimumScaleFactor(0.9)
+        }
+      }
+
+      if let diagnostics = item.diagnosticsDescription {
+        Text(diagnostics)
+          .font(theme.typography.caption)
+          .foregroundStyle(theme.colors.accentSecondary)
+          .multilineTextAlignment(.center)
+      }
+    }
+  }
+
+  private func authorizationContent(status: WorkoutAuthorizationStatus, diagnostics: [WorkoutAuthorizationMetric]) -> some View {
+    VStack(spacing: theme.spacing.m) {
+      Image(systemName: item.iconSystemName ?? "heart.text.square")
+        .font(.system(size: 28, weight: .medium))
+        .foregroundStyle(theme.colors.accentSecondary)
+        .accessibilityHidden(true)
+
+      VStack(spacing: theme.spacing.xs) {
+        Text(item.title)
+          .font(theme.typography.cardHeadline)
+          .foregroundStyle(theme.colors.textPrimary)
+          .multilineTextAlignment(.center)
+          .lineLimit(1)
+          .minimumScaleFactor(0.85)
+
+        if let subtitle = item.subtitle {
+          Text(subtitle)
+            .font(theme.typography.cardMeta)
+            .foregroundStyle(theme.colors.textSecondary)
+            .multilineTextAlignment(.center)
+            .lineLimit(2)
+            .minimumScaleFactor(0.9)
+        }
+      }
+
+      if let summary = WorkoutSelectionItem.authorizationDiagnosticsSummary(for: diagnostics) {
+        Label(summary, systemImage: "info.circle")
+          .font(theme.typography.caption)
+          .foregroundStyle(theme.colors.accentSecondary)
+          .labelStyle(.titleAndIcon)
+          .multilineTextAlignment(.center)
+          .lineLimit(1)
+          .frame(maxWidth: .infinity)
+      }
+
+      primaryButton(title: authorizationButtonTitle, action: onRequestAccess)
+    }
   }
 
   private var authorizationButtonTitle: String {
