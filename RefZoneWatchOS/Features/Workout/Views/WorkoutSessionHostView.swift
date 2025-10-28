@@ -269,17 +269,11 @@ private struct WorkoutSessionControlsPage: View {
   }
 
   private var controlsHeader: some View {
-    VStack(alignment: .leading, spacing: theme.spacing.xs) {
-      Text(session.title)
-        .font(theme.typography.cardHeadline)
-        .foregroundStyle(theme.colors.textPrimary)
-        .lineLimit(1)
-        .minimumScaleFactor(0.8)
-
-      Text(timerModel.isPaused ? "Workout paused" : "Workout active")
-        .font(theme.typography.cardMeta)
-        .foregroundStyle(timerModel.isPaused ? theme.colors.matchWarning : theme.colors.textSecondary)
-    }
+    Text(session.title)
+      .font(theme.typography.cardHeadline)
+      .foregroundStyle(theme.colors.textPrimary)
+      .lineLimit(1)
+      .minimumScaleFactor(0.8)
   }
 
   private var tileStyle: WorkoutControlTile.Style {
