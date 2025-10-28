@@ -125,7 +125,7 @@ private struct WorkoutSessionMainPage: View {
   }
 
   var body: some View {
-    VStack(alignment: .leading, spacing: theme.spacing.m) {
+    VStack(alignment: .leading, spacing: layout.dimension(theme.spacing.l, minimum: theme.spacing.m)) {
       // Just the workout icon at the top
       WorkoutGlyph(kind: session.kind)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -135,16 +135,16 @@ private struct WorkoutSessionMainPage: View {
         .hapticsProvider(WatchHaptics())
 
       // Metrics
-      VStack(spacing: theme.spacing.s) {
+      VStack(spacing: theme.spacing.xs) {
         ForEach(metrics) { metric in
           WorkoutPrimaryMetricView(metric: metric)
         }
       }
-      .padding(.top, theme.spacing.m)
+      .padding(.top, theme.spacing.s)
       .frame(maxWidth: .infinity, alignment: .leading)
     }
     .padding(.horizontal, theme.spacing.s)
-    .padding(.top, layout.dimension(theme.spacing.xl, minimum: theme.spacing.l))
+    .padding(.top, layout.dimension(theme.spacing.l, minimum: theme.spacing.m))
     .padding(.bottom, layout.safeAreaBottomPadding)
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     .background(theme.colors.backgroundPrimary.ignoresSafeArea())
@@ -581,7 +581,7 @@ private struct WorkoutPrimaryMetricView: View {
 
   private var valueFont: Font {
     .system(
-      size: layout.dimension(30, minimum: 26, maximum: 34),
+      size: layout.dimension(32, minimum: 27, maximum: 36),
       weight: .semibold,
       design: .rounded
     ).monospacedDigit()
@@ -591,8 +591,12 @@ private struct WorkoutPrimaryMetricView: View {
     .system(size: layout.dimension(12, minimum: 10, maximum: 13), weight: .medium)
   }
 
+  private var labelWidth: CGFloat {
+    layout.dimension(116, minimum: 92, maximum: 132)
+  }
+
   var body: some View {
-    HStack(alignment: .lastTextBaseline, spacing: theme.spacing.s) {
+    HStack(alignment: .lastTextBaseline, spacing: theme.spacing.l) {
       HStack(alignment: .lastTextBaseline, spacing: theme.spacing.xs) {
         Text(metric.value)
           .font(valueFont)
@@ -604,20 +608,19 @@ private struct WorkoutPrimaryMetricView: View {
         if let unit = metric.unit {
           Text(unit.uppercased())
             .font(labelFont)
-            .tracking(0.6)
-            .foregroundStyle(theme.colors.textSecondary.opacity(0.9))
+            .tracking(0.3)
+            .foregroundStyle(theme.colors.textSecondary.opacity(0.85))
             .lineLimit(1)
             .minimumScaleFactor(0.7)
         }
       }
-
-      Spacer()
+      .frame(maxWidth: .infinity, alignment: .leading)
 
       Text(metric.title.uppercased())
         .font(labelFont)
-        .tracking(0.6)
-        .foregroundStyle(theme.colors.textSecondary)
-        .multilineTextAlignment(.trailing)
+        .tracking(0.3)
+        .foregroundStyle(theme.colors.textSecondary.opacity(0.85))
+        .frame(width: labelWidth, alignment: .trailing)
         .lineLimit(1)
         .minimumScaleFactor(0.7)
     }
@@ -636,7 +639,7 @@ private struct WorkoutPrimaryTimerView: View {
 
   private var timerFont: Font {
     .system(
-      size: layout.dimension(44, minimum: 40, maximum: 52),
+      size: layout.dimension(46, minimum: 42, maximum: 54),
       weight: .bold,
       design: .rounded
     ).monospacedDigit()
@@ -645,7 +648,7 @@ private struct WorkoutPrimaryTimerView: View {
   var body: some View {
     Text(timerModel.matchTime)
       .font(timerFont)
-      .tracking(-0.5)
+      .tracking(-0.2)
       .foregroundStyle(timerModel.isPaused ? theme.colors.textSecondary : theme.colors.accentSecondary)
       .frame(maxWidth: .infinity, alignment: .leading)
       .contentShape(Rectangle())
@@ -667,13 +670,23 @@ private struct WorkoutGlyph: View {
 
   var body: some View {
     Circle()
-      .fill(theme.colors.accentSecondary.opacity(0.2))
+      .fill(
+        LinearGradient(
+          colors: [
+            theme.colors.accentSecondary.opacity(0.42),
+            theme.colors.accentSecondary.opacity(0.22)
+          ],
+          startPoint: .topLeading,
+          endPoint: .bottomTrailing
+        )
+      )
       .frame(width: glyphDiameter, height: glyphDiameter)
       .overlay(
         Image(systemName: iconName)
           .font(.system(size: iconSize, weight: .semibold))
           .foregroundStyle(theme.colors.accentSecondary)
       )
+      .shadow(color: theme.colors.accentSecondary.opacity(0.2), radius: 4, x: 0, y: 2)
   }
 
   private var glyphDiameter: CGFloat {
