@@ -7,6 +7,7 @@ import Foundation
 import Testing
 @testable import RefZone_Watch_App
 
+@MainActor
 struct MatchHistoryServiceTests {
 
     @Test

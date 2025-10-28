@@ -17,3 +17,6 @@ phase: Phase 4 - Flow Integration & Validation
 
 ### Exit Criteria
 - Preview/start flows function end-to-end in simulator, unit/UI tests pass, and regression checks for permissions/history succeed.
+
+### Status
+- 2025-02-27 — Completed preview polish, added crown-return helper, and expanded `WorkoutModeViewModel` tests; watch unit suite currently blocked by simulator launch crash (documented for follow-up).

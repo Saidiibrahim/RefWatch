@@ -15,6 +15,7 @@ private final class MockMatchHistoryService: MatchHistoryStoring {
     func wipeAll() throws { saved.removeAll() }
 }
 
+@MainActor
 struct MatchViewModel_PersistenceTests {
 
     @Test

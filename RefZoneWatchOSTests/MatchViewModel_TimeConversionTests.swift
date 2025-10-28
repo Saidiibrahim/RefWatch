@@ -7,6 +7,7 @@ import Testing
 import Foundation
 @testable import RefZone_Watch_App
 
+@MainActor
 struct MatchViewModel_TimeConversionTests {
 
     @Test func test_configureMatch_converts_minutes_to_seconds() async throws {
