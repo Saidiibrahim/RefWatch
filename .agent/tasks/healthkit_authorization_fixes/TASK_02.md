@@ -51,7 +51,8 @@ private func beginStartingSession(selectionItem: WorkoutSelectionItem, configura
 ```swift
 private func beginStartingSession(selectionItem: WorkoutSelectionItem, configuration: WorkoutSessionConfiguration) {
   Task { @MainActor in
-    // NEW: Pre-flight authorization check
+    self.cancelPendingDwell()
+
     guard authorization.isAuthorized else {
       self.presentationState = .error(selectionItem, .authorizationDenied)
       self.errorMessage = WorkoutError.authorizationDenied.errorDescription
@@ -61,7 +62,6 @@ private func beginStartingSession(selectionItem: WorkoutSelectionItem, configura
 
     self.isPerformingAction = true
     defer { self.isPerformingAction = false }
-    self.cancelPendingDwell()
     self.presentationState = .starting(selectionItem)
     self.lastCommittedSelectionID = selectionItem.id
     do {
@@ -78,11 +78,13 @@ private func beginStartingSession(selectionItem: WorkoutSelectionItem, configura
 
 ### Authorization Property
 
+Calling `cancelPendingDwell()` before the guard ensures the carousel never stays in a locked dwell state even when we bail early.
+
 The guard uses `authorization.isAuthorized` which is defined in `WorkoutAuthorizationStatus`:
 - Returns `true` when `state == .authorized`
 - Returns `false` for `.notDetermined`, `.denied`, or `.limited`
 
-This ensures we only allow workout starts with full authorization.
+If we later need to allow "limited" states that still include all required metrics, we can swap to `!authorization.hasRequiredLimitations`. For now, the stricter `isAuthorized` path guarantees the session only starts when the watch has every capability we expect.
 
 ### Error Handling
 
@@ -115,8 +117,8 @@ guard !authorization.hasRequiredLimitations else {
 
 **Decision**: Use `isAuthorized` for now because:
 - HealthKit authorization is all-or-nothing for workouts (need both read and write)
-- `hasRequiredLimitations` property doesn't exist yet in the model
-- Simpler to reason about and test
+- `hasRequiredLimitations` already exists, so we can easily revisit if we decide to support limited states
+- Simpler to reason about and test today
 
 If we need more granular control in the future, we can refine this check.
 

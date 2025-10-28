@@ -189,77 +189,77 @@ private struct WorkoutSessionControlsPage: View {
   }
 
   var body: some View {
-    VStack(alignment: .leading, spacing: theme.spacing.s) {
-      controlsHeader
+    ScrollView(.vertical, showsIndicators: false) {
+      VStack(alignment: .leading, spacing: theme.spacing.s) {
+        controlsHeader
 
-      LazyVGrid(columns: controlColumns, spacing: layout.dimension(theme.spacing.xs, minimum: theme.spacing.xs * 0.75)) {
-        WorkoutControlTile(
-          title: isPaused ? "Resume" : "Pause",
-          systemImage: isPaused ? "play.fill" : "pause.fill",
-          tint: theme.colors.matchWarning,
-          foreground: theme.colors.backgroundPrimary,
-          isDisabled: isEnding,
-          style: tileStyle,
-          action: {
-            if isPaused {
-              timerModel.resumeMatch()
-            } else {
-              timerModel.pauseMatch()
+        LazyVGrid(columns: controlColumns, spacing: layout.dimension(theme.spacing.xs, minimum: theme.spacing.xs * 0.75)) {
+          WorkoutControlTile(
+            title: isPaused ? "Resume" : "Pause",
+            systemImage: isPaused ? "play.fill" : "pause.fill",
+            tint: theme.colors.matchWarning,
+            foreground: theme.colors.backgroundPrimary,
+            isDisabled: isEnding,
+            style: tileStyle,
+            action: {
+              if isPaused {
+                timerModel.resumeMatch()
+              } else {
+                timerModel.pauseMatch()
+              }
             }
-          }
-        )
+          )
 
-        WorkoutControlTile(
-          title: "Segment",
-          systemImage: "flag.checkered",
-          tint: theme.colors.matchPositive,
-          foreground: theme.colors.backgroundPrimary,
-          badgeText: lapCount > 0 ? "\(lapCount)" : nil,
-          isDisabled: isEnding || isRecordingSegment,
-          isLoading: isRecordingSegment,
-          style: tileStyle,
-          action: onMarkSegment
-        )
+          WorkoutControlTile(
+            title: "Segment",
+            systemImage: "flag.checkered",
+            tint: theme.colors.matchPositive,
+            foreground: theme.colors.backgroundPrimary,
+            badgeText: lapCount > 0 ? "\(lapCount)" : nil,
+            isDisabled: isEnding || isRecordingSegment,
+            isLoading: isRecordingSegment,
+            style: tileStyle,
+            action: onMarkSegment
+          )
 
-        WorkoutControlTile(
-          title: "End",
-          systemImage: "xmark",
-          tint: theme.colors.matchCritical,
-          foreground: theme.colors.backgroundPrimary,
-          isDisabled: isEnding,
-          style: tileStyle,
-          action: onEnd
-        )
+          WorkoutControlTile(
+            title: "End",
+            systemImage: "xmark",
+            tint: theme.colors.matchCritical,
+            foreground: theme.colors.backgroundPrimary,
+            isDisabled: isEnding,
+            style: tileStyle,
+            action: onEnd
+          )
 
-        WorkoutControlTile(
-          title: "New",
-          systemImage: "plus",
-          tint: theme.colors.accentSecondary,
-          foreground: theme.colors.backgroundPrimary,
-          isDisabled: isEnding,
-          style: tileStyle,
-          action: onRequestNewSession
-        )
+          WorkoutControlTile(
+            title: "New",
+            systemImage: "plus",
+            tint: theme.colors.accentSecondary,
+            foreground: theme.colors.backgroundPrimary,
+            isDisabled: isEnding,
+            style: tileStyle,
+            action: onRequestNewSession
+          )
 
-        WorkoutControlTile(
-          title: "Share",
-          systemImage: "square.and.arrow.up",
-          tint: theme.colors.accentPrimary,
-          foreground: theme.colors.backgroundPrimary,
-          isDisabled: isEnding,
-          style: tileStyle,
-          action: onShare
-        )
+          WorkoutControlTile(
+            title: "Share",
+            systemImage: "square.and.arrow.up",
+            tint: theme.colors.accentPrimary,
+            foreground: theme.colors.backgroundPrimary,
+            isDisabled: isEnding,
+            style: tileStyle,
+            action: onShare
+          )
 
-        WorkoutControlTilePlaceholder(style: tileStyle)
+          WorkoutControlTilePlaceholder(style: tileStyle)
+        }
       }
-
-      Spacer()
+      .padding(.horizontal, theme.spacing.s)
+      .padding(.top, theme.spacing.m)
+      .padding(.bottom, layout.safeAreaBottomPadding)
     }
-    .padding(.horizontal, theme.spacing.s)
-    .padding(.top, theme.spacing.m)
-    .padding(.bottom, layout.safeAreaBottomPadding)
-    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
     .background(theme.colors.backgroundPrimary.ignoresSafeArea())
   }
 
