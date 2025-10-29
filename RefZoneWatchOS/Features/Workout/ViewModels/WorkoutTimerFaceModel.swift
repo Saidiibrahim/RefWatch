@@ -119,10 +119,10 @@ final class WorkoutTimerFaceModel: TimerFaceModel {
   }
 
   private func format(interval: TimeInterval) -> String {
-    let formatter = DateComponentsFormatter()
-    formatter.unitsStyle = .positional
-    formatter.allowedUnits = [.minute, .second]
-    formatter.zeroFormattingBehavior = [.pad]
-    return formatter.string(from: interval) ?? "00:00"
+    let hours = Int(interval) / 3600
+    let minutes = (Int(interval) % 3600) / 60
+    let seconds = Int(interval) % 60
+    let centiseconds = Int((interval.truncatingRemainder(dividingBy: 1)) * 100)
+    return String(format: "%02d:%02d.%02d", hours * 60 + minutes, seconds, centiseconds)
   }
 }

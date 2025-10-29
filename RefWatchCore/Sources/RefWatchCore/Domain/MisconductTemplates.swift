@@ -88,7 +88,7 @@ private extension MisconductTemplateCatalog {
     static var footballSouthAustralia: MisconductTemplate {
         MisconductTemplate(
             id: "football_sa",
-            name: "Football Federation",
+            name: "Australia South",
             region: "South Australia",
             notes: "Based on Football South Australia misconduct codes",
             reasons: [
@@ -123,34 +123,34 @@ private extension MisconductTemplateCatalog {
     static var footballNewSouthWales: MisconductTemplate {
         MisconductTemplate(
             id: "football_nsw",
-            name: "Football Federation",
-            region: "New South Wales",
-            notes: "Based on Football NSW judiciary codes",
+            name: "Australia Victoria",
+            region: "Victoria",
+            notes: "Based on Football Victoria judiciary codes",
             reasons: [
-                MisconductReason(id: "nsw_y1", code: "Y1", title: "Unsporting Conduct", cardType: .yellow, recipientType: .player),
-                MisconductReason(id: "nsw_y2", code: "Y2", title: "Dissent by Word or Action", cardType: .yellow, recipientType: .player),
-                MisconductReason(id: "nsw_y3", code: "Y3", title: "Persistent or Tactical Fouls", cardType: .yellow, recipientType: .player),
-                MisconductReason(id: "nsw_y4", code: "Y4", title: "Delaying Restart of Play", cardType: .yellow, recipientType: .player),
-                MisconductReason(id: "nsw_y5", code: "Y5", title: "Failure to Respect Required Distance", cardType: .yellow, recipientType: .player),
-                MisconductReason(id: "nsw_y6", code: "Y6", title: "Entering/Leaving Without Permission", cardType: .yellow, recipientType: .player),
+                MisconductReason(id: "vic_y1", code: "Y1", title: "Unsporting Conduct", cardType: .yellow, recipientType: .player),
+                MisconductReason(id: "vic_y2", code: "Y2", title: "Dissent by Word or Action", cardType: .yellow, recipientType: .player),
+                MisconductReason(id: "vic_y3", code: "Y3", title: "Persistent or Tactical Fouls", cardType: .yellow, recipientType: .player),
+                MisconductReason(id: "vic_y4", code: "Y4", title: "Delaying Restart of Play", cardType: .yellow, recipientType: .player),
+                MisconductReason(id: "vic_y5", code: "Y5", title: "Failure to Respect Required Distance", cardType: .yellow, recipientType: .player),
+                MisconductReason(id: "vic_y6", code: "Y6", title: "Entering/Leaving Without Permission", cardType: .yellow, recipientType: .player),
 
-                MisconductReason(id: "nsw_r1", code: "R1", title: "Serious Foul Play", cardType: .red, recipientType: .player),
-                MisconductReason(id: "nsw_r2", code: "R2", title: "Violent Conduct", cardType: .red, recipientType: .player),
-                MisconductReason(id: "nsw_r3", code: "R3", title: "Spitting or Biting", cardType: .red, recipientType: .player),
-                MisconductReason(id: "nsw_r4", code: "R4", title: "Denying Goal with Handball", cardType: .red, recipientType: .player),
-                MisconductReason(id: "nsw_r5", code: "R5", title: "Denying Goal-Scoring Opportunity", cardType: .red, recipientType: .player),
-                MisconductReason(id: "nsw_r6", code: "R6", title: "Abusive Language or Gestures", cardType: .red, recipientType: .player),
-                MisconductReason(id: "nsw_r7", code: "R7", title: "Second Yellow Card", cardType: .red, recipientType: .player),
+                MisconductReason(id: "vic_r1", code: "R1", title: "Serious Foul Play", cardType: .red, recipientType: .player),
+                MisconductReason(id: "vic_r2", code: "R2", title: "Violent Conduct", cardType: .red, recipientType: .player),
+                MisconductReason(id: "vic_r3", code: "R3", title: "Spitting or Biting", cardType: .red, recipientType: .player),
+                MisconductReason(id: "vic_r4", code: "R4", title: "Denying Goal with Handball", cardType: .red, recipientType: .player),
+                MisconductReason(id: "vic_r5", code: "R5", title: "Denying Goal-Scoring Opportunity", cardType: .red, recipientType: .player),
+                MisconductReason(id: "vic_r6", code: "R6", title: "Abusive Language or Gestures", cardType: .red, recipientType: .player),
+                MisconductReason(id: "vic_r7", code: "R7", title: "Second Yellow Card", cardType: .red, recipientType: .player),
 
-                MisconductReason(id: "nsw_yt1", code: "YT1", title: "Persistent Irresponsible Behaviour", cardType: .yellow, recipientType: .teamOfficial),
-                MisconductReason(id: "nsw_yt2", code: "YT2", title: "Delaying Restart", cardType: .yellow, recipientType: .teamOfficial),
-                MisconductReason(id: "nsw_yt3", code: "YT3", title: "Non-Compliant Technical Area", cardType: .yellow, recipientType: .teamOfficial),
-                MisconductReason(id: "nsw_yt4", code: "YT4", title: "Entering Field Without Permission", cardType: .yellow, recipientType: .teamOfficial),
+                MisconductReason(id: "vic_yt1", code: "YT1", title: "Persistent Irresponsible Behaviour", cardType: .yellow, recipientType: .teamOfficial),
+                MisconductReason(id: "vic_yt2", code: "YT2", title: "Delaying Restart", cardType: .yellow, recipientType: .teamOfficial),
+                MisconductReason(id: "vic_yt3", code: "YT3", title: "Entering Field of Play", cardType: .yellow, recipientType: .teamOfficial),
+                MisconductReason(id: "vic_yt4", code: "YT4", title: "Leaving Technical Area", cardType: .yellow, recipientType: .teamOfficial),
 
-                MisconductReason(id: "nsw_rt1", code: "RT1", title: "Violent or Threatening Conduct", cardType: .red, recipientType: .teamOfficial),
-                MisconductReason(id: "nsw_rt2", code: "RT2", title: "Spitting at or Biting", cardType: .red, recipientType: .teamOfficial),
-                MisconductReason(id: "nsw_rt3", code: "RT3", title: "Abusive Language or Gestures", cardType: .red, recipientType: .teamOfficial),
-                MisconductReason(id: "nsw_rt4", code: "RT4", title: "Entering Field to Confront", cardType: .red, recipientType: .teamOfficial)
+                MisconductReason(id: "vic_rt1", code: "RT1", title: "Violent Conduct", cardType: .red, recipientType: .teamOfficial),
+                MisconductReason(id: "vic_rt2", code: "RT2", title: "Throwing Objects", cardType: .red, recipientType: .teamOfficial),
+                MisconductReason(id: "vic_rt3", code: "RT3", title: "Offensive, Insulting or Abusive Language", cardType: .red, recipientType: .teamOfficial),
+                MisconductReason(id: "vic_rt4", code: "RT4", title: "Entering Field Aggressively", cardType: .red, recipientType: .teamOfficial)
             ]
         )
     }

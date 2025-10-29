@@ -111,7 +111,7 @@ private extension SettingsScreen {
             } label: {
                 SettingsNavigationRow(
                     title: "Misconduct Codes",
-                    value: settingsViewModel.activeMisconductTemplate.displayName,
+                    value: settingsViewModel.activeMisconductTemplate.name,
                     icon: "list.bullet.rectangle",
                     valueIdentifier: "misconductTemplateCurrentSelection"
                 )
