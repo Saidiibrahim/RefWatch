@@ -391,6 +391,56 @@ final class WorkoutModeViewModelTests: XCTestCase {
     XCTAssertEqual(viewModel.authorization.deniedOptionalMetrics, [.vo2Max])
   }
 
+  func testRequestAuthorizationRebuildsSelectionItemsAfterGrant() async throws {
+    let initialStatus = WorkoutAuthorizationStatus(state: .notDetermined)
+    let grantedStatus = WorkoutAuthorizationStatus(state: .authorized)
+    let authorizationManager = AuthorizationManagerSwitchingStub(
+      initialStatus: initialStatus,
+      requestResult: grantedStatus
+    )
+
+    var services = WorkoutServices.inMemoryStub(authorizationStatus: initialStatus)
+    services.authorizationManager = authorizationManager
+
+    let viewModel = makeViewModel(services: services)
+
+    await viewModel.bootstrap()
+    XCTAssertTrue(viewModel.selectionItems.contains(where: { $0.id == .authorization }))
+
+    viewModel.requestAuthorization()
+
+    await waitFor {
+      !viewModel.selectionItems.contains(where: { $0.id == .authorization })
+    }
+
+    XCTAssertEqual(viewModel.authorization.state, .authorized)
+    XCTAssertFalse(viewModel.selectionItems.contains(where: { $0.id == .authorization }))
+  }
+
+  func testStartSelectionBlocksWhenAuthorizationMissing() async throws {
+    let unauthorizedStatus = WorkoutAuthorizationStatus(state: .notDetermined)
+    var services = WorkoutServices.inMemoryStub(authorizationStatus: unauthorizedStatus)
+    let tracker = try XCTUnwrap(services.sessionTracker as? WorkoutSessionTrackerStub)
+    let viewModel = makeViewModel(services: services)
+
+    await viewModel.bootstrap()
+
+    let item = try XCTUnwrap(viewModel.selectionItems.first(where: { $0.quickStartKind == .outdoorRun }))
+    viewModel.startSelection(for: item)
+
+    await waitFor {
+      if case .error(_, let error) = viewModel.presentationState {
+        return error == .authorizationDenied
+      }
+      return false
+    }
+
+    let storedSessions = await tracker.sessions
+    XCTAssertTrue(storedSessions.isEmpty)
+    XCTAssertEqual(viewModel.errorMessage, WorkoutError.authorizationDenied.errorDescription)
+    XCTAssertEqual(viewModel.recoveryAction, WorkoutError.authorizationDenied.recoveryAction)
+  }
+
   func testLiveMetricsStreamUpdatesSessionAndClearsOnEnd() async throws {
     let services = WorkoutServices.inMemoryStub(presets: [WorkoutModeBootstrap.samplePreset])
     let viewModel = makeViewModel(services: services)
@@ -513,5 +563,24 @@ private final class FlakySessionTracker: WorkoutSessionTracking {
 
   func liveMetricsStream() -> AsyncStream<WorkoutLiveMetrics> {
     underlying.liveMetricsStream()
+  }
+}
+
+private final actor AuthorizationManagerSwitchingStub: WorkoutAuthorizationManaging {
+  private var currentStatus: WorkoutAuthorizationStatus
+  private let requestResult: WorkoutAuthorizationStatus
+
+  init(initialStatus: WorkoutAuthorizationStatus, requestResult: WorkoutAuthorizationStatus) {
+    self.currentStatus = initialStatus
+    self.requestResult = requestResult
+  }
+
+  func authorizationStatus() async -> WorkoutAuthorizationStatus {
+    currentStatus
+  }
+
+  func requestAuthorization() async throws -> WorkoutAuthorizationStatus {
+    currentStatus = requestResult
+    return requestResult
   }
 }

@@ -18,7 +18,7 @@ enum WorkoutError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .authorizationDenied:
-            return "HealthKit access denied. Please enable workout permissions in Settings."
+            return "HealthKit access denied. Manage workout permissions on your paired iPhone."
         case .healthDataUnavailable:
             return "HealthKit is not available on this device."
         case .authorizationRequestFailed:
@@ -43,7 +43,7 @@ enum WorkoutError: LocalizedError, Equatable {
     var recoveryAction: String? {
         switch self {
         case .authorizationDenied:
-            return "Go to Settings > Privacy & Security > Health > RefWatch and enable workout permissions."
+            return "On your iPhone, open Settings > Health > Data Access & Devices > RefWatch to enable workout permissions."
         case .healthDataUnavailable:
             return "HealthKit is not supported on this device. Workout features may be limited."
         case .authorizationRequestFailed:
@@ -130,13 +130,13 @@ struct WorkoutSelectionItem: Identifiable, Equatable {
     case .authorization(let status, _):
       switch status.state {
       case .notDetermined:
-        return "Grant Health Access"
+        return "Grant on iPhone"
       case .denied:
-        return "Health Access Denied"
+        return "Access Denied on iPhone"
       case .limited:
-        return "Limited Health Access"
+        return "Limited Access on iPhone"
       case .authorized:
-        return "Health Access"
+        return "Manage on iPhone"
       }
     case .lastCompleted(let session):
       return session.title
@@ -232,14 +232,14 @@ struct WorkoutSelectionItem: Identifiable, Equatable {
   private static func authorizationMessage(for status: WorkoutAuthorizationStatus) -> String {
     switch status.state {
     case .notDetermined:
-      return "Allow RefZone to collect pace, distance, and heart rate."
+      return "Grant access on your paired iPhone to track pace, distance, and heart rate."
     case .denied:
-      return "Enable Health permissions in Settings to track workouts."
+      return "Enable Health permissions in iPhone Settings to track workouts."
     case .limited:
-      return "Grant full access for complete workout analytics."
+      return "Grant full access on iPhone for complete workout analytics."
     case .authorized:
       if status.hasOptionalLimitations {
-        return "Optional metrics are disabled. Enable them for richer stats."
+        return "Optional metrics are disabled. Enable them on iPhone for richer stats."
       }
       return "Health permissions are active."
     }
@@ -648,9 +648,19 @@ final class WorkoutModeViewModel: ObservableObject {
 
   private func beginStartingSession(selectionItem: WorkoutSelectionItem, configuration: WorkoutSessionConfiguration) {
     Task { @MainActor in
+      self.cancelPendingDwell()
+
+      guard authorization.isAuthorized else {
+        let error = WorkoutError.authorizationDenied
+        self.presentationState = .error(selectionItem, error)
+        self.errorMessage = error.errorDescription
+        self.recoveryAction = error.recoveryAction
+        self.isPerformingAction = false
+        return
+      }
+
       self.isPerformingAction = true
       defer { self.isPerformingAction = false }
-      self.cancelPendingDwell()
       self.presentationState = .starting(selectionItem)
       self.lastCommittedSelectionID = selectionItem.id
       do {
@@ -710,6 +720,7 @@ final class WorkoutModeViewModel: ObservableObject {
       do {
         let status = try await self.services.authorizationManager.requestAuthorization()
         self.authorization = status
+        self.rebuildSelectionItems()
         self.errorMessage = nil
         self.recoveryAction = nil
       } catch let authError as WorkoutAuthorizationError {

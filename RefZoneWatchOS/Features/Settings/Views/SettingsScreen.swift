@@ -111,7 +111,7 @@ private extension SettingsScreen {
             } label: {
                 SettingsNavigationRow(
                     title: "Misconduct Codes",
-                    value: settingsViewModel.activeMisconductTemplate.name,
+                    value: misconductTemplateSummary,
                     icon: "list.bullet.rectangle",
                     valueIdentifier: "misconductTemplateCurrentSelection"
                 )
@@ -201,6 +201,10 @@ private extension SettingsScreen {
             bottom: theme.components.listRowVerticalInset,
             trailing: 0
         )
+    }
+
+    var misconductTemplateSummary: String {
+        settingsViewModel.activeMisconductTemplate.name
     }
 
     var substitutionOrderLabel: String {
@@ -363,11 +367,17 @@ struct SettingsNavigationRow: View {
                         Text(value)
                             .font(theme.typography.cardMeta)
                             .foregroundStyle(theme.colors.textSecondary)
+                            .lineLimit(2)
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
                             .accessibilityIdentifier(valueIdentifier)
                     } else {
                         Text(value)
                             .font(theme.typography.cardMeta)
                             .foregroundStyle(theme.colors.textSecondary)
+                            .lineLimit(2)
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
             }
