@@ -300,13 +300,13 @@ private struct WorkoutSelectionTileView: View {
   private var authorizationButtonTitle: String {
     switch item.authorizationStatus?.state {
     case .notDetermined:
-      return "Grant Access"
+      return "Grant on iPhone"
     case .denied:
-      return "Review Access"
+      return "Fix on iPhone"
     case .limited:
-      return "Review Access"
+      return "Update on iPhone"
     default:
-      return "Manage Access"
+      return "Manage on iPhone"
     }
   }
 }
