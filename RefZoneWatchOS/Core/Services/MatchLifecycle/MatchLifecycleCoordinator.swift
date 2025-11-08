@@ -18,13 +18,26 @@ final class MatchLifecycleCoordinator {
         case kickoffSecondHalf    // Show MatchKickOffView (second half)
         case kickoffExtraTimeFirstHalf // Show MatchKickOffView (ET first half)
         case kickoffExtraTimeSecondHalf // Show MatchKickOffView (ET second half)
+        case countdown            // Show CountdownView before starting match/period
         case choosePenaltyFirstKicker // Show PenaltyFirstKickerView
         case penalties           // Show PenaltyShootoutView
         case finished             // Show FullTimeView
     }
+    
+    /// Enum representing the type of kickoff being performed
+    enum KickoffType: Equatable {
+        case firstHalf
+        case secondHalf
+        case et1
+        case et2
+    }
 
     private(set) var state: State = .idle
     var shouldPresentStartMatchScreen: Bool = false
+    
+    // Pending kickoff context stored during countdown transition
+    var pendingKickoffType: KickoffType?
+    var pendingKickingTeam: Bool? // true = home, false = away
 
     func resetToStart() {
         let old = state
@@ -96,6 +109,21 @@ final class MatchLifecycleCoordinator {
         state = .finished
         #if DEBUG
         print("DEBUG: Lifecycle transition: \(old) → \(state) [goToFinished]")
+        #endif
+    }
+    
+    /// Transitions to countdown state with kickoff context
+    /// - Parameters:
+    ///   - kickoffType: The type of kickoff (firstHalf, secondHalf, et1, et2)
+    ///   - team: true for home team, false for away team
+    func goToCountdown(kickoffType: KickoffType, team: Bool) {
+        let old = state
+        guard old != .countdown else { return }
+        pendingKickoffType = kickoffType
+        pendingKickingTeam = team
+        state = .countdown
+        #if DEBUG
+        print("DEBUG: Lifecycle transition: \(old) → \(state) [goToCountdown] type=\(kickoffType), team=\(team ? "home" : "away")")
         #endif
     }
 

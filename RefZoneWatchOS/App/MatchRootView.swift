@@ -88,6 +88,23 @@ struct MatchRootView: View {
                         defaultSelectedTeam: (matchViewModel.getETSecondHalfKickingTeam() == .home) ? .home : .away,
                         lifecycle: lifecycle
                     )
+                case .countdown:
+                    // Show countdown view with context from lifecycle coordinator
+                    if let kickoffType = lifecycle.pendingKickoffType,
+                       let kickingTeam = lifecycle.pendingKickingTeam {
+                        CountdownView(
+                            matchViewModel: matchViewModel,
+                            lifecycle: lifecycle,
+                            kickoffType: kickoffType,
+                            kickingTeam: kickingTeam
+                        )
+                    } else {
+                        // Fallback: if context is missing, go back to idle
+                        Text("Error: Missing countdown context")
+                            .onAppear {
+                                lifecycle.resetToStart()
+                            }
+                    }
                 case .choosePenaltyFirstKicker:
                     PenaltyFirstKickerView(
                         matchViewModel: matchViewModel,

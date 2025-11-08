@@ -35,6 +35,11 @@ struct MatchOptionsView: View {
                     }
                     //.listRowBackground(Color.clear) // Remove list row background
 
+                    // MARK: - Kit Colours Feature (On Hold)
+                    // The custom kit colours feature is currently on hold and not exposed to users.
+                    // This feature will be re-enabled once the beta supports custom kit colour configuration.
+                    // Keeping the code commented out for future reference and easy re-enablement.
+                    /*
                     ThemeCardContainer(role: .secondary, minHeight: 72) {
                         HStack(alignment: .top, spacing: theme.spacing.m) {
                             Image(systemName: "paintpalette")
@@ -56,6 +61,7 @@ struct MatchOptionsView: View {
                         }
                     }
                     //.listRowBackground(Color.clear) // Remove list row background
+                    */
 
                     // Reset match option
                     ActionButton(

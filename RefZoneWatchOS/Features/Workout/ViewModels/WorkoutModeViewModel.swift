@@ -784,12 +784,14 @@ final class WorkoutModeViewModel: ObservableObject {
           try await self.services.historyStore.saveSession(finished)
           self.lastCompletedSession = finished
           self.clearActiveSessionState()
+          self.rebuildSelectionItems()
           self.errorMessage = nil
           self.recoveryAction = nil
         } catch let historyError {
           // History save failed but session ended successfully - clear UI state
           self.clearActiveSessionState()
           self.lastCompletedSession = nil // Don't show incomplete session
+          self.rebuildSelectionItems()
           let workoutError = WorkoutError.historyPersistenceFailed(reason: historyError.localizedDescription)
           self.errorMessage = workoutError.errorDescription
           self.recoveryAction = workoutError.recoveryAction

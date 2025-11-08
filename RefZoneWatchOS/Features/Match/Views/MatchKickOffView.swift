@@ -14,6 +14,8 @@ struct MatchKickOffView: View {
     @State private var selectedTeam: Team?
     @State private var isShowingMatchSettings = false
     @State private var isShowingDurationDialog = false
+    // Persisted countdown enabled setting
+    @AppStorage("countdown_enabled") private var countdownEnabled: Bool = true
     @Environment(\.theme) private var theme
     @Environment(\.watchLayoutScale) private var layout
     
@@ -64,65 +66,67 @@ struct MatchKickOffView: View {
     }
     
     var body: some View {
-        GeometryReader { _ in
-            ViewThatFits(in: .vertical) {
-                fullLayout
-                compactLayout
+        ZStack {
+            GeometryReader { _ in
+                ViewThatFits(in: .vertical) {
+                    fullLayout
+                    compactLayout
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        }
-        .background(theme.colors.backgroundPrimary.ignoresSafeArea())
-        .safeAreaInset(edge: .bottom) {
-            confirmButton
-                .padding(.top, confirmButtonTopPadding) // Use responsive padding
-                .padding(.horizontal, theme.spacing.m)
-                .padding(.bottom, layout.safeAreaBottomPadding)
-        }
-        .sheet(isPresented: $isShowingMatchSettings) {
-            NavigationStack {
-                MatchSettingsListView(
-                    matchViewModel: matchViewModel,
-                    primaryActionLabel: "Apply Settings"
-                ) { viewModel in
-                    viewModel.applySettingsToCurrentMatch(
-                        durationMinutes: viewModel.matchDuration,
-                        periods: viewModel.numberOfPeriods,
-                        halfTimeLengthMinutes: viewModel.halfTimeLength,
-                        hasExtraTime: viewModel.hasExtraTime,
-                        hasPenalties: viewModel.hasPenalties,
-                        extraTimeHalfLengthMinutes: viewModel.extraTimeHalfLengthMinutes,
-                        penaltyRounds: viewModel.penaltyInitialRounds
-                    )
-                    withAnimation {
-                        isShowingMatchSettings = false
+            .background(theme.colors.backgroundPrimary.ignoresSafeArea())
+            .safeAreaInset(edge: .bottom) {
+                confirmButton
+                    .padding(.top, confirmButtonTopPadding) // Use responsive padding
+                    .padding(.horizontal, theme.spacing.m)
+                    .padding(.bottom, layout.safeAreaBottomPadding)
+            }
+            .sheet(isPresented: $isShowingMatchSettings) {
+                NavigationStack {
+                    MatchSettingsListView(
+                        matchViewModel: matchViewModel,
+                        primaryActionLabel: "Apply Settings"
+                    ) { viewModel in
+                        viewModel.applySettingsToCurrentMatch(
+                            durationMinutes: viewModel.matchDuration,
+                            periods: viewModel.numberOfPeriods,
+                            halfTimeLengthMinutes: viewModel.halfTimeLength,
+                            hasExtraTime: viewModel.hasExtraTime,
+                            hasPenalties: viewModel.hasPenalties,
+                            extraTimeHalfLengthMinutes: viewModel.extraTimeHalfLengthMinutes,
+                            penaltyRounds: viewModel.penaltyInitialRounds
+                        )
+                        withAnimation {
+                            isShowingMatchSettings = false
+                        }
                     }
                 }
             }
-        }
-        .confirmationDialog(
-            "Half Duration",
-            isPresented: $isShowingDurationDialog,
-            presenting: allowsDurationShortcut ? perPeriodDurationLabel : nil,
-            actions: { _ in
-                Button("Change Duration") {
-                    isShowingDurationDialog = false
-                    isShowingMatchSettings = true
+            .confirmationDialog(
+                "Half Duration",
+                isPresented: $isShowingDurationDialog,
+                presenting: allowsDurationShortcut ? perPeriodDurationLabel : nil,
+                actions: { _ in
+                    Button("Change Duration") {
+                        isShowingDurationDialog = false
+                        isShowingMatchSettings = true
+                    }
+                    Button("Cancel", role: .cancel) {}
+                },
+                message: { durationLabel in
+                    Text(durationLabel)
                 }
-                Button("Cancel", role: .cancel) {}
-            },
-            message: { durationLabel in
-                Text(durationLabel)
-            }
-        )
-        .navigationBarBackButtonHidden()
-        .onAppear {
-            // Set the default selected team for second half
-            if isSecondHalf, let defaultTeam = defaultSelectedTeam {
-                selectedTeam = defaultTeam
-            }
-            // Set default for ET second half if provided
-            if let phase = etPhase, phase == 2, let defaultTeam = defaultSelectedTeam {
-                selectedTeam = defaultTeam
+            )
+            .navigationBarBackButtonHidden()
+            .onAppear {
+                // Set the default selected team for second half
+                if isSecondHalf, let defaultTeam = defaultSelectedTeam {
+                    selectedTeam = defaultTeam
+                }
+                // Set default for ET second half if provided
+                if let phase = etPhase, phase == 2, let defaultTeam = defaultSelectedTeam {
+                    selectedTeam = defaultTeam
+                }
             }
         }
     }
@@ -294,23 +298,52 @@ struct MatchKickOffView: View {
 
     private func confirmKickOff() {
         guard let team = selectedTeam else { return }
+        
+        // Determine kickoff type based on current context
+        let kickoffType: MatchLifecycleCoordinator.KickoffType
         if let phase = etPhase {
-            if phase == 1 {
-                matchViewModel.setKickingTeamET1(team == .home)
-                matchViewModel.startExtraTimeFirstHalfManually()
-                lifecycle.goToSetup()
-            } else {
-                matchViewModel.startExtraTimeSecondHalfManually()
-                lifecycle.goToSetup()
-            }
+            kickoffType = phase == 1 ? .et1 : .et2
         } else if isSecondHalf {
-            matchViewModel.setKickingTeam(team == .home)
-            matchViewModel.startSecondHalfManually()
-            lifecycle.goToSetup()
+            kickoffType = .secondHalf
         } else {
-            matchViewModel.setKickingTeam(team == .home)
-            matchViewModel.startMatch()
+            kickoffType = .firstHalf
+        }
+        
+        // Check if countdown is enabled
+        if countdownEnabled {
+            // Transition to countdown view with kickoff context
+            lifecycle.goToCountdown(kickoffType: kickoffType, team: team == .home)
+        } else {
+            // Skip countdown: directly execute kickoff action and transition to setup
+            executeKickoffAction(kickoffType: kickoffType, team: team == .home)
             lifecycle.goToSetup()
+        }
+    }
+    
+    /// Executes the appropriate kickoff action based on kickoffType
+    /// - Parameters:
+    ///   - kickoffType: The type of kickoff (firstHalf, secondHalf, et1, et2)
+    ///   - team: true for home team, false for away team
+    private func executeKickoffAction(kickoffType: MatchLifecycleCoordinator.KickoffType, team: Bool) {
+        switch kickoffType {
+        case .firstHalf:
+            // First half: set kicking team and start match
+            matchViewModel.setKickingTeam(team)
+            matchViewModel.startMatch()
+            
+        case .secondHalf:
+            // Second half: set kicking team and start second half
+            matchViewModel.setKickingTeam(team)
+            matchViewModel.startSecondHalfManually()
+            
+        case .et1:
+            // Extra Time first half: set kicking team and start ET first half
+            matchViewModel.setKickingTeamET1(team)
+            matchViewModel.startExtraTimeFirstHalfManually()
+            
+        case .et2:
+            // Extra Time second half: start ET second half (team already set)
+            matchViewModel.startExtraTimeSecondHalfManually()
         }
     }
 }

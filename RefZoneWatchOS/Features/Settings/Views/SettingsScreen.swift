@@ -15,6 +15,8 @@ struct SettingsScreen: View {
     @Bindable var settingsViewModel: SettingsViewModel
     // Persisted timer face selection used by TimerView host
     @AppStorage("timer_face_style") private var timerFaceStyleRaw: String = TimerFaceStyle.standard.rawValue
+    // Persisted countdown enabled setting
+    @AppStorage("countdown_enabled") private var countdownEnabled: Bool = true
     @State private var syncRequestState: SyncRequestState = .idle
 
     private enum SyncRequestState {
@@ -96,6 +98,16 @@ private extension SettingsScreen {
                 )
             }
             .accessibilityIdentifier("timerFaceRow")
+            .listRowInsets(cardRowInsets)
+            .listRowBackground(Color.clear)
+            
+            SettingsToggleRow(
+                title: "Countdown",
+                subtitle: "Show countdown before start",
+                icon: "clock.arrow.circlepath",
+                isOn: $countdownEnabled
+            )
+            .accessibilityIdentifier("countdownToggleRow")
             .listRowInsets(cardRowInsets)
             .listRowBackground(Color.clear)
         } header: {
