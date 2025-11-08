@@ -45,3 +45,8 @@ The iPhone app now requires a signed-in Supabase account. All match history, sch
   - Add `OPENAI_API_KEY` to your user (unshared) Xcode scheme under Run → Arguments → Environment Variables.
   - Or export it in your shell before launching from Xcode: `export OPENAI_API_KEY=...`.
 - A template exists at `RefZoneiOS/Config/Secrets.example.xcconfig` for team guidance; `Secrets.xcconfig` is gitignored.
+
+## Test users
+
+email: test-user@refzone.com
+pass: Password123!

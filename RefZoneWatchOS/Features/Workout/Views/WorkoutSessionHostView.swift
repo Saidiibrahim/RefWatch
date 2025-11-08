@@ -104,6 +104,9 @@ private struct WorkoutSessionMainPage: View {
   @Environment(\.theme) private var theme
   @Environment(\.watchLayoutScale) private var layout
   @Bindable private var timerModel: WorkoutTimerFaceModel
+  // State to ensure time display updates periodically
+  @State private var currentTime = Date()
+  @State private var timeUpdateTimer: Timer?
 
   init(session: WorkoutSession, liveMetrics: WorkoutLiveMetrics?, timerModel: WorkoutTimerFaceModel) {
     self.session = session
@@ -124,29 +127,74 @@ private struct WorkoutSessionMainPage: View {
   }
 
   var body: some View {
-    VStack(alignment: .leading, spacing: layout.dimension(theme.spacing.l, minimum: theme.spacing.m)) {
-      // Just the workout icon at the top
-      WorkoutGlyph(kind: session.kind)
-        .frame(maxWidth: .infinity, alignment: .leading)
+    VStack(alignment: .leading, spacing: 0) {
+      // Header with glyph on left, time on right (matching Apple's design)
+      HStack(alignment: .top) {
+        WorkoutGlyph(kind: session.kind)
+        
+        Spacer()
+        
+        // Time at top right (Apple only shows time, no label)
+        Text(currentTime, style: .time)
+          .font(.system(size: layout.dimension(15, minimum: 13, maximum: 17), weight: .medium))
+          .foregroundStyle(theme.colors.textPrimary)
+      }
+      .padding(.horizontal, layout.dimension(theme.spacing.m, minimum: theme.spacing.s))
+      .padding(.top, layout.dimension(theme.spacing.m, minimum: theme.spacing.s))
 
-      // Timer display
+      // Timer display - centered like Apple's design
+      // Responsive padding: tighter on compact watches, more spacious on larger watches
       WorkoutPrimaryTimerView(timerModel: timerModel)
         .hapticsProvider(WatchHaptics())
+        .frame(maxWidth: .infinity)
+        .padding(.top, layout.dimension(theme.spacing.m, minimum: theme.spacing.s))
 
-      // Metrics
-      VStack(spacing: theme.spacing.s) {
-        ForEach(metrics) { metric in
-          WorkoutPrimaryMetricView(metric: metric)
+      // Metrics in Apple's order: Active Energy → Heart Rate → Distance
+      // Shifted to the right to match Apple's design, with metrics left-aligned relative to each other
+      HStack(alignment: .top) {
+        Spacer(minLength: layout.dimension(theme.spacing.l, minimum: theme.spacing.m))
+        VStack(alignment: .leading, spacing: metricSpacing) {
+          ForEach(metrics) { metric in
+            WorkoutPrimaryMetricView(metric: metric)
+          }
         }
+        // Minimal trailing spacer to allow some flexibility
+        Spacer(minLength: 0)
       }
+      .padding(.horizontal, layout.dimension(theme.spacing.m, minimum: theme.spacing.s))
       .padding(.top, layout.dimension(theme.spacing.m, minimum: theme.spacing.s))
-      .frame(maxWidth: .infinity, alignment: .leading)
+      
+      // Flexible spacer ensures content stays at top while allowing bottom padding
+      Spacer()
     }
-    .padding(.horizontal, layout.dimension(theme.spacing.m, minimum: theme.spacing.s))
-    .padding(.top, layout.dimension(theme.spacing.l, minimum: theme.spacing.m))
     .padding(.bottom, layout.safeAreaBottomPadding)
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     .background(theme.colors.backgroundPrimary.ignoresSafeArea())
+    .onAppear {
+      // Update time immediately on appear
+      currentTime = Date()
+      // Update time every minute to keep display current
+      timeUpdateTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { _ in
+        currentTime = Date()
+      }
+    }
+    .onDisappear {
+      // Clean up timer when view disappears
+      timeUpdateTimer?.invalidate()
+      timeUpdateTimer = nil
+    }
+  }
+
+  // Adaptive metric spacing: tighter on compact watches to fit all content
+  private var metricSpacing: CGFloat {
+    switch layout.category {
+    case .compact:
+      // Reduced spacing for 41mm watches to ensure all metrics fit
+      return layout.dimension(theme.spacing.s, minimum: theme.spacing.xs)
+    case .standard, .expanded:
+      // Standard spacing for larger watches
+      return layout.dimension(theme.spacing.m, minimum: theme.spacing.s)
+    }
   }
 }
 
@@ -303,36 +351,19 @@ private struct WorkoutSessionRatingPlaceholderPage: View {
   @Environment(\.watchLayoutScale) private var layout
 
   var body: some View {
-    ScrollView(.vertical) {
-      VStack(spacing: theme.spacing.m) {
-        featureGlyph
-          .frame(maxWidth: .infinity, alignment: .center)
+    VStack(spacing: theme.spacing.m) {
+      featureGlyph
+        .frame(maxWidth: .infinity, alignment: .center)
 
-        Text("Difficulty Rating Coming Soon")
-          .font(theme.typography.cardHeadline)
-          .fontWeight(.semibold)
-          .foregroundStyle(theme.colors.textPrimary)
-          .multilineTextAlignment(.center)
-
-        Text("Swipe right after your match to rate how challenging it felt.")
-          .font(theme.typography.cardMeta)
-          .foregroundStyle(theme.colors.textSecondary)
-          .multilineTextAlignment(.center)
-          .padding(.horizontal, theme.spacing.xs)
-
-        Spacer(minLength: theme.spacing.l)
-
-        Text("We're polishing the experience so your feedback feels quick and intuitive.")
-          .font(theme.typography.caption)
-          .foregroundStyle(theme.colors.textSecondary.opacity(0.7))
-          .multilineTextAlignment(.center)
-      }
-      .padding(.horizontal, theme.spacing.m)
-      .padding(.top, theme.spacing.l)
-      .padding(.bottom, layout.safeAreaBottomPadding + theme.spacing.m)
-      .frame(maxWidth: .infinity, alignment: .top)
+      Text("Difficulty Rating Coming Soon")
+        .font(theme.typography.cardHeadline)
+        .fontWeight(.semibold)
+        .foregroundStyle(theme.colors.textPrimary)
+        .multilineTextAlignment(.center)
+      
+      Spacer()
     }
-    .scrollIndicators(.hidden)
+    .padding(.horizontal, theme.spacing.m)
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .background(theme.colors.backgroundPrimary.ignoresSafeArea())
   }
@@ -408,16 +439,18 @@ private struct WorkoutPrimaryMetricView: View {
   @Environment(\.watchLayoutScale) private var layout
   let metric: WorkoutPrimaryMetric
 
+  // Larger value font matching Apple's prominent metric display
   private var valueFont: Font {
     .system(
-      size: layout.dimension(32, minimum: 27, maximum: 36),
+      size: layout.dimension(36, minimum: 30, maximum: 42),
       weight: .semibold,
       design: .rounded
     ).monospacedDigit()
   }
 
+  // Smaller label font matching Apple's secondary text
   private var labelFont: Font {
-    .system(size: layout.dimension(15, minimum: 13, maximum: 17), weight: .medium)
+    .system(size: layout.dimension(13, minimum: 11, maximum: 15), weight: .regular)
   }
 
   var body: some View {
@@ -449,6 +482,7 @@ private struct WorkoutPrimaryMetricView: View {
 
   private var activeEnergyView: some View {
     HStack(alignment: .lastTextBaseline, spacing: theme.spacing.xs) {
+      // Number displayed prominently (matching Apple's design)
       Text(metric.value)
         .font(valueFont)
         .foregroundStyle(theme.colors.textPrimary)
@@ -456,6 +490,7 @@ private struct WorkoutPrimaryMetricView: View {
         .minimumScaleFactor(0.75)
         .layoutPriority(1)
 
+      // Label text after the number (Apple shows "1 ACTIVE KJ" format)
       if let unit = metric.unit {
         Text("ACTIVE \(unit.uppercased())")
           .font(labelFont)
@@ -500,6 +535,11 @@ private struct WorkoutPrimaryTimerView: View {
     _timerModel = Bindable(timerModel)
   }
 
+  // Yellow color matching Apple's workout timer
+  private var timerYellow: Color {
+    Color(red: 1.0, green: 0.84, blue: 0.0) // Bright yellow similar to Apple's
+  }
+
   private var timerFont: Font {
     .system(
       size: layout.dimension(46, minimum: 42, maximum: 54),
@@ -509,20 +549,24 @@ private struct WorkoutPrimaryTimerView: View {
   }
 
   var body: some View {
-    Text(timerModel.matchTime)
-      .font(timerFont)
-      .tracking(-0.2)
-      .foregroundStyle(timerModel.isPaused ? theme.colors.textSecondary : theme.colors.accentSecondary)
-      .frame(maxWidth: .infinity, alignment: .leading)
-      .contentShape(Rectangle())
-      .onTapGesture {
-        haptics.play(.tap)
-        if timerModel.isPaused {
-          timerModel.resumeMatch()
-        } else {
-          timerModel.pauseMatch()
-        }
+    // Center the timer text (matching Apple's design)
+    HStack {
+      Spacer()
+      Text(timerModel.matchTime)
+        .font(timerFont)
+        .tracking(-0.2)
+        .foregroundStyle(timerModel.isPaused ? theme.colors.textSecondary : timerYellow)
+      Spacer()
+    }
+    .contentShape(Rectangle())
+    .onTapGesture {
+      haptics.play(.tap)
+      if timerModel.isPaused {
+        timerModel.resumeMatch()
+      } else {
+        timerModel.pauseMatch()
       }
+    }
   }
 }
 
@@ -531,25 +575,20 @@ private struct WorkoutGlyph: View {
   @Environment(\.watchLayoutScale) private var layout
   let kind: WorkoutKind
 
+  // Green color matching Apple's workout app glyph background
+  private var greenBackground: Color {
+    Color(red: 0.2, green: 0.8, blue: 0.4) // Bright green similar to Apple's
+  }
+
   var body: some View {
     Circle()
-      .fill(
-        LinearGradient(
-          colors: [
-            theme.colors.accentSecondary.opacity(0.42),
-            theme.colors.accentSecondary.opacity(0.22)
-          ],
-          startPoint: .topLeading,
-          endPoint: .bottomTrailing
-        )
-      )
+      .fill(greenBackground)
       .frame(width: glyphDiameter, height: glyphDiameter)
       .overlay(
         Image(systemName: iconName)
           .font(.system(size: iconSize, weight: .semibold))
-          .foregroundStyle(theme.colors.accentSecondary)
+          .foregroundStyle(.white)
       )
-      .shadow(color: theme.colors.accentSecondary.opacity(0.2), radius: 4, x: 0, y: 2)
   }
 
   private var glyphDiameter: CGFloat {

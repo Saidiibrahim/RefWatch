@@ -59,8 +59,8 @@ final class HealthKitWorkoutAuthorizationManager: WorkoutAuthorizationManaging {
     case .sharingDenied:
       return WorkoutAuthorizationStatus(state: .denied, lastPromptedAt: lastPromptedAt)
     case .sharingAuthorized:
-      let deniedRequired = deniedRequiredMetrics()
-      let deniedOptional = deniedOptionalMetrics()
+      // Compute denied metrics asynchronously to properly check read-only permissions
+      let (deniedRequired, deniedOptional) = await computeDeniedMetrics()
       let state: WorkoutAuthorizationStatus.State = deniedRequired.isEmpty ? .authorized : .limited
       return WorkoutAuthorizationStatus(
         state: state,
@@ -96,32 +96,78 @@ final class HealthKitWorkoutAuthorizationManager: WorkoutAuthorizationManaging {
     }
   }
 
-  private func deniedRequiredMetrics() -> Set<WorkoutAuthorizationMetric> {
-    Set(requiredReadTypes.compactMap { metric, quantityType in
-      let status = healthStore.authorizationStatus(for: quantityType)
-      switch status {
-      case .sharingAuthorized:
-        return nil
-      case .sharingDenied, .notDetermined:
-        return metric
-      @unknown default:
-        return metric
+  /// Computes which metrics are denied for both required and optional types.
+  /// Uses proper HealthKit APIs: authorizationStatus(for:) for share types,
+  /// and getRequestStatusForAuthorization for read-only types.
+  private func computeDeniedMetrics() async -> (Set<WorkoutAuthorizationMetric>, Set<WorkoutAuthorizationMetric>) {
+    // Helper to check if a read-only type still needs authorization
+    // Note: authorizationStatus(for:) only works for share types, so for read-only
+    // types we must use getRequestStatusForAuthorization to check read permission
+    func shouldRequestReadAuthorization(for type: HKObjectType) async -> Bool {
+      await withCheckedContinuation { continuation in
+        healthStore.getRequestStatusForAuthorization(toShare: [], read: [type]) { status, error in
+          // If status is .shouldRequest, we still need authorization (denied)
+          // If status is .unnecessary, authorization was already granted
+          continuation.resume(returning: status == .shouldRequest && error == nil)
+        }
       }
-    })
-  }
+    }
 
-  private func deniedOptionalMetrics() -> Set<WorkoutAuthorizationMetric> {
-    Set(optionalReadTypes.compactMap { metric, quantityType in
-      let status = healthStore.authorizationStatus(for: quantityType)
-      switch status {
-      case .sharingAuthorized, .notDetermined:
-        return nil
-      case .sharingDenied:
-        return metric
-      @unknown default:
-        return metric
+    // For types we request to SHARE, we can check share authorization status directly
+    func deniedFromShareTypes(_ mapping: [WorkoutAuthorizationMetric: HKQuantityType]) -> Set<WorkoutAuthorizationMetric> {
+      Set(mapping.compactMap { metric, quantityType in
+        // Only check share status for types we're requesting write access to
+        guard shareTypes.contains(quantityType) else {
+          return nil
+        }
+        let status = healthStore.authorizationStatus(for: quantityType)
+        switch status {
+        case .sharingAuthorized:
+          return nil // Authorized, not denied
+        case .sharingDenied, .notDetermined:
+          return metric // Denied or not yet determined
+        @unknown default:
+          return metric
+        }
+      })
+    }
+
+    // For READ-ONLY types (not in shareTypes), check read authorization status
+    func deniedFromReadOnlyTypes(_ mapping: [WorkoutAuthorizationMetric: HKQuantityType]) async -> Set<WorkoutAuthorizationMetric> {
+      let readOnlyTypes = mapping.filter { !shareTypes.contains($0.value) }
+      
+      // Check all read-only types concurrently
+      let results = await withTaskGroup(of: (WorkoutAuthorizationMetric, Bool).self) { group -> [(WorkoutAuthorizationMetric, Bool)] in
+        for (metric, quantityType) in readOnlyTypes {
+          group.addTask {
+            let needsRequest = await shouldRequestReadAuthorization(for: quantityType)
+            return (metric, needsRequest)
+          }
+        }
+        var collected: [(WorkoutAuthorizationMetric, Bool)] = []
+        for await result in group {
+          collected.append(result)
+        }
+        return collected
       }
-    })
+      
+      // Return metrics that still need authorization (denied)
+      return Set(results.compactMap { metric, needsRequest in
+        needsRequest ? metric : nil
+      })
+    }
+
+    // Compute denied metrics for both required and optional, handling share vs read-only separately
+    let deniedRequiredShare = deniedFromShareTypes(requiredReadTypes)
+    let deniedOptionalShare = deniedFromShareTypes(optionalReadTypes)
+    let deniedRequiredRead = await deniedFromReadOnlyTypes(requiredReadTypes)
+    let deniedOptionalRead = await deniedFromReadOnlyTypes(optionalReadTypes)
+
+    // Combine share and read-only denied metrics
+    let deniedRequired = deniedRequiredShare.union(deniedRequiredRead)
+    let deniedOptional = deniedOptionalShare.union(deniedOptionalRead)
+
+    return (deniedRequired, deniedOptional)
   }
 }
 

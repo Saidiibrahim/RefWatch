@@ -43,6 +43,8 @@
 	<string>$(GID_CLIENT_ID)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSAppleMusicUsageDescription</key>
 	<string>RefZone needs Apple Music access to control playback during your workout.</string>
 	<key>NSHealthShareUsageDescription</key>
