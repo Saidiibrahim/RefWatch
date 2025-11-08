@@ -806,6 +806,8 @@ public final class MatchViewModel {
             isMatchInProgress = false
             isPaused = false
             waitingForHalfTimeStart = true
+            // Auto-start half-time immediately after ending first half
+            startHalfTimeManually()
         } else if currentPeriod < match.numberOfPeriods {
             isMatchInProgress = false
             isPaused = false

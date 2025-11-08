@@ -15,6 +15,14 @@ private let matchHistoryDateFormatter: DateFormatter = {
   return formatter
 }()
 
+// Simplified date formatter for history cards (date only, no time)
+private let matchHistoryShortDateFormatter: DateFormatter = {
+  let formatter = DateFormatter()
+  formatter.dateStyle = .short
+  formatter.timeStyle = .none
+  return formatter
+}()
+
 struct MatchHistoryView: View {
   let matchViewModel: MatchViewModel
   @State private var items: [CompletedMatch] = []
@@ -177,6 +185,8 @@ struct MatchHistoryDetailView: View {
             Text(name)
                 .font(theme.typography.cardMeta)
                 .foregroundStyle(theme.colors.textSecondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
 
             Text("\(score)")
                 .font(theme.typography.timerSecondary)
@@ -186,10 +196,293 @@ struct MatchHistoryDetailView: View {
     }
 }
 
-#Preview {
+#Preview("Empty State") {
     let vm = MatchViewModel(haptics: WatchHaptics())
+    let environment = makePreviewAggregateEnvironment()
     return NavigationStack { MatchHistoryView(matchViewModel: vm) }
       .theme(DefaultTheme())
+      .environmentObject(environment)
+}
+
+#Preview("With Matches") {
+    let vm = makePreviewMatchViewModel()
+    let environment = makePreviewAggregateEnvironment()
+    return NavigationStack { MatchHistoryView(matchViewModel: vm) }
+      .theme(DefaultTheme())
+      .environmentObject(environment)
+}
+
+#Preview("Match History Row - Local Match") {
+    let sampleMatch = makeSampleCompletedMatch(
+        homeTeam: "Arsenal",
+        awayTeam: "Chelsea",
+        homeScore: 2,
+        awayScore: 1,
+        hasEvents: true
+    )
+    return NavigationStack {
+        List {
+            MatchHistoryRow(snapshot: sampleMatch)
+                .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
+                .listRowBackground(Color.clear)
+        }
+        .listStyle(.carousel)
+        .scrollContentBackground(.hidden)
+    }
+    .theme(DefaultTheme())
+}
+
+#Preview("Match History Row - iPhone Match") {
+    let sampleMatch = makeSampleCompletedMatch(
+        homeTeam: "Manchester United",
+        awayTeam: "Liverpool",
+        homeScore: 3,
+        awayScore: 2,
+        hasEvents: false
+    )
+    return NavigationStack {
+        List {
+            MatchHistoryRow(snapshot: sampleMatch)
+                .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
+                .listRowBackground(Color.clear)
+        }
+        .listStyle(.carousel)
+        .scrollContentBackground(.hidden)
+    }
+    .theme(DefaultTheme())
+}
+
+#Preview("Match History Row - Long Team Names") {
+    let sampleMatch = makeSampleCompletedMatch(
+        homeTeam: "Very Long Team Name That Might Overflow",
+        awayTeam: "Another Extremely Long Team Name Here",
+        homeScore: 5,
+        awayScore: 4,
+        hasEvents: true
+    )
+    return NavigationStack {
+        List {
+            MatchHistoryRow(snapshot: sampleMatch)
+                .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
+                .listRowBackground(Color.clear)
+        }
+        .listStyle(.carousel)
+        .scrollContentBackground(.hidden)
+    }
+    .theme(DefaultTheme())
+}
+
+#Preview("Match History Detail - With Events") {
+    let sampleMatch = makeSampleCompletedMatch(
+        homeTeam: "Arsenal",
+        awayTeam: "Chelsea",
+        homeScore: 2,
+        awayScore: 1,
+        hasEvents: true
+    )
+    return NavigationStack {
+        MatchHistoryDetailView(snapshot: sampleMatch)
+    }
+    .theme(DefaultTheme())
+}
+
+#Preview("Match History Detail - iPhone Match") {
+    let sampleMatch = makeSampleCompletedMatch(
+        homeTeam: "Manchester United",
+        awayTeam: "Liverpool",
+        homeScore: 3,
+        awayScore: 2,
+        hasEvents: false
+    )
+    return NavigationStack {
+        MatchHistoryDetailView(snapshot: sampleMatch)
+    }
+    .theme(DefaultTheme())
+}
+
+#Preview("Score Badge") {
+    HStack(spacing: 20) {
+        ScoreBadge(home: 2, away: 1)
+        ScoreBadge(home: 0, away: 0)
+        ScoreBadge(home: 5, away: 3)
+    }
+    .padding()
+    .theme(DefaultTheme())
+}
+
+// MARK: - Preview Helpers
+
+@MainActor
+private func makePreviewMatchViewModel() -> MatchViewModel {
+    let mockHistory = MockMatchHistoryService()
+    let vm = MatchViewModel(history: mockHistory, haptics: WatchHaptics())
+    
+    // Add sample matches to the mock history
+    let sampleMatches = [
+        makeSampleCompletedMatch(
+            homeTeam: "Arsenal",
+            awayTeam: "Chelsea",
+            homeScore: 2,
+            awayScore: 1,
+            hasEvents: true,
+            completedAt: Date().addingTimeInterval(-3600)
+        ),
+        makeSampleCompletedMatch(
+            homeTeam: "Manchester United",
+            awayTeam: "Liverpool",
+            homeScore: 3,
+            awayScore: 2,
+            hasEvents: false,
+            completedAt: Date().addingTimeInterval(-7200)
+        ),
+        makeSampleCompletedMatch(
+            homeTeam: "Tottenham",
+            awayTeam: "Newcastle",
+            homeScore: 1,
+            awayScore: 0,
+            hasEvents: true,
+            completedAt: Date().addingTimeInterval(-10800)
+        )
+    ]
+    
+    for match in sampleMatches {
+        try? mockHistory.save(match)
+    }
+    
+    return vm
+}
+
+@MainActor
+private func makePreviewAggregateEnvironment() -> AggregateSyncEnvironment {
+    let container = try! WatchAggregateContainerFactory.makeContainer(inMemory: true)
+    let library = WatchAggregateLibraryStore(container: container)
+    let chunk = WatchAggregateSnapshotChunkStore(container: container)
+    let delta = WatchAggregateDeltaOutboxStore(container: container)
+    let coordinator = WatchAggregateSyncCoordinator(
+        libraryStore: library,
+        chunkStore: chunk,
+        deltaStore: delta
+    )
+    let connectivity = WatchConnectivitySyncClient(session: nil, aggregateCoordinator: coordinator)
+    return AggregateSyncEnvironment(
+        libraryStore: library,
+        chunkStore: chunk,
+        deltaStore: delta,
+        coordinator: coordinator,
+        connectivity: connectivity
+    )
+}
+
+private func makeSampleCompletedMatch(
+    homeTeam: String,
+    awayTeam: String,
+    homeScore: Int,
+    awayScore: Int,
+    hasEvents: Bool,
+    completedAt: Date = Date()
+) -> CompletedMatch {
+    var match = Match(
+        id: UUID(),
+        homeTeam: homeTeam,
+        awayTeam: awayTeam
+    )
+    match.homeScore = homeScore
+    match.awayScore = awayScore
+    match.competitionName = "Premier League"
+    match.venueName = "Stadium"
+    
+    let events: [MatchEventRecord] = hasEvents ? [
+        MatchEventRecord(
+            matchTime: "00:00",
+            period: 1,
+            eventType: .kickOff,
+            team: nil,
+            details: .general
+        ),
+        MatchEventRecord(
+            matchTime: "15:30",
+            period: 1,
+            eventType: .goal(.init(goalType: .regular, playerNumber: 9, playerName: "Player 9")),
+            team: .home,
+            details: .goal(.init(goalType: .regular, playerNumber: 9, playerName: "Player 9"))
+        ),
+        MatchEventRecord(
+            matchTime: "45:00",
+            period: 1,
+            eventType: .halfTime,
+            team: nil,
+            details: .general
+        ),
+        MatchEventRecord(
+            matchTime: "60:15",
+            period: 2,
+            eventType: .goal(.init(goalType: .regular, playerNumber: 7, playerName: "Player 7")),
+            team: .home,
+            details: .goal(.init(goalType: .regular, playerNumber: 7, playerName: "Player 7"))
+        ),
+        MatchEventRecord(
+            matchTime: "75:20",
+            period: 2,
+            eventType: .card(.init(
+                cardType: .yellow,
+                recipientType: .player,
+                playerNumber: 5,
+                playerName: "Player 5",
+                officialRole: nil,
+                reason: "Unsporting behavior"
+            )),
+            team: .away,
+            details: .card(.init(
+                cardType: .yellow,
+                recipientType: .player,
+                playerNumber: 5,
+                playerName: "Player 5",
+                officialRole: nil,
+                reason: "Unsporting behavior"
+            ))
+        ),
+        MatchEventRecord(
+            matchTime: "82:10",
+            period: 2,
+            eventType: .goal(.init(goalType: .regular, playerNumber: 11, playerName: "Player 11")),
+            team: .away,
+            details: .goal(.init(goalType: .regular, playerNumber: 11, playerName: "Player 11"))
+        ),
+        MatchEventRecord(
+            matchTime: "90:00",
+            period: 2,
+            eventType: .matchEnd,
+            team: nil,
+            details: .general
+        )
+    ] : []
+    
+    return CompletedMatch(
+        id: UUID(),
+        completedAt: completedAt,
+        match: match,
+        events: events
+    )
+}
+
+private class MockMatchHistoryService: MatchHistoryStoring {
+    private var matches: [CompletedMatch] = []
+    
+    func loadAll() throws -> [CompletedMatch] {
+        return matches
+    }
+    
+    func save(_ match: CompletedMatch) throws {
+        matches.append(match)
+    }
+    
+    func delete(id: UUID) throws {
+        matches.removeAll { $0.id == id }
+    }
+    
+    func wipeAll() throws {
+        matches.removeAll()
+    }
 }
 
 private struct MatchHistoryRow: View {
@@ -197,38 +490,43 @@ private struct MatchHistoryRow: View {
   @Environment(\.theme) private var theme
 
   var body: some View {
-    ThemeCardContainer(role: .secondary, minHeight: 72) {
-      HStack(spacing: theme.spacing.m) {
-        VStack(alignment: .leading, spacing: theme.spacing.xs) {
-          Text("\(snapshot.match.homeTeam) vs \(snapshot.match.awayTeam)")
+    ThemeCardContainer(role: .secondary, minHeight: 88) {
+      VStack(alignment: .leading, spacing: theme.spacing.xs) {
+        // Show teams on separate lines for better readability
+        VStack(alignment: .leading, spacing: 2) {
+          Text(snapshot.match.homeTeam)
             .font(theme.typography.cardHeadline)
             .foregroundStyle(theme.colors.textPrimary)
-
-          HStack(spacing: theme.spacing.xs) {
-            Text(dateText)
-              .font(theme.typography.cardMeta)
-              .foregroundStyle(theme.colors.textSecondary)
-
-            if snapshot.events.isEmpty {
-              Text("•")
-                .font(theme.typography.cardMeta)
-                .foregroundStyle(theme.colors.textSecondary)
-              Text("from iPhone")
-                .font(theme.typography.cardMeta)
-                .foregroundStyle(theme.colors.accentSecondary)
-            }
-          }
+            .lineLimit(1)
+            .minimumScaleFactor(0.75)
+          
+          Text(snapshot.match.awayTeam)
+            .font(theme.typography.cardHeadline)
+            .foregroundStyle(theme.colors.textPrimary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.75)
         }
 
-        Spacer(minLength: theme.spacing.m)
+        HStack(spacing: theme.spacing.xs) {
+          Text(shortDateText)
+            .font(theme.typography.cardMeta)
+            .foregroundStyle(theme.colors.textSecondary)
+            .lineLimit(1)
 
-        ScoreBadge(home: snapshot.match.homeScore, away: snapshot.match.awayScore)
+          if snapshot.events.isEmpty {
+            Image(systemName: "iphone")
+              .font(.system(size: 12))
+              .foregroundStyle(theme.colors.accentSecondary)
+          }
+        }
       }
+      .frame(maxWidth: .infinity, alignment: .leading)
     }
   }
 
-  private var dateText: String {
-    matchHistoryDateFormatter.string(from: snapshot.completedAt)
+  // Simplified date format - date only, no time
+  private var shortDateText: String {
+    matchHistoryShortDateFormatter.string(from: snapshot.completedAt)
   }
 }
 

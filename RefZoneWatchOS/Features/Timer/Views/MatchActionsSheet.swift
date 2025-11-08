@@ -23,7 +23,8 @@ struct MatchActionsSheet: View {
     @State private var showingEndHalfConfirmation = false
     
     var body: some View {
-        let endActionTitle = matchViewModel.isFullTime ? "End Match" : "End Half"
+        // Determine end action title based on state
+        let endActionTitle = computeEndActionTitle()
 
         NavigationStack {
             GeometryReader { proxy in
@@ -191,7 +192,7 @@ private extension MatchActionsSheet {
             if matchViewModel.isHalfTime {
                 ActionGridItem(
                     title: endActionTitle,
-                    icon: "checkmark.circle",
+                    icon: "arrow.right.circle",
                     color: theme.colors.matchPositive,
                     showBackground: false
                 ) {
@@ -206,7 +207,12 @@ private extension MatchActionsSheet {
                     color: theme.colors.matchPositive,
                     showBackground: false
                 ) {
-                    showingEndHalfConfirmation = true
+                    // Check if we should skip confirmation (final period and time expired)
+                    if shouldSkipConfirmation {
+                        executeEndActionDirectly()
+                    } else {
+                        showingEndHalfConfirmation = true
+                    }
                 }
                 .frame(width: cellWidth)
             }
@@ -258,7 +264,7 @@ private extension MatchActionsSheet {
                 if matchViewModel.isHalfTime {
                     compactActionItem(
                         title: endActionTitle,
-                        icon: "checkmark.circle",
+                        icon: "arrow.right.circle",
                         color: theme.colors.matchPositive,
                         width: cellWidth
                     ) {
@@ -272,7 +278,12 @@ private extension MatchActionsSheet {
                         color: theme.colors.matchPositive,
                         width: cellWidth
                     ) {
-                        showingEndHalfConfirmation = true
+                        // Check if we should skip confirmation (final period and time expired)
+                        if shouldSkipConfirmation {
+                            executeEndActionDirectly()
+                        } else {
+                            showingEndHalfConfirmation = true
+                        }
                     }
                 }
             }
@@ -315,5 +326,97 @@ private extension MatchActionsSheet {
         .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(Text(title))
+    }
+    
+    // MARK: - Helper Methods
+    
+    /// Computes the end action title based on current match state
+    private func computeEndActionTitle() -> String {
+        if matchViewModel.isFullTime {
+            return "End Match"
+        }
+        
+        if matchViewModel.isHalfTime {
+            return "Start Second Half"
+        }
+        
+        // Check if we're on the final period
+        guard let match = matchViewModel.currentMatch else {
+            return "End Half"
+        }
+        
+        let isFinalPeriod = matchViewModel.currentPeriod >= match.numberOfPeriods &&
+                           !match.hasExtraTime
+        
+        if isFinalPeriod {
+            return "End Match"
+        }
+        
+        // Show period-specific label
+        if matchViewModel.currentPeriod == 1 {
+            return "End 1st Half"
+        } else if matchViewModel.currentPeriod == 2 {
+            return "End 2nd Half"
+        }
+        
+        return "End Half"
+    }
+    
+    /// Checks if confirmation should be skipped (final period and time expired)
+    private var shouldSkipConfirmation: Bool {
+        guard let match = matchViewModel.currentMatch else {
+            return false
+        }
+        
+        // Only skip if on final period
+        let isFinalPeriod = matchViewModel.currentPeriod >= match.numberOfPeriods &&
+                           !match.hasExtraTime
+        
+        if !isFinalPeriod {
+            return false
+        }
+        
+        // Check if period time is expired
+        return isPeriodTimeExpired
+    }
+    
+    /// Checks if period time remaining is expired (<= 0)
+    private var isPeriodTimeExpired: Bool {
+        let timeString = matchViewModel.periodTimeRemaining
+        
+        // Handle "--:--" format (indicates no time limit)
+        if timeString == "--:--" {
+            return false
+        }
+        
+        // Parse "MM:SS" format
+        let components = timeString.split(separator: ":")
+        guard components.count == 2,
+              let minutes = Int(components[0]),
+              let seconds = Int(components[1]) else {
+            return false
+        }
+        
+        // Check if total seconds <= 0
+        return (minutes * 60 + seconds) <= 0
+    }
+    
+    /// Executes end action directly without confirmation
+    private func executeEndActionDirectly() {
+        if matchViewModel.isFullTime {
+            matchViewModel.finalizeMatch()
+            DispatchQueue.main.async {
+                lifecycle?.resetToStart()
+                matchViewModel.resetMatch()
+            }
+            dismiss()
+        } else {
+            let isFirstHalf = matchViewModel.currentPeriod == 1
+            matchViewModel.endCurrentPeriod()
+            if isFirstHalf {
+                matchViewModel.isHalfTime = true
+            }
+            dismiss()
+        }
     }
 }

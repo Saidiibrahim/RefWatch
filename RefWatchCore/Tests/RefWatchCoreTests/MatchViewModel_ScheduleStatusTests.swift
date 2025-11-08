@@ -139,13 +139,22 @@ private final class FailingHistory: MatchHistoryStoring {
 
 @MainActor
 private final class SpyScheduleStatusUpdater: MatchScheduleStatusUpdating {
+    private(set) var markScheduleInProgressCalled = false
     private(set) var markScheduleCompletedCalled = false
     private(set) var lastMarkedId: UUID?
+    private(set) var lastInProgressId: UUID?
+    private(set) var inProgressCallCount = 0
     private(set) var callCount = 0
 
-    func markScheduleCompleted(id: UUID) async throws {
+    func markScheduleInProgress(scheduledId: UUID) async throws {
+        markScheduleInProgressCalled = true
+        lastInProgressId = scheduledId
+        inProgressCallCount += 1
+    }
+
+    func markScheduleCompleted(scheduledId: UUID) async throws {
         markScheduleCompletedCalled = true
-        lastMarkedId = id
+        lastMarkedId = scheduledId
         callCount += 1
     }
 }

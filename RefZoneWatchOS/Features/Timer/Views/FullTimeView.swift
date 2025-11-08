@@ -12,7 +12,7 @@ import RefWatchCore
 struct FullTimeView: View {
     let matchViewModel: MatchViewModel
     let lifecycle: MatchLifecycleCoordinator
-    @State private var showingActionSheet = false
+    @State private var showingEndMatchConfirmation = false
     @Environment(\.theme) private var theme
     @Environment(\.watchLayoutScale) private var layout
 
@@ -35,20 +35,46 @@ struct FullTimeView: View {
                         score: matchViewModel.currentMatch?.awayScore ?? 0
                     )
                 }
+                
+                Spacer()
+                
+                // Compact Complete Match button with rounded edges
+                Button(action: {
+                    showingEndMatchConfirmation = true
+                }) {
+                    Label("Complete Match", systemImage: "checkmark.circle.fill")
+                        .font(theme.typography.cardMeta)
+                        .foregroundStyle(theme.colors.textInverted)
+                        .padding(.horizontal, theme.spacing.m)
+                        .padding(.vertical, theme.spacing.s)
+                        .background(
+                            Capsule()
+                                .fill(theme.colors.matchPositive)
+                        )
+                }
+                .buttonStyle(.plain)
+                .padding(.bottom, layout.safeAreaBottomPadding + theme.spacing.m)
             }
             .padding(.horizontal, theme.components.cardHorizontalPadding)
             .padding(.top, theme.spacing.s)
-            .padding(.bottom, layout.safeAreaBottomPadding + theme.spacing.l)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .background(theme.colors.backgroundPrimary.ignoresSafeArea())
-        .contentShape(Rectangle())
-        .onLongPressGesture(minimumDuration: 0.8) {
-            WKInterfaceDevice.current().play(.notification)
-            showingActionSheet = true
-        }
-        .sheet(isPresented: $showingActionSheet) {
-            MatchActionsSheet(matchViewModel: matchViewModel, lifecycle: lifecycle)
+        .confirmationDialog(
+            "",
+            isPresented: $showingEndMatchConfirmation,
+            titleVisibility: .hidden
+        ) {
+            Button("Yes") {
+                matchViewModel.finalizeMatch()
+                DispatchQueue.main.async {
+                    lifecycle.resetToStart()
+                    matchViewModel.resetMatch()
+                }
+            }
+            Button("No", role: .cancel) { }
+        } message: {
+            Text("Are you sure you want to 'End Match'?")
         }
         .onChange(of: matchViewModel.matchCompleted) { completed, _ in
             #if DEBUG
