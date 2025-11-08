@@ -33,6 +33,8 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>MinimumOSVersion</key>
 	<string>$(WATCHOS_DEPLOYMENT_TARGET)</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSAppleMusicUsageDescription</key>
 	<string>RefZone needs Apple Music access to control playback during your workout.</string>
 	<key>NSHealthShareUsageDescription</key>
