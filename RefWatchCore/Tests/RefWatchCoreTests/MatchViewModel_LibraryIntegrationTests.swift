@@ -14,7 +14,7 @@ final class MatchViewModel_LibraryIntegrationTests: XCTestCase {
             awayName: "Team C",
             kickoff: Date().addingTimeInterval(3600),
             competitionName: "Premier Cup",
-            statusRaw: "upcoming"
+            statusRaw: "scheduled"
         )
         let snapshot = MatchLibrarySnapshot(teams: [teamA, teamB], competitions: [], venues: [], schedules: [schedule])
 

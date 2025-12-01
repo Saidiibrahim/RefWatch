@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Foundation
 import RefWatchCore
 
 struct SettingsScreen: View {
@@ -14,6 +15,15 @@ struct SettingsScreen: View {
     @Bindable var settingsViewModel: SettingsViewModel
     // Persisted timer face selection used by TimerView host
     @AppStorage("timer_face_style") private var timerFaceStyleRaw: String = TimerFaceStyle.standard.rawValue
+    // Persisted countdown enabled setting
+    @AppStorage("countdown_enabled") private var countdownEnabled: Bool = true
+    @State private var syncRequestState: SyncRequestState = .idle
+
+    private enum SyncRequestState {
+        case idle
+        case requesting
+        case cooldown
+    }
     
     var body: some View {
         List {
@@ -90,6 +100,16 @@ private extension SettingsScreen {
             .accessibilityIdentifier("timerFaceRow")
             .listRowInsets(cardRowInsets)
             .listRowBackground(Color.clear)
+            
+            SettingsToggleRow(
+                title: "Countdown",
+                subtitle: "Show countdown before start",
+                icon: "clock.arrow.circlepath",
+                isOn: $countdownEnabled
+            )
+            .accessibilityIdentifier("countdownToggleRow")
+            .listRowInsets(cardRowInsets)
+            .listRowBackground(Color.clear)
         } header: {
             SettingsSectionHeader(title: "Timer")
         }
@@ -103,7 +123,7 @@ private extension SettingsScreen {
             } label: {
                 SettingsNavigationRow(
                     title: "Misconduct Codes",
-                    value: settingsViewModel.activeMisconductTemplate.displayName,
+                    value: misconductTemplateSummary,
                     icon: "list.bullet.rectangle",
                     valueIdentifier: "misconductTemplateCurrentSelection"
                 )
@@ -154,16 +174,13 @@ private extension SettingsScreen {
     var syncSection: some View {
         Section {
             Button {
-                aggregateSync.connectivity.requestManualAggregateSync()
+                requestManualSync()
             } label: {
-                SettingsNavigationRow(
-                    title: "Resync Library",
-                    value: syncHeadline,
-                    icon: "arrow.clockwise",
-                    valueIdentifier: nil
-                )
+                manualSyncRow
             }
             .buttonStyle(.plain)
+            .disabled(isSyncButtonDisabled)
+            .opacity(isSyncButtonDisabled && isSyncLoading == false ? 0.6 : 1)
             .listRowInsets(cardRowInsets)
             .listRowBackground(Color.clear)
 
@@ -198,46 +215,127 @@ private extension SettingsScreen {
         )
     }
 
+    var misconductTemplateSummary: String {
+        settingsViewModel.activeMisconductTemplate.name
+    }
+
     var substitutionOrderLabel: String {
         settingsViewModel.settings.substitutionOrderPlayerOffFirst ? "Player Off First" : "Player On First"
     }
 
     var syncHeadline: String {
         let status = aggregateSync.status
+        if syncRequestState == .cooldown && status.pendingSnapshotChunks == 0 {
+            return "Sync requested"
+        }
         if status.pendingSnapshotChunks > 0 {
-            return "Applying snapshot…"
+            return "Syncing…"
         }
         if status.queuedSnapshots > 0 || status.queuedDeltas > 0 {
             return "Waiting on iPhone"
         }
-        return status.reachable ? "Up to date" : "Awaiting Connection"
+        return status.reachable ? "Library up to date" : "Awaiting connection"
     }
 
     var syncDetailHeading: String {
-        aggregateSync.status.requiresBackfill ? "Backfill required" : "Library status"
+        aggregateSync.status.requiresBackfill ? "Action required" : "Library overview"
     }
 
     var syncDetailBody: String {
         let status = aggregateSync.status
         var lines: [String] = []
-        let connectivity = status.lastConnectivityStatusRaw ?? "unknown"
-        lines.append("Connectivity: \(connectivity.capitalized)")
-        lines.append("Reachable: \(status.reachable ? "Yes" : "No")")
-        lines.append("Pending chunks: \(status.pendingSnapshotChunks)")
-        lines.append("Queued snapshots: \(status.queuedSnapshots)")
-        lines.append("Queued deltas: \(status.queuedDeltas)")
-        if let lastSnapshot = status.lastSnapshotGeneratedAt {
-            lines.append("Last snapshot: \(lastSnapshot.formatted(date: .abbreviated, time: .shortened))")
+        if let applied = status.lastSnapshotAppliedAt ?? status.lastSnapshotGeneratedAt {
+            lines.append("Last synced \(relativeSyncString(from: applied))")
         } else {
-            lines.append("Last snapshot: Never")
+            lines.append("No sync received yet")
         }
-        if let supabase = status.lastSupabaseSync {
-            lines.append("Last Supabase sync: \(supabase.formatted(date: .abbreviated, time: .shortened))")
+        if status.pendingSnapshotChunks > 0 {
+            lines.append("Applying updates from iPhone")
+        } else if status.queuedSnapshots > 0 || status.queuedDeltas > 0 {
+            lines.append("Waiting for iPhone response")
+        } else if status.requiresBackfill {
+            lines.append("Backfill needed from iPhone")
+        } else {
+            lines.append("Library looks ready")
         }
-        if status.requiresBackfill {
-            lines.append("Backfill pending: Yes")
-        }
+        lines.append(status.reachable ? "iPhone reachable" : "iPhone unavailable")
         return lines.joined(separator: "\n")
+    }
+    
+    @ViewBuilder
+    private var manualSyncRow: some View {
+        ThemeCardContainer(role: .secondary, minHeight: 72) {
+            HStack(spacing: theme.spacing.m) {
+                Image(systemName: "arrow.clockwise")
+                    .font(.title2)
+                    .foregroundStyle(theme.colors.accentSecondary)
+
+                VStack(alignment: .leading, spacing: theme.spacing.xs) {
+                    Text("Resync Library")
+                        .font(theme.typography.cardHeadline)
+                        .foregroundStyle(theme.colors.textPrimary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    Text(syncHeadline)
+                        .font(theme.typography.cardMeta)
+                        .foregroundStyle(theme.colors.textSecondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
+                if isSyncLoading {
+                    ProgressView()
+                        .progressViewStyle(.circular)
+                        .scaleEffect(0.7)
+                } else {
+                    Image(systemName: aggregateSync.status.reachable ? "checkmark.circle" : "exclamationmark.circle")
+                        .font(.title3)
+                        .foregroundStyle(
+                            aggregateSync.status.reachable
+                            ? theme.colors.matchPositive
+                            : theme.colors.accentSecondary
+                        )
+                }
+            }
+        }
+    }
+
+    private var isSyncLoading: Bool {
+        syncRequestState == .requesting || aggregateSync.status.pendingSnapshotChunks > 0
+    }
+
+    private var isSyncButtonDisabled: Bool {
+        syncRequestState != .idle || aggregateSync.status.pendingSnapshotChunks > 0
+    }
+
+    private func requestManualSync() {
+        guard syncRequestState == .idle else { return }
+        syncRequestState = .requesting
+        aggregateSync.connectivity.requestManualAggregateSync()
+        scheduleSyncCooldown()
+    }
+
+    private func scheduleSyncCooldown() {
+        Task {
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
+            await MainActor.run {
+                if syncRequestState == .requesting {
+                    syncRequestState = .cooldown
+                }
+            }
+            try? await Task.sleep(nanoseconds: 1_500_000_000)
+            await MainActor.run {
+                // Reset only if still in cooldown to avoid stomping concurrent requests
+                if syncRequestState != .idle {
+                    syncRequestState = .idle
+                }
+            }
+        }
+    }
+
+    private func relativeSyncString(from date: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .short
+        return formatter.localizedString(for: date, relativeTo: Date())
     }
 }
 
@@ -281,11 +379,17 @@ struct SettingsNavigationRow: View {
                         Text(value)
                             .font(theme.typography.cardMeta)
                             .foregroundStyle(theme.colors.textSecondary)
+                            .lineLimit(2)
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
                             .accessibilityIdentifier(valueIdentifier)
                     } else {
                         Text(value)
                             .font(theme.typography.cardMeta)
                             .foregroundStyle(theme.colors.textSecondary)
+                            .lineLimit(2)
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
             }

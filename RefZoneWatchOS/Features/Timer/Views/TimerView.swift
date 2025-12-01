@@ -158,8 +158,8 @@ private extension TimerView {
 
     private var scoreDisplay: some View {
         ScoreDisplayView(
-            homeTeam: model.homeTeam,
-            awayTeam: model.awayTeam,
+            homeTeam: model.homeTeamDisplayName,
+            awayTeam: model.awayTeamDisplayName,
             homeScore: model.currentMatch?.homeScore ?? 0,
             awayScore: model.currentMatch?.awayScore ?? 0
         )

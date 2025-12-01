@@ -24,6 +24,7 @@ struct AggregateSnapshotBuilder {
         competitions: [CompetitionRecord],
         venues: [VenueRecord],
         schedules: [ScheduledMatch],
+        history: [AggregateSnapshotPayload.HistorySummary],
         acknowledgedChangeIds: [UUID],
         generatedAt: Date,
         lastSyncedAt: Date?,
@@ -41,6 +42,8 @@ struct AggregateSnapshotBuilder {
         let schedulePayloads = schedules
             .sorted { $0.kickoff < $1.kickoff }
             .map(makeSchedulePayload)
+        let historyPayloads = history
+            .sorted { $0.completedAt > $1.completedAt }
 
         var chunks: [PartialSnapshot] = []
         var current = PartialSnapshot()
@@ -75,6 +78,7 @@ struct AggregateSnapshotBuilder {
         competitionPayloads.forEach { append($0, to: \.competitions) }
         venuePayloads.forEach { append($0, to: \.venues) }
         schedulePayloads.forEach { append($0, to: \.schedules) }
+        historyPayloads.forEach { append($0, to: \.history) }
 
         if current.isEmpty == false || chunks.isEmpty {
             chunks.append(current)
@@ -92,7 +96,8 @@ struct AggregateSnapshotBuilder {
                 teams: partial.teams,
                 venues: partial.venues,
                 competitions: partial.competitions,
-                schedules: partial.schedules
+                schedules: partial.schedules,
+                history: partial.history
             )
         }
     }
@@ -104,9 +109,10 @@ private extension AggregateSnapshotBuilder {
         var competitions: [AggregateSnapshotPayload.Competition] = []
         var venues: [AggregateSnapshotPayload.Venue] = []
         var schedules: [AggregateSnapshotPayload.Schedule] = []
+        var history: [AggregateSnapshotPayload.HistorySummary] = []
 
         var isEmpty: Bool {
-            teams.isEmpty && competitions.isEmpty && venues.isEmpty && schedules.isEmpty
+            teams.isEmpty && competitions.isEmpty && venues.isEmpty && schedules.isEmpty && history.isEmpty
         }
     }
 
@@ -127,7 +133,8 @@ private extension AggregateSnapshotBuilder {
             teams: partial.teams,
             venues: partial.venues,
             competitions: partial.competitions,
-            schedules: partial.schedules
+            schedules: partial.schedules,
+            history: partial.history
         )
         do {
             let data = try encoder.encode(payload)
@@ -219,7 +226,7 @@ private extension AggregateSnapshotBuilder {
             kickoff: match.kickoff,
             competition: match.competition,
             notes: match.notes,
-            statusRaw: match.status.rawValue,
+            statusRaw: match.status.databaseValue,
             sourceDeviceId: match.sourceDeviceId
         )
     }

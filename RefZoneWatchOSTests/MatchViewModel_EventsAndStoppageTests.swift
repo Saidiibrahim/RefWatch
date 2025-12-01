@@ -7,14 +7,7 @@ import Foundation
 import Testing
 @testable import RefZone_Watch_App
 
-private func parseMMSS(_ s: String) -> Int {
-    let comps = s.split(separator: ":")
-    guard comps.count == 2,
-          let mm = Int(comps[0]),
-          let ss = Int(comps[1]) else { return 0 }
-    return mm * 60 + ss
-}
-
+@MainActor
 struct MatchViewModel_EventsAndStoppageTests {
 
     @Test func test_event_order_after_start_and_goal() async throws {

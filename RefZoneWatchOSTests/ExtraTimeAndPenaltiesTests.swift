@@ -5,7 +5,9 @@
 
 import Testing
 @testable import RefZone_Watch_App
+@testable import RefWatchCore
 
+@MainActor
 struct ExtraTimeAndPenaltiesTests {
 
     @Test

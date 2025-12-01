@@ -15,6 +15,7 @@ enum WatchAggregateModelSchema {
     AggregateCompetitionRecord.self,
     AggregateVenueRecord.self,
     AggregateScheduleRecord.self,
+    AggregateHistoryRecord.self,
     AggregateSnapshotChunkRecord.self,
     AggregateDeltaRecord.self,
     AggregateSyncStatusRecord.self

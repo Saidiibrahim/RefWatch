@@ -31,12 +31,18 @@ final class ConnectivitySyncController: ObservableObject {
         scheduleStore: ScheduleStoring
     ) {
         let mediaHandler = SystemMusicMediaCommandHandler()
-        self.client = IOSConnectivitySyncClient(history: history, auth: auth, mediaHandler: mediaHandler)
+        self.client = IOSConnectivitySyncClient(
+            history: history,
+            auth: auth,
+            scheduleStore: scheduleStore,
+            mediaHandler: mediaHandler
+        )
         self.aggregateCoordinator = AggregateSyncCoordinator(
             teamStore: teamStore,
             competitionStore: competitionStore,
             venueStore: venueStore,
             scheduleStore: scheduleStore,
+            historyStore: history,
             auth: auth,
             client: client
         )

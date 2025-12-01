@@ -1,5 +1,4 @@
 import SwiftUI
-import MediaPlayer
 import _WatchKit_SwiftUI
 import RefWatchCore
 import RefWorkoutCore
@@ -74,8 +73,8 @@ struct WorkoutSessionHostView: View {
       )
       .tag(WorkoutSessionTab.metrics)
 
-      WorkoutSessionMediaPage(kind: session.kind)
-        .tag(WorkoutSessionTab.media)
+      WorkoutSessionRatingPlaceholderPage()
+        .tag(WorkoutSessionTab.difficultyRating)
     }
     .tabViewStyle(.page(indexDisplayMode: .automatic))
     .indexViewStyle(.page)
@@ -105,6 +104,9 @@ private struct WorkoutSessionMainPage: View {
   @Environment(\.theme) private var theme
   @Environment(\.watchLayoutScale) private var layout
   @Bindable private var timerModel: WorkoutTimerFaceModel
+  // State to ensure time display updates periodically
+  @State private var currentTime = Date()
+  @State private var timeUpdateTimer: Timer?
 
   init(session: WorkoutSession, liveMetrics: WorkoutLiveMetrics?, timerModel: WorkoutTimerFaceModel) {
     self.session = session
@@ -118,51 +120,81 @@ private struct WorkoutSessionMainPage: View {
     let distance = WorkoutMetricFormatter.distance(liveMetrics?.totalDistance ?? session.summary.totalDistance)
 
     return [
-      WorkoutPrimaryMetric(title: "Active Energy", value: energy.value, unit: energy.unit),
-      WorkoutPrimaryMetric(title: "Heart Rate", value: heartRate.value, unit: heartRate.unit),
-      WorkoutPrimaryMetric(title: "Distance", value: distance.value, unit: distance.unit)
+      WorkoutPrimaryMetric(type: .activeEnergy, title: "Active Energy", value: energy.value, unit: energy.unit),
+      WorkoutPrimaryMetric(type: .heartRate, title: "Heart Rate", value: heartRate.value, unit: heartRate.unit),
+      WorkoutPrimaryMetric(type: .distance, title: "Distance", value: distance.value, unit: distance.unit)
     ]
   }
 
   var body: some View {
-    VStack(alignment: .leading, spacing: theme.spacing.s) {
-      HStack(alignment: .center, spacing: theme.spacing.xs) {
+    VStack(alignment: .leading, spacing: 0) {
+      // Header with glyph on left, time on right (matching Apple's design)
+      HStack(alignment: .top) {
         WorkoutGlyph(kind: session.kind)
-
-        VStack(alignment: .leading, spacing: theme.spacing.xs) {
-          Text(session.title)
-            .font(theme.typography.cardHeadline)
-            .foregroundStyle(theme.colors.textPrimary)
-            .lineLimit(1)
-            .minimumScaleFactor(0.8)
-
-          Text(session.kind.displayName.uppercased())
-            .font(theme.typography.label)
-            .foregroundStyle(theme.colors.textSecondary)
-        }
-
-        Spacer(minLength: theme.spacing.xs)
-
-        Text(timerModel.isPaused ? "Paused" : "Active")
-          .font(theme.typography.label)
-          .foregroundStyle(timerModel.isPaused ? theme.colors.matchWarning : theme.colors.accentSecondary)
+        
+        Spacer()
+        
+        // Time at top right (Apple only shows time, no label)
+        Text(currentTime, style: .time)
+          .font(.system(size: layout.dimension(15, minimum: 13, maximum: 17), weight: .medium))
+          .foregroundStyle(theme.colors.textPrimary)
       }
+      .padding(.horizontal, layout.dimension(theme.spacing.m, minimum: theme.spacing.s))
+      .padding(.top, layout.dimension(theme.spacing.m, minimum: theme.spacing.s))
 
+      // Timer display - centered like Apple's design
+      // Responsive padding: tighter on compact watches, more spacious on larger watches
       WorkoutPrimaryTimerView(timerModel: timerModel)
         .hapticsProvider(WatchHaptics())
+        .frame(maxWidth: .infinity)
+        .padding(.top, layout.dimension(theme.spacing.m, minimum: theme.spacing.s))
 
-      VStack(spacing: theme.spacing.xs) {
-        ForEach(metrics) { metric in
-          WorkoutPrimaryMetricView(metric: metric)
+      // Metrics in Apple's order: Active Energy → Heart Rate → Distance
+      // Shifted to the right to match Apple's design, with metrics left-aligned relative to each other
+      HStack(alignment: .top) {
+        Spacer(minLength: layout.dimension(theme.spacing.l, minimum: theme.spacing.m))
+        VStack(alignment: .leading, spacing: metricSpacing) {
+          ForEach(metrics) { metric in
+            WorkoutPrimaryMetricView(metric: metric)
+          }
         }
+        // Minimal trailing spacer to allow some flexibility
+        Spacer(minLength: 0)
       }
-      .frame(maxWidth: .infinity, alignment: .leading)
+      .padding(.horizontal, layout.dimension(theme.spacing.m, minimum: theme.spacing.s))
+      .padding(.top, layout.dimension(theme.spacing.m, minimum: theme.spacing.s))
+      
+      // Flexible spacer ensures content stays at top while allowing bottom padding
+      Spacer()
     }
-    .padding(.horizontal, theme.spacing.s)
-    .padding(.top, theme.spacing.s)
     .padding(.bottom, layout.safeAreaBottomPadding)
-    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     .background(theme.colors.backgroundPrimary.ignoresSafeArea())
+    .onAppear {
+      // Update time immediately on appear
+      currentTime = Date()
+      // Update time every minute to keep display current
+      timeUpdateTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { _ in
+        currentTime = Date()
+      }
+    }
+    .onDisappear {
+      // Clean up timer when view disappears
+      timeUpdateTimer?.invalidate()
+      timeUpdateTimer = nil
+    }
+  }
+
+  // Adaptive metric spacing: tighter on compact watches to fit all content
+  private var metricSpacing: CGFloat {
+    switch layout.category {
+    case .compact:
+      // Reduced spacing for 41mm watches to ensure all metrics fit
+      return layout.dimension(theme.spacing.s, minimum: theme.spacing.xs)
+    case .standard, .expanded:
+      // Standard spacing for larger watches
+      return layout.dimension(theme.spacing.m, minimum: theme.spacing.s)
+    }
   }
 }
 
@@ -205,77 +237,78 @@ private struct WorkoutSessionControlsPage: View {
   }
 
   var body: some View {
-    VStack(alignment: .leading, spacing: theme.spacing.s) {
-      controlsHeader
+    ScrollView(.vertical) {
+      VStack(alignment: .leading, spacing: theme.spacing.s) {
+        controlsHeader
 
-      LazyVGrid(columns: controlColumns, spacing: layout.dimension(theme.spacing.xs, minimum: theme.spacing.xs * 0.75)) {
-        WorkoutControlTile(
-          title: isPaused ? "Resume" : "Pause",
-          systemImage: isPaused ? "play.fill" : "pause.fill",
-          tint: theme.colors.matchWarning,
-          foreground: theme.colors.backgroundPrimary,
-          isDisabled: isEnding,
-          style: tileStyle,
-          action: {
-            if isPaused {
-              timerModel.resumeMatch()
-            } else {
-              timerModel.pauseMatch()
+        LazyVGrid(columns: controlColumns, spacing: layout.dimension(theme.spacing.xs, minimum: theme.spacing.xs * 0.75)) {
+          WorkoutControlTile(
+            title: isPaused ? "Resume" : "Pause",
+            systemImage: isPaused ? "play.fill" : "pause.fill",
+            tint: theme.colors.matchWarning,
+            foreground: theme.colors.backgroundPrimary,
+            isDisabled: isEnding,
+            style: tileStyle,
+            action: {
+              if isPaused {
+                timerModel.resumeMatch()
+              } else {
+                timerModel.pauseMatch()
+              }
             }
-          }
-        )
+          )
 
-        WorkoutControlTile(
-          title: "Segment",
-          systemImage: "flag.checkered",
-          tint: theme.colors.matchPositive,
-          foreground: theme.colors.backgroundPrimary,
-          badgeText: lapCount > 0 ? "\(lapCount)" : nil,
-          isDisabled: isEnding || isRecordingSegment,
-          isLoading: isRecordingSegment,
-          style: tileStyle,
-          action: onMarkSegment
-        )
+          WorkoutControlTile(
+            title: "Segment",
+            systemImage: "flag.checkered",
+            tint: theme.colors.matchPositive,
+            foreground: theme.colors.backgroundPrimary,
+            badgeText: lapCount > 0 ? "\(lapCount)" : nil,
+            isDisabled: isEnding || isRecordingSegment,
+            isLoading: isRecordingSegment,
+            style: tileStyle,
+            action: onMarkSegment
+          )
 
-        WorkoutControlTile(
-          title: "End",
-          systemImage: "xmark",
-          tint: theme.colors.matchCritical,
-          foreground: theme.colors.backgroundPrimary,
-          isDisabled: isEnding,
-          style: tileStyle,
-          action: onEnd
-        )
+          WorkoutControlTile(
+            title: "End",
+            systemImage: "xmark",
+            tint: theme.colors.matchCritical,
+            foreground: theme.colors.backgroundPrimary,
+            isDisabled: isEnding,
+            style: tileStyle,
+            action: onEnd
+          )
 
-        WorkoutControlTile(
-          title: "New",
-          systemImage: "plus",
-          tint: theme.colors.accentSecondary,
-          foreground: theme.colors.backgroundPrimary,
-          isDisabled: isEnding,
-          style: tileStyle,
-          action: onRequestNewSession
-        )
+          WorkoutControlTile(
+            title: "New",
+            systemImage: "plus",
+            tint: theme.colors.accentSecondary,
+            foreground: theme.colors.backgroundPrimary,
+            isDisabled: isEnding,
+            style: tileStyle,
+            action: onRequestNewSession
+          )
 
-        WorkoutControlTile(
-          title: "Share",
-          systemImage: "square.and.arrow.up",
-          tint: theme.colors.accentPrimary,
-          foreground: theme.colors.backgroundPrimary,
-          isDisabled: isEnding,
-          style: tileStyle,
-          action: onShare
-        )
+          WorkoutControlTile(
+            title: "Share",
+            systemImage: "square.and.arrow.up",
+            tint: theme.colors.accentPrimary,
+            foreground: theme.colors.backgroundPrimary,
+            isDisabled: isEnding,
+            style: tileStyle,
+            action: onShare
+          )
 
-        WorkoutControlTilePlaceholder(style: tileStyle)
+          WorkoutControlTilePlaceholder(style: tileStyle)
+        }
       }
-
-      Spacer()
+      .padding(.horizontal, theme.spacing.s)
+      .padding(.top, theme.spacing.m)
+      .padding(.bottom, layout.safeAreaBottomPadding)
     }
-    .padding(.horizontal, theme.spacing.s)
-    .padding(.top, theme.spacing.m)
-    .padding(.bottom, layout.safeAreaBottomPadding)
-    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    .scrollIndicators(.visible)
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
     .background(theme.colors.backgroundPrimary.ignoresSafeArea())
   }
 
@@ -285,17 +318,11 @@ private struct WorkoutSessionControlsPage: View {
   }
 
   private var controlsHeader: some View {
-    VStack(alignment: .leading, spacing: theme.spacing.xs) {
-      Text(session.title)
-        .font(theme.typography.cardHeadline)
-        .foregroundStyle(theme.colors.textPrimary)
-        .lineLimit(1)
-        .minimumScaleFactor(0.8)
-
-      Text(timerModel.isPaused ? "Workout paused" : "Workout active")
-        .font(theme.typography.cardMeta)
-        .foregroundStyle(timerModel.isPaused ? theme.colors.matchWarning : theme.colors.textSecondary)
-    }
+    Text(session.title)
+      .font(theme.typography.cardHeadline)
+      .foregroundStyle(theme.colors.textPrimary)
+      .lineLimit(1)
+      .minimumScaleFactor(0.8)
   }
 
   private var tileStyle: WorkoutControlTile.Style {
@@ -319,241 +346,47 @@ private struct WorkoutSessionControlsPage: View {
   }
 }
 
-private struct WorkoutSessionMediaPage: View {
+private struct WorkoutSessionRatingPlaceholderPage: View {
   @Environment(\.theme) private var theme
-  @Environment(\.scenePhase) private var scenePhase
   @Environment(\.watchLayoutScale) private var layout
-  let kind: WorkoutKind
-
-  @State private var viewModelReference: WorkoutSessionMediaViewModel
-  @Bindable private var viewModel: WorkoutSessionMediaViewModel
-  private let haptics = WatchHaptics()
-
-  init(kind: WorkoutKind) {
-    self.kind = kind
-    let model = WorkoutSessionMediaViewModel()
-    _viewModelReference = State(initialValue: model)
-    _viewModel = Bindable(model)
-  }
 
   var body: some View {
-    Group {
-      if #available(watchOS 10.0, *) {
-        ScrollView {
-          content
-            .padding(.horizontal, theme.spacing.m)
-            .padding(.top, theme.spacing.l)
-            .padding(.bottom, layout.safeAreaBottomPadding + theme.spacing.m)
-            .frame(maxWidth: .infinity, alignment: .top)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-      } else {
-        legacyFallback
-          .padding(.horizontal, theme.spacing.m)
-          .padding(.top, theme.spacing.l)
-          .padding(.bottom, layout.safeAreaBottomPadding + theme.spacing.m)
-          .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-      }
-    }
-    .background(theme.colors.backgroundPrimary.ignoresSafeArea())
-    .onAppear { viewModelReference.activate() }
-    .onDisappear { viewModelReference.deactivate() }
-    .onChange(of: scenePhase) { phase in
-      guard phase == .active else { return }
-      viewModelReference.refresh()
-    }
-  }
-
-  @ViewBuilder
-  private var content: some View {
     VStack(spacing: theme.spacing.m) {
-      header
+      featureGlyph
+        .frame(maxWidth: .infinity, alignment: .center)
 
-      artworkTile
-        .frame(maxWidth: .infinity)
-
-      labels
-
-      Spacer(minLength: theme.spacing.l)
-
-      transportControls
-    }
-    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-  }
-
-  private var legacyFallback: some View {
-    VStack(spacing: theme.spacing.s) {
-      Image(systemName: "music.note")
-        .font(.system(size: 40))
-        .foregroundStyle(theme.colors.accentSecondary)
-
-      Text("Requires watchOS 10 or later")
-        .font(theme.typography.cardMeta)
-        .foregroundStyle(theme.colors.textSecondary)
-    }
-    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-  }
-
-  private var header: some View {
-    HStack {
-      Spacer()
-
-      routeIndicator
-    }
-  }
-
-  private var routeIndicator: some View {
-    let background = viewModel.isUsingExternalRoute ? theme.colors.accentPrimary.opacity(0.16) : theme.colors.backgroundElevated
-    let foreground = viewModel.isUsingExternalRoute ? theme.colors.accentPrimary : theme.colors.textSecondary
-
-    return VStack {
-      Image(systemName: viewModel.routeGlyphName)
-        .font(.system(size: 18, weight: .semibold))
-        .foregroundStyle(foreground)
-        .padding(10)
-        .background(
-          Circle()
-            .fill(background)
-        )
-    }
-    .accessibilityLabel(Text(viewModel.routeDescription))
-  }
-
-  private var artworkTile: some View {
-    let cornerRadius = layout.dimension(22, minimum: 18)
-    let size = layout.workoutArtworkSize
-
-    return ZStack {
-      RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-        .fill(LinearGradient(colors: [theme.colors.backgroundElevated, theme.colors.backgroundElevated.opacity(0.7)], startPoint: .topLeading, endPoint: .bottomTrailing))
-        .overlay(
-          RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-            .stroke(theme.colors.surfaceOverlay, lineWidth: 1)
-        )
-
-#if canImport(UIKit)
-      if let artwork = viewModel.artworkImage {
-        Image(uiImage: artwork)
-          .resizable()
-          .scaledToFill()
-          .frame(width: size, height: size)
-          .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-      } else {
-        placeholderIcon(size: size)
-      }
-#else
-      placeholderIcon(size: size)
-#endif
-    }
-    .frame(width: size, height: size)
-  }
-
-  @ViewBuilder
-  private func placeholderIcon(size: CGFloat) -> some View {
-    ZStack {
-      RoundedRectangle(cornerRadius: max(16, layout.dimension(18, minimum: 14)), style: .continuous)
-        .fill(theme.colors.backgroundElevated.opacity(0.6))
-
-      Image(systemName: "applewatch")
-        .font(.system(size: size * 0.32, weight: .medium))
-        .foregroundStyle(theme.colors.accentSecondary)
-    }
-    .clipShape(RoundedRectangle(cornerRadius: max(16, layout.dimension(18, minimum: 14)), style: .continuous))
-  }
-
-  private var labels: some View {
-    VStack(spacing: theme.spacing.xs) {
-      Text(viewModel.title)
-        .font(.system(size: 20, weight: .semibold, design: .rounded))
+      Text("Difficulty Rating Coming Soon")
+        .font(theme.typography.cardHeadline)
+        .fontWeight(.semibold)
         .foregroundStyle(theme.colors.textPrimary)
-        .lineLimit(1)
-        .minimumScaleFactor(0.8)
-
-      Text(viewModel.controlsAvailable ? viewModel.subtitle : "Connect to iPhone to control Music")
-        .font(theme.typography.cardMeta)
-        .foregroundStyle(theme.colors.textSecondary)
-        .lineLimit(1)
-        .minimumScaleFactor(0.8)
+        .multilineTextAlignment(.center)
+      
+      Spacer()
     }
-    .frame(maxWidth: .infinity)
+    .padding(.horizontal, theme.spacing.m)
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .background(theme.colors.backgroundPrimary.ignoresSafeArea())
   }
 
-  private var transportControls: some View {
-    let smallDiameter = layout.workoutTransportSmallDiameter
-    let largeDiameter = layout.workoutTransportLargeDiameter
-    let spacing = layout.dimension(theme.spacing.l, minimum: theme.spacing.m)
-
-    return HStack(spacing: spacing) {
-      transportButton(
-        systemName: "backward.fill",
-        diameter: smallDiameter,
-        isDisabled: !viewModel.controlsAvailable || !viewModel.canSkipBackward,
-        action: {
-          haptics.play(.tap)
-          viewModelReference.skipBackward()
-        }
-      )
-
-      transportButton(
-        systemName: viewModel.isPlaying ? "pause.fill" : "play.fill",
-        diameter: largeDiameter,
-        isDisabled: !viewModel.controlsAvailable,
-        tint: theme.colors.accentPrimary,
-        foreground: theme.colors.textInverted,
-        action: {
-          haptics.play(viewModel.isPlaying ? .pause : .resume)
-          viewModelReference.togglePlayPause()
-        }
-      )
-
-      transportButton(
-        systemName: "forward.fill",
-        diameter: smallDiameter,
-        isDisabled: !viewModel.controlsAvailable || !viewModel.canSkipForward,
-        action: {
-          haptics.play(.tap)
-          viewModelReference.skipForward()
-        }
-      )
-    }
-  }
-
-  private func transportButton(
-    systemName: String,
-    diameter: CGFloat,
-    isDisabled: Bool,
-    tint: Color? = nil,
-    foreground: Color? = nil,
-    action: @escaping () -> Void
-  ) -> some View {
-    Button(action: action) {
-      Image(systemName: systemName)
-        .font(.system(size: diameter * 0.34, weight: .semibold))
-        .frame(width: diameter, height: diameter)
-        .foregroundStyle(foreground ?? theme.colors.textPrimary)
-        .background(
-          Circle()
-            .fill(tint ?? theme.colors.backgroundElevated)
+  private var featureGlyph: some View {
+    let diameter = layout.dimension(72, minimum: 60, maximum: 88)
+    return ZStack {
+      Circle()
+        .fill(
+          LinearGradient(
+            colors: [
+              theme.colors.accentSecondary.opacity(0.45),
+              theme.colors.accentSecondary.opacity(0.2)
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+          )
         )
-    }
-    .buttonStyle(.plain)
-    .disabled(isDisabled)
-    .opacity(isDisabled ? 0.4 : 1)
-    .accessibilityLabel(accessibilityLabel(for: systemName))
-  }
+        .frame(width: diameter, height: diameter)
 
-  private func accessibilityLabel(for systemName: String) -> Text {
-    switch systemName {
-    case "backward.fill":
-      return Text("Skip backward")
-    case "forward.fill":
-      return Text("Skip forward")
-    case "play.fill":
-      return Text("Play")
-    case "pause.fill":
-      return Text("Pause")
-    default:
-      return Text(systemName)
+      Image(systemName: "star.fill")
+        .font(.system(size: diameter * 0.45, weight: .bold))
+        .foregroundStyle(theme.colors.accentSecondary)
     }
   }
 }
@@ -561,7 +394,7 @@ private struct WorkoutSessionMediaPage: View {
 enum WorkoutSessionTab: Hashable {
   case metrics
   case controls
-  case media
+  case difficultyRating
 }
 
 private enum WorkoutMetricFormatter {
@@ -577,7 +410,7 @@ private enum WorkoutMetricFormatter {
   }
 
   static func distance(_ meters: Double?) -> (value: String, unit: String?) {
-    guard let meters else { return ("--", nil) }
+    guard let meters else { return ("0", "m") }
     if meters >= 1000 {
       let kilometres = meters / 1000
       return (String(format: "%.1f", kilometres), "km")
@@ -587,8 +420,15 @@ private enum WorkoutMetricFormatter {
   }
 }
 
+private enum WorkoutMetricType {
+  case activeEnergy
+  case heartRate
+  case distance
+}
+
 private struct WorkoutPrimaryMetric: Identifiable {
   let id = UUID()
+  let type: WorkoutMetricType
   let title: String
   let value: String
   let unit: String?
@@ -596,56 +436,128 @@ private struct WorkoutPrimaryMetric: Identifiable {
 
 private struct WorkoutPrimaryMetricView: View {
   @Environment(\.theme) private var theme
+  @Environment(\.watchLayoutScale) private var layout
   let metric: WorkoutPrimaryMetric
 
+  // Larger value font matching Apple's prominent metric display
+  private var valueFont: Font {
+    .system(
+      size: layout.dimension(36, minimum: 30, maximum: 42),
+      weight: .semibold,
+      design: .rounded
+    ).monospacedDigit()
+  }
+
+  // Smaller label font matching Apple's secondary text
+  private var labelFont: Font {
+    .system(size: layout.dimension(13, minimum: 11, maximum: 15), weight: .regular)
+  }
+
   var body: some View {
+    switch metric.type {
+    case .heartRate:
+      heartRateView
+    case .activeEnergy:
+      activeEnergyView
+    case .distance:
+      distanceView
+    }
+  }
+
+  private var heartRateView: some View {
     HStack(alignment: .lastTextBaseline, spacing: theme.spacing.xs) {
-      HStack(alignment: .lastTextBaseline, spacing: theme.spacing.xs) {
-        Text(metric.value)
-          .font(.system(size: 30, weight: .semibold, design: .rounded).monospacedDigit())
-          .foregroundStyle(theme.colors.textPrimary)
+      Text(metric.value)
+        .font(valueFont)
+        .foregroundStyle(theme.colors.textPrimary)
+        .lineLimit(1)
+        .minimumScaleFactor(0.75)
+        .layoutPriority(1)
+
+      Image(systemName: "heart.fill")
+        .font(.system(size: layout.dimension(16, minimum: 14, maximum: 18), weight: .semibold))
+        .foregroundStyle(.red)
+    }
+    .frame(maxWidth: .infinity, alignment: .leading)
+  }
+
+  private var activeEnergyView: some View {
+    HStack(alignment: .lastTextBaseline, spacing: theme.spacing.xs) {
+      // Number displayed prominently (matching Apple's design)
+      Text(metric.value)
+        .font(valueFont)
+        .foregroundStyle(theme.colors.textPrimary)
+        .lineLimit(1)
+        .minimumScaleFactor(0.75)
+        .layoutPriority(1)
+
+      // Label text after the number (Apple shows "1 ACTIVE KJ" format)
+      if let unit = metric.unit {
+        Text("ACTIVE \(unit.uppercased())")
+          .font(labelFont)
+          .tracking(0.3)
+          .foregroundStyle(theme.colors.textSecondary.opacity(0.85))
           .lineLimit(1)
           .minimumScaleFactor(0.7)
-          .layoutPriority(1)
-
-        if let unit = metric.unit {
-          Text(unit.uppercased())
-            .font(theme.typography.cardMeta)
-            .foregroundStyle(theme.colors.textSecondary)
-            .lineLimit(1)
-            .minimumScaleFactor(0.7)
-        }
       }
-
-      Spacer()
-
-      Text(metric.title.uppercased())
-        .font(theme.typography.cardMeta)
-        .foregroundStyle(theme.colors.textSecondary)
-        .multilineTextAlignment(.trailing)
-        .lineLimit(1)
-        .minimumScaleFactor(0.7)
     }
+    .frame(maxWidth: .infinity, alignment: .leading)
+  }
+
+  private var distanceView: some View {
+    HStack(alignment: .lastTextBaseline, spacing: 0) {
+      Text(metric.value)
+        .font(valueFont)
+        .foregroundStyle(theme.colors.textPrimary)
+        .lineLimit(1)
+        .minimumScaleFactor(0.75)
+        .layoutPriority(1)
+
+      if let unit = metric.unit {
+        Text(unit.uppercased())
+          .font(labelFont)
+          .tracking(0.3)
+          .foregroundStyle(theme.colors.textSecondary.opacity(0.85))
+          .lineLimit(1)
+          .minimumScaleFactor(0.7)
+      }
+    }
+    .frame(maxWidth: .infinity, alignment: .leading)
   }
 }
 
 private struct WorkoutPrimaryTimerView: View {
   @Environment(\.theme) private var theme
   @Environment(\.haptics) private var haptics
+  @Environment(\.watchLayoutScale) private var layout
   @Bindable var timerModel: WorkoutTimerFaceModel
 
   init(timerModel: WorkoutTimerFaceModel) {
     _timerModel = Bindable(timerModel)
   }
 
+  // Yellow color matching Apple's workout timer
+  private var timerYellow: Color {
+    Color(red: 1.0, green: 0.84, blue: 0.0) // Bright yellow similar to Apple's
+  }
+
+  private var timerFont: Font {
+    .system(
+      size: layout.dimension(46, minimum: 42, maximum: 54),
+      weight: .bold,
+      design: .rounded
+    ).monospacedDigit()
+  }
+
   var body: some View {
-    VStack(alignment: .leading, spacing: theme.spacing.xs) {
+    // Center the timer text (matching Apple's design)
+    HStack {
+      Spacer()
       Text(timerModel.matchTime)
-        .font(theme.typography.timerPrimary)
-        .foregroundStyle(timerModel.isPaused ? theme.colors.textSecondary : theme.colors.accentSecondary)
+        .font(timerFont)
+        .tracking(-0.2)
+        .foregroundStyle(timerModel.isPaused ? theme.colors.textSecondary : timerYellow)
+      Spacer()
     }
-    .frame(maxWidth: .infinity, alignment: .leading)
-    .padding(.vertical, theme.spacing.s)
     .contentShape(Rectangle())
     .onTapGesture {
       haptics.play(.tap)
@@ -660,17 +572,31 @@ private struct WorkoutPrimaryTimerView: View {
 
 private struct WorkoutGlyph: View {
   @Environment(\.theme) private var theme
+  @Environment(\.watchLayoutScale) private var layout
   let kind: WorkoutKind
+
+  // Green color matching Apple's workout app glyph background
+  private var greenBackground: Color {
+    Color(red: 0.2, green: 0.8, blue: 0.4) // Bright green similar to Apple's
+  }
 
   var body: some View {
     Circle()
-      .fill(theme.colors.backgroundSecondary)
-      .frame(width: 48, height: 48)
+      .fill(greenBackground)
+      .frame(width: glyphDiameter, height: glyphDiameter)
       .overlay(
         Image(systemName: iconName)
-          .font(.system(size: 22, weight: .semibold))
-          .foregroundStyle(theme.colors.accentSecondary)
+          .font(.system(size: iconSize, weight: .semibold))
+          .foregroundStyle(.white)
       )
+  }
+
+  private var glyphDiameter: CGFloat {
+    layout.dimension(44, minimum: 40, maximum: 48)
+  }
+
+  private var iconSize: CGFloat {
+    layout.dimension(20, minimum: 18, maximum: 22)
   }
 
   private var iconName: String {
@@ -733,7 +659,7 @@ private struct WorkoutGlyph: View {
   .previewDevice("Apple Watch Series 9 (45mm)")
 }
 
-#Preview("Workout Session – Media Ultra") {
+#Preview("Workout Session – Rating Ultra") {
   WorkoutSessionHostView(
     session: WorkoutSessionPreviewData.active,
     liveMetrics: WorkoutSessionPreviewData.liveMetrics,
@@ -741,7 +667,7 @@ private struct WorkoutGlyph: View {
     isEnding: false,
     isRecordingSegment: false,
     lapCount: 1,
-    initialTab: .media,
+    initialTab: .difficultyRating,
     onPause: {},
     onResume: {},
     onEnd: {},

@@ -83,8 +83,14 @@ final class WorkoutTimerFaceModel: TimerFaceModel {
     guard timer == nil else { return }
     guard session.state == .active else { return }
     guard !isPaused else { return }
-    timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+    // Use 0.1 second interval (10 updates per second) for smooth centisecond updates
+    // This is appropriate for a sports workout timer that needs to show continuous millisecond progression
+    timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
       self?.refreshStrings(asOf: Date())
+    }
+    // Ensure timer runs on common run loop modes for better reliability during UI interactions
+    if let timer = timer {
+      RunLoop.current.add(timer, forMode: .common)
     }
   }
 
@@ -119,10 +125,14 @@ final class WorkoutTimerFaceModel: TimerFaceModel {
   }
 
   private func format(interval: TimeInterval) -> String {
-    let formatter = DateComponentsFormatter()
-    formatter.unitsStyle = .positional
-    formatter.allowedUnits = [.minute, .second]
-    formatter.zeroFormattingBehavior = [.pad]
-    return formatter.string(from: interval) ?? "00:00"
+    // Calculate total minutes, seconds, and centiseconds for MM:SS.CC format
+    let totalSeconds = Int(interval)
+    let minutes = totalSeconds / 60
+    let seconds = totalSeconds % 60
+    // Extract centiseconds from the fractional part of the interval
+    // Use floor() to ensure proper rounding down and handle floating point precision issues
+    let fractionalPart = interval - TimeInterval(totalSeconds)
+    let centiseconds = min(99, max(0, Int(floor(fractionalPart * 100))))
+    return String(format: "%02d:%02d.%02d", minutes, seconds, centiseconds)
   }
 }

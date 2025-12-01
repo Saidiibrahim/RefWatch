@@ -64,6 +64,9 @@ struct CardEventFlow: View {
                     EmptyView()
                 }
             }
+            .onAppear {
+                coordinator.resetToInitialState()
+            }
             .onChange(of: coordinator.currentStep) { _, newValue in
                 print("DEBUG: Step changed to: \(newValue)")
                 if case .complete = newValue {

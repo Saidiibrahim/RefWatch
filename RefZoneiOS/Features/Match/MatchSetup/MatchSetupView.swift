@@ -15,29 +15,48 @@ struct MatchSetupView: View {
     let competitionStore: CompetitionLibraryStoring
     let venueStore: VenueLibraryStoring
     var onStarted: ((MatchViewModel) -> Void)? = nil
+    let scheduledMatch: ScheduledMatch?
 
-    // Basic inputs (sensible defaults)
-    @State private var homeTeam: String = "Home"
-    @State private var awayTeam: String = "Away"
+    @State private var isEditing: Bool
+    @State private var homeTeam: String
+    @State private var awayTeam: String
     @State private var selectedHomeTeam: TeamRecord?
     @State private var selectedAwayTeam: TeamRecord?
-    @State private var useCustomHomeTeam: Bool = true
-    @State private var useCustomAwayTeam: Bool = true
+    @State private var useCustomHomeTeam: Bool
+    @State private var useCustomAwayTeam: Bool
     @State private var showingHomeTeamPicker = false
     @State private var showingAwayTeamPicker = false
     @State private var selectedCompetition: CompetitionRecord?
     @State private var selectedVenue: VenueRecord?
     @State private var showingCompetitionPicker = false
     @State private var showingVenuePicker = false
-    @State private var durationMinutes: Int = 90
-    @State private var halfTimeMinutes: Int = 15
-    @State private var hasExtraTime: Bool = false
-    @State private var etHalfMinutes: Int = 15
-    @State private var hasPenalties: Bool = false
-    @State private var penaltyRounds: Int = 5
+    @State private var durationMinutes: Int
+    @State private var halfTimeMinutes: Int
+    @State private var hasExtraTime: Bool
+    @State private var etHalfMinutes: Int
+    @State private var hasPenalties: Bool
+    @State private var penaltyRounds: Int
 
     @State private var validationMessage: String?
     @State private var showKickoffFirstHalf: Bool = false
+    @State private var originalSnapshot: SetupSnapshot
+
+    private struct SetupSnapshot {
+        var homeTeam: String
+        var awayTeam: String
+        var selectedHomeTeam: TeamRecord?
+        var selectedAwayTeam: TeamRecord?
+        var useCustomHomeTeam: Bool
+        var useCustomAwayTeam: Bool
+        var selectedCompetition: CompetitionRecord?
+        var selectedVenue: VenueRecord?
+        var durationMinutes: Int
+        var halfTimeMinutes: Int
+        var hasExtraTime: Bool
+        var etHalfMinutes: Int
+        var hasPenalties: Bool
+        var penaltyRounds: Int
+    }
 
     init(
         matchViewModel: MatchViewModel,
@@ -45,6 +64,7 @@ struct MatchSetupView: View {
         competitionStore: CompetitionLibraryStoring,
         venueStore: VenueLibraryStoring,
         onStarted: ((MatchViewModel) -> Void)? = nil,
+        scheduledMatch: ScheduledMatch? = nil,
         prefillTeams: (String, String)? = nil
     ) {
         self.matchViewModel = matchViewModel
@@ -52,10 +72,54 @@ struct MatchSetupView: View {
         self.competitionStore = competitionStore
         self.venueStore = venueStore
         self.onStarted = onStarted
-        if let teams = prefillTeams {
-            _homeTeam = State(initialValue: teams.0)
-            _awayTeam = State(initialValue: teams.1)
-        }
+        self.scheduledMatch = scheduledMatch
+
+        let initialHomeTeam = scheduledMatch?.homeTeam ?? prefillTeams?.0 ?? "Home"
+        let initialAwayTeam = scheduledMatch?.awayTeam ?? prefillTeams?.1 ?? "Away"
+        let initialSelectedHomeTeam: TeamRecord? = nil
+        let initialSelectedAwayTeam: TeamRecord? = nil
+        let initialUseCustomHomeTeam = true
+        let initialUseCustomAwayTeam = true
+        let initialSelectedCompetition: CompetitionRecord? = nil
+        let initialSelectedVenue: VenueRecord? = nil
+        let initialDuration = 90
+        let initialHalfTime = 15
+        let initialHasExtraTime = false
+        let initialEtHalf = 15
+        let initialHasPenalties = false
+        let initialPenaltyRounds = 5
+
+        _homeTeam = State(initialValue: initialHomeTeam)
+        _awayTeam = State(initialValue: initialAwayTeam)
+        _selectedHomeTeam = State(initialValue: initialSelectedHomeTeam)
+        _selectedAwayTeam = State(initialValue: initialSelectedAwayTeam)
+        _useCustomHomeTeam = State(initialValue: initialUseCustomHomeTeam)
+        _useCustomAwayTeam = State(initialValue: initialUseCustomAwayTeam)
+        _selectedCompetition = State(initialValue: initialSelectedCompetition)
+        _selectedVenue = State(initialValue: initialSelectedVenue)
+        _durationMinutes = State(initialValue: initialDuration)
+        _halfTimeMinutes = State(initialValue: initialHalfTime)
+        _hasExtraTime = State(initialValue: initialHasExtraTime)
+        _etHalfMinutes = State(initialValue: initialEtHalf)
+        _hasPenalties = State(initialValue: initialHasPenalties)
+        _penaltyRounds = State(initialValue: initialPenaltyRounds)
+        _isEditing = State(initialValue: scheduledMatch == nil)
+        _originalSnapshot = State(initialValue: SetupSnapshot(
+            homeTeam: initialHomeTeam,
+            awayTeam: initialAwayTeam,
+            selectedHomeTeam: initialSelectedHomeTeam,
+            selectedAwayTeam: initialSelectedAwayTeam,
+            useCustomHomeTeam: initialUseCustomHomeTeam,
+            useCustomAwayTeam: initialUseCustomAwayTeam,
+            selectedCompetition: initialSelectedCompetition,
+            selectedVenue: initialSelectedVenue,
+            durationMinutes: initialDuration,
+            halfTimeMinutes: initialHalfTime,
+            hasExtraTime: initialHasExtraTime,
+            etHalfMinutes: initialEtHalf,
+            hasPenalties: initialHasPenalties,
+            penaltyRounds: initialPenaltyRounds
+        ))
     }
 
     @EnvironmentObject private var authController: SupabaseAuthController
@@ -71,6 +135,23 @@ struct MatchSetupView: View {
             }
         }
         .navigationTitle("Match Setup")
+        .toolbar {
+            if scheduledMatch != nil {
+                if isEditing {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") { cancelEditing() }
+                    }
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("Done") { finishEditing() }
+                            .disabled(!isValid)
+                    }
+                } else {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("Edit") { startEditing() }
+                    }
+                }
+            }
+        }
         .sheet(isPresented: $showingHomeTeamPicker) {
             TeamPickerSheet(teamStore: teamStore) { team in
                 selectedHomeTeam = team
@@ -116,7 +197,8 @@ struct MatchSetupView: View {
                     teamName: $homeTeam,
                     selectedTeam: $selectedHomeTeam,
                     useCustom: $useCustomHomeTeam,
-                    showingPicker: $showingHomeTeamPicker
+                    showingPicker: $showingHomeTeamPicker,
+                    isEditing: isEditing
                 )
                 teamSelectionRow(
                     title: "Away Team",
@@ -124,9 +206,10 @@ struct MatchSetupView: View {
                     teamName: $awayTeam,
                     selectedTeam: $selectedAwayTeam,
                     useCustom: $useCustomAwayTeam,
-                    showingPicker: $showingAwayTeamPicker
+                    showingPicker: $showingAwayTeamPicker,
+                    isEditing: isEditing
                 )
-                if let msg = validationMessage {
+                if let msg = validationMessage, isEditing {
                     Text(msg)
                         .font(.footnote)
                         .foregroundStyle(.red)
@@ -135,75 +218,102 @@ struct MatchSetupView: View {
             }
 
             Section("Competition (Optional)") {
-                Button {
-                    showingCompetitionPicker = true
-                } label: {
-                    HStack {
-                        Text("Competition")
-                            .foregroundStyle(.primary)
-                        Spacer()
+                if isEditing {
+                    Button {
+                        showingCompetitionPicker = true
+                    } label: {
+                        HStack {
+                            Text("Competition")
+                                .foregroundStyle(.primary)
+                            Spacer()
+                            Text(selectedCompetition?.name ?? "None")
+                                .foregroundStyle(selectedCompetition == nil ? .secondary : .primary)
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+                    .accessibilityLabel("Select Competition from Library")
+
+                    if selectedCompetition != nil {
+                        Button("Clear Selection") {
+                            selectedCompetition = nil
+                        }
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                    }
+                } else {
+                    LabeledContent("Competition") {
                         Text(selectedCompetition?.name ?? "None")
                             .foregroundStyle(selectedCompetition == nil ? .secondary : .primary)
-                        Image(systemName: "chevron.right")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
                     }
-                }
-                .accessibilityLabel("Select Competition from Library")
-
-                if selectedCompetition != nil {
-                    Button("Clear Selection") {
-                        selectedCompetition = nil
-                    }
-                    .font(.caption)
-                    .foregroundStyle(.red)
                 }
             }
             .headerProminence(.increased)
 
             Section("Venue (Optional)") {
-                Button {
-                    showingVenuePicker = true
-                } label: {
-                    HStack {
-                        Text("Venue")
-                            .foregroundStyle(.primary)
-                        Spacer()
+                if isEditing {
+                    Button {
+                        showingVenuePicker = true
+                    } label: {
+                        HStack {
+                            Text("Venue")
+                                .foregroundStyle(.primary)
+                            Spacer()
+                            Text(selectedVenue?.name ?? "None")
+                                .foregroundStyle(selectedVenue == nil ? .secondary : .primary)
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+                    .accessibilityLabel("Select Venue from Library")
+
+                    if selectedVenue != nil {
+                        Button("Clear Selection") {
+                            selectedVenue = nil
+                        }
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                    }
+                } else {
+                    LabeledContent("Venue") {
                         Text(selectedVenue?.name ?? "None")
                             .foregroundStyle(selectedVenue == nil ? .secondary : .primary)
-                        Image(systemName: "chevron.right")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
                     }
-                }
-                .accessibilityLabel("Select Venue from Library")
-
-                if selectedVenue != nil {
-                    Button("Clear Selection") {
-                        selectedVenue = nil
-                    }
-                    .font(.caption)
-                    .foregroundStyle(.red)
                 }
             }
             .headerProminence(.increased)
 
             Section("Configuration") {
-                Stepper(value: $durationMinutes, in: 30...150, step: 5) {
+                if isEditing {
+                    Stepper(value: $durationMinutes, in: 30...150, step: 5) {
+                        LabeledContent("Duration", value: "\(durationMinutes) min")
+                    }
+                    Stepper(value: $halfTimeMinutes, in: 5...30, step: 5) {
+                        LabeledContent("Half‑time", value: "\(halfTimeMinutes) min")
+                    }
+                    Toggle("Extra Time", isOn: $hasExtraTime)
+                    if hasExtraTime {
+                        Stepper(value: $etHalfMinutes, in: 5...30, step: 5) {
+                            LabeledContent("ET half length", value: "\(etHalfMinutes) min")
+                        }
+                    }
+                    Toggle("Penalties", isOn: $hasPenalties)
+                    if hasPenalties {
+                        Stepper(value: $penaltyRounds, in: 1...10) {
+                            LabeledContent("Initial rounds", value: "\(penaltyRounds)")
+                        }
+                    }
+                } else {
                     LabeledContent("Duration", value: "\(durationMinutes) min")
-                }
-                Stepper(value: $halfTimeMinutes, in: 5...30, step: 5) {
                     LabeledContent("Half‑time", value: "\(halfTimeMinutes) min")
-                }
-                Toggle("Extra Time", isOn: $hasExtraTime)
-                if hasExtraTime {
-                    Stepper(value: $etHalfMinutes, in: 5...30, step: 5) {
+                    LabeledContent("Extra Time", value: hasExtraTime ? "Enabled" : "Off")
+                    if hasExtraTime {
                         LabeledContent("ET half length", value: "\(etHalfMinutes) min")
                     }
-                }
-                Toggle("Penalties", isOn: $hasPenalties)
-                if hasPenalties {
-                    Stepper(value: $penaltyRounds, in: 1...10) {
+                    LabeledContent("Penalties", value: hasPenalties ? "Enabled" : "Off")
+                    if hasPenalties {
                         LabeledContent("Initial rounds", value: "\(penaltyRounds)")
                     }
                 }
@@ -227,54 +337,119 @@ struct MatchSetupView: View {
         teamName: Binding<String>,
         selectedTeam: Binding<TeamRecord?>,
         useCustom: Binding<Bool>,
-        showingPicker: Binding<Bool>
+        showingPicker: Binding<Bool>,
+        isEditing: Bool
     ) -> some View {
-        if useCustom.wrappedValue {
-            TextField(title, text: teamName)
-                .textInputAutocapitalization(.words)
-                .onChange(of: teamName.wrappedValue) { _ in
-                    if selectedTeam.wrappedValue != nil {
-                        selectedTeam.wrappedValue = nil
+        if isEditing {
+            if useCustom.wrappedValue {
+                TextField(title, text: teamName)
+                    .textInputAutocapitalization(.words)
+                    .onChange(of: teamName.wrappedValue) { _ in
+                        if selectedTeam.wrappedValue != nil {
+                            selectedTeam.wrappedValue = nil
+                        }
+                        validate()
                     }
+                Button("Select from Library") {
+                    useCustom.wrappedValue = false
+                    showingPicker.wrappedValue = true
+                }
+                .font(.caption)
+                .foregroundStyle(Color.accentColor)
+                .accessibilityLabel(accessibilityLabel)
+            } else {
+                Button {
+                    showingPicker.wrappedValue = true
+                } label: {
+                    HStack {
+                        Text(title)
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        let selected = selectedTeam.wrappedValue
+                        let displayName = selected?.name ?? teamName.wrappedValue
+                        Text(selected == nil ? "Select..." : displayName)
+                            .foregroundStyle(selected == nil ? .secondary : .primary)
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+                .accessibilityLabel(accessibilityLabel)
+
+                Button("Use Custom Name") {
+                    useCustom.wrappedValue = true
+                    selectedTeam.wrappedValue = nil
                     validate()
                 }
-            Button("Select from Library") {
-                useCustom.wrappedValue = false
-                showingPicker.wrappedValue = true
+                .font(.caption)
+                .foregroundStyle(Color.accentColor)
             }
-            .font(.caption)
-            .foregroundStyle(Color.accentColor)
-            .accessibilityLabel(accessibilityLabel)
         } else {
-            Button {
-                showingPicker.wrappedValue = true
-            } label: {
-                HStack {
-                    Text(title)
-                        .foregroundStyle(.primary)
-                    Spacer()
-                    let selected = selectedTeam.wrappedValue
-                    let displayName = selected?.name ?? teamName.wrappedValue
-                    Text(selected == nil ? "Select..." : displayName)
-                        .foregroundStyle(selected == nil ? .secondary : .primary)
-                    Image(systemName: "chevron.right")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                }
+            let selected = selectedTeam.wrappedValue
+            let displayName = selected?.name ?? teamName.wrappedValue
+            LabeledContent(title) {
+                Text(displayName.isEmpty ? "—" : displayName)
+                    .foregroundStyle(displayName.isEmpty ? .secondary : .primary)
             }
-            .accessibilityLabel(accessibilityLabel)
-
-            Button("Use Custom Name") {
-                useCustom.wrappedValue = true
-                selectedTeam.wrappedValue = nil
-                validate()
-            }
-            .font(.caption)
-            .foregroundStyle(Color.accentColor)
         }
     }
 
     private var isValid: Bool { validate() }
+
+    private func startEditing() {
+        validationMessage = nil
+        isEditing = true
+    }
+
+    private func cancelEditing() {
+        apply(snapshot: originalSnapshot)
+        validationMessage = nil
+        isEditing = false
+    }
+
+    private func finishEditing() {
+        guard isValid else { return }
+        originalSnapshot = makeSnapshot()
+        validationMessage = nil
+        isEditing = false
+    }
+
+    private func makeSnapshot() -> SetupSnapshot {
+        SetupSnapshot(
+            homeTeam: homeTeam,
+            awayTeam: awayTeam,
+            selectedHomeTeam: selectedHomeTeam,
+            selectedAwayTeam: selectedAwayTeam,
+            useCustomHomeTeam: useCustomHomeTeam,
+            useCustomAwayTeam: useCustomAwayTeam,
+            selectedCompetition: selectedCompetition,
+            selectedVenue: selectedVenue,
+            durationMinutes: durationMinutes,
+            halfTimeMinutes: halfTimeMinutes,
+            hasExtraTime: hasExtraTime,
+            etHalfMinutes: etHalfMinutes,
+            hasPenalties: hasPenalties,
+            penaltyRounds: penaltyRounds
+        )
+    }
+
+    private func apply(snapshot: SetupSnapshot) {
+        homeTeam = snapshot.homeTeam
+        awayTeam = snapshot.awayTeam
+        selectedHomeTeam = snapshot.selectedHomeTeam
+        selectedAwayTeam = snapshot.selectedAwayTeam
+        useCustomHomeTeam = snapshot.useCustomHomeTeam
+        useCustomAwayTeam = snapshot.useCustomAwayTeam
+        selectedCompetition = snapshot.selectedCompetition
+        selectedVenue = snapshot.selectedVenue
+        durationMinutes = snapshot.durationMinutes
+        halfTimeMinutes = snapshot.halfTimeMinutes
+        hasExtraTime = snapshot.hasExtraTime
+        etHalfMinutes = snapshot.etHalfMinutes
+        hasPenalties = snapshot.hasPenalties
+        penaltyRounds = snapshot.penaltyRounds
+        validate()
+    }
 
     @discardableResult
     private func validate() -> Bool {
@@ -305,6 +480,11 @@ struct MatchSetupView: View {
             hasPenalties: hasPenalties,
             penaltyInitialRounds: penaltyRounds
         )
+
+        // CRITICAL: Link to schedule if starting from one
+        if let sched = scheduledMatch {
+            match.scheduledMatchId = sched.id
+        }
 
         match.homeTeamId = selectedHomeTeam?.id
         match.awayTeamId = selectedAwayTeam?.id

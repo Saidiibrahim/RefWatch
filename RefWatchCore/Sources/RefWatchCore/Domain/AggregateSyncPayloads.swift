@@ -30,6 +30,36 @@ public enum AggregateSyncOrigin: String, Codable {
 }
 
 public struct AggregateSnapshotPayload: Codable, Equatable {
+    public struct HistorySummary: Codable, Equatable {
+        public var id: UUID
+        public var completedAt: Date
+        public var homeName: String
+        public var awayName: String
+        public var homeScore: Int
+        public var awayScore: Int
+        public var competitionName: String?
+        public var venueName: String?
+
+        public init(
+            id: UUID,
+            completedAt: Date,
+            homeName: String,
+            awayName: String,
+            homeScore: Int,
+            awayScore: Int,
+            competitionName: String? = nil,
+            venueName: String? = nil
+        ) {
+            self.id = id
+            self.completedAt = completedAt
+            self.homeName = homeName
+            self.awayName = awayName
+            self.homeScore = homeScore
+            self.awayScore = awayScore
+            self.competitionName = competitionName
+            self.venueName = venueName
+        }
+    }
     public struct Settings: Codable, Equatable {
         public enum ConnectivityStatus: String, Codable {
             case reachable
@@ -232,6 +262,7 @@ public struct AggregateSnapshotPayload: Codable, Equatable {
     public var venues: [Venue]
     public var competitions: [Competition]
     public var schedules: [Schedule]
+    public var history: [HistorySummary]
 
     public init(
         schemaVersion: Int = AggregateSyncSchema.currentVersion,
@@ -243,7 +274,8 @@ public struct AggregateSnapshotPayload: Codable, Equatable {
         teams: [Team],
         venues: [Venue],
         competitions: [Competition],
-        schedules: [Schedule]
+        schedules: [Schedule],
+        history: [HistorySummary] = []
     ) {
         self.schemaVersion = schemaVersion
         self.generatedAt = generatedAt
@@ -255,6 +287,45 @@ public struct AggregateSnapshotPayload: Codable, Equatable {
         self.venues = venues
         self.competitions = competitions
         self.schedules = schedules
+        self.history = history
+    }
+
+    // MARK: - Custom Codable for Backward Compatibility
+
+    enum CodingKeys: String, CodingKey {
+        case schemaVersion, generatedAt, lastSyncedAt, acknowledgedChangeIds
+        case chunk, settings, teams, venues, competitions, schedules, history
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        schemaVersion = try container.decode(Int.self, forKey: .schemaVersion)
+        generatedAt = try container.decode(Date.self, forKey: .generatedAt)
+        lastSyncedAt = try container.decodeIfPresent(Date.self, forKey: .lastSyncedAt)
+        acknowledgedChangeIds = try container.decode([UUID].self, forKey: .acknowledgedChangeIds)
+        chunk = try container.decodeIfPresent(ChunkMetadata.self, forKey: .chunk)
+        settings = try container.decodeIfPresent(Settings.self, forKey: .settings)
+        teams = try container.decode([Team].self, forKey: .teams)
+        venues = try container.decode([Venue].self, forKey: .venues)
+        competitions = try container.decode([Competition].self, forKey: .competitions)
+        schedules = try container.decode([Schedule].self, forKey: .schedules)
+        // Default to empty array if key missing (backward compatibility with pre-history builds)
+        history = try container.decodeIfPresent([HistorySummary].self, forKey: .history) ?? []
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(schemaVersion, forKey: .schemaVersion)
+        try container.encode(generatedAt, forKey: .generatedAt)
+        try container.encodeIfPresent(lastSyncedAt, forKey: .lastSyncedAt)
+        try container.encode(acknowledgedChangeIds, forKey: .acknowledgedChangeIds)
+        try container.encodeIfPresent(chunk, forKey: .chunk)
+        try container.encodeIfPresent(settings, forKey: .settings)
+        try container.encode(teams, forKey: .teams)
+        try container.encode(venues, forKey: .venues)
+        try container.encode(competitions, forKey: .competitions)
+        try container.encode(schedules, forKey: .schedules)
+        try container.encode(history, forKey: .history)
     }
 }
 

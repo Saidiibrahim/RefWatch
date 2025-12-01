@@ -15,6 +15,8 @@ struct TeamDetailsView: View {
     @State private var selectedPlayerNumber: Int?
     @State private var showingPlayerNumberInput = false
     @State private var selectedGoalType: GoalDetails.GoalType?
+    @State private var showingYellowCard = false
+    @State private var showingRedCard = false
     @Environment(\.theme) private var theme
     @Environment(\.watchLayoutScale) private var layout
 
@@ -47,6 +49,22 @@ struct TeamDetailsView: View {
                 )
             }
         }
+        .sheet(isPresented: $showingYellowCard) {
+            CardEventFlow(
+                cardType: .yellow,
+                team: teamType,
+                matchViewModel: matchViewModel,
+                setupViewModel: setupViewModel
+            )
+        }
+        .sheet(isPresented: $showingRedCard) {
+            CardEventFlow(
+                cardType: .red,
+                team: teamType,
+                matchViewModel: matchViewModel,
+                setupViewModel: setupViewModel
+            )
+        }
     }
     
     private func recordGoal(type: GoalDetails.GoalType, playerNumber: Int) {
@@ -71,37 +89,26 @@ struct TeamDetailsView: View {
     }
 
     private var header: some View {
-        Text(teamType == .home ? "HOM" : "AWA")
+        Text(teamDisplayName)
             .font(theme.typography.label.weight(.semibold))
             .foregroundStyle(theme.colors.textSecondary)
             .textCase(.uppercase)
             .lineLimit(1)
             .minimumScaleFactor(0.7)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.top, theme.spacing.xs)
-            .accessibilityLabel(teamType == .home ? "Home" : "Away")
+            .accessibilityLabel(teamDisplayNameAccessibility)
     }
 
     private var eventGridItems: [AdaptiveEventGridItem] {
         [
-            AdaptiveEventGridItem(icon: "square.fill", color: .yellow, label: "Yellow", onTap: {
+            AdaptiveEventGridItem(icon: "square.fill", color: .yellow, label: "Yellow") {
                 WKInterfaceDevice.current().play(haptic(for: "square.fill"))
-            }) {
-                CardEventFlow(
-                    cardType: .yellow,
-                    team: teamType,
-                    matchViewModel: matchViewModel,
-                    setupViewModel: setupViewModel
-                )
+                showingYellowCard = true
             },
-            AdaptiveEventGridItem(icon: "square.fill", color: .red, label: "Red", onTap: {
+            AdaptiveEventGridItem(icon: "square.fill", color: .red, label: "Red") {
                 WKInterfaceDevice.current().play(haptic(for: "square.fill"))
-            }) {
-                CardEventFlow(
-                    cardType: .red,
-                    team: teamType,
-                    matchViewModel: matchViewModel,
-                    setupViewModel: setupViewModel
-                )
+                showingRedCard = true
             },
             AdaptiveEventGridItem(icon: "arrow.up.arrow.down", color: .blue, label: "Sub", onTap: {
                 WKInterfaceDevice.current().play(haptic(for: "arrow.up.arrow.down"))
@@ -115,7 +122,10 @@ struct TeamDetailsView: View {
             AdaptiveEventGridItem(icon: "soccerball", color: .green, label: "Goal", onTap: {
                 WKInterfaceDevice.current().play(haptic(for: "soccerball"))
             }) {
-                GoalTypeSelectionView(team: teamType) { goalType in
+                GoalTypeSelectionView(
+                    team: teamType,
+                    teamDisplayName: teamDisplayName
+                ) { goalType in
                     selectedGoalType = goalType
                     showingPlayerNumberInput = true
                 }
@@ -134,6 +144,19 @@ struct TeamDetailsView: View {
         default:
             return .notification
         }
+    }
+
+    private var teamDisplayName: String {
+        let rawName = teamType == .home ? matchViewModel.homeTeamDisplayName : matchViewModel.awayTeamDisplayName
+        if rawName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return teamType == .home ? "Home" : "Away"
+        }
+        return rawName
+    }
+
+    private var teamDisplayNameAccessibility: String {
+        let role = teamType == .home ? "home team" : "away team"
+        return "\(teamDisplayName), \(role)"
     }
 }
 

@@ -11,6 +11,7 @@ import RefWatchCore
 
 struct GoalTypeSelectionView: View {
     let team: TeamDetailsView.TeamType
+    let teamDisplayName: String
     let onSelect: (GoalDetails.GoalType) -> Void
     @Environment(\.dismiss) private var dismiss
     
@@ -28,7 +29,7 @@ struct GoalTypeSelectionView: View {
     var body: some View {
         // Use the new reusable SelectionListView component with custom formatter
         SelectionListView(
-            title: team == .home ? "HOM" : "AWA",
+            title: teamDisplayName,
             options: allTypes,
             formatter: label(for:),
             useCarouselStyle: true

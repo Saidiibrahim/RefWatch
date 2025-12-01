@@ -1,6 +1,7 @@
 import Testing
 @testable import RefZone_Watch_App
 
+@MainActor
 struct LiveActivityCommandHandlerTests {
   @Test
   func test_pauseCommand_invokesPause() async throws {

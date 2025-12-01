@@ -21,6 +21,11 @@ public struct CompletedMatch: Identifiable, Codable {
     public var ownerId: String?
 
     // MARK: - Foreign Key Bridges
+    public var scheduledMatchId: UUID? {
+        get { match.scheduledMatchId }
+        set { match.scheduledMatchId = newValue }
+    }
+
     public var homeTeamId: UUID? {
         get { match.homeTeamId }
         set { match.homeTeamId = newValue }
@@ -76,6 +81,7 @@ public struct CompletedMatch: Identifiable, Codable {
         case match
         case events
         case ownerId
+        case scheduledMatchId
         case homeTeamId
         case awayTeamId
         case competitionId
@@ -93,6 +99,9 @@ public struct CompletedMatch: Identifiable, Codable {
         events = try container.decode([MatchEventRecord].self, forKey: .events)
         ownerId = try container.decodeIfPresent(String.self, forKey: .ownerId)
 
+        if let value = try container.decodeIfPresent(UUID.self, forKey: .scheduledMatchId) {
+            match.scheduledMatchId = value
+        }
         if let value = try container.decodeIfPresent(UUID.self, forKey: .homeTeamId) {
             match.homeTeamId = value
         }
@@ -121,6 +130,7 @@ public struct CompletedMatch: Identifiable, Codable {
         try container.encode(match, forKey: .match)
         try container.encode(events, forKey: .events)
         try container.encodeIfPresent(ownerId, forKey: .ownerId)
+        try container.encodeIfPresent(match.scheduledMatchId, forKey: .scheduledMatchId)
         try container.encodeIfPresent(match.homeTeamId, forKey: .homeTeamId)
         try container.encodeIfPresent(match.awayTeamId, forKey: .awayTeamId)
         try container.encodeIfPresent(match.competitionId, forKey: .competitionId)

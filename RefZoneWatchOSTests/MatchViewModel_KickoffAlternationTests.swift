@@ -6,6 +6,7 @@
 import Testing
 @testable import RefZone_Watch_App
 
+@MainActor
 struct MatchViewModel_KickoffAlternationTests {
 
     @Test func test_second_half_kicking_team_is_opposite() async throws {

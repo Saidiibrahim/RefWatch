@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import SwiftData
 import Combine
 import RefWatchCore
 
@@ -87,6 +88,23 @@ struct MatchRootView: View {
                         defaultSelectedTeam: (matchViewModel.getETSecondHalfKickingTeam() == .home) ? .home : .away,
                         lifecycle: lifecycle
                     )
+                case .countdown:
+                    // Show countdown view with context from lifecycle coordinator
+                    if let kickoffType = lifecycle.pendingKickoffType,
+                       let kickingTeam = lifecycle.pendingKickingTeam {
+                        CountdownView(
+                            matchViewModel: matchViewModel,
+                            lifecycle: lifecycle,
+                            kickoffType: kickoffType,
+                            kickingTeam: kickingTeam
+                        )
+                    } else {
+                        // Fallback: if context is missing, go back to idle
+                        Text("Error: Missing countdown context")
+                            .onAppear {
+                                lifecycle.resetToStart()
+                            }
+                    }
                 case .choosePenaltyFirstKicker:
                     PenaltyFirstKickerView(
                         matchViewModel: matchViewModel,
@@ -189,8 +207,76 @@ struct MatchRootView: View {
     }
 }
 
-#Preview {
-    MatchRootView()
+// MARK: - Preview
+#Preview("Match Root - Idle") {
+    // Create preview dependencies
+    MatchRootView_PreviewProvider.makePreview()
+}
+
+// MARK: - Preview Provider
+/// Helper to build preview dependencies for MatchRootView
+@MainActor
+private struct MatchRootView_PreviewProvider {
+    static func makePreview() -> some View {
+        let appModeController = AppModeController()
+        let mockTheme = AnyTheme(theme: DefaultTheme())
+        let aggregateEnvironment = makeAggregateSyncEnvironment()
+        
+        return MatchRootView()
+            .environmentObject(appModeController)
+            .environmentObject(aggregateEnvironment)
+            .environment(\.theme, mockTheme)
+            .environment(\.modeSwitcherPresentation, .constant(false))
+    }
+    
+    /// Creates an in-memory AggregateSyncEnvironment for preview
+    static func makeAggregateSyncEnvironment() -> AggregateSyncEnvironment {
+        // Create an in-memory ModelContainer for SwiftData
+        let schema = Schema([
+            AggregateTeamRecord.self,
+            AggregatePlayerRecord.self,
+            AggregateTeamOfficialRecord.self,
+            AggregateCompetitionRecord.self,
+            AggregateVenueRecord.self,
+            AggregateScheduleRecord.self,
+            AggregateHistoryRecord.self,
+            AggregateSnapshotChunkRecord.self,
+            AggregateDeltaRecord.self,
+            AggregateSyncStatusRecord.self
+        ])
+        
+        let config = ModelConfiguration(isStoredInMemoryOnly: true)
+        guard let container = try? ModelContainer(for: schema, configurations: [config]) else {
+            fatalError("Could not create ModelContainer for preview")
+        }
+        
+        // Create stores with the in-memory container
+        let libraryStore = WatchAggregateLibraryStore(container: container)
+        let chunkStore = WatchAggregateSnapshotChunkStore(container: container)
+        let deltaStore = WatchAggregateDeltaOutboxStore(container: container)
+        
+        // Create coordinator
+        let coordinator = WatchAggregateSyncCoordinator(
+            libraryStore: libraryStore,
+            chunkStore: chunkStore,
+            deltaStore: deltaStore
+        )
+        
+        // Create connectivity client (with nil session for preview)
+        let connectivity = WatchConnectivitySyncClient(
+            session: nil,
+            aggregateCoordinator: coordinator
+        )
+        
+        // Create and return the environment
+        return AggregateSyncEnvironment(
+            libraryStore: libraryStore,
+            chunkStore: chunkStore,
+            deltaStore: deltaStore,
+            coordinator: coordinator,
+            connectivity: connectivity
+        )
+    }
 }
 
 private extension MatchRootView {
@@ -202,6 +288,7 @@ private extension MatchRootView {
             } label: {
                 StartMatchHeroCard()
             }
+            .accessibilityIdentifier("startRow")
             .buttonStyle(.plain)
             .listRowInsets(quickActionInsets)
             .listRowBackground(Color.clear)
@@ -216,11 +303,10 @@ private extension MatchRootView {
             } label: {
                 QuickActionLabel(
                     title: "History",
-                    subtitle: nil,
-                    icon: "clock.arrow.circlepath",
-                    tint: theme.colors.accentPrimary
+                    icon: "clock.arrow.circlepath"
                 )
             }
+            .accessibilityIdentifier("historyRow")
             .buttonStyle(.plain)
             .listRowInsets(quickActionInsets)
             .listRowBackground(Color.clear)
@@ -230,11 +316,10 @@ private extension MatchRootView {
             } label: {
                 QuickActionLabel(
                     title: "Settings",
-                    subtitle: nil,
-                    icon: "gear",
-                    tint: theme.colors.accentMuted
+                    icon: "gear"
                 )
             }
+            .accessibilityIdentifier("settingsRow")
             .buttonStyle(.plain)
             .listRowInsets(quickActionInsets)
             .listRowBackground(Color.clear)
@@ -300,7 +385,6 @@ private extension MatchRootView {
     func handleLifecycleNavigation(from oldState: MatchPhase, to newState: MatchPhase) {
         navigationReducer.reduce(path: &navigationPath, from: oldState, to: newState)
     }
-
 }
 
 enum ThemeCardRole {
@@ -354,15 +438,22 @@ private struct StartMatchHeroCard: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        MenuCard(
-            title: "Start",
-            subtitle: nil,
-            icon: "flag.checkered",
-            tint: theme.colors.accentSecondary,
-            accessoryIcon: "chevron.forward",
-            minHeight: 92,
-            role: .primary
-        )
+        // Styled to match SettingsNavigationRow sizing and typography for consistency
+        ThemeCardContainer(role: .secondary, minHeight: 72) {
+            HStack(spacing: theme.spacing.m) {
+                Image(systemName: "flag.checkered")
+                    .font(.title2)
+                    .foregroundStyle(theme.colors.accentSecondary)
+
+                Text("Start")
+                    .font(theme.typography.cardHeadline)
+                    .foregroundStyle(theme.colors.textPrimary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .lineLimit(1)
+
+                Spacer()
+            }
+        }
     }
 }
 
@@ -370,107 +461,24 @@ private struct QuickActionLabel: View {
     @Environment(\.theme) private var theme
 
     let title: String
-    let subtitle: String?
     let icon: String
-    let tint: Color
 
     var body: some View {
-        MenuCard(
-            title: title,
-            subtitle: subtitle,
-            icon: icon,
-            tint: tint,
-            accessoryIcon: "chevron.forward",
-            minHeight: 92,
-            role: .secondary
-        )
-    }
-}
+        // Reuse SettingsNavigationRow visual language for quick actions
+        ThemeCardContainer(role: .secondary, minHeight: 72) {
+            HStack(spacing: theme.spacing.m) {
+                Image(systemName: icon)
+                    .font(.title2)
+                    .foregroundStyle(theme.colors.accentSecondary)
 
-struct MenuCard: View {
-    @Environment(\.theme) private var theme
-
-    let title: String
-    let subtitle: String?
-    let icon: String
-    let tint: Color
-    let accessoryIcon: String?
-    let minHeight: CGFloat
-    let role: ThemeCardRole
-
-    var body: some View {
-        let styling = surfaceStyle(for: role, theme: theme)
-        let titleFont = dynamicTitleFont
-
-        ThemeCardContainer(role: role, minHeight: minHeight) {
-            HStack(spacing: theme.spacing.s) { // Reduced from theme.spacing.m for more text space
-                ZStack {
-                    RoundedRectangle(cornerRadius: theme.components.controlCornerRadius, style: .continuous)
-                        .fill(iconBackgroundColor)
-                        .frame(width: 36, height: 36) // Reduced from 40x40 to give more text space
-                    Image(systemName: icon)
-                        .font(theme.typography.iconAccent)
-                        .foregroundStyle(styling.titleColor)
-                }
-
-                VStack(alignment: .leading, spacing: subtitleSpacing) {
-                    Text(title)
-                        .font(titleFont)
-                        .foregroundStyle(styling.titleColor)
-                        .lineLimit(subtitle == nil ? 1 : 2) // Single line when no subtitle, 2 lines when subtitle exists
-                        .minimumScaleFactor(subtitle == nil ? 0.55 : 0.65) // More aggressive scaling when no subtitle
-                        .layoutPriority(1)
-
-                    if let subtitle, !subtitle.isEmpty {
-                        Text(subtitle)
-                            .font(theme.typography.cardMeta)
-                            .foregroundStyle(styling.subtitleColor)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.60) // Reduced from 0.75 for better subtitle visibility
-                    }
-                }
-
-                Spacer(minLength: theme.spacing.s)
-
-                if let accessoryIcon {
-                    Image(systemName: accessoryIcon)
-                        .font(theme.typography.iconSecondary)
-                        .foregroundStyle(styling.subtitleColor)
-                }
+                Text(title)
+                    .font(theme.typography.cardHeadline)
+                    .foregroundStyle(theme.colors.textPrimary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .lineLimit(1)
+                // Spacer removed - Text frame(maxWidth: .infinity) handles layout,
+                // and NavigationLink provides its own chevron spacing
             }
-        }
-    }
-
-    private var subtitleSpacing: CGFloat {
-        subtitle?.isEmpty == false ? theme.spacing.xs : 0
-    }
-
-    private var dynamicTitleFont: Font {
-        // For cards without subtitles, we can be more generous with title space
-        if subtitle == nil {
-            // No subtitle, so we can use larger text and allow more scaling
-            // Ensure consistent bold weight for all card titles
-            return theme.typography.cardHeadline.weight(.semibold)
-        } else {
-            // Has subtitle, use smaller font for longer titles
-            if title.count > 8 {
-                return theme.typography.cardMeta.weight(.semibold)
-            } else {
-                return theme.typography.cardHeadline.weight(.semibold)
-            }
-        }
-    }
-
-    private var iconBackgroundColor: Color {
-        switch role {
-        case .primary:
-            return tint.opacity(0.28)
-        case .secondary:
-            return tint.opacity(0.22)
-        case .positive:
-            return tint.opacity(0.16)
-        case .destructive:
-            return tint.opacity(0.24)
         }
     }
 }

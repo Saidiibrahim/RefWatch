@@ -218,6 +218,38 @@ final class AggregateScheduleRecord {
 }
 
 @Model
+final class AggregateHistoryRecord {
+  @Attribute(.unique) var id: UUID
+  var completedAt: Date
+  var homeName: String
+  var awayName: String
+  var homeScore: Int
+  var awayScore: Int
+  var competitionName: String?
+  var venueName: String?
+
+  init(
+    id: UUID = UUID(),
+    completedAt: Date,
+    homeName: String,
+    awayName: String,
+    homeScore: Int,
+    awayScore: Int,
+    competitionName: String? = nil,
+    venueName: String? = nil
+  ) {
+    self.id = id
+    self.completedAt = completedAt
+    self.homeName = homeName
+    self.awayName = awayName
+    self.homeScore = homeScore
+    self.awayScore = awayScore
+    self.competitionName = competitionName
+    self.venueName = venueName
+  }
+}
+
+@Model
 final class AggregateSnapshotChunkRecord {
   @Attribute(.unique) var key: String
   var generatedAt: Date

@@ -58,3 +58,41 @@ struct ScheduledMatch: Identifiable, Codable, Hashable {
         self.lastModifiedAt = lastModifiedAt
     }
 }
+
+extension ScheduledMatch.Status {
+    /// Decode status from database snake_case format.
+    /// Database uses: scheduled, in_progress, completed, canceled.
+    /// Swift enum uses: scheduled, inProgress, completed, canceled.
+    init(fromDatabase raw: String) {
+        switch raw {
+        case "scheduled":
+            self = .scheduled
+        case "in_progress":
+            self = .inProgress
+        case "completed":
+            self = .completed
+        case "canceled":
+            self = .canceled
+        default:
+            #if DEBUG
+            print("⚠️ Unknown schedule status: '\(raw)', defaulting to .scheduled")
+            #endif
+            self = .scheduled
+        }
+    }
+
+    /// Encode status to database snake_case format.
+    /// Ensures consistency with Supabase schema expectations.
+    var databaseValue: String {
+        switch self {
+        case .scheduled:
+            return "scheduled"
+        case .inProgress:
+            return "in_progress"
+        case .completed:
+            return "completed"
+        case .canceled:
+            return "canceled"
+        }
+    }
+}

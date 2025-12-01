@@ -109,7 +109,7 @@ struct SupabaseScheduleAPI: SupabaseScheduleServing {
         homeTeamName: row.homeTeamName,
         awayTeamName: row.awayTeamName,
         kickoffAt: row.kickoffAt,
-        status: ScheduledMatch.Status(rawValue: row.status) ?? .scheduled,
+        status: ScheduledMatch.Status(fromDatabase: row.status),
         competitionId: row.competitionId,
         competitionName: row.competitionName,
         venueId: row.venueId,

@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Combine
+import OSLog
 import RefWatchCore
 
 struct MatchesTabView: View {
@@ -27,6 +28,7 @@ struct MatchesTabView: View {
     @State private var upcoming: [ScheduledMatch] = []
     @State private var lastNeedingJournal: CompletedMatch? = nil
     @State private var showingAddUpcoming = false
+    @State private var deleteError: String? = nil
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -125,9 +127,17 @@ struct MatchesTabView: View {
                         competitionStore: competitionStore,
                         venueStore: venueStore,
                         onStarted: { _ in path = [.timer] },
-                        prefillTeams: (sched.homeTeam, sched.awayTeam)
+                        scheduledMatch: sched
                     )
                 }
+            }
+            .alert("Unable to Delete", isPresented: Binding(
+                get: { deleteError != nil },
+                set: { if $0 == false { deleteError = nil } }
+            )) {
+                Button("OK", role: .cancel) { deleteError = nil }
+            } message: {
+                Text(deleteError ?? "An error occurred while deleting the scheduled match.")
             }
         }
     }
@@ -167,6 +177,13 @@ struct MatchesTabView: View {
                                 Text(Self.formatTime(item.kickoff)).font(.subheadline).foregroundStyle(.secondary)
                             }
                         }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            Button(role: .destructive) {
+                                deleteScheduledMatch(id: item.id)
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
                     }
                 }
             }
@@ -184,6 +201,13 @@ struct MatchesTabView: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("\(item.homeTeam) vs \(item.awayTeam)").font(.headline)
                                 Text(Self.formatRelative(item.kickoff)).font(.subheadline).foregroundStyle(.secondary)
+                            }
+                        }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            Button(role: .destructive) {
+                                deleteScheduledMatch(id: item.id)
+                            } label: {
+                                Label("Delete", systemImage: "trash")
                             }
                         }
                     }
@@ -281,11 +305,41 @@ private extension MatchesTabView {
     }
 
     func handleScheduleUpdate(_ matches: [ScheduledMatch]) {
-        let now = Date()
-        let calendar = Calendar.current
-        today = matches.filter { calendar.isDate($0.kickoff, inSameDayAs: now) }
-        upcoming = matches
-            .filter { $0.kickoff > calendar.startOfDay(for: now).addingTimeInterval(24 * 60 * 60) }
-            .sorted(by: { $0.kickoff < $1.kickoff })
+        let result = Self.partitionSchedules(matches, now: Date(), calendar: Calendar.current)
+        today = result.today
+        upcoming = result.upcoming
+    }
+
+    func deleteScheduledMatch(id: UUID) {
+        do {
+            try scheduleStore.delete(id: id)
+            AppLog.schedule.info("Deleted scheduled match: \(id.uuidString, privacy: .public)")
+        } catch {
+            AppLog.schedule.error("Failed to delete scheduled match: \(error.localizedDescription, privacy: .public)")
+            deleteError = error.localizedDescription
+        }
+    }
+}
+
+extension MatchesTabView {
+    static func partitionSchedules(
+        _ matches: [ScheduledMatch],
+        now: Date = Date(),
+        calendar: Calendar = .current
+    ) -> (today: [ScheduledMatch], upcoming: [ScheduledMatch]) {
+        let startOfTomorrow = calendar.startOfDay(for: now).addingTimeInterval(24 * 60 * 60)
+        let activeMatches = matches.filter { match in
+            match.status != .completed && match.status != .canceled
+        }
+
+        let todayMatches = activeMatches
+            .filter { calendar.isDate($0.kickoff, inSameDayAs: now) }
+            .sorted { $0.kickoff < $1.kickoff }
+
+        let upcomingMatches = activeMatches
+            .filter { $0.kickoff > startOfTomorrow }
+            .sorted { $0.kickoff < $1.kickoff }
+
+        return (todayMatches, upcomingMatches)
     }
 }

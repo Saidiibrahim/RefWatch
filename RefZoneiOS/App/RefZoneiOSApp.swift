@@ -118,7 +118,12 @@ struct RefZoneiOSApp: App {
             authStateProvider: authController
         )
 
-        let vm = MatchViewModel(history: historyRepo, haptics: IOSHaptics())
+        let scheduleUpdater = MatchScheduleStatusUpdater(scheduleStore: schedStore)
+        let vm = MatchViewModel(
+            history: historyRepo,
+            haptics: IOSHaptics(),
+            scheduleStatusUpdater: scheduleUpdater
+        )
         let controller = ConnectivitySyncController(
             history: historyRepo,
             auth: authController,
@@ -156,6 +161,20 @@ struct RefZoneiOSApp: App {
                 .task {
                     await authController.restoreSessionIfAvailable()
                     authCoordinator.presentWelcomeIfNeeded()
+                    // One-time healing: if any completed matches reference a schedule still marked scheduled,
+                    // flip that schedule to completed to keep watch/iOS lists clean.
+                    Task { @MainActor in
+                        let completed = (try? self.historyStore.loadAll()) ?? []
+                        let schedules = self.scheduleStore.loadAll()
+                        var changed: [ScheduledMatch] = []
+                        for snapshot in completed {
+                            if let sid = snapshot.scheduledMatchId, let idx = schedules.firstIndex(where: { $0.id == sid }) {
+                                var sc = schedules[idx]
+                                if sc.status == .scheduled { sc.status = .completed; changed.append(sc) }
+                            }
+                        }
+                        for s in changed { try? self.scheduleStore.save(s) }
+                    }
                 }
                 .onReceive(router.$authenticationRequest.compactMap { $0 }) { screen in
                     authCoordinator.activeScreen = screen
@@ -240,7 +259,12 @@ private extension RefZoneiOSApp {
 
     func performLogoutCleanup() {
         AppLog.supabase.notice("Performing logout cleanup for local caches")
-        matchVM = MatchViewModel(history: historyStore, haptics: IOSHaptics())
+        let scheduleUpdater = MatchScheduleStatusUpdater(scheduleStore: scheduleStore)
+        matchVM = MatchViewModel(
+            history: historyStore,
+            haptics: IOSHaptics(),
+            scheduleStatusUpdater: scheduleUpdater
+        )
         Task { @MainActor in
             do {
                 if let supabaseStore = journalStore as? SupabaseJournalRepository {

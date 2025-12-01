@@ -196,12 +196,14 @@ private extension WatchAggregateSyncCoordinator {
     var acknowledged = Set<UUID>()
     var lastSyncedAt = first.lastSyncedAt
     var settings: AggregateSnapshotPayload.Settings?
+    var history: [AggregateSnapshotPayload.HistorySummary] = []
 
     for partial in partials {
       teams.append(contentsOf: partial.teams)
       competitions.append(contentsOf: partial.competitions)
       venues.append(contentsOf: partial.venues)
       schedules.append(contentsOf: partial.schedules)
+      history.append(contentsOf: partial.history)
       acknowledged.formUnion(partial.acknowledgedChangeIds)
       if let synced = partial.lastSyncedAt {
         if let current = lastSyncedAt {
@@ -227,7 +229,8 @@ private extension WatchAggregateSyncCoordinator {
       teams: teams,
       venues: venues,
       competitions: competitions,
-      schedules: schedules
+      schedules: schedules,
+      history: history
     )
   }
 
