@@ -172,6 +172,9 @@
 				Core/AGENTS.md,
 				Core/Persistence/SwiftData/AGENTS.md,
 				Core/Platform/AI/AGENTS.md,
+				Core/Platform/Connectivity/AggregateDeltaAckStore.swift,
+				Core/Platform/Connectivity/AggregateDeltaApplying.swift,
+				Core/Platform/Connectivity/AggregateDeltaCoordinator.swift,
 				Features/AGENTS.md,
 				Info.plist,
 			);
@@ -189,6 +192,10 @@
 			membershipExceptions = (
 				AGENTS.md,
 				Info.plist,
+				CircularView.swift,
+				Previews.swift,
+				RectangularView.swift,
+				RefZoneWidgets.swift,
 			);
 			target = 96BBA3692E77BF06000A67FC /* RefZoneWidgetsExtension */;
 		};
@@ -210,6 +217,13 @@
 				"App/RefZoneWatchApp-Info.plist",
 				Core/AGENTS.md,
 				Core/Components/TimerFaces/AGENTS.md,
+				Core/Platform/Connectivity/AggregateSyncEnvironment.swift,
+				Core/Platform/Connectivity/WatchAggregateSyncCoordinator.swift,
+				Core/Platform/Connectivity/WatchConnectivitySyncClient.swift,
+				Core/Persistence/SwiftData/WatchAggregateContainerFactory.swift,
+				Core/Persistence/SwiftData/WatchAggregateDataStores.swift,
+				Core/Persistence/SwiftData/WatchAggregateModelSchema.swift,
+				Core/Persistence/SwiftData/WatchAggregateModels.swift,
 				Core/Platform/AGENTS.md,
 				Features/AGENTS.md,
 			);
