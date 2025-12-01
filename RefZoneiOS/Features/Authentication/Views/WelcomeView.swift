@@ -12,6 +12,7 @@ import SwiftUI
 struct WelcomeView: View {
   @EnvironmentObject private var coordinator: AuthenticationCoordinator
   @Environment(\.theme) private var theme
+  @Environment(\.colorScheme) private var colorScheme
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
   @State private var currentSlideIndex = 0
@@ -64,7 +65,7 @@ private extension WelcomeView {
   }
 
   var primaryActions: some View {
-    VStack(spacing: theme.spacing.stackLG) {
+    VStack(spacing: 10) {
       Button {
         coordinator.showSignIn()
       } label: {
@@ -72,6 +73,7 @@ private extension WelcomeView {
           .frame(maxWidth: .infinity)
       }
       .buttonStyle(.borderedProminent)
+      .tint(theme.colors.accentSecondary)
       .accessibilityHint(Text(NSLocalizedString("welcome.actions.signIn.hint", value: "Opens the sign-in form", comment: "Accessibility hint for sign-in button")))
 
       Button {
@@ -81,6 +83,7 @@ private extension WelcomeView {
           .frame(maxWidth: .infinity)
       }
       .buttonStyle(.bordered)
+      .tint(theme.colors.textSecondary.opacity(colorScheme == .dark ? 0.9 : 0.7))
       .accessibilityHint(Text(NSLocalizedString("welcome.actions.createAccount.hint", value: "Opens the account creation form", comment: "Accessibility hint for create account button")))
     }
   }
@@ -88,9 +91,10 @@ private extension WelcomeView {
   var privacyNote: some View {
     Text(NSLocalizedString("welcome.privacyNote", value: "An active RefZone account is required on iPhone. Your Apple Watch can still log matches offline and will sync once you sign in here.", comment: "Footer note explaining onboarding requirements"))
       .font(theme.typography.caption)
-      .foregroundStyle(theme.colors.textSecondary)
+      .foregroundStyle(theme.colors.textSecondary.opacity(colorScheme == .dark ? 0.86 : 0.72))
       .multilineTextAlignment(.center)
       .padding(.horizontal)
+      .frame(maxWidth: 360)
       .accessibilityHint(Text(NSLocalizedString("welcome.privacyNote.hint", value: "Explains why signing in is required on iPhone", comment: "Accessibility hint for the welcome privacy note")))
   }
 

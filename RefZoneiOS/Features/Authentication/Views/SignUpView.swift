@@ -27,7 +27,7 @@ struct SignUpView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 24) {
+                VStack(spacing: 20) {
                     header
                     form
                     federatedSection
@@ -63,12 +63,12 @@ private extension SignUpView {
             Text("Create your RefZone account")
                 .font(.title2.bold())
                 .foregroundStyle(colors.primaryText)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: 340, alignment: .leading)
 
             Text(viewModel.mode.footnote)
                 .font(.subheadline)
                 .foregroundStyle(colors.secondaryText)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: 340, alignment: .leading)
         }
     }
 
@@ -83,7 +83,7 @@ private extension SignUpView {
                 .submitLabel(.next)
                 .onSubmit { focusedField = .password }
                 .foregroundStyle(colors.primaryText)
-                .authenticationInputField(colors: colors)
+                .authenticationInputField(colors: colors, isFocused: focusedField == .email)
 
             SecureField("Password", text: $viewModel.password)
                 .textContentType(.newPassword)
@@ -91,7 +91,12 @@ private extension SignUpView {
                 .submitLabel(.go)
                 .onSubmit(submitPrimaryAction)
                 .foregroundStyle(colors.primaryText)
-                .authenticationInputField(colors: colors)
+                .authenticationInputField(colors: colors, isFocused: focusedField == .password)
+
+            Text("At least 6 characters")
+                .font(.footnote)
+                .foregroundStyle(colors.subduedText)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
             Button(action: submitPrimaryAction) {
                 if viewModel.isPerformingAction {
@@ -107,6 +112,7 @@ private extension SignUpView {
             .disabled(viewModel.isPerformingAction || viewModel.email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || viewModel.password.count < 6)
         }
         .accessibilityElement(children: .contain)
+        .frame(maxWidth: 480)
     }
 
     var federatedSection: some View {
@@ -156,15 +162,15 @@ private extension SignUpView {
         VStack(spacing: 12) {
             Text("Creating an account keeps your match data backed up across RefZone. You can manage or delete it anytime from Settings.")
                 .font(.footnote)
-                .foregroundStyle(colors.secondaryText)
+                .foregroundStyle(colors.subduedText)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             Button("Already have an account? Sign in") {
                 coordinator.showSignIn()
             }
-            .font(.footnote)
-            .fontWeight(.semibold)
+            .font(.system(size: 15, weight: .semibold))
             .foregroundStyle(colors.accent)
+            .padding(.top, 8)
         }
         .frame(maxWidth: .infinity)
     }

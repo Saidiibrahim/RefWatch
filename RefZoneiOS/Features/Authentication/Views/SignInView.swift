@@ -292,9 +292,9 @@ struct AuthenticationPrimaryButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         let pressed = configuration.isPressed && isEnabled
-        let background = colors.primaryActionBackground.opacity(isEnabled ? 1 : 0.6)
-        let foreground = isEnabled ? Color.white : Color.white.opacity(0.65)
-        let border = colors.primaryActionBackground.opacity(isEnabled ? 0.4 : 0.15)
+        let background = colors.accent
+        let foreground = Color.white
+        let border = colors.accent.opacity(isEnabled ? 0.4 : 0.15)
         let shadowOpacity = isEnabled ? (pressed ? 0.20 : 0.28) : 0
 
         return configuration.label
