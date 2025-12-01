@@ -10,6 +10,7 @@ import RefWatchCore
 
 struct GoalEventFlowView: View {
     let matchViewModel: MatchViewModel
+    var onSaved: (() -> Void)? = nil
 
     @Environment(\.dismiss) private var dismiss
 
@@ -47,6 +48,7 @@ struct GoalEventFlowView: View {
                     Button {
                         let num = Int(playerNumber)
                         matchViewModel.recordGoal(team: team, goalType: type, playerNumber: num)
+                        onSaved?()
                         dismiss()
                     } label: {
                         Label("Save Goal", systemImage: "checkmark.circle.fill")

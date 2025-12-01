@@ -10,6 +10,7 @@ import RefWatchCore
 
 struct SubstitutionEventFlowView: View {
     let matchViewModel: MatchViewModel
+    var onSaved: (() -> Void)? = nil
 
     @Environment(\.dismiss) private var dismiss
 
@@ -44,6 +45,7 @@ struct SubstitutionEventFlowView: View {
                             playerOutName: nil,
                             playerInName: nil
                         )
+                        onSaved?()
                         dismiss()
                     } label: {
                         Label("Save Substitution", systemImage: "checkmark.circle.fill")

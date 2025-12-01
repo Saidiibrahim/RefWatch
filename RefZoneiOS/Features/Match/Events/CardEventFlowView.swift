@@ -10,6 +10,7 @@ import RefWatchCore
 
 struct CardEventFlowView: View {
     let matchViewModel: MatchViewModel
+    var onSaved: (() -> Void)? = nil
 
     @Environment(\.dismiss) private var dismiss
 
@@ -85,6 +86,7 @@ struct CardEventFlowView: View {
                             officialRole: officialRole,
                             reason: reason
                         )
+                        onSaved?()
                         dismiss()
                     } label: {
                         Label("Save Card", systemImage: "checkmark.circle.fill")

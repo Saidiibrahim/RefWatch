@@ -108,4 +108,23 @@ final class MatchViewModel_EventsAndStoppageTests: XCTestCase {
         let vm = MatchViewModel()
         XCTAssertFalse(vm.undoLastUserEvent())
     }
+
+    func test_end_current_period_records_period_end_event() {
+        let vm = MatchViewModel()
+        vm.configureMatch(duration: 10, periods: 2, halfTimeLength: 1, hasExtraTime: false, hasPenalties: false)
+
+        vm.startMatch()
+        let initialCount = vm.matchEvents.count
+
+        vm.endCurrentPeriod()
+
+        guard let last = vm.matchEvents.last else { return XCTFail("Expected a final event") }
+        if case .periodEnd(let period) = last.eventType {
+            XCTAssertEqual(period, 1)
+        } else {
+            XCTFail("Expected periodEnd event")
+        }
+        XCTAssertGreaterThan(vm.matchEvents.count, initialCount)
+        XCTAssertTrue(vm.isHalfTime)
+    }
 }

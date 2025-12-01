@@ -419,8 +419,17 @@ public final class MatchViewModel {
     }
     
     private func endPeriod() {
+        if let last = matchEvents.last {
+            if case .periodEnd(let period) = last.eventType, period == currentPeriod {
+                // already logged
+            } else {
+                recordMatchEvent(.periodEnd(currentPeriod))
+            }
+        } else {
+            recordMatchEvent(.periodEnd(currentPeriod))
+        }
         pauseMatch()
-        
+
         guard let match = currentMatch else { return }
         
         let total = max(1, match.numberOfPeriods)

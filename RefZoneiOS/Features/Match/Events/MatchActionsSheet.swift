@@ -10,6 +10,12 @@ import RefWatchCore
 
 struct MatchActionsSheet: View {
     let matchViewModel: MatchViewModel
+    var onRecordGoal: (() -> Void)? = nil
+    var onRecordCard: (() -> Void)? = nil
+    var onRecordSubstitution: (() -> Void)? = nil
+    var onStartNextPeriod: (() -> Void)? = nil
+    var onEndPeriod: (() -> Void)? = nil
+    var onFinishMatch: (() -> Void)? = nil
 
     @State private var showGoalFlow = false
     @State private var showCardFlow = false
@@ -26,19 +32,22 @@ struct MatchActionsSheet: View {
             List {
                 Section("Events") {
                     Button {
-                        showGoalFlow = true
+                        if let onRecordGoal { onRecordGoal(); dismiss() }
+                        else { showGoalFlow = true }
                     } label: {
                         Label("Record Goal", systemImage: "soccerball")
                     }
 
                     Button {
-                        showCardFlow = true
+                        if let onRecordCard { onRecordCard(); dismiss() }
+                        else { showCardFlow = true }
                     } label: {
                         Label("Record Card", systemImage: "rectangle.fill")
                     }
 
                     Button {
-                        showSubFlow = true
+                        if let onRecordSubstitution { onRecordSubstitution(); dismiss() }
+                        else { showSubFlow = true }
                     } label: {
                         Label("Record Substitution", systemImage: "arrow.up.arrow.down")
                     }
@@ -54,23 +63,13 @@ struct MatchActionsSheet: View {
                             matchViewModel.resumeMatch()
                         } label: { Label("Resume Timer", systemImage: "play.circle") }
                     }
-
-                    if matchViewModel.isMatchInProgress && !matchViewModel.isHalfTime {
-                        Button {
-                            showAdvanceConfirm = true
-                        } label: { Label("Advance to Next Period", systemImage: "forward.fill") }
-                    }
-
-                    if matchViewModel.isMatchInProgress {
-                        Button(role: .destructive) {
-                            showEndPeriodConfirm = true
-                        } label: { Label("End Current Period", systemImage: "stop.circle") }
-                    }
+                    periodButtons
                 }
 
                 Section("Finish") {
                     Button(role: .destructive) {
-                        showFullTime = true
+                        if let onFinishMatch { onFinishMatch(); dismiss() }
+                        else { showFullTime = true }
                     } label: { Label("Finish Match", systemImage: "flag.checkered") }
                 }
 
@@ -132,7 +131,7 @@ struct MatchActionsSheet: View {
                 }
                 Button("No", role: .cancel) {}
             } message: {
-                Text("Advance to next period now?")
+                Text("Start next period now?")
             }
             .alert("Reset Match", isPresented: $showResetConfirm) {
                 Button("Cancel", role: .cancel) {}
@@ -152,6 +151,26 @@ struct MatchActionsSheet: View {
             } message: {
                 Text("This will end the match immediately and record it as abandoned.")
             }
+        }
+    }
+}
+
+private extension MatchActionsSheet {
+    @ViewBuilder
+    var periodButtons: some View {
+        if matchViewModel.isMatchInProgress {
+            Button(role: .destructive) {
+                if let onEndPeriod { onEndPeriod(); dismiss() }
+                else { showEndPeriodConfirm = true }
+            } label: { Label("End Current Period", systemImage: "stop.circle") }
+        } else if matchViewModel.waitingForHalfTimeStart
+                    || matchViewModel.waitingForSecondHalfStart
+                    || matchViewModel.waitingForET1Start
+                    || matchViewModel.waitingForET2Start {
+            Button {
+                if let onStartNextPeriod { onStartNextPeriod(); dismiss() }
+                else { showAdvanceConfirm = true }
+            } label: { Label("Start Next Period", systemImage: "forward.fill") }
         }
     }
 }

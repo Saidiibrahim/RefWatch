@@ -11,7 +11,6 @@ import RefWatchCore
 
 struct MatchTimerView: View {
     let matchViewModel: MatchViewModel
-    @State private var showingFinishAlert = false
     @State private var showEndHalfTimeConfirm = false
     @State private var errorAlert = ErrorAlertState()
     @State private var activeSheet: ActiveSheet? = nil
@@ -80,6 +79,14 @@ struct MatchTimerView: View {
                     activeSheet = .actions
                 }
             }
+            .onTapGesture(count: 2) {
+                guard matchViewModel.isMatchInProgress else { return }
+                if matchViewModel.isPaused {
+                    matchViewModel.resumeMatch()
+                } else {
+                    matchViewModel.pauseMatch()
+                }
+            }
 
             // Controls / Half-time
             if matchViewModel.isHalfTime {
@@ -88,53 +95,17 @@ struct MatchTimerView: View {
                 controlButtons
             }
 
-            // Recent events
-            List {
-                let items = Array(matchViewModel.matchEvents.suffix(25).reversed())
-                ForEach(items) { event in
-                    HStack(spacing: theme.spacing.m) {
-                        Image(systemName: icon(for: event))
-                            .foregroundStyle(color(for: event))
-                        VStack(alignment: .leading, spacing: 2) {
-                            HStack {
-                                Text(event.matchTime)
-                                    .font(.caption).monospacedDigit().bold()
-                                Spacer()
-                                Text(event.periodDisplayName)
-                                    .font(.caption2).foregroundStyle(theme.colors.textSecondary)
-                            }
-                            if let team = event.teamDisplayName {
-                                Text(team).font(.caption2).foregroundStyle(theme.colors.textSecondary)
-                            }
-                            Text(event.displayDescription).font(.caption)
-                        }
-                    }
-                    .padding(.vertical, 2)
-                }
-            }
-            .frame(maxHeight: 220)
+            pendingConfirmationBanner
+
+            EventsLogView(matchViewModel: matchViewModel, theme: theme)
         }
         .navigationTitle("Match Timer")
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button(role: .destructive) { showingFinishAlert = true } label: {
-                    Text("Finish")
-                }
-            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button { activeSheet = .actions } label: {
                     Label("Actions", systemImage: "ellipsis.circle")
                 }
             }
-        }
-        .alert("Finish Match?", isPresented: $showingFinishAlert) {
-            Button("Cancel", role: .cancel) {}
-            Button("Finish", role: .destructive) {
-                matchViewModel.finalizeMatch()
-                if let err = matchViewModel.lastPersistenceError, !err.isEmpty { errorAlert.present(err) }
-            }
-        } message: {
-            Text("This will finalize and save the match.")
         }
         .onChange(of: matchViewModel.isFullTime) { isFT in
             if isFT { activeSheet = .fullTime }
@@ -174,7 +145,21 @@ struct MatchTimerView: View {
         }) { sheet in
             switch sheet {
             case .actions:
-                MatchActionsSheet(matchViewModel: matchViewModel)
+                MatchActionsSheet(
+                    matchViewModel: matchViewModel,
+                    onRecordGoal: { activeSheet = .goal },
+                    onRecordCard: { activeSheet = .card },
+                    onRecordSubstitution: { activeSheet = .substitution },
+                    onStartNextPeriod: { matchViewModel.startNextPeriod() },
+                    onEndPeriod: { matchViewModel.endCurrentPeriod() },
+                    onFinishMatch: { activeSheet = .fullTime }
+                )
+            case .goal:
+                GoalEventFlowView(matchViewModel: matchViewModel, onSaved: { activeSheet = nil })
+            case .card:
+                CardEventFlowView(matchViewModel: matchViewModel, onSaved: { activeSheet = nil })
+            case .substitution:
+                SubstitutionEventFlowView(matchViewModel: matchViewModel, onSaved: { activeSheet = nil })
             case .fullTime:
                 FullTimeView_iOS(matchViewModel: matchViewModel)
             case .kickoffSecond(let def):
@@ -188,38 +173,6 @@ struct MatchTimerView: View {
             case .penShootout:
                 PenaltyShootoutView(matchViewModel: matchViewModel)
             }
-        }
-    }
-
-    private func icon(for event: MatchEventRecord) -> String {
-        switch event.eventType {
-        case .goal: return "soccerball"
-        case .card(let details): return details.cardType == .yellow ? "square.fill" : "square.fill"
-        case .substitution: return "arrow.up.arrow.down"
-        case .kickOff: return "play.circle"
-        case .periodStart: return "play.circle.fill"
-        case .halfTime: return "pause.circle"
-        case .periodEnd: return "stop.circle"
-        case .matchEnd: return "stop.circle.fill"
-        case .penaltiesStart: return "flag"
-        case .penaltyAttempt(let details): return details.result == .scored ? "checkmark.circle" : "xmark.circle"
-        case .penaltiesEnd: return "flag.checkered"
-        }
-    }
-
-    private func color(for event: MatchEventRecord) -> Color {
-        switch event.eventType {
-        case .goal: return theme.colors.matchPositive
-        case .card(let details):
-            return details.cardType == .yellow ? theme.colors.matchNeutral : theme.colors.matchCritical
-        case .substitution: return theme.colors.accentSecondary
-        case .kickOff, .periodStart: return theme.colors.matchPositive
-        case .halfTime: return theme.colors.matchWarning
-        case .periodEnd, .matchEnd: return theme.colors.matchCritical
-        case .penaltiesStart: return theme.colors.accentMuted
-        case .penaltyAttempt(let details):
-            return details.result == .scored ? theme.colors.matchPositive : theme.colors.matchCritical
-        case .penaltiesEnd: return theme.colors.matchPositive
         }
     }
 
@@ -258,6 +211,9 @@ private extension MatchTimerView {
 
     enum ActiveSheet: Identifiable {
         case actions
+        case goal
+        case card
+        case substitution
         case fullTime
         case kickoffSecond(TeamSide?)
         case kickoffET1
@@ -268,6 +224,9 @@ private extension MatchTimerView {
         var id: String {
             switch self {
             case .actions: return "actions"
+            case .goal: return "goal"
+            case .card: return "card"
+            case .substitution: return "substitution"
             case .fullTime: return "fullTime"
             case .kickoffSecond: return "kickoffSecond"
             case .kickoffET1: return "kickoffET1"
@@ -275,6 +234,29 @@ private extension MatchTimerView {
             case .penFirst: return "penFirst"
             case .penShootout: return "penShootout"
             }
+        }
+    }
+
+    @ViewBuilder
+    private var pendingConfirmationBanner: some View {
+        if matchViewModel.pendingConfirmation != nil {
+            HStack(spacing: theme.spacing.s) {
+                Label("Event saved", systemImage: "checkmark.circle")
+                    .font(.subheadline)
+                Spacer()
+                Button("Undo") {
+                    _ = matchViewModel.undoLastUserEvent()
+                    matchViewModel.clearPendingConfirmation()
+                }
+                .buttonStyle(.borderless)
+            }
+            .padding(.horizontal)
+            .padding(.vertical, theme.spacing.xs)
+            .background(
+                RoundedRectangle(cornerRadius: theme.components.cardCornerRadius)
+                    .fill(theme.colors.backgroundElevated)
+            )
+            .padding(.horizontal)
         }
     }
     @ViewBuilder
@@ -293,6 +275,120 @@ private extension MatchTimerView {
             Button("No", role: .cancel) {}
         } message: {
             Text("Are you sure you want to 'End Half'?")
+        }
+    }
+}
+
+private struct EventsLogView: View {
+    let matchViewModel: MatchViewModel
+    let theme: Theme
+    @State private var lastEventID: UUID?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: theme.spacing.s) {
+            Text("Events")
+                .font(theme.typography.cardMeta)
+                .foregroundStyle(theme.colors.textSecondary)
+                .padding(.horizontal)
+
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: theme.spacing.s) {
+                        if matchViewModel.matchEvents.isEmpty {
+                            Text("No events yet. Use Actions to record goals, cards, or subs.")
+                                .font(.footnote)
+                                .foregroundStyle(theme.colors.textSecondary)
+                                .padding(.horizontal)
+                                .padding(.vertical, theme.spacing.s)
+                        } else {
+                            ForEach(matchViewModel.matchEvents) { event in
+                                EventRow(event: event, theme: theme)
+                                    .id(event.id)
+                                Divider()
+                                    .opacity(event.id == matchViewModel.matchEvents.last?.id ? 0 : 0.3)
+                            }
+                        }
+                    }
+                    .padding(.horizontal)
+                }
+                .onAppear { scrollToLatest(proxy) }
+                .onChange(of: matchViewModel.matchEvents.count) { _ in
+                    scrollToLatest(proxy)
+                }
+            }
+        }
+    }
+
+    private func scrollToLatest(_ proxy: ScrollViewProxy) {
+        guard let lastID = matchViewModel.matchEvents.last?.id else { return }
+        if lastEventID == lastID { return }
+        lastEventID = lastID
+        withAnimation(.easeInOut(duration: 0.25)) {
+            proxy.scrollTo(lastID, anchor: .bottom)
+        }
+    }
+}
+
+private struct EventRow: View {
+    let event: MatchEventRecord
+    let theme: Theme
+
+    var body: some View {
+        HStack(spacing: theme.spacing.m) {
+            Image(systemName: icon(for: event))
+                .foregroundStyle(color(for: event))
+            VStack(alignment: .leading, spacing: 2) {
+                HStack {
+                    Text(event.matchTime)
+                        .font(.caption)
+                        .monospacedDigit()
+                        .bold()
+                    Spacer()
+                    Text(event.periodDisplayName)
+                        .font(.caption2)
+                        .foregroundStyle(theme.colors.textSecondary)
+                }
+                if let team = event.teamDisplayName {
+                    Text(team)
+                        .font(.caption2)
+                        .foregroundStyle(theme.colors.textSecondary)
+                }
+                Text(event.displayDescription)
+                    .font(.caption)
+            }
+        }
+        .padding(.vertical, 2)
+    }
+
+    private func icon(for event: MatchEventRecord) -> String {
+        switch event.eventType {
+        case .goal: return "soccerball"
+        case .card(let details): return details.cardType == .yellow ? "square.fill" : "square.fill"
+        case .substitution: return "arrow.up.arrow.down"
+        case .kickOff: return "play.circle"
+        case .periodStart: return "play.circle.fill"
+        case .halfTime: return "pause.circle"
+        case .periodEnd: return "stop.circle"
+        case .matchEnd: return "stop.circle.fill"
+        case .penaltiesStart: return "flag"
+        case .penaltyAttempt(let details): return details.result == .scored ? "checkmark.circle" : "xmark.circle"
+        case .penaltiesEnd: return "flag.checkered"
+        }
+    }
+
+    private func color(for event: MatchEventRecord) -> Color {
+        switch event.eventType {
+        case .goal: return theme.colors.matchPositive
+        case .card(let details):
+            return details.cardType == .yellow ? theme.colors.matchNeutral : theme.colors.matchCritical
+        case .substitution: return theme.colors.accentSecondary
+        case .kickOff, .periodStart: return theme.colors.matchPositive
+        case .halfTime: return theme.colors.matchWarning
+        case .periodEnd, .matchEnd: return theme.colors.matchCritical
+        case .penaltiesStart: return theme.colors.accentMuted
+        case .penaltyAttempt(let details):
+            return details.result == .scored ? theme.colors.matchPositive : theme.colors.matchCritical
+        case .penaltiesEnd: return theme.colors.matchPositive
         }
     }
 }
