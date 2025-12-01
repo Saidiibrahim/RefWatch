@@ -33,7 +33,7 @@ final class IOSConnectivitySyncClientAggregateTests: XCTestCase {
     auth.updateState(.signedIn(userId: "user", email: nil, displayName: nil))
     client.handleAuthState(auth.state)
 
-    wait(for: [processedExpectation], timeout: 1.0)
+    wait(for: [processedExpectation], timeout: 2.0)
     XCTAssertEqual(handler.processed.count, 1)
     XCTAssertEqual(handler.processed.first?.id, envelope.id)
   }

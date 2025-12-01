@@ -32,21 +32,21 @@ struct MatchActionsSheet: View {
             List {
                 Section("Events") {
                     Button {
-                        if let onRecordGoal { onRecordGoal(); dismiss() }
+                        if let onRecordGoal { onRecordGoal() }
                         else { showGoalFlow = true }
                     } label: {
                         Label("Record Goal", systemImage: "soccerball")
                     }
 
                     Button {
-                        if let onRecordCard { onRecordCard(); dismiss() }
+                        if let onRecordCard { onRecordCard() }
                         else { showCardFlow = true }
                     } label: {
                         Label("Record Card", systemImage: "rectangle.fill")
                     }
 
                     Button {
-                        if let onRecordSubstitution { onRecordSubstitution(); dismiss() }
+                        if let onRecordSubstitution { onRecordSubstitution() }
                         else { showSubFlow = true }
                     } label: {
                         Label("Record Substitution", systemImage: "arrow.up.arrow.down")
@@ -68,7 +68,7 @@ struct MatchActionsSheet: View {
 
                 Section("Finish") {
                     Button(role: .destructive) {
-                        if let onFinishMatch { onFinishMatch(); dismiss() }
+                        if let onFinishMatch { onFinishMatch() }
                         else { showFullTime = true }
                     } label: { Label("Finish Match", systemImage: "flag.checkered") }
                 }

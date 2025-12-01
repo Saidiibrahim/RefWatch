@@ -276,12 +276,13 @@ final class IOSConnectivitySyncClient: NSObject {
                 pendingMatches.removeAll()
                 return matches
             }
-            guard queued.isEmpty == false else { return }
-            AppLog.connectivity.notice("Flushing \(queued.count) queued watch payload(s) after sign-in")
-            NotificationCenter.default.post(name: .syncFallbackOccurred, object: nil, userInfo: [
-                "context": "ios.connectivity.flushQueued"
-            ])
-            queued.forEach { persist($0) }
+            if queued.isEmpty == false {
+                AppLog.connectivity.notice("Flushing \(queued.count) queued watch payload(s) after sign-in")
+                NotificationCenter.default.post(name: .syncFallbackOccurred, object: nil, userInfo: [
+                    "context": "ios.connectivity.flushQueued"
+                ])
+                queued.forEach { persist($0) }
+            }
             processPendingAggregateDeltas()
         }
     }
