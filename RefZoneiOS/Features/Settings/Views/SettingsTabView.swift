@@ -30,6 +30,7 @@ struct SettingsTabView: View {
     @State private var penaltyRounds: Int = 5
     @State private var connectivityStatusValue: String = "Unavailable"
     @State private var showWipeConfirm: Bool = false
+    @State private var showAdvancedSyncDetails: Bool = false
     @StateObject private var authViewModel: SettingsAuthViewModel
 
     init(
@@ -193,20 +194,24 @@ private extension SettingsTabView {
 
     var syncSection: some View {
         Section("Sync") {
-            let status = syncDiagnostics.aggregateStatus
-            LabeledContent("Watch", value: connectivityStatusValue)
-            LabeledContent("Queued Snapshots", value: "\(status.queuedSnapshots)")
-            LabeledContent("Queued Deltas", value: "\(status.queuedDeltas)")
-            LabeledContent("Pending Chunks", value: "\(status.pendingSnapshotChunks)")
-            LabeledContent("Last Snapshot", value: formattedDate(status.lastSnapshot))
-            let lastUpdated = status.lastUpdated == .distantPast ? nil : status.lastUpdated
-            LabeledContent("Last Updated", value: formattedDate(lastUpdated))
-            Button {
-                AppLog.connectivity.info("User requested resync from Settings")
-                connectivityController?.triggerManualAggregateSync()
+            syncCard
+
+#if DEBUG
+            DisclosureGroup(isExpanded: $showAdvancedSyncDetails) {
+                let status = aggregateStatus
+                LabeledContent("Watch", value: connectivityStatusValue)
+                LabeledContent("Queued Snapshots", value: "\(status.queuedSnapshots)")
+                LabeledContent("Queued Deltas", value: "\(status.queuedDeltas)")
+                LabeledContent("Pending Chunks", value: "\(status.pendingSnapshotChunks)")
+                LabeledContent("Last Snapshot", value: formattedDate(status.lastSnapshot))
+                let lastUpdated = status.lastUpdated == .distantPast ? nil : status.lastUpdated
+                LabeledContent("Last Updated", value: formattedDate(lastUpdated))
             } label: {
-                Label("Resync Now", systemImage: "arrow.clockwise")
+                Text("Advanced sync details")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
             }
+#endif
         }
     }
 
@@ -246,6 +251,116 @@ private extension SettingsTabView {
         case .unknown:
             connectivityStatusValue = status.signedIn ? "Unknown" : "Signed Out"
         }
+    }
+
+    var syncCard: some View {
+        let status = aggregateStatus
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .center, spacing: 12) {
+                Image(systemName: syncIconName(for: status))
+                    .font(.title3)
+                    .foregroundStyle(syncIconColor(for: status))
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(syncHeadline(for: status))
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                    Text(syncSubheadline(for: status))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                if isSyncing(status) {
+                    ProgressView()
+                        .progressViewStyle(.circular)
+                }
+            }
+
+            HStack {
+                Label("Last sync", systemImage: "clock.arrow.circlepath")
+                    .labelStyle(.titleAndIcon)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text(formattedDate(status.lastSnapshot))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+
+            Button {
+                AppLog.connectivity.info("User requested resync from Settings")
+                connectivityController?.triggerManualAggregateSync()
+            } label: {
+                Label("Resync Now", systemImage: "arrow.clockwise")
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(isSyncing(status))
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color(.secondarySystemGroupedBackground))
+        )
+        .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
+        .listRowBackground(Color.clear)
+    }
+
+    var aggregateStatus: SyncDiagnosticsCenter.SyncComponentStatus { syncDiagnostics.aggregateStatus }
+
+    func isSyncing(_ status: SyncDiagnosticsCenter.SyncComponentStatus) -> Bool {
+        status.pendingSnapshotChunks > 0
+    }
+
+    func syncHeadline(for status: SyncDiagnosticsCenter.SyncComponentStatus) -> String {
+        if status.connectivityStatus == .reachable {
+            if status.pendingSnapshotChunks > 0 {
+                return "Syncing to watch…"
+            }
+            if status.queuedSnapshots > 0 || status.queuedDeltas > 0 {
+                return "Sending updates to watch"
+            }
+            return "Library up to date"
+        }
+
+        if status.queuedSnapshots > 0 || status.queuedDeltas > 0 || status.pendingSnapshotChunks > 0 {
+            return "Waiting for watch"
+        }
+        return "Watch not reachable"
+    }
+
+    func syncSubheadline(for status: SyncDiagnosticsCenter.SyncComponentStatus) -> String {
+        if status.connectivityStatus == .reachable {
+            if status.pendingSnapshotChunks > 0 {
+                return "Applying updates now."
+            }
+            if status.queuedSnapshots > 0 || status.queuedDeltas > 0 {
+                return "Updates are queued and sending."
+            }
+            return "RefZone on watch has your latest library."
+        }
+        if status.queuedSnapshots > 0 || status.queuedDeltas > 0 || status.pendingSnapshotChunks > 0 {
+            return "Bring your watch nearby and open RefZone."
+        }
+        return "Open RefZone on your watch to reconnect."
+    }
+
+    func syncIconName(for status: SyncDiagnosticsCenter.SyncComponentStatus) -> String {
+        if status.signedIn == false { return "exclamationmark.triangle.fill" }
+        if status.pendingSnapshotChunks > 0 { return "arrow.triangle.2.circlepath" }
+        if status.connectivityStatus == .reachable {
+            return status.queuedSnapshots > 0 || status.queuedDeltas > 0 ? "arrow.up.circle" : "checkmark.circle.fill"
+        }
+        return "antenna.radiowaves.left.and.right.slash"
+    }
+
+    func syncIconColor(for status: SyncDiagnosticsCenter.SyncComponentStatus) -> Color {
+        if status.signedIn == false { return .orange }
+        if status.pendingSnapshotChunks > 0 { return .blue }
+        if status.connectivityStatus == .reachable {
+            return status.queuedSnapshots > 0 || status.queuedDeltas > 0 ? .blue : .green
+        }
+        return .orange
     }
 
     func formattedDate(_ date: Date?) -> String {
