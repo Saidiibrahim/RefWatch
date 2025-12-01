@@ -27,7 +27,7 @@ struct SignInView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 24) {
+                VStack(spacing: 20) {
                     header
                     form
                     federatedSection
@@ -63,12 +63,12 @@ private extension SignInView {
             Text("Sign in to use RefZone on iPhone")
                 .font(.title2.bold())
                 .foregroundStyle(colors.primaryText)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: 340, alignment: .leading)
 
             Text(viewModel.mode.footnote)
                 .font(.subheadline)
                 .foregroundStyle(colors.secondaryText)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: 340, alignment: .leading)
         }
     }
 
@@ -83,7 +83,7 @@ private extension SignInView {
                 .submitLabel(.next)
                 .onSubmit { focusedField = .password }
                 .foregroundStyle(colors.primaryText)
-                .authenticationInputField(colors: colors)
+                .authenticationInputField(colors: colors, isFocused: focusedField == .email)
 
             SecureField("Password", text: $viewModel.password)
                 .textContentType(.password)
@@ -91,7 +91,7 @@ private extension SignInView {
                 .submitLabel(.go)
                 .onSubmit(submitPrimaryAction)
                 .foregroundStyle(colors.primaryText)
-                .authenticationInputField(colors: colors)
+                .authenticationInputField(colors: colors, isFocused: focusedField == .password)
 
             Button(action: submitPrimaryAction) {
                 if viewModel.isPerformingAction {
@@ -107,6 +107,7 @@ private extension SignInView {
             .disabled(viewModel.isPerformingAction || viewModel.email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || viewModel.password.isEmpty)
         }
         .accessibilityElement(children: .contain)
+        .frame(maxWidth: 480)
     }
 
     var federatedSection: some View {
@@ -158,14 +159,14 @@ private extension SignInView {
                 coordinator.showSignUp()
             } label: {
                 Text("Need an account? Create one")
-                    .font(.footnote)
-                    .fontWeight(.semibold)
+                    .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(colors.accent)
             }
+            .padding(.top, 8)
 
             Text("Signing in keeps RefZone on iPhone and Apple Watch in sync. Your watch works offline and updates when you return here.")
                 .font(.footnote)
-                .foregroundStyle(colors.secondaryText)
+                .foregroundStyle(colors.subduedText)
                 .multilineTextAlignment(.center)
                 .padding(.top, 4)
         }
@@ -226,20 +227,21 @@ struct AuthenticationScreenColors {
     let primaryActionBackground: Color
     let primaryActionForeground: Color
     let buttonShadow: Color
+    let subduedText: Color
 
     init(theme: AnyTheme, colorScheme: ColorScheme) {
+        let accentBackground = theme.colors.accentSecondary
         switch colorScheme {
         case .dark:
             background = theme.colors.backgroundPrimary
             surface = theme.colors.backgroundSecondary
             outline = theme.colors.outlineMuted
-            separator = theme.colors.outlineMuted.opacity(0.9)
+            separator = theme.colors.outlineMuted.opacity(0.24)
             primaryText = theme.colors.textPrimary
             secondaryText = theme.colors.textSecondary
-            accent = theme.colors.accentSecondary
-            primaryActionBackground = theme.colors.accentSecondary
-            primaryActionForeground = Color.white
+            accent = accentBackground
             buttonShadow = Color.black.opacity(0.45)
+            subduedText = theme.colors.textSecondary.opacity(0.86)
         default:
             background = Color(uiColor: .systemBackground)
             surface = Color(uiColor: .secondarySystemBackground)
@@ -247,16 +249,19 @@ struct AuthenticationScreenColors {
             separator = Color(uiColor: .separator).opacity(0.6)
             primaryText = Color(uiColor: .label)
             secondaryText = Color(uiColor: .secondaryLabel)
-            accent = Color(uiColor: .systemBlue)
-            primaryActionBackground = theme.colors.accentSecondary
-            primaryActionForeground = Color.white
+            accent = accentBackground
             buttonShadow = Color.black.opacity(0.12)
+            subduedText = Color(uiColor: .secondaryLabel).opacity(0.72)
         }
+
+        primaryActionBackground = accentBackground
+        primaryActionForeground = Color.white
     }
 }
 
 struct AuthenticationInputFieldModifier: ViewModifier {
     let colors: AuthenticationScreenColors
+    let isFocused: Bool
     @Environment(\.colorScheme) private var colorScheme
 
     func body(content: Content) -> some View {
@@ -264,20 +269,20 @@ struct AuthenticationInputFieldModifier: ViewModifier {
             .padding(.horizontal, 16)
             .padding(.vertical, 14)
             .background(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .fill(colors.surface)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .stroke(colors.outline, lineWidth: 1)
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(isFocused ? colors.accent : colors.outline, lineWidth: 1)
             )
-            .shadow(color: colors.buttonShadow.opacity(colorScheme == .dark ? 0 : 0.05), radius: 12, y: 4)
+            .shadow(color: colors.buttonShadow.opacity(colorScheme == .dark ? 0 : 0.06), radius: 10, y: 4)
     }
 }
 
 extension View {
-    func authenticationInputField(colors: AuthenticationScreenColors) -> some View {
-        modifier(AuthenticationInputFieldModifier(colors: colors))
+    func authenticationInputField(colors: AuthenticationScreenColors, isFocused: Bool) -> some View {
+        modifier(AuthenticationInputFieldModifier(colors: colors, isFocused: isFocused))
     }
 }
 
@@ -287,16 +292,16 @@ struct AuthenticationPrimaryButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         let pressed = configuration.isPressed && isEnabled
-        let background = isEnabled ? colors.primaryActionBackground : colors.primaryActionBackground.opacity(0.45)
-        let foreground = isEnabled ? colors.primaryActionForeground : colors.primaryActionForeground.opacity(0.7)
+        let background = colors.primaryActionBackground.opacity(isEnabled ? 1 : 0.6)
+        let foreground = isEnabled ? Color.white : Color.white.opacity(0.65)
         let border = colors.primaryActionBackground.opacity(isEnabled ? 0.4 : 0.15)
         let shadowOpacity = isEnabled ? (pressed ? 0.20 : 0.28) : 0
 
         return configuration.label
-            .font(.body.weight(.semibold))
+            .font(.system(size: 16, weight: .semibold))
             .foregroundStyle(foreground)
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 14)
+            .frame(minHeight: 52)
             .padding(.horizontal, 16)
             .background(
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
@@ -332,16 +337,17 @@ struct AuthenticationProviderButtonStyle: ButtonStyle {
         let shadowOpacity = pressed ? 0.18 : 0.24
 
         return configuration.label
+            .font(.system(size: 16, weight: .semibold))
             .foregroundStyle(palette.foreground.opacity(opacity))
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 14)
+            .frame(height: 52)
             .padding(.horizontal, 16)
             .background(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .fill(palette.background.opacity(opacity))
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .stroke(palette.border.opacity(opacity), lineWidth: palette.borderWidth)
             )
             .shadow(color: palette.shadow.opacity(isEnabled ? shadowOpacity : 0), radius: pressed ? 2 : 5, y: pressed ? 1 : 4)
@@ -360,7 +366,7 @@ struct AuthenticationProviderButtonStyle: ButtonStyle {
             }
         case .google:
             let borderColor = colorScheme == .dark ? Color.white.opacity(0.25) : colors.separator
-            let shadowColor = colorScheme == .dark ? Color.black : Color.black.opacity(0.2)
+            let shadowColor = Color.black.opacity(colorScheme == .dark ? 0.35 : 0.14)
             return (background: Color.white, foreground: Color.black.opacity(0.85), border: borderColor, borderWidth: 1, shadow: shadowColor)
         }
     }
