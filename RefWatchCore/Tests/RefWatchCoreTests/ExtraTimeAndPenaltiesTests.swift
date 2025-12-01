@@ -1,6 +1,7 @@
 import XCTest
 @testable import RefWatchCore
 
+@MainActor
 final class ExtraTimeAndPenaltiesTests: XCTestCase {
 
     func test_transition_to_ET_when_hasExtraTime() async throws {

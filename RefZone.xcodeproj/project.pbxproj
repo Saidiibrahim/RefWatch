@@ -10,6 +10,8 @@
 		7BEAA61A255544BFAD7DA0CA /* RefWorkoutCore in Frameworks */ = {isa = PBXBuildFile; productRef = 18DCFE891B8C4879B96A0263 /* RefWorkoutCore */; };
 		9654C2452E78EB46001941F3 /* RefWatchCore in Frameworks */ = {isa = PBXBuildFile; productRef = 9654C2442E78EB46001941F3 /* RefWatchCore */; };
 		966791932E80F18700FC49FB /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 966791922E80F18700FC49FB /* Supabase */; };
+		966F0B492EDD803C00E655BF /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 966F0B482EDD803C00E655BF /* GoogleSignIn */; };
+		966F0B4B2EDD804500E655BF /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 966F0B4A2EDD804500E655BF /* GoogleSignInSwift */; };
 		96AFA8252E99CE8A00334F2F /* RefZone.docc in Sources */ = {isa = PBXBuildFile; fileRef = 96AFA8242E99CE8A00334F2F /* RefZone.docc */; };
 		96AFA8262E99CE8A00334F2F /* RefZone.docc in Sources */ = {isa = PBXBuildFile; fileRef = 96AFA8242E99CE8A00334F2F /* RefZone.docc */; };
 		96BBA36C2E77BF07000A67FC /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 96BBA36B2E77BF07000A67FC /* WidgetKit.framework */; };
@@ -304,6 +306,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				966F0B492EDD803C00E655BF /* GoogleSignIn in Frameworks */,
+				966F0B4B2EDD804500E655BF /* GoogleSignInSwift in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1505,6 +1509,16 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 96123ED72E7D96CD00204DCB /* XCRemoteSwiftPackageReference "supabase-swift" */;
 			productName = Supabase;
+		};
+		966F0B482EDD803C00E655BF /* GoogleSignIn */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 96CE791A2E8632DC00B7DED0 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignIn;
+		};
+		966F0B4A2EDD804500E655BF /* GoogleSignInSwift */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 96CE791A2E8632DC00B7DED0 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignInSwift;
 		};
 		96CE791B2E8632DC00B7DED0 /* GoogleSignIn */ = {
 			isa = XCSwiftPackageProductDependency;

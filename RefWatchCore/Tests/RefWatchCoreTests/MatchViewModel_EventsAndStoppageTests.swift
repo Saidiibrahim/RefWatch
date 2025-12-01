@@ -1,6 +1,7 @@
 import XCTest
 @testable import RefWatchCore
 
+@MainActor
 final class MatchViewModel_EventsAndStoppageTests: XCTestCase {
 
     func test_event_order_after_start_and_goal() async throws {

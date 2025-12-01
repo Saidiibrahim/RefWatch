@@ -66,7 +66,10 @@ final class SupabaseUserProfileSynchronizerTests: XCTestCase {
     let provider = RecordingSupabaseClientProvider(client: client)
     let synchronizer = SupabaseUserProfileSynchronizer(clientProvider: provider)
 
-    await XCTAssertThrowsError(try await synchronizer.syncIfNeeded(session: session)) { error in
+    do {
+      try await synchronizer.syncIfNeeded(session: session)
+      XCTFail("Expected sync to throw")
+    } catch {
       XCTAssertTrue(error is TestError)
     }
   }
@@ -185,18 +188,18 @@ private func makeSession() throws -> Session {
 private struct TestError: Error {}
 
 private final class RecordingSupabaseClientProvider: SupabaseClientProviding {
-  private let client: SupabaseClientRepresenting
+  private let wrappedClient: SupabaseClientRepresenting
 
   init(client: SupabaseClientRepresenting) {
-    self.client = client
+    self.wrappedClient = client
   }
 
   func client() throws -> SupabaseClientRepresenting {
-    client
+    wrappedClient
   }
 
   func authorizedClient() async throws -> SupabaseClientRepresenting {
-    client
+    wrappedClient
   }
 
   func refreshFunctionAuth() async {}

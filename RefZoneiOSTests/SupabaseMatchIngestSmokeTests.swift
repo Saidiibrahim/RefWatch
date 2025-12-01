@@ -28,7 +28,6 @@ final class SupabaseMatchIngestSmokeTests: XCTestCase {
 
     let admin = SupabaseAdminClient(baseURL: environment.supabase.url, serviceRoleKey: environment.serviceRoleKey)
     let testAccount = try await admin.createUser()
-    defer { try? await admin.deleteUser(id: testAccount.id) }
 
     let session = try await client.auth.signIn(email: testAccount.email, password: testAccount.password)
     XCTAssertEqual(session.user.id.uuidString.lowercased(), testAccount.id.lowercased())
@@ -45,8 +44,6 @@ final class SupabaseMatchIngestSmokeTests: XCTestCase {
     let matchId = UUID()
     let request = makeBundleRequest(matchId: matchId, ownerId: ownerUUID)
 
-    defer { try? await ingestService.deleteMatch(id: matchId) }
-
     let syncResult = try await ingestService.ingestMatchBundle(request)
     XCTAssertEqual(syncResult.matchId, matchId)
 
@@ -60,7 +57,8 @@ final class SupabaseMatchIngestSmokeTests: XCTestCase {
     XCTAssertEqual(bundle.match.awayTeamName, request.match.awayTeamName)
     XCTAssertEqual(bundle.events.count, request.events.count)
 
-    // Match cleanup handled in defer above.
+    try await ingestService.deleteMatch(id: matchId)
+    try await admin.deleteUser(id: testAccount.id)
   }
 }
 

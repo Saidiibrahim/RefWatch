@@ -3,6 +3,7 @@ import SwiftData
 import RefWatchCore
 @testable import RefZoneiOS
 
+@MainActor
 final class SwiftDataMatchHistoryStoreTests: XCTestCase {
     private func makeContainer() throws -> ModelContainer {
         let schema = Schema([CompletedMatchRecord.self])

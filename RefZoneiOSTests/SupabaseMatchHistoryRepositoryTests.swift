@@ -179,7 +179,7 @@ final class SupabaseMatchHistoryRepositoryTests: XCTestCase {
     match.homeSubs = 3
     match.awaySubs = 2
 
-    let goalDetails = MatchEventRecord.GoalDetails(goalType: .regular, playerNumber: 9, playerName: "Striker")
+    let goalDetails = GoalDetails(goalType: .regular, playerNumber: 9, playerName: "Striker")
     let goalEvent = MatchEventRecord(
       matchTime: "10:00",
       period: 1,
@@ -197,7 +197,7 @@ final class SupabaseMatchHistoryRepositoryTests: XCTestCase {
       details: .substitution(subDetails)
     )
 
-    let cardDetails = MatchEventRecord.CardDetails(cardType: .red, recipientType: .player, playerNumber: nil, playerName: nil, officialRole: nil, reason: "")
+    let cardDetails = CardDetails(cardType: .red, recipientType: .player, playerNumber: nil, playerName: nil, officialRole: nil, reason: "")
     let cardEvent = MatchEventRecord(
       matchTime: "60:00",
       period: 2,
@@ -265,7 +265,7 @@ final class SupabaseMatchHistoryRepositoryTests: XCTestCase {
     try repository.save(makeCompletedMatch())
     try? await Task.sleep(nanoseconds: 400_000_000)
 
-    guard let matchId = baseStore.loadAll().first?.id else {
+    guard let matchId = try baseStore.loadAll().first?.id else {
       XCTFail("Missing saved match")
       return
     }

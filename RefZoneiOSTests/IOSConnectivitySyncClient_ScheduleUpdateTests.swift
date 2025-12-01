@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import RefZoneiOS
 import RefWatchCore
@@ -23,7 +24,7 @@ struct IOSConnectivitySyncClientScheduleUpdateTests {
         try scheduleStore.save(schedule)
 
         let client = IOSConnectivitySyncClient(history: history, auth: auth, scheduleStore: scheduleStore)
-        client.handleAuthState(.signedIn)
+        client.handleAuthState(auth.state)
 
         // CRITICAL: Set scheduledMatchId to link match to schedule
         var match = Match(homeTeam: "Team A", awayTeam: "Team B")
@@ -46,7 +47,7 @@ struct IOSConnectivitySyncClientScheduleUpdateTests {
         let auth = MutableAuth(state: .signedIn(userId: "test", email: nil, displayName: nil))
 
         let client = IOSConnectivitySyncClient(history: history, auth: auth, scheduleStore: scheduleStore)
-        client.handleAuthState(.signedIn)
+        client.handleAuthState(auth.state)
 
         // Match with scheduledMatchId that doesn't exist in store
         var match = Match(homeTeam: "Watch Created", awayTeam: "Team")
@@ -67,7 +68,7 @@ struct IOSConnectivitySyncClientScheduleUpdateTests {
         let auth = MutableAuth(state: .signedIn(userId: "test", email: nil, displayName: nil))
 
         let client = IOSConnectivitySyncClient(history: history, auth: auth, scheduleStore: scheduleStore)
-        client.handleAuthState(.signedIn)
+        client.handleAuthState(auth.state)
 
         // Manual match without scheduledMatchId
         let match = Match(homeTeam: "Manual Match", awayTeam: "Team")
@@ -100,7 +101,7 @@ struct IOSConnectivitySyncClientScheduleUpdateTests {
         try scheduleStore.save(schedule)
 
         let client = IOSConnectivitySyncClient(history: history, auth: auth, scheduleStore: scheduleStore)
-        client.handleAuthState(.signedIn)
+        client.handleAuthState(auth.state)
 
         var match = Match(homeTeam: "Team A", awayTeam: "Team B")
         match.scheduledMatchId = scheduleId

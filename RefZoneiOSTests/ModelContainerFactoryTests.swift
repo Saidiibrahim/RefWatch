@@ -16,6 +16,7 @@ private struct MemoryOnlyBuilder: ModelContainerBuilding {
     }
 }
 
+@MainActor
 final class ModelContainerFactoryTests: XCTestCase {
     func testFactory_fallsBackToInMemory_whenPersistentFails() throws {
         let schema = Schema([CompletedMatchRecord.self])

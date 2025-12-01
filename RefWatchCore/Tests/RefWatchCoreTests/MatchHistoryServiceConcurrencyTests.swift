@@ -1,6 +1,7 @@
 import XCTest
 @testable import RefWatchCore
 
+@MainActor
 final class MatchHistoryServiceConcurrencyTests: XCTestCase {
 
     func test_concurrent_saves_are_thread_safe_and_ordered() async throws {

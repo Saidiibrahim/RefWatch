@@ -74,6 +74,11 @@ RefZoneiOS/Config/Secrets.xcconfig
 build/
 RefWatchCore/build/
 *.xcresult
+# DerivedData variants created by xcodebuild/Swift Testing runs
 DerivedData/
-\.derivedData/
+.derivedData/
+.derivedData*/
 
+# SwiftPM / xcodebuild cache folders sometimes generated at repo root
+.build-modulecache/
+.build-swift/

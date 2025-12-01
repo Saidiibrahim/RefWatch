@@ -7,6 +7,7 @@
 
 import Testing
 import Foundation
+import Combine
 @testable import RefZoneiOS
 
 @Suite("MatchScheduleStatusUpdater")
@@ -152,4 +153,6 @@ private class MockScheduleStore: ScheduleStoring {
     var changesPublisher: AnyPublisher<[ScheduledMatch], Never> {
         Just(schedules).eraseToAnyPublisher()
     }
+
+    func refreshFromRemote() async throws { }
 }

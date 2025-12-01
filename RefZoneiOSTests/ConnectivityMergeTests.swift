@@ -2,7 +2,9 @@ import XCTest
 import RefWatchCore
 @testable import RefZoneiOS
 
+@MainActor
 final class ConnectivityMergeTests: XCTestCase {
+    @MainActor
     private final class InMemoryStore: MatchHistoryStoring {
         var items: [CompletedMatch] = []
         func loadAll() throws -> [CompletedMatch] { items }
@@ -11,6 +13,7 @@ final class ConnectivityMergeTests: XCTestCase {
         func wipeAll() throws { items.removeAll() }
     }
 
+    @MainActor
     private final class MutableAuth: AuthenticationProviding {
         private var backingState: AuthState
 

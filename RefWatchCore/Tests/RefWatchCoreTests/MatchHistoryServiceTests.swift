@@ -1,6 +1,7 @@
 import XCTest
 @testable import RefWatchCore
 
+@MainActor
 final class MatchHistoryServiceTests: XCTestCase {
 
     func test_save_and_load_roundtrip() async throws {
@@ -58,4 +59,3 @@ final class MatchHistoryServiceTests: XCTestCase {
         XCTAssertEqual(loaded.first?.id, two.id)
     }
 }
-

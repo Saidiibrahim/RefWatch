@@ -2,6 +2,7 @@ import XCTest
 import RefWatchCore
 @testable import RefZoneiOS
 
+@MainActor
 final class MatchFlowTests: XCTestCase {
     // Creates a VM using a temporary history file location
     private func makeVM() -> (MatchViewModel, MatchHistoryService) {

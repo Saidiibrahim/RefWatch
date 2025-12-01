@@ -82,6 +82,8 @@ final class MatchForeignKeyIntegrationTests: XCTestCase {
 }
 
 private struct SignedInAuth: AuthenticationProviding {
+    var state: AuthState { .signedIn(userId: "user-123", email: "user@example.com", displayName: "User") }
     var currentUserId: String? { "user-123" }
     var currentEmail: String? { "user@example.com" }
+    var currentDisplayName: String? { "User" }
 }

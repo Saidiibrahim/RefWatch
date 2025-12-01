@@ -1,6 +1,7 @@
 import XCTest
 @testable import RefWatchCore
 
+@MainActor
 final class MatchViewModel_KickoffAlternationTests: XCTestCase {
 
     func test_second_half_kicking_team_is_opposite() async throws {
@@ -13,4 +14,3 @@ final class MatchViewModel_KickoffAlternationTests: XCTestCase {
         XCTAssertEqual(vm.getSecondHalfKickingTeam(), .home)
     }
 }
-

@@ -1,6 +1,7 @@
 import XCTest
 import Combine
 import SwiftData
+import RefWatchCore
 @testable import RefZoneiOS
 
 @MainActor

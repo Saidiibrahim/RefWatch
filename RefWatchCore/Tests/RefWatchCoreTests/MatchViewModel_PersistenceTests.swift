@@ -10,6 +10,7 @@ private final class MockMatchHistoryService: MatchHistoryStoring {
     func wipeAll() throws { saved.removeAll() }
 }
 
+@MainActor
 final class MatchViewModel_PersistenceTests: XCTestCase {
 
     func test_finalizeMatch_persists_snapshot_and_clears_state() async throws {

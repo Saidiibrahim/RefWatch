@@ -37,7 +37,6 @@ struct MatchSetupView: View {
     @State private var hasPenalties: Bool
     @State private var penaltyRounds: Int
 
-    @State private var validationMessage: String?
     @State private var showKickoffFirstHalf: Bool = false
     @State private var originalSnapshot: SetupSnapshot
 
@@ -157,7 +156,6 @@ struct MatchSetupView: View {
                 selectedHomeTeam = team
                 homeTeam = team.name
                 useCustomHomeTeam = false
-                validate()
             }
         }
         .sheet(isPresented: $showingAwayTeamPicker) {
@@ -165,7 +163,6 @@ struct MatchSetupView: View {
                 selectedAwayTeam = team
                 awayTeam = team.name
                 useCustomAwayTeam = false
-                validate()
             }
         }
         .sheet(isPresented: $showingCompetitionPicker) {
@@ -209,7 +206,7 @@ struct MatchSetupView: View {
                     showingPicker: $showingAwayTeamPicker,
                     isEditing: isEditing
                 )
-                if let msg = validationMessage, isEditing {
+                if let msg = validationErrorMessage, isEditing {
                     Text(msg)
                         .font(.footnote)
                         .foregroundStyle(.red)
@@ -344,11 +341,10 @@ struct MatchSetupView: View {
             if useCustom.wrappedValue {
                 TextField(title, text: teamName)
                     .textInputAutocapitalization(.words)
-                    .onChange(of: teamName.wrappedValue) { _ in
+                    .onChange(of: teamName.wrappedValue) {
                         if selectedTeam.wrappedValue != nil {
                             selectedTeam.wrappedValue = nil
                         }
-                        validate()
                     }
                 Button("Select from Library") {
                     useCustom.wrappedValue = false
@@ -379,7 +375,6 @@ struct MatchSetupView: View {
                 Button("Use Custom Name") {
                     useCustom.wrappedValue = true
                     selectedTeam.wrappedValue = nil
-                    validate()
                 }
                 .font(.caption)
                 .foregroundStyle(Color.accentColor)
@@ -394,23 +389,24 @@ struct MatchSetupView: View {
         }
     }
 
-    private var isValid: Bool { validate() }
+    private var isValid: Bool { validationErrorMessage == nil }
+
+    private var validationErrorMessage: String? {
+        validationError(homeTeam: homeTeam, awayTeam: awayTeam)
+    }
 
     private func startEditing() {
-        validationMessage = nil
         isEditing = true
     }
 
     private func cancelEditing() {
         apply(snapshot: originalSnapshot)
-        validationMessage = nil
         isEditing = false
     }
 
     private func finishEditing() {
         guard isValid else { return }
         originalSnapshot = makeSnapshot()
-        validationMessage = nil
         isEditing = false
     }
 
@@ -448,11 +444,9 @@ struct MatchSetupView: View {
         etHalfMinutes = snapshot.etHalfMinutes
         hasPenalties = snapshot.hasPenalties
         penaltyRounds = snapshot.penaltyRounds
-        validate()
     }
 
-    @discardableResult
-    private func validate() -> Bool {
+    private func validationError(homeTeam: String, awayTeam: String) -> String? {
         func validTeam(_ s: String) -> Bool {
             let trimmed = s.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !trimmed.isEmpty, trimmed.count <= 40 else { return false }
@@ -462,10 +456,9 @@ struct MatchSetupView: View {
                 .isSuperset(of: CharacterSet(charactersIn: trimmed))
         }
 
-        if !validTeam(homeTeam) { validationMessage = "Enter a valid Home team (max 40)."; return false }
-        if !validTeam(awayTeam) { validationMessage = "Enter a valid Away team (max 40)."; return false }
-        validationMessage = nil
-        return true
+        if !validTeam(homeTeam) { return "Enter a valid Home team (max 40)." }
+        if !validTeam(awayTeam) { return "Enter a valid Away team (max 40)." }
+        return nil
     }
 
     private func startMatch() {

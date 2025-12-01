@@ -35,10 +35,18 @@ final class FakePenaltyManagerNeverBegins: PenaltyManaging {
     var onEnd: (() -> Void)?
 }
 
+@MainActor
 final class PenaltiesStartFailureTests: XCTestCase {
     func test_startPenalties_whenManagerBeginFails_returnsFalse() async throws {
         let failing = FakePenaltyManagerNeverBegins()
-        let vm = MatchViewModel(penaltyManager: failing)
+        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmp) }
+
+        let vm = MatchViewModel(
+            history: MatchHistoryService(baseDirectory: tmp),
+            penaltyManager: failing
+        )
 
         vm.configureMatch(duration: 90, periods: 2, halfTimeLength: 15, hasExtraTime: true, hasPenalties: true)
         let ok = vm.startPenalties(withFirstKicker: .away)

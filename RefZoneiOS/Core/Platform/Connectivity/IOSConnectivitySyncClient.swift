@@ -120,6 +120,40 @@ final class IOSConnectivitySyncClient: NSObject {
         processPendingAggregateDeltas()
     }
 
+    /// Queues an aggregate delta for processing once signed in and a handler is available.
+    /// Exposed as internal so test targets can inject envelopes without going through WCSession.
+    func enqueueAggregateDelta(_ envelope: AggregateDeltaEnvelope) {
+        let state = stateQueue.sync { () -> (Bool, Bool, Bool, Bool) in
+            // Check for duplicate using idempotencyKey to prevent double processing
+            // when deltas arrive via both sendMessage and transferUserInfo.
+            let isDuplicate = pendingAggregateDeltas.contains {
+                $0.idempotencyKey == envelope.idempotencyKey
+            }
+            if isDuplicate {
+                AppLog.connectivity.debug("Dropping duplicate aggregate delta idempotencyKey=\(envelope.idempotencyKey.uuidString, privacy: .public)")
+                return (false, false, false, true)
+            }
+            pendingAggregateDeltas.append(envelope)
+            return (signedInFlag, aggregateDeltaHandler != nil, isProcessingAggregateDeltas, false)
+        }
+        let signedIn = state.0
+        let handlerAvailable = state.1
+        let processing = state.2
+        let duplicate = state.3
+
+        if duplicate {
+            return
+        }
+
+        if handlerAvailable && signedIn && processing == false {
+            processPendingAggregateDeltas()
+        } else if handlerAvailable == false || signedIn == false {
+            NotificationCenter.default.post(name: .syncFallbackOccurred, object: nil, userInfo: [
+                "context": "ios.aggregate.delta.queued"
+            ])
+        }
+    }
+
     func enqueueAggregateSnapshots(_ snapshots: [AggregateSnapshotPayload]) {
         #if canImport(WatchConnectivity)
         guard WCSession.isSupported() else { return }
@@ -303,38 +337,6 @@ private extension IOSConnectivitySyncClient {
                 ])
             }
             NotificationCenter.default.post(name: .matchHistoryDidChange, object: nil)
-        }
-    }
-
-    func enqueueAggregateDelta(_ envelope: AggregateDeltaEnvelope) {
-        let state = stateQueue.sync { () -> (Bool, Bool, Bool, Bool) in
-            // Check for duplicate using idempotencyKey to prevent double processing
-            // when deltas arrive via both sendMessage and transferUserInfo.
-            let isDuplicate = pendingAggregateDeltas.contains {
-                $0.idempotencyKey == envelope.idempotencyKey
-            }
-            if isDuplicate {
-                AppLog.connectivity.debug("Dropping duplicate aggregate delta idempotencyKey=\(envelope.idempotencyKey.uuidString, privacy: .public)")
-                return (false, false, false, true)
-            }
-            pendingAggregateDeltas.append(envelope)
-            return (signedInFlag, aggregateDeltaHandler != nil, isProcessingAggregateDeltas, false)
-        }
-        let signedIn = state.0
-        let handlerAvailable = state.1
-        let processing = state.2
-        let duplicate = state.3
-
-        if duplicate {
-            return
-        }
-
-        if handlerAvailable && signedIn && processing == false {
-            processPendingAggregateDeltas()
-        } else if handlerAvailable == false || signedIn == false {
-            NotificationCenter.default.post(name: .syncFallbackOccurred, object: nil, userInfo: [
-                "context": "ios.aggregate.delta.queued"
-            ])
         }
     }
 

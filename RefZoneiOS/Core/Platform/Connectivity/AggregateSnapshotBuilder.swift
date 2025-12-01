@@ -103,7 +103,7 @@ struct AggregateSnapshotBuilder {
     }
 }
 
-private extension AggregateSnapshotBuilder {
+extension AggregateSnapshotBuilder {
     struct PartialSnapshot {
         var teams: [AggregateSnapshotPayload.Team] = []
         var competitions: [AggregateSnapshotPayload.Competition] = []

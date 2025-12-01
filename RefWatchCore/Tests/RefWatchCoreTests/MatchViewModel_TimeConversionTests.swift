@@ -1,6 +1,7 @@
 import XCTest
 @testable import RefWatchCore
 
+@MainActor
 final class MatchViewModel_TimeConversionTests: XCTestCase {
 
     func test_configureMatch_converts_minutes_to_seconds() async throws {
@@ -47,4 +48,3 @@ final class MatchViewModel_TimeConversionTests: XCTestCase {
         XCTAssertEqual(vm.periodTimeRemaining, "40:00")
     }
 }
-

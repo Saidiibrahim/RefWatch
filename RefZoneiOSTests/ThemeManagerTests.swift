@@ -1,6 +1,7 @@
 import XCTest
 @testable import RefZoneiOS
 
+@MainActor
 final class ThemeManagerTests: XCTestCase {
   func test_init_usesStoredVariantWhenAvailable() {
     let suiteName = "ThemeManagerTests.init"

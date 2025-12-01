@@ -1,6 +1,7 @@
 import XCTest
 import RefWatchCore
 
+@MainActor
 final class CompletedMatchOwnershipTests: XCTestCase {
     private struct TestAuth: AuthenticationProviding {
         let state: AuthState
