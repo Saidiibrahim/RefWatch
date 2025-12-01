@@ -274,11 +274,11 @@ private struct PenaltyTeamPanel: View {
 #Preview("Penalties – 41mm") {
     PenaltyShootoutView(matchViewModel: MatchViewModel(haptics: WatchHaptics()), lifecycle: MatchLifecycleCoordinator())
         .watchLayoutScale(WatchLayoutScale(category: .compact))
-        .previewDevice("Apple Watch Series 9 (41mm)")
+        
 }
 
 #Preview("Penalties – Ultra") {
     PenaltyShootoutView(matchViewModel: MatchViewModel(haptics: WatchHaptics()), lifecycle: MatchLifecycleCoordinator())
         .watchLayoutScale(WatchLayoutScale(category: .expanded))
-        .previewDevice("Apple Watch Ultra 2 (49mm)")
+        
 }

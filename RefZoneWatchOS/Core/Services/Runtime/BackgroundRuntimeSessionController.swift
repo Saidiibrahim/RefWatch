@@ -2,7 +2,7 @@
 import Foundation
 import Observation
 import WatchKit
-import RefWatchCore
+@preconcurrency import RefWatchCore
 
 /// Manages a single `WKExtendedRuntimeSession` so the match experience retains
 /// quick-return affordances while the app is backgrounded or the screen is locked.

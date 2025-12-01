@@ -139,7 +139,7 @@ private struct TeamScoreBox: View {
     
     return FullTimeView(matchViewModel: viewModel, lifecycle: MatchLifecycleCoordinator())
         .watchLayoutScale(WatchLayoutScale(category: .compact))
-        .previewDevice("Apple Watch Series 9 (41mm)")
+        
 }
 
 #Preview("Full Time – Ultra") {
@@ -151,5 +151,5 @@ private struct TeamScoreBox: View {
 
     return FullTimeView(matchViewModel: viewModel, lifecycle: MatchLifecycleCoordinator())
         .watchLayoutScale(WatchLayoutScale(category: .expanded))
-        .previewDevice("Apple Watch Ultra 2 (49mm)")
+        
 }

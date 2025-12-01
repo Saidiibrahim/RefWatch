@@ -92,11 +92,11 @@ struct PenaltyFirstKickerView: View {
 #Preview("First Kicker – 41mm") {
     PenaltyFirstKickerView(matchViewModel: MatchViewModel(haptics: WatchHaptics()), lifecycle: MatchLifecycleCoordinator())
         .watchLayoutScale(WatchLayoutScale(category: .compact))
-        .previewDevice("Apple Watch Series 9 (41mm)")
+        
 }
 
 #Preview("First Kicker – Ultra") {
     PenaltyFirstKickerView(matchViewModel: MatchViewModel(haptics: WatchHaptics()), lifecycle: MatchLifecycleCoordinator())
         .watchLayoutScale(WatchLayoutScale(category: .expanded))
-        .previewDevice("Apple Watch Ultra 2 (49mm)")
+        
 }

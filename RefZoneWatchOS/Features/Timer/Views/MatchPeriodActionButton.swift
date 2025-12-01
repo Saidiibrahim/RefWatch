@@ -303,7 +303,7 @@ struct MatchPeriodActionButton: View {
         lifecycle: MatchLifecycleCoordinator()
     )
     .watchLayoutScale(WatchLayoutScale(category: .compact))
-    .previewDevice("Apple Watch Series 9 (41mm)")
+    
 }
 
 #Preview("Start Second Half") {
@@ -317,7 +317,7 @@ struct MatchPeriodActionButton: View {
         lifecycle: MatchLifecycleCoordinator()
     )
     .watchLayoutScale(WatchLayoutScale(category: .compact))
-    .previewDevice("Apple Watch Series 9 (41mm)")
+    
 }
 
 #Preview("End Match") {
@@ -330,6 +330,6 @@ struct MatchPeriodActionButton: View {
         lifecycle: MatchLifecycleCoordinator()
     )
     .watchLayoutScale(WatchLayoutScale(category: .compact))
-    .previewDevice("Apple Watch Series 9 (41mm)")
+    
 }
 

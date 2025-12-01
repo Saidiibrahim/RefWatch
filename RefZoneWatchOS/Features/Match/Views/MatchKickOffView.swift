@@ -355,7 +355,7 @@ struct MatchKickOffView: View {
 
     return MatchKickOffView(matchViewModel: viewModel, lifecycle: lifecycle)
         .watchLayoutScale(WatchLayoutScale(category: .compact))
-        .previewDevice("Apple Watch Series 9 (41mm)")
+        
 }
 
 #Preview("Kickoff – Ultra") {
@@ -367,5 +367,5 @@ struct MatchKickOffView: View {
 
     return MatchKickOffView(matchViewModel: viewModel, isSecondHalf: true, defaultSelectedTeam: .away, lifecycle: lifecycle)
         .watchLayoutScale(WatchLayoutScale(category: .expanded))
-        .previewDevice("Apple Watch Ultra 2 (49mm)")
+        
 }

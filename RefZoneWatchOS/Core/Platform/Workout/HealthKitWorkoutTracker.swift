@@ -1,7 +1,7 @@
 #if os(watchOS)
 import Foundation
 import HealthKit
-import RefWorkoutCore
+@preconcurrency import RefWorkoutCore
 
 @MainActor
 final class HealthKitWorkoutTracker: NSObject, WorkoutSessionTracking {

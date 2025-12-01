@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import RefWatchCore
+@preconcurrency import RefWatchCore
 #if canImport(WatchConnectivity)
 import WatchConnectivity
 #endif

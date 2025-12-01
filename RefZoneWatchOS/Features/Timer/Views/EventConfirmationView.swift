@@ -140,5 +140,5 @@ struct EventConfirmationView: View {
 
     return EventConfirmationView(confirmation: confirmation, matchViewModel: viewModel)
         .watchLayoutScale(WatchLayoutScale(category: .compact))
-        .previewDevice("Apple Watch Series 9 (41mm)")
+        
 }

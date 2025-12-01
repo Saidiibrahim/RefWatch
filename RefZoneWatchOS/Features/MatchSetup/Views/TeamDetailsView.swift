@@ -166,7 +166,7 @@ struct TeamDetailsView: View {
 
     return TeamDetailsView(teamType: .home, matchViewModel: matchViewModel, setupViewModel: setupViewModel)
         .watchLayoutScale(WatchLayoutScale(category: .compact))
-        .previewDevice("Apple Watch Series 9 (41mm)")
+        
 }
 
 #Preview("Team Details – Ultra") {
@@ -175,5 +175,5 @@ struct TeamDetailsView: View {
 
     return TeamDetailsView(teamType: .away, matchViewModel: matchViewModel, setupViewModel: setupViewModel)
         .watchLayoutScale(WatchLayoutScale(category: .expanded))
-        .previewDevice("Apple Watch Ultra 2 (49mm)")
+        
 }

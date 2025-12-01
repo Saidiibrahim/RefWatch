@@ -636,7 +636,7 @@ private struct WorkoutGlyph: View {
   )
   .theme(DefaultTheme())
   .watchLayoutScale(WatchLayoutScale(category: .compact))
-  .previewDevice("Apple Watch Series 9 (41mm)")
+  
 }
 
 #Preview("Workout Session – Paused 45mm") {
@@ -656,7 +656,7 @@ private struct WorkoutGlyph: View {
   )
   .theme(DefaultTheme())
   .watchLayoutScale(WatchLayoutScale(category: .standard))
-  .previewDevice("Apple Watch Series 9 (45mm)")
+  
 }
 
 #Preview("Workout Session – Rating Ultra") {
@@ -676,7 +676,7 @@ private struct WorkoutGlyph: View {
   )
   .theme(DefaultTheme())
   .watchLayoutScale(WatchLayoutScale(category: .expanded))
-  .previewDevice("Apple Watch Ultra 2 (49mm)")
+  
 }
 
 private enum WorkoutSessionPreviewData {
