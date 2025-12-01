@@ -93,68 +93,45 @@ struct SettingsTabView: View {
 private extension SettingsTabView {
     var accountSection: some View {
         Section("Account") {
-            switch auth.state {
-            case .signedOut:
-                VStack(alignment: .leading, spacing: 16) {
-                    Text("You're not signed in")
-                        .font(.headline)
+            signedInAccountContent
+        }
+    }
 
-                    Text("RefZone on iPhone now requires a signed-in account. Sign in to access match history, schedules, trends, and team management.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-
-                    Button {
-                        authCoordinator.showSignIn()
-                    } label: {
-                        Label("Sign In", systemImage: "person.crop.circle")
-                            .frame(maxWidth: .infinity)
+    @ViewBuilder
+    var signedInAccountContent: some View {
+        if case let .signedIn(_, _, displayName) = auth.state {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Image(systemName: "person.circle.fill")
+                        .font(.system(size: 36))
+                        .foregroundStyle(.tint)
+                    VStack(alignment: .leading) {
+                        Text(displayName ?? "Signed in")
+                            .font(.headline)
+                        Text("You're connected with your RefZone account.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
                     }
-                    .buttonStyle(.borderedProminent)
-
-                    Button {
-                        authCoordinator.showSignUp()
-                    } label: {
-                        Label("Create Account", systemImage: "sparkles")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.bordered)
-
-                    Text("Want a refresher on what's included? Review the Welcome screen for a quick overview of what signing in unlocks.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-
-                    Button("Show Welcome Again") {
-                        authCoordinator.showWelcome()
-                    }
-                    .buttonStyle(.plain)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    Spacer()
                 }
-            case let .signedIn(_, _, displayName):
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Image(systemName: "person.circle.fill")
-                            .font(.system(size: 36))
-                            .foregroundStyle(.tint)
-                        VStack(alignment: .leading) {
-                            Text(displayName ?? "Signed in")
-                                .font(.headline)
-                            Text("You're connected with your RefZone account.")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
+                Button(role: .destructive, action: signOut) {
+                    if authViewModel.isPerformingAction {
+                        ProgressView()
+                    } else {
+                        Label("Sign Out", systemImage: "rectangle.portrait.and.arrow.right")
                     }
-                    Button(role: .destructive, action: signOut) {
-                        if authViewModel.isPerformingAction {
-                            ProgressView()
-                        } else {
-                            Label("Sign Out", systemImage: "rectangle.portrait.and.arrow.right")
-                        }
-                    }
-                    .disabled(authViewModel.isPerformingAction)
                 }
+                .disabled(authViewModel.isPerformingAction)
             }
+        } else {
+            // Fallback for unexpected states; redirect into the auth flow instead of showing a secondary CTA surface here.
+            HStack(spacing: 8) {
+                ProgressView()
+                Text("Reopening sign-in…")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            .onAppear { authCoordinator.showSignIn() }
         }
     }
 
