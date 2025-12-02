@@ -598,7 +598,7 @@ private struct MatchEventDetailRow: View {
     switch event.eventType {
     case .goal:
       return "soccerball"
-    case .card(let details):
+    case .card:
       return "square.fill"
     case .substitution:
       return "arrow.up.arrow.down"

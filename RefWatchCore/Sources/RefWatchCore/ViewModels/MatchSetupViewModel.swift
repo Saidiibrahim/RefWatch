@@ -7,6 +7,7 @@
 
 import Foundation
 
+@MainActor
 public final class MatchSetupViewModel {
     public let matchViewModel: MatchViewModel
     public private(set) var selectedTab: Int = 1 // Start in middle tab
@@ -23,4 +24,3 @@ public final class MatchSetupViewModel {
         matchViewModel.startMatch()
     }
 }
-

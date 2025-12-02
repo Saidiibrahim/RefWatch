@@ -51,13 +51,14 @@ internal import os
 /// of truth for authentication.
 
 /// An extension of ``AuthenticationProviding`` that surfaces a Combine publisher for doc-friendly composition.
+@MainActor
 protocol SupabaseAuthStateProviding: AuthenticationProviding {
     /// A publisher that emits whenever ``SupabaseAuthController/state`` changes.
     var statePublisher: AnyPublisher<AuthState, Never> { get }
 }
 
 @MainActor
-final class SupabaseAuthController: ObservableObject, SupabaseAuthStateProviding {
+final class SupabaseAuthController: ObservableObject {
     /// The authoritative authentication state consumed by SwiftUI views and stores.
     @Published private(set) var state: AuthState = .signedOut
     /// The most recent user-presentable error emitted by a Supabase auth flow.
@@ -347,3 +348,6 @@ final class SupabaseAuthController: ObservableObject, SupabaseAuthStateProviding
         return nil
     }
 }
+
+@MainActor
+extension SupabaseAuthController: SupabaseAuthStateProviding {}

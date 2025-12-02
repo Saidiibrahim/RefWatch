@@ -28,19 +28,19 @@ final class SupabaseCompetitionLibraryRepository: CompetitionLibraryStoring {
     private var pendingPushes: Set<UUID> = []
     private var pendingDeletions: Set<UUID>
     private var processingTask: Task<Void, Never>?
-    private var remoteCursor: Date?
+  private var remoteCursor: Date?
 
-    var changesPublisher: AnyPublisher<[CompetitionRecord], Never> {
-        store.changesPublisher
-    }
+  var changesPublisher: AnyPublisher<[CompetitionRecord], Never> {
+    store.changesPublisher
+  }
 
-    init(
-        store: SwiftDataCompetitionLibraryStore,
-        authStateProvider: SupabaseAuthStateProviding,
-        api: SupabaseCompetitionLibraryServing = SupabaseCompetitionLibraryAPI(),
-        backlog: CompetitionLibrarySyncBacklogStoring = SupabaseCompetitionSyncBacklogStore(),
-        dateProvider: @escaping () -> Date = Date.init
-    ) {
+  init(
+    store: SwiftDataCompetitionLibraryStore,
+    authStateProvider: SupabaseAuthStateProviding,
+    api: SupabaseCompetitionLibraryServing,
+    backlog: CompetitionLibrarySyncBacklogStoring,
+    dateProvider: @escaping () -> Date = Date.init
+  ) {
         self.store = store
         self.authStateProvider = authStateProvider
         self.api = api
@@ -430,7 +430,7 @@ private extension SupabaseCompetitionLibraryRepository {
     }
 
     func applyOwnerIdentityIfNeeded(competitionId: UUID) {
-        guard let ownerUUID else { return }
+        guard ownerUUID != nil else { return }
         guard let records = try? store.loadAll(),
               let record = records.first(where: { $0.id == competitionId }) else {
             return

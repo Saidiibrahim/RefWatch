@@ -85,37 +85,48 @@ struct RefZoneiOSApp: App {
         let matchRepo = SupabaseMatchHistoryRepository(
             store: swiftHistoryStore,
             authStateProvider: authController,
+            api: SupabaseMatchIngestService(),
+            backlog: SupabaseMatchSyncBacklogStore(),
             deviceIdProvider: { UIDevice.current.identifierForVendor?.uuidString }
         )
         let historyRepo: MatchHistoryStoring = matchRepo
         let matchSyncController: MatchHistorySyncControlling? = matchRepo
 
         let jStore: JournalEntryStoring = SupabaseJournalRepository(
-            authStateProvider: authController
+            authStateProvider: authController,
+            api: SupabaseJournalAPI()
         )
 
         let swiftScheduleStore = SwiftDataScheduleStore(container: container, auth: authController)
         let schedStore: ScheduleStoring = SupabaseScheduleRepository(
             store: swiftScheduleStore,
-            authStateProvider: authController
+            authStateProvider: authController,
+            api: SupabaseScheduleAPI(),
+            backlog: SupabaseScheduleSyncBacklogStore()
         )
 
         let swiftTeamStore = SwiftDataTeamLibraryStore(container: container, auth: authController)
         let tStore: TeamLibraryStoring = SupabaseTeamLibraryRepository(
             store: swiftTeamStore,
-            authStateProvider: authController
+            authStateProvider: authController,
+            api: SupabaseTeamLibraryAPI(),
+            backlog: SupabaseTeamSyncBacklogStore()
         )
 
         let swiftCompetitionStore = SwiftDataCompetitionLibraryStore(container: container, auth: authController)
         let cStore: CompetitionLibraryStoring = SupabaseCompetitionLibraryRepository(
             store: swiftCompetitionStore,
-            authStateProvider: authController
+            authStateProvider: authController,
+            api: SupabaseCompetitionLibraryAPI(),
+            backlog: SupabaseCompetitionSyncBacklogStore()
         )
 
         let swiftVenueStore = SwiftDataVenueLibraryStore(container: container, auth: authController)
         let vStore: VenueLibraryStoring = SupabaseVenueLibraryRepository(
             store: swiftVenueStore,
-            authStateProvider: authController
+            authStateProvider: authController,
+            api: SupabaseVenueLibraryAPI(),
+            backlog: SupabaseVenueSyncBacklogStore()
         )
 
         let scheduleUpdater = MatchScheduleStatusUpdater(scheduleStore: schedStore)
@@ -180,7 +191,7 @@ struct RefZoneiOSApp: App {
                     authCoordinator.activeScreen = screen
                     router.authenticationRequest = nil
                 }
-                .onChange(of: scenePhase) { phase in
+                .onChange(of: scenePhase) { _, phase in
                     // Keep WCSession alive while signed in, even when backgrounded.
                     // Only stop on explicit sign-out (handled in auth state onChange).
                     // This ensures the watch can sync library data and completed matches
@@ -199,7 +210,7 @@ struct RefZoneiOSApp: App {
                         break
                     }
                 }
-                .onChange(of: authController.state) { state in
+                .onChange(of: authController.state) { _, state in
                     switch state {
                     case .signedIn:
                         if scenePhase == .active { syncController.start() }

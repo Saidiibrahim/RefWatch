@@ -23,7 +23,7 @@ struct WorkoutSessionPreviewView: View {
         haptics.play(.failure)
       }
     }
-    .onChange(of: error) { newValue in
+    .onChange(of: error) { _, newValue in
       if newValue != nil {
         haptics.play(.failure)
       }

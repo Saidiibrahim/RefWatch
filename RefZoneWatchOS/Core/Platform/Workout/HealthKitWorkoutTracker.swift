@@ -4,7 +4,7 @@ import HealthKit
 @preconcurrency import RefWorkoutCore
 
 @MainActor
-final class HealthKitWorkoutTracker: NSObject, WorkoutSessionTracking {
+final class HealthKitWorkoutTracker: NSObject {
   private let healthStore: HKHealthStore
   private var activeSessions: [UUID: ManagedSession] = [:]
   private var sessionLookup: [ObjectIdentifier: UUID] = [:]
@@ -28,7 +28,7 @@ final class HealthKitWorkoutTracker: NSObject, WorkoutSessionTracking {
     session.delegate = self
 
     let startDate = Date()
-    var workoutSession = WorkoutSession(
+    let workoutSession = WorkoutSession(
       state: .active,
       kind: configuration.kind,
       title: configuration.title,
@@ -140,8 +140,10 @@ final class HealthKitWorkoutTracker: NSObject, WorkoutSessionTracking {
     if let distance = workout.totalDistance?.doubleValue(for: HKUnit.meter()) {
       session.summary.totalDistance = distance
     }
-    if let energy = workout.totalEnergyBurned?.doubleValue(for: HKUnit.kilocalorie()) {
-      session.summary.activeEnergy = energy
+    if let energyType = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned),
+       let stats = builder.statistics(for: energyType),
+       let sum = stats.sumQuantity()?.doubleValue(for: HKUnit.kilocalorie()) {
+      session.summary.activeEnergy = sum
     }
 
     if let heartRateType = HKQuantityType.quantityType(forIdentifier: .heartRate),
@@ -280,6 +282,8 @@ final class HealthKitWorkoutTracker: NSObject, WorkoutSessionTracking {
     return activeSessions[modelId]
   }
 }
+
+extension HealthKitWorkoutTracker: @MainActor WorkoutSessionTracking {}
 
 extension HealthKitWorkoutTracker: HKWorkoutSessionDelegate {
   nonisolated func workoutSession(_ workoutSession: HKWorkoutSession, didChangeTo toState: HKWorkoutSessionState, from fromState: HKWorkoutSessionState, date: Date) {

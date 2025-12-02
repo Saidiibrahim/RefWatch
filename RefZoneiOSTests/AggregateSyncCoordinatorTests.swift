@@ -16,6 +16,7 @@ final class AggregateSyncCoordinatorTests: XCTestCase {
         let venueStore = InMemoryVenueLibraryStore()
         let scheduleStore = InMemoryScheduleStore()
         let client = IOSConnectivitySyncClient(history: history, auth: auth)
+        let builder = AggregateSnapshotBuilder()
 
         let coordinator = AggregateSyncCoordinator(
             teamStore: teamStore,
@@ -24,7 +25,8 @@ final class AggregateSyncCoordinatorTests: XCTestCase {
             scheduleStore: scheduleStore,
             historyStore: history,
             auth: auth,
-            client: client
+            client: client,
+            builder: builder
         )
 
         coordinator.start()

@@ -12,6 +12,7 @@ import Observation
 // MARK: - TimerManager Integration
 
 @Observable
+@MainActor
 public final class MatchViewModel {
     // MARK: - Properties
     public internal(set) var currentMatch: Match?
@@ -1085,21 +1086,22 @@ public final class MatchViewModel {
         return "\(home) vs \(away)"
     }
 
-    private func matchMetadata(for match: Match) -> [String: String] {
-        var data: [String: String] = [
-            "matchId": match.id.uuidString,
-            "homeTeam": match.homeTeam,
-            "awayTeam": match.awayTeam
+  private func matchMetadata(for match: Match) -> [String: String] {
+    var data: [String: String] = [
+      "matchId": match.id.uuidString,
+      "homeTeam": match.homeTeam,
+      "awayTeam": match.awayTeam
         ]
-        data["currentPeriod"] = String(currentPeriod)
-        data["hasExtraTime"] = match.hasExtraTime ? "true" : "false"
-        return data
-    }
+    data["currentPeriod"] = String(currentPeriod)
+    data["hasExtraTime"] = match.hasExtraTime ? "true" : "false"
+    return data
+  }
 
-    deinit {
-        backgroundRuntimeManager?.end(reason: .reset)
-        timerManager.stopAll()
-        timer?.invalidate()
-        stoppageTimer?.invalidate()
-    }
+  @MainActor
+  deinit {
+    timerManager.stopAll()
+    backgroundRuntimeManager?.end(reason: .reset)
+    timer?.invalidate()
+    stoppageTimer?.invalidate()
+  }
 }

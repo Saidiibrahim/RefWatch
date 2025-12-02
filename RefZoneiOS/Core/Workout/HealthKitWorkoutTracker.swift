@@ -32,7 +32,7 @@ final class IOSHealthKitWorkoutTracker: NSObject, WorkoutSessionTracking {
       session.delegate = self
 
       let startDate = Date()
-      var workoutSession = WorkoutSession(
+      let workoutSession = WorkoutSession(
         state: .active,
         kind: configuration.kind,
         title: configuration.title,
@@ -46,7 +46,7 @@ final class IOSHealthKitWorkoutTracker: NSObject, WorkoutSessionTracking {
 
       try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
         builder.beginCollection(withStart: startDate) { [weak self] success, error in
-          Task { @MainActor in
+          Task { @MainActor [weak self] in
             guard success, error == nil else {
               session.stopActivity(with: Date())
               session.end()
@@ -54,9 +54,15 @@ final class IOSHealthKitWorkoutTracker: NSObject, WorkoutSessionTracking {
               continuation.resume(throwing: error ?? WorkoutSessionError.collectionBeginFailed)
               return
             }
+
+            guard let self else {
+              continuation.resume(throwing: WorkoutSessionError.collectionBeginFailed)
+              return
+            }
+
             let managed = ManagedSession(configuration: configuration, session: session, builder: builder, model: workoutSession)
-            self?.activeSessions[workoutSession.id] = managed
-            self?.sessionLookup[ObjectIdentifier(session)] = workoutSession.id
+            activeSessions[workoutSession.id] = managed
+            sessionLookup[ObjectIdentifier(session)] = workoutSession.id
             continuation.resume(returning: ())
           }
         }
@@ -69,7 +75,7 @@ final class IOSHealthKitWorkoutTracker: NSObject, WorkoutSessionTracking {
       // HKWorkoutBuilder on iOS doesn't expose delegate hooks, so we only keep a reference for summary data.
       
       let startDate = Date()
-      var workoutSession = WorkoutSession(
+      let workoutSession = WorkoutSession(
         state: .active,
         kind: configuration.kind,
         title: configuration.title,
@@ -81,13 +87,19 @@ final class IOSHealthKitWorkoutTracker: NSObject, WorkoutSessionTracking {
 
       try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
         builder.beginCollection(withStart: startDate) { [weak self] success, error in
-          Task { @MainActor in
+          Task { @MainActor [weak self] in
             guard success, error == nil else {
               continuation.resume(throwing: error ?? WorkoutSessionError.collectionBeginFailed)
               return
             }
+
+            guard let self else {
+              continuation.resume(throwing: WorkoutSessionError.collectionBeginFailed)
+              return
+            }
+
             let managed = ManagedSession(configuration: configuration, session: nil, builder: builder, model: workoutSession)
-            self?.activeSessions[workoutSession.id] = managed
+            activeSessions[workoutSession.id] = managed
             continuation.resume(returning: ())
           }
         }
@@ -238,13 +250,13 @@ final class IOSHealthKitWorkoutTracker: NSObject, WorkoutSessionTracking {
   func liveMetricsStream() -> AsyncStream<WorkoutLiveMetrics> {
     AsyncStream { continuation in
       let token = UUID()
-      continuation.onTermination = { @Sendable _ in
-        Task { @MainActor in
-          self.liveMetricsContinuations.removeValue(forKey: token)
+      continuation.onTermination = { @Sendable [weak self] _ in
+        Task { @MainActor [weak self] in
+          self?.liveMetricsContinuations.removeValue(forKey: token)
         }
       }
-      Task { @MainActor in
-        self.liveMetricsContinuations[token] = continuation
+      Task { @MainActor [weak self] in
+        self?.liveMetricsContinuations[token] = continuation
       }
     }
   }
@@ -451,63 +463,67 @@ extension IOSHealthKitWorkoutTracker: HKWorkoutSessionDelegate {
 }
 
 // MARK: - HKLiveWorkoutBuilderDelegate (iOS 26.0+)
-@available(iOS 26.0, *)
-extension IOSHealthKitWorkoutTracker: HKLiveWorkoutBuilderDelegate {
-  nonisolated func workoutBuilder(_ workoutBuilder: HKLiveWorkoutBuilder, didCollectDataOf collectedTypes: Set<HKSampleType>) {
-    Task { @MainActor in
-      guard
-        let session = workoutBuilder.workoutSession,
-        let managed = self.managedSession(for: session),
-        let metrics = self.metrics(for: workoutBuilder, session: managed, collectedTypes: collectedTypes)
-      else {
-        return
+  @available(iOS 26.0, *)
+  extension IOSHealthKitWorkoutTracker: HKLiveWorkoutBuilderDelegate {
+    nonisolated func workoutBuilder(_ workoutBuilder: HKLiveWorkoutBuilder, didCollectDataOf collectedTypes: Set<HKSampleType>) {
+      Task { @MainActor [weak self] in
+        guard let self else { return }
+        guard
+          let session = workoutBuilder.workoutSession,
+          let managed = self.managedSession(for: session),
+          let metrics = self.metrics(for: workoutBuilder, session: managed, collectedTypes: collectedTypes)
+        else {
+          return
+        }
+        self.broadcastLiveMetrics(metrics)
       }
-      self.broadcastLiveMetrics(metrics)
     }
-  }
 
-  nonisolated func workoutBuilderDidCollectEvent(_ workoutBuilder: HKLiveWorkoutBuilder) {
-    Task { @MainActor in
-      guard
-        let session = workoutBuilder.workoutSession,
-        let managed = self.managedSession(for: session),
-        let hkEvent = workoutBuilder.workoutEvents.last
-      else {
-        return
-      }
+    nonisolated func workoutBuilderDidCollectEvent(_ workoutBuilder: HKLiveWorkoutBuilder) {
+      Task { @MainActor [weak self] in
+        guard let self else { return }
+        guard
+          let session = workoutBuilder.workoutSession,
+          let managed = self.managedSession(for: session),
+          let hkEvent = workoutBuilder.workoutEvents.last
+        else {
+          return
+        }
 
       let timestamp = hkEvent.dateInterval.start
       let payload = ["type": hkEvent.type.refIdentifier]
       let domainEvent = WorkoutEvent.custom(name: "healthKitEvent", payload: payload, timestamp: timestamp)
       managed.events.append(domainEvent)
-    }
-  }
-
-  nonisolated func workoutBuilderDidCollectData(_ workoutBuilder: HKLiveWorkoutBuilder) {
-    Task { @MainActor in
-      guard
-        let session = workoutBuilder.workoutSession,
-        let managed = self.managedSession(for: session),
-        let metrics = self.metrics(for: workoutBuilder, session: managed, collectedTypes: nil)
-      else {
-        return
       }
-      self.broadcastLiveMetrics(metrics)
     }
-  }
 
-  nonisolated func workoutBuilderDidCollectMetrics(_ workoutBuilder: HKLiveWorkoutBuilder) {
-    Task { @MainActor in
-      guard
-        let session = workoutBuilder.workoutSession,
-        let managed = self.managedSession(for: session),
-        let metrics = self.metrics(for: workoutBuilder, session: managed, collectedTypes: nil)
-      else {
-        return
+    nonisolated func workoutBuilderDidCollectData(_ workoutBuilder: HKLiveWorkoutBuilder) {
+      Task { @MainActor [weak self] in
+        guard let self else { return }
+        guard
+          let session = workoutBuilder.workoutSession,
+          let managed = self.managedSession(for: session),
+          let metrics = self.metrics(for: workoutBuilder, session: managed, collectedTypes: nil)
+        else {
+          return
+        }
+        self.broadcastLiveMetrics(metrics)
       }
-      self.broadcastLiveMetrics(metrics)
     }
-  }
+
+    nonisolated func workoutBuilderDidCollectMetrics(_ workoutBuilder: HKLiveWorkoutBuilder) {
+      Task { @MainActor [weak self] in
+        guard let self else { return }
+        guard
+          let session = workoutBuilder.workoutSession,
+          let managed = self.managedSession(for: session),
+          let metrics = self.metrics(for: workoutBuilder, session: managed, collectedTypes: nil)
+        else {
+          return
+        }
+        self.broadcastLiveMetrics(metrics)
+      }
+    }
 
   nonisolated func workoutBuilderDidFinishCollection(_ workoutBuilder: HKLiveWorkoutBuilder) {}
 }

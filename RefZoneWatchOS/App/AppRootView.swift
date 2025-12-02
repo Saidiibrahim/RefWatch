@@ -24,7 +24,7 @@ struct AppRootView: View {
       }
     }
     .environment(\.modeSwitcherPresentation, $showModeSwitcher)
-    .onChange(of: appModeController.currentMode) { mode in
+    .onChange(of: appModeController.currentMode) { _, mode in
       if mode == .workout {
         workoutViewID = UUID()
       }

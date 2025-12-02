@@ -66,7 +66,7 @@ struct MatchesTabView: View {
                     )
                 }
             }
-            .onChange(of: matchViewModel.matchCompleted) { completed in
+            .onChange(of: matchViewModel.matchCompleted) { _, completed in
                 guard completed, isSignedIn else { return }
                 refreshRecentAndPrompt()
             }
@@ -95,7 +95,7 @@ struct MatchesTabView: View {
                 refreshRecentAndPrompt()
                 refreshSchedule()
             }
-            .onChange(of: isSignedIn) { signedIn in
+            .onChange(of: isSignedIn) { _, signedIn in
                 if signedIn == false {
                     path = []
                     showingAddUpcoming = false

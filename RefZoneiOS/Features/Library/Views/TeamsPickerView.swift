@@ -31,7 +31,7 @@ struct TeamsPickerView: View {
         }
         .navigationTitle("Select Team")
         .searchable(text: $search)
-        .onChange(of: search) { _ in refresh() }
+        .onChange(of: search) { _, _ in refresh() }
         .onAppear { refresh() }
     }
 
@@ -41,4 +41,3 @@ struct TeamsPickerView: View {
 }
 
 #Preview { NavigationStack { TeamsPickerView(teamStore: InMemoryTeamLibraryStore(), onSelect: { _ in }) } }
-

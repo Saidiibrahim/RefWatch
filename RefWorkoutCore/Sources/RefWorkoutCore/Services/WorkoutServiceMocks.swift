@@ -16,7 +16,8 @@ public final class WorkoutAuthorizationManagerStub: WorkoutAuthorizationManaging
   }
 }
 
-public actor WorkoutSessionTrackerStub: WorkoutSessionTracking {
+@MainActor
+public final class WorkoutSessionTrackerStub: WorkoutSessionTracking {
   public private(set) var sessions: [UUID: WorkoutSession] = [:]
   public private(set) var events: [UUID: [WorkoutEvent]] = [:]
   public private(set) var pausedSessions: Set<UUID> = []
@@ -68,15 +69,15 @@ public actor WorkoutSessionTrackerStub: WorkoutSessionTracking {
     events[sessionId] = sessionEvents
   }
 
-  public nonisolated func liveMetricsStream() -> AsyncStream<WorkoutLiveMetrics> {
+  public func liveMetricsStream() -> AsyncStream<WorkoutLiveMetrics> {
     AsyncStream { continuation in
       let token = UUID()
-      Task {
-        await self.registerContinuation(token: token, continuation: continuation)
+      Task { @MainActor in
+        self.registerContinuation(token: token, continuation: continuation)
       }
       continuation.onTermination = { @Sendable _ in
-        Task {
-          await self.removeContinuation(token: token)
+        Task { @MainActor in
+          self.removeContinuation(token: token)
         }
       }
     }
@@ -108,6 +109,7 @@ public actor WorkoutSessionTrackerStub: WorkoutSessionTracking {
 }
 
 public extension WorkoutServices {
+  @MainActor
   static func inMemoryStub(
     presets: [WorkoutPreset] = [],
     historySessions: [WorkoutSession] = [],

@@ -48,7 +48,7 @@ struct TeamsListView: View {
         }
         .navigationTitle("Teams")
         .searchable(text: $search)
-        .onChange(of: search) { _ in refresh() }
+        .onChange(of: search) { _, _ in refresh() }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button { showingNewTeam = true } label: { Label("New Team", systemImage: "plus") }

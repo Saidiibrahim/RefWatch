@@ -3,6 +3,7 @@ import Observation
 import RefWatchCore
 import RefWorkoutCore
 
+@MainActor
 @Observable
 final class WorkoutTimerFaceModel: TimerFaceModel {
   private(set) var matchTime: String = "00:00"
@@ -29,6 +30,7 @@ final class WorkoutTimerFaceModel: TimerFaceModel {
     configureInitialState()
   }
 
+  @MainActor
   deinit {
     timer?.invalidate()
   }
@@ -86,7 +88,10 @@ final class WorkoutTimerFaceModel: TimerFaceModel {
     // Use 0.1 second interval (10 updates per second) for smooth centisecond updates
     // This is appropriate for a sports workout timer that needs to show continuous millisecond progression
     timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
-      self?.refreshStrings(asOf: Date())
+      Task { @MainActor [weak self] in
+        guard let self else { return }
+        refreshStrings(asOf: Date())
+      }
     }
     // Ensure timer runs on common run loop modes for better reliability during UI interactions
     if let timer = timer {

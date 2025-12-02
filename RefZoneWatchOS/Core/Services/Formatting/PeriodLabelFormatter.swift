@@ -10,6 +10,7 @@ import Foundation
 import RefWatchCore
 
 struct PeriodLabelFormatter {
+  @MainActor
   static func label(for model: MatchViewModel) -> String {
     if model.isHalfTime && !model.waitingForHalfTimeStart { return "Half Time" }
     if model.waitingForHalfTimeStart { return "Half Time" }
@@ -26,4 +27,3 @@ struct PeriodLabelFormatter {
     }
   }
 }
-

@@ -2,9 +2,11 @@ import SwiftUI
 import RefWorkoutCore
 
 private struct WorkoutServicesKey: EnvironmentKey {
-  static let defaultValue: WorkoutServices = .inMemoryStub()
+  @MainActor
+  static var defaultValue: WorkoutServices { .inMemoryStub() }
 }
 
+@MainActor
 public extension EnvironmentValues {
   var workoutServices: WorkoutServices {
     get { self[WorkoutServicesKey.self] }
@@ -12,6 +14,7 @@ public extension EnvironmentValues {
   }
 }
 
+@MainActor
 public extension View {
   func workoutServices(_ services: WorkoutServices) -> some View {
     environment(\.workoutServices, services)

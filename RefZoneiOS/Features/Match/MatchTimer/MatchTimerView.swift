@@ -107,29 +107,29 @@ struct MatchTimerView: View {
                 }
             }
         }
-        .onChange(of: matchViewModel.isFullTime) { isFT in
+        .onChange(of: matchViewModel.isFullTime) { _, isFT in
             if isFT { activeSheet = .fullTime }
         }
-        .onChange(of: matchViewModel.matchCompleted) { completed in
+        .onChange(of: matchViewModel.matchCompleted) { _, completed in
             // After finalize, pop back to Matches hub (if we are still on timer)
             if completed { dismiss() }
         }
-        .onChange(of: matchViewModel.waitingForSecondHalfStart) { waiting in
+        .onChange(of: matchViewModel.waitingForSecondHalfStart) { _, waiting in
             if waiting {
                 kickoffDefaultSecond = matchViewModel.getSecondHalfKickingTeam()
                 activeSheet = .kickoffSecond(kickoffDefaultSecond)
             }
         }
-        .onChange(of: matchViewModel.waitingForET1Start) { waiting in
+        .onChange(of: matchViewModel.waitingForET1Start) { _, waiting in
             if waiting { activeSheet = .kickoffET1 }
         }
-        .onChange(of: matchViewModel.waitingForET2Start) { waiting in
+        .onChange(of: matchViewModel.waitingForET2Start) { _, waiting in
             if waiting {
                 kickoffDefaultET2 = matchViewModel.getETSecondHalfKickingTeam()
                 activeSheet = .kickoffET2(kickoffDefaultET2)
             }
         }
-        .onChange(of: matchViewModel.waitingForPenaltiesStart) { waiting in
+        .onChange(of: matchViewModel.waitingForPenaltiesStart) { _, waiting in
             if waiting { chainToPenaltyShootout = true; activeSheet = .penFirst }
         }
         .alert("Save Failed", isPresented: $errorAlert.isPresented) {
@@ -312,7 +312,7 @@ private struct EventsLogView: View {
                     .padding(.horizontal)
                 }
                 .onAppear { scrollToLatest(proxy) }
-                .onChange(of: matchViewModel.matchEvents.count) { _ in
+                .onChange(of: matchViewModel.matchEvents.count) { _, _ in
                     scrollToLatest(proxy)
                 }
             }

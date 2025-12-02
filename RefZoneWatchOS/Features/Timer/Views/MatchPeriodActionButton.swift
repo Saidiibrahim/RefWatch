@@ -251,8 +251,8 @@ struct MatchPeriodActionButton: View {
     
     /// Executes end half action after confirmation
     private func executeEndHalf() {
-        guard let match = matchViewModel.currentMatch else { return }
-        
+        guard matchViewModel.currentMatch != nil else { return }
+
         let isFirstHalf = matchViewModel.currentPeriod == 1
         matchViewModel.endCurrentPeriod()
         
@@ -332,4 +332,3 @@ struct MatchPeriodActionButton: View {
     .watchLayoutScale(WatchLayoutScale(category: .compact))
     
 }
-

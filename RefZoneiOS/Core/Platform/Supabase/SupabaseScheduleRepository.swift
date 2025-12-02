@@ -36,8 +36,8 @@ final class SupabaseScheduleRepository: ScheduleStoring {
   init(
     store: SwiftDataScheduleStore,
     authStateProvider: SupabaseAuthStateProviding,
-    api: SupabaseScheduleServing = SupabaseScheduleAPI(),
-    backlog: ScheduleSyncBacklogStoring = SupabaseScheduleSyncBacklogStore(),
+    api: SupabaseScheduleServing,
+    backlog: ScheduleSyncBacklogStoring,
     metadataPersistor: ScheduleMetadataPersisting? = nil,
     dateProvider: @escaping () -> Date = Date.init,
     pullInterval: TimeInterval = 300

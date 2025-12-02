@@ -119,7 +119,7 @@ extension OpenAIAssistantService {
 
 // MARK: - Request Building
 
-private extension OpenAIAssistantService {
+extension OpenAIAssistantService {
   static func buildResponsesPayload(
     model: String,
     systemPrompt: String,
@@ -191,7 +191,7 @@ private extension OpenAIAssistantService {
 
 // MARK: - Streaming Pipeline
 
-private extension OpenAIAssistantService {
+extension OpenAIAssistantService {
   // OpenAI Responses API documentation:
   // https://platform.openai.com/docs/api-reference/responses/create
   // Streaming events reference:
@@ -259,36 +259,36 @@ private extension OpenAIAssistantService {
 
 // MARK: - Types
 
-private extension OpenAIAssistantService {
-  internal struct ResponsesPayload: Encodable {
+extension OpenAIAssistantService {
+  struct ResponsesPayload: Encodable {
     let model: String
     let stream: Bool
     let instructions: String
     let input: [InputMessage]
 
-    internal struct InputMessage: Encodable {
+    struct InputMessage: Encodable {
       let role: String
       let content: [InputContent]
     }
 
-    internal struct InputContent: Encodable {
+    struct InputContent: Encodable {
       let type = "input_text"
       let text: String
     }
   }
 
-  internal struct OutputTextDeltaEvent: Decodable {
+  struct OutputTextDeltaEvent: Decodable {
     let delta: String?
   }
 
-  internal struct ResponseDoneEvent: Decodable {
-    internal struct ResponseSummary: Decodable {
+  struct ResponseDoneEvent: Decodable {
+    struct ResponseSummary: Decodable {
       let id: String?
       let status: String?
       let usage: Usage?
     }
 
-    internal struct Usage: Decodable {
+    struct Usage: Decodable {
       let totalTokens: Int?
       let inputTokens: Int?
       let outputTokens: Int?
@@ -297,14 +297,14 @@ private extension OpenAIAssistantService {
     let response: ResponseSummary?
   }
 
-  internal struct ResponseCompletedEvent: Decodable {
-    internal struct ResponseSummary: Decodable {
+  struct ResponseCompletedEvent: Decodable {
+    struct ResponseSummary: Decodable {
       let id: String?
       let status: String?
       let usage: Usage?
     }
 
-    internal struct Usage: Decodable {
+    struct Usage: Decodable {
       let totalTokens: Int?
       let inputTokens: Int?
       let outputTokens: Int?
@@ -313,8 +313,8 @@ private extension OpenAIAssistantService {
     let response: ResponseSummary?
   }
 
-  internal struct ErrorEvent: Decodable {
-    internal struct ErrorPayload: Decodable {
+  struct ErrorEvent: Decodable {
+    struct ErrorPayload: Decodable {
       let message: String?
       let code: String?
       let type: String?
@@ -323,13 +323,13 @@ private extension OpenAIAssistantService {
     let error: ErrorPayload?
   }
 
-  internal struct ResponsesUsage {
+  struct ResponsesUsage {
     let totalTokens: Int?
     let inputTokens: Int?
     let outputTokens: Int?
   }
 
-  internal struct ResponsesStreamParser {
+  struct ResponsesStreamParser {
     private var currentEvent: String?
     private var dataFragments: [String] = []
 

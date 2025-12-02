@@ -512,9 +512,9 @@ private extension IOSConnectivitySyncClient {
 
             stateQueue.sync {
                 if let failed = failedEnvelope {
-                    pendingAggregateDeltas.insert(failed, at: 0)
+                    self.pendingAggregateDeltas.insert(failed, at: 0)
                 }
-                isProcessingAggregateDeltas = false
+                self.isProcessingAggregateDeltas = false
             }
 
             if failedEnvelope != nil {

@@ -24,7 +24,7 @@ final class AssistantViewModel: ObservableObject {
         input = ""
         messages.append(ChatMessage(role: .user, text: text))
 
-        var assistant = ChatMessage(role: .assistant, text: "")
+        let assistant = ChatMessage(role: .assistant, text: "")
         messages.append(assistant)
         let index = messages.count - 1
 

@@ -12,13 +12,15 @@ public enum BackgroundRuntimeEndReason: Sendable, Equatable {
   case failure
 }
 
-public protocol BackgroundRuntimeManaging: AnyObject, Sendable {
+@MainActor
+public protocol BackgroundRuntimeManaging: AnyObject {
   func begin(kind: BackgroundRuntimeActivityKind, title: String?, metadata: [String: String])
   func notifyPause()
   func notifyResume()
   func end(reason: BackgroundRuntimeEndReason)
 }
 
+@MainActor
 public final class NoopBackgroundRuntimeManager: BackgroundRuntimeManaging {
   public init() {}
   public func begin(kind: BackgroundRuntimeActivityKind, title: String?, metadata: [String: String]) {}

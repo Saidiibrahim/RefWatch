@@ -60,7 +60,7 @@ struct AssistantTabView: View {
                         .padding(.horizontal)
                         .padding(.top, 8)
                     }
-                    .onChange(of: viewModel.messages.last?.id) { id in
+                    .onChange(of: viewModel.messages.last?.id) { _, id in
                         guard let id else { return }
                         withAnimation { proxy.scrollTo(id, anchor: .bottom) }
                     }

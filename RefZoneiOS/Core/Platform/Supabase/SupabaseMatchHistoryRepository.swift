@@ -38,8 +38,8 @@ final class SupabaseMatchHistoryRepository: MatchHistoryStoring, MatchHistorySyn
   init(
     store: SwiftDataMatchHistoryStore,
     authStateProvider: SupabaseAuthStateProviding,
-    api: SupabaseMatchIngestServing = SupabaseMatchIngestService(),
-    backlog: MatchSyncBacklogStoring = SupabaseMatchSyncBacklogStore(),
+    api: SupabaseMatchIngestServing,
+    backlog: MatchSyncBacklogStoring,
     dateProvider: @escaping () -> Date = Date.init,
     deviceIdProvider: @escaping () -> String? = { nil },
     pullInterval: TimeInterval = 600,

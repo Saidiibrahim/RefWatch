@@ -33,14 +33,14 @@ final class AggregateSyncCoordinator {
     init(
         teamStore: TeamLibraryStoring,
         competitionStore: CompetitionLibraryStoring,
-        venueStore: VenueLibraryStoring,
-        scheduleStore: ScheduleStoring,
-        historyStore: MatchHistoryStoring,
-        auth: SupabaseAuthStateProviding,
-        client: IOSConnectivitySyncClient,
-        builder: AggregateSnapshotBuilder = AggregateSnapshotBuilder(),
-        acknowledgedChangeIdsProvider: @escaping () -> [UUID] = { [] }
-    ) {
+    venueStore: VenueLibraryStoring,
+    scheduleStore: ScheduleStoring,
+    historyStore: MatchHistoryStoring,
+    auth: SupabaseAuthStateProviding,
+    client: IOSConnectivitySyncClient,
+    builder: AggregateSnapshotBuilder,
+    acknowledgedChangeIdsProvider: @escaping () -> [UUID] = { [] }
+  ) {
         self.teamStore = teamStore
         self.competitionStore = competitionStore
         self.venueStore = venueStore
@@ -66,17 +66,22 @@ final class AggregateSyncCoordinator {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            // Debounce snapshot refreshes to avoid rapid rebuilds
-            self?.snapshotRefreshTask?.cancel()
-            self?.snapshotRefreshTask = Task { @MainActor in
-                try? await Task.sleep(for: .milliseconds(500))
-                self?.requestSnapshotRefresh()
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                // Debounce snapshot refreshes to avoid rapid rebuilds
+                self.snapshotRefreshTask?.cancel()
+                self.snapshotRefreshTask = Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(500))
+                    self.requestSnapshotRefresh()
+                }
             }
         }
 
         client.setManualSyncRequestHandler { [weak self] request in
-            guard let self else { return }
-            Task { await self.handleManualSyncRequest(request) }
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                await self.handleManualSyncRequest(request)
+            }
         }
         triggerSnapshotRefresh()
     }

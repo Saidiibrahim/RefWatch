@@ -86,7 +86,7 @@ final class WatchConnectivitySyncClient: NSObject, ConnectivitySyncProvidingExte
         "data": data
       ]
       if session.isReachable {
-        session.sendMessage(payload) { error in
+        session.sendMessage(payload) { _ in
           // Only fallback to durable transfer on ERROR
           // (WCSessioning protocol internally provides replyHandler: nil)
           NotificationCenter.default.post(
@@ -143,7 +143,7 @@ final class WatchConnectivitySyncClient: NSObject, ConnectivitySyncProvidingExte
       "payload": data
     ]
     if session.isReachable {
-      session.sendMessage(payload) { error in
+      session.sendMessage(payload) { _ in
         // Only fallback to durable transfer on ERROR
         // (WCSessioning protocol internally provides replyHandler: nil)
         NotificationCenter.default.post(
@@ -170,32 +170,25 @@ final class WatchConnectivitySyncClient: NSObject, ConnectivitySyncProvidingExte
       let envelopes = coordinator.pendingDeltaEnvelopes()
       guard envelopes.isEmpty == false else { return }
       let encoder = self.aggregateEncoder
-      queue.async { [weak self] in
-        guard let self else { return }
-        var sent: [UUID] = []
-        for envelope in envelopes {
-          guard let data = try? encoder.encode(envelope) else {
-            DispatchQueue.main.async {
-              NotificationCenter.default.post(
-                name: .syncNonrecoverableError,
-                object: nil,
-                userInfo: ["error": "delta encode failed", "context": "watch.aggregate.encodeDelta"]
-              )
-            }
-            continue
-          }
-          let payload: [String: Any] = [
-            "type": envelope.type,
-            "payload": data
-          ]
-          session.transferUserInfo(payload)
-          sent.append(envelope.id)
+      var sent: [UUID] = []
+      for envelope in envelopes {
+        guard let data = try? encoder.encode(envelope) else {
+          NotificationCenter.default.post(
+            name: .syncNonrecoverableError,
+            object: nil,
+            userInfo: ["error": "delta encode failed", "context": "watch.aggregate.encodeDelta"]
+          )
+          continue
         }
-        if sent.isEmpty == false {
-          Task { @MainActor in
-            coordinator.markDeltasAttempted(ids: sent)
-          }
-        }
+        let payload: [String: Any] = [
+          "type": envelope.type,
+          "payload": data
+        ]
+        session.transferUserInfo(payload)
+        sent.append(envelope.id)
+      }
+      if sent.isEmpty == false {
+        coordinator.markDeltasAttempted(ids: sent)
       }
     }
   }

@@ -27,7 +27,6 @@ final class SupabaseGoogleSignInCoordinator: SupabaseGoogleSignInCoordinating {
     }
 
     let rawNonce = SupabaseAuthNonceGenerator.randomNonce()
-    let hashedNonce = SupabaseAuthNonceGenerator.sha256(rawNonce)
 
     // Configure Google Sign-In with proper client ID from GoogleService-Info.plist or fallback to Info.plist
     if GIDSignIn.sharedInstance.configuration == nil {

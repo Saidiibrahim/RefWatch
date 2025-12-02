@@ -1,6 +1,7 @@
 import Foundation
 
-public protocol WorkoutSessionTracking: Sendable {
+@MainActor
+public protocol WorkoutSessionTracking {
   func startSession(configuration: WorkoutSessionConfiguration) async throws -> WorkoutSession
   func pauseSession(id: UUID) async throws
   func resumeSession(id: UUID) async throws
@@ -12,6 +13,7 @@ public protocol WorkoutSessionTracking: Sendable {
 #if canImport(Combine)
 import Combine
 
+@MainActor
 public extension WorkoutSessionTracking {
   func liveMetricsPublisher() -> AnyPublisher<WorkoutLiveMetrics, Never> {
     LiveMetricsPublisher(streamFactory: { self.liveMetricsStream() })

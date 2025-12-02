@@ -37,8 +37,8 @@ final class SupabaseTeamLibraryRepository: TeamLibraryStoring {
   init(
     store: SwiftDataTeamLibraryStore,
     authStateProvider: SupabaseAuthStateProviding,
-    api: SupabaseTeamLibraryServing = SupabaseTeamLibraryAPI(),
-    backlog: TeamLibrarySyncBacklogStoring = SupabaseTeamSyncBacklogStore(),
+    api: SupabaseTeamLibraryServing,
+    backlog: TeamLibrarySyncBacklogStoring,
     metadataPersistor: TeamLibraryMetadataPersisting? = nil,
     dateProvider: @escaping () -> Date = Date.init
   ) {

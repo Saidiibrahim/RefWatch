@@ -11,9 +11,9 @@ import Foundation
 
 // MARK: - LiveActivityPublishing
 
+@MainActor
 protocol LiveActivityPublishing {
   func start(state: LiveActivityState)
   func update(state: LiveActivityState)
   func end()
 }
-

@@ -12,6 +12,7 @@ import RefWatchCore
 
 // MARK: - LiveActivityStatePublisher
 
+@MainActor
 final class LiveActivityStatePublisher: LiveActivityPublishing {
   private let store: LiveActivityStateStore
   private let reloadKind: String? // Optional specific widget kind

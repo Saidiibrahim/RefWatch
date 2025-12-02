@@ -4,5 +4,5 @@
 import Foundation
 import RefWatchCore
 
+@MainActor
 extension MatchViewModel: TimerFaceModelState, TimerFaceModelActions {}
-

@@ -44,7 +44,8 @@ final class ConnectivitySyncController: ObservableObject {
             scheduleStore: scheduleStore,
             historyStore: history,
             auth: auth,
-            client: client
+            client: client,
+            builder: AggregateSnapshotBuilder()
         )
 
         guard

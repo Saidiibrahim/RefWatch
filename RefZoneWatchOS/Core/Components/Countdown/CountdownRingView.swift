@@ -117,7 +117,7 @@ struct CountdownRingView: View {
     case .ready:
       // Light haptic when showing "Ready"
       haptics.play(.tap)
-    case .counting(let number):
+    case .counting:
       // Stronger haptic for each countdown number
       haptics.play(.start)
     case .complete:
@@ -138,4 +138,3 @@ struct CountdownRingView: View {
       }
     }
 }
-

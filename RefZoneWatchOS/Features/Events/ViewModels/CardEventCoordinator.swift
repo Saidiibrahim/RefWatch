@@ -3,7 +3,7 @@ import Observation // Required for @Observable
 import RefWatchCore
 
 // Manages the entire card event flow in one place
-@Observable final class CardEventCoordinator: ObservableObject {
+@Observable @MainActor final class CardEventCoordinator: ObservableObject {
     enum Step: Equatable {
         case recipient
         case playerNumber(CardRecipientType)

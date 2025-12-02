@@ -63,6 +63,7 @@ final class MatchViewModel_BackgroundRuntimeTests: XCTestCase {
   }
 }
 
+@MainActor
 private final class BackgroundRuntimeManagerSpy: BackgroundRuntimeManaging, @unchecked Sendable {
   struct BeginCall {
     let kind: BackgroundRuntimeActivityKind

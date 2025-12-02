@@ -8,7 +8,7 @@ import WatchKit
 /// quick-return affordances while the app is backgrounded or the screen is locked.
 @MainActor
 @Observable
-final class BackgroundRuntimeSessionController: NSObject, BackgroundRuntimeManaging {
+final class BackgroundRuntimeSessionController: NSObject {
   enum Status {
     case idle
     case starting
@@ -90,6 +90,8 @@ final class BackgroundRuntimeSessionController: NSObject, BackgroundRuntimeManag
     session = nil
   }
 }
+
+extension BackgroundRuntimeSessionController: @MainActor BackgroundRuntimeManaging {}
 
 // MARK: - WKExtendedRuntimeSessionDelegate
 

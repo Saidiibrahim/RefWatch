@@ -33,7 +33,7 @@ struct CardEventFlow: View {
                         }
                     )
                     
-                case .playerNumber(let recipientType):
+                case .playerNumber:
                     PlayerNumberInputView(
                         team: coordinator.selectedTeam,
                         goalType: nil,

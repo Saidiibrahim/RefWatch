@@ -119,7 +119,7 @@ struct MatchHistoryView: View {
         .onReceive(NotificationCenter.default.publisher(for: .matchHistoryDidChange).receive(on: RunLoop.main)) { _ in
             DispatchQueue.main.async { resetAndLoadFirstPage() }
         }
-        .onChange(of: matchViewModel.matchCompleted) { completed in
+        .onChange(of: matchViewModel.matchCompleted) { _, completed in
             if completed {
                 DispatchQueue.main.async { resetAndLoadFirstPage() }
             }

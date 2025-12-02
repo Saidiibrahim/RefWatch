@@ -36,7 +36,7 @@ private struct WorkoutCrownReturnModifier: ViewModifier {
         isContinuous: true,
         isHapticFeedbackEnabled: false
       )
-      .onChange(of: crownRotation) { newValue in
+      .onChange(of: crownRotation) { _, newValue in
         handleCrownChange(newValue)
       }
       .onDisappear {

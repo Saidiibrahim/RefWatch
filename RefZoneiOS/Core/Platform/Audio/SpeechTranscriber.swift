@@ -30,8 +30,19 @@ final class SpeechTranscriber {
         #if canImport(Speech)
         SFSpeechRecognizer.requestAuthorization { status in
             let speechOK = (status == .authorized)
-            AVAudioSession.sharedInstance().requestRecordPermission { micOK in
+            let deliver: (Bool) -> Void = { micOK in
                 DispatchQueue.main.async { completion(speechOK && micOK) }
+            }
+
+            if #available(iOS 17.0, *) {
+                Task {
+                    let granted = await AVAudioApplication.requestRecordPermission()
+                    deliver(granted)
+                }
+            } else {
+                AVAudioSession.sharedInstance().requestRecordPermission { granted in
+                    deliver(granted)
+                }
             }
         }
         #else

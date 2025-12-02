@@ -37,8 +37,8 @@ final class SupabaseVenueLibraryRepository: VenueLibraryStoring {
     init(
         store: SwiftDataVenueLibraryStore,
         authStateProvider: SupabaseAuthStateProviding,
-        api: SupabaseVenueLibraryServing = SupabaseVenueLibraryAPI(),
-        backlog: VenueLibrarySyncBacklogStoring = SupabaseVenueSyncBacklogStore(),
+        api: SupabaseVenueLibraryServing,
+        backlog: VenueLibrarySyncBacklogStoring,
         dateProvider: @escaping () -> Date = Date.init
     ) {
         self.store = store
@@ -437,7 +437,7 @@ private extension SupabaseVenueLibraryRepository {
     }
 
     func applyOwnerIdentityIfNeeded(venueId: UUID) {
-        guard let ownerUUID else { return }
+        guard ownerUUID != nil else { return }
         guard let records = try? store.loadAll(),
               let record = records.first(where: { $0.id == venueId }) else {
             return

@@ -12,6 +12,7 @@ import RefWatchCore
 /// - Values are derived from MatchViewModel/TimerManager; faces should not cache derived time.
 /// - The host view guarantees a valid face selection. If a stored face value is unknown,
 ///   the host falls back to `.standard` to ensure a consistent experience.
+@MainActor
 public protocol TimerFaceModelState: AnyObject {
     // Match time labels
     var matchTime: String { get }
@@ -33,6 +34,7 @@ public protocol TimerFaceModelState: AnyObject {
 
 /// Minimal actions a face is allowed to trigger. Faces should not orchestrate
 /// period transitions beyond pause/resume/explicit half-time start.
+@MainActor
 public protocol TimerFaceModelActions: AnyObject {
     func pauseMatch()
     func resumeMatch()

@@ -57,7 +57,7 @@ struct TimerView: View {
             MatchActionsSheet(matchViewModel: model, lifecycle: lifecycle)
         }
         // Lifecycle routing hooks
-        .onChange(of: model.isFullTime) { isFT in
+        .onChange(of: model.isFullTime) { _, isFT in
             #if DEBUG
             print("DEBUG: TimerView.onChange isFullTime=\(isFT) state=\(lifecycle.state) matchCompleted=\(model.matchCompleted)")
             #endif
@@ -68,19 +68,19 @@ struct TimerView: View {
             // Publish end state when full time
             if isFT { livePublisher.end() }
         }
-        .onChange(of: model.waitingForSecondHalfStart) { waiting in
+        .onChange(of: model.waitingForSecondHalfStart) { _, waiting in
             if waiting { lifecycle.goToKickoffSecond() }
             publishLiveActivityState()
         }
-        .onChange(of: model.waitingForET1Start) { waiting in
+        .onChange(of: model.waitingForET1Start) { _, waiting in
             if waiting { lifecycle.goToKickoffETFirst() }
             publishLiveActivityState()
         }
-        .onChange(of: model.waitingForET2Start) { waiting in
+        .onChange(of: model.waitingForET2Start) { _, waiting in
             if waiting { lifecycle.goToKickoffETSecond() }
             publishLiveActivityState()
         }
-        .onChange(of: model.waitingForPenaltiesStart) { waiting in
+        .onChange(of: model.waitingForPenaltiesStart) { _, waiting in
             #if DEBUG
             print("DEBUG: TimerView.onChange waitingForPenaltiesStart=\(waiting) sheetShown=\(showingActionSheet)")
             #endif
@@ -94,20 +94,20 @@ struct TimerView: View {
             publishLiveActivityState()
         }
         // Publishing hooks for key transitions
-        .onChange(of: model.isMatchInProgress) { _ in publishLiveActivityState() }
-        .onChange(of: model.isPaused) { _ in publishLiveActivityState() }
-        .onChange(of: model.isHalfTime) { _ in publishLiveActivityState() }
-        .onChange(of: model.isInStoppage) { _ in publishLiveActivityState() }
-        .onChange(of: model.currentPeriod) { _ in publishLiveActivityState() }
-        .onChange(of: model.penaltyShootoutActive) { _ in publishLiveActivityState() }
-        .onChange(of: model.currentMatch?.homeScore ?? 0) { _ in publishLiveActivityState() }
-        .onChange(of: model.currentMatch?.awayScore ?? 0) { _ in publishLiveActivityState() }
-        .onChange(of: scenePhase) { newPhase in
+        .onChange(of: model.isMatchInProgress) { _, _ in publishLiveActivityState() }
+        .onChange(of: model.isPaused) { _, _ in publishLiveActivityState() }
+        .onChange(of: model.isHalfTime) { _, _ in publishLiveActivityState() }
+        .onChange(of: model.isInStoppage) { _, _ in publishLiveActivityState() }
+        .onChange(of: model.currentPeriod) { _, _ in publishLiveActivityState() }
+        .onChange(of: model.penaltyShootoutActive) { _, _ in publishLiveActivityState() }
+        .onChange(of: model.currentMatch?.homeScore ?? 0) { _, _ in publishLiveActivityState() }
+        .onChange(of: model.currentMatch?.awayScore ?? 0) { _, _ in publishLiveActivityState() }
+        .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
                 processPendingWidgetCommand()
             }
         }
-        .onChange(of: model.pendingConfirmation?.id) { newValue in
+        .onChange(of: model.pendingConfirmation?.id) { _, newValue in
             confirmationDismissTask?.cancel()
             guard let id = newValue else { return }
             confirmationDismissTask = Task { [model] in

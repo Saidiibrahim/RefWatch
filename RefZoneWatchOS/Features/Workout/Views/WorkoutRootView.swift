@@ -44,7 +44,7 @@ struct WorkoutRootView: View {
     .task {
       await viewModel.bootstrap()
     }
-    .onChange(of: viewModel.errorMessage) { message in
+    .onChange(of: viewModel.errorMessage) { _, message in
       let isSelectionError: Bool
       if case .error = viewModel.presentationState {
         isSelectionError = true

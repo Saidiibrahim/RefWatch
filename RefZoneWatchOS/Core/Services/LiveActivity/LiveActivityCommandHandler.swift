@@ -10,6 +10,7 @@ import RefWatchCore
 
 // MARK: - MatchCommandHandling
 
+@MainActor
 protocol MatchCommandHandling {
   var isMatchInProgress: Bool { get }
   var isPaused: Bool { get }
@@ -26,6 +27,7 @@ extension MatchViewModel: MatchCommandHandling {}
 
 // MARK: - LiveActivityCommandHandling
 
+@MainActor
 final class LiveActivityCommandHandler {
   private let store: LiveActivityCommandStoring
 

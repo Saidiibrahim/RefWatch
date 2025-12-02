@@ -26,7 +26,7 @@ final class SupabaseJournalRepository: JournalEntryStoring {
 
     init(
         authStateProvider: SupabaseAuthStateProviding,
-        api: SupabaseJournalServing = SupabaseJournalAPI(),
+        api: SupabaseJournalServing,
         dateProvider: @escaping () -> Date = Date.init
     ) {
         self.api = api
@@ -239,7 +239,7 @@ private extension SupabaseJournalRepository {
     }
 
     func removeEntry(withId id: UUID) {
-        for (matchId, var list) in entriesByMatch {
+        for (matchId, list) in entriesByMatch {
             let newList = list.filter { $0.id != id }
             if newList.count != list.count {
                 if newList.isEmpty {

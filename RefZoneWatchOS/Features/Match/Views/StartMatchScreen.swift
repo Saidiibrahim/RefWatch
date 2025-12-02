@@ -37,7 +37,7 @@ struct StartMatchScreen: View {
                 }
             }
         }
-        .onChange(of: lifecycle.state) { newValue in
+        .onChange(of: lifecycle.state) { _, newValue in
             // When lifecycle moves past idle, close the entire start flow and reset navigation.
             if newValue != .idle {
                 dismiss()

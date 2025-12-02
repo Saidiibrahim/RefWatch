@@ -67,13 +67,13 @@ public struct ProStoppageFace: View {
         }
     }
 
-    @ViewBuilder
-    private func runningMatchView(scale: CGFloat, width: CGFloat) -> some View {
-        let rowMaxWidth = min(width * 0.78, 180)
-        return VStack(spacing: Constants.verticalSpacingBase * scale) {
-            // Prominent per-period context: time remaining in current period
-            Text(model.periodTimeRemaining)
-                .font(theme.typography.timerPrimary)
+  @ViewBuilder
+  private func runningMatchView(scale: CGFloat, width: CGFloat) -> some View {
+    let rowMaxWidth = min(width * 0.78, 180)
+    VStack(spacing: Constants.verticalSpacingBase * scale) {
+      // Prominent per-period context: time remaining in current period
+      Text(model.periodTimeRemaining)
+        .font(theme.typography.timerPrimary)
                 .foregroundStyle(theme.colors.textPrimary)
                 .scaleEffect(scale, anchor: .center)
                 .lineLimit(1)

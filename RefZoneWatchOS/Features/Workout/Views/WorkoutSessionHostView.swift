@@ -82,10 +82,10 @@ struct WorkoutSessionHostView: View {
     .onAppear {
       timerModel.updatePauseState(isPaused)
     }
-    .onChange(of: session) { newValue in
+    .onChange(of: session) { _, newValue in
       timerModel.updateSession(newValue)
     }
-    .onChange(of: isPaused) { paused in
+    .onChange(of: isPaused) { _, paused in
       timerModel.updatePauseState(paused)
     }
     .alert("Coming Soon", isPresented: $showShareComingSoon) {

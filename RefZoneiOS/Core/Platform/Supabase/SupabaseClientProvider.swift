@@ -105,33 +105,35 @@ extension SupabaseClient: SupabaseClientRepresenting {
     limit: Int,
     decoder: JSONDecoder
   ) async throws -> [T] {
-    var query = from(table).select(columns)
+    var filterQuery = from(table).select(columns)
 
     for filter in filters {
       switch filter.op {
       case .equals:
         if case let .scalar(value) = filter.value {
-          query = query.eq(filter.column, value: value)
+          filterQuery = filterQuery.eq(filter.column, value: value)
         }
       case .greaterThan:
         if case let .scalar(value) = filter.value {
-          query = query.gt(filter.column, value: value)
+          filterQuery = filterQuery.gt(filter.column, value: value)
         }
       case .in:
         if case let .collection(values) = filter.value, values.isEmpty == false {
-          query = query.in(filter.column, values: values) as! PostgrestFilterBuilder
+          filterQuery = filterQuery.in(filter.column, values: values)
         }
       }
     }
 
+    var query: PostgrestTransformBuilder = filterQuery
+
     if let column {
       // Supabase Swift updated signatures: first params are unlabeled.
       // Using unlabeled column + limit avoids "Extraneous argument label" errors.
-      query = query.order(column, ascending: ascending) as! PostgrestFilterBuilder
+      query = query.order(column, ascending: ascending)
     }
 
     if limit > 0 {
-      query = query.limit(limit) as! PostgrestFilterBuilder
+      query = query.limit(limit)
     }
 
     let response = try await query.execute()

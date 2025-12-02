@@ -69,7 +69,7 @@ private extension SupabaseUserProfileSynchronizer {
       rawAppMetadata: AnyEncodable(appMetadata),
       rawUserMetadata: AnyEncodable(userMetadata),
       createdAt: user.createdAt,
-      updatedAt: user.updatedAt ?? now()
+      updatedAt: user.updatedAt
     )
   }
 

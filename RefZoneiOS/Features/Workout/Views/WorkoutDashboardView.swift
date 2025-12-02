@@ -49,7 +49,7 @@ struct WorkoutDashboardView: View {
       didLoad = true
       viewModel.load()
     }
-    .onChange(of: viewModel.errorMessage) { message in
+    .onChange(of: viewModel.errorMessage) { _, message in
       showError = message != nil
     }
     .alert("Workout Error", isPresented: $showError) {

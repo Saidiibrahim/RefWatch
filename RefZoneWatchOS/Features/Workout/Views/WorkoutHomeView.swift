@@ -63,17 +63,17 @@ struct WorkoutHomeView: View {
       }
     }
     .background(theme.colors.backgroundPrimary.ignoresSafeArea())
-    .onChange(of: items) { _ in
+    .onChange(of: items) { _, _ in
       synchroniseInitialScrollPosition()
     }
-    .onChange(of: focusedSelectionID) { newValue in
+    .onChange(of: focusedSelectionID) { _, newValue in
       guard let newValue, newValue != scrollPosition else { return }
       scrollPosition = newValue
     }
-    .onChange(of: scrollPosition) { newValue in
+    .onChange(of: scrollPosition) { _, newValue in
       onFocusChange(newValue, lastReportedVelocity)
     }
-    .onChange(of: dwellState) { newValue in
+    .onChange(of: dwellState) { _, newValue in
       if case .locked = newValue {
         haptics.play(.success)
       }
