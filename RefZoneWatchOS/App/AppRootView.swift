@@ -8,7 +8,6 @@ struct AppRootView: View {
   @Environment(\.workoutServices) private var workoutServices
   @State private var workoutViewID = UUID()
   @State private var showModeSwitcher = false
-  @State private var didPresentInitialSwitcher = false
   @State private var modeSwitcherBlockReason: ModeSwitcherBlockReason?
   @State private var blockHintMessage: String?
   @State private var showBlockHint = false
@@ -18,6 +17,35 @@ struct AppRootView: View {
   private let haptics = WatchHaptics()
 
   var body: some View {
+    ZStack {
+      if appModeController.hasPersistedSelection {
+        modeHostView
+      } else {
+        initialModeSelectionView
+      }
+    }
+    .fullScreenCover(isPresented: $showModeSwitcher) {
+      modeSwitcherSheet
+    }
+    .alert(blockHintMessage ?? "", isPresented: $showBlockHint) {
+      Button("OK", role: .cancel) {
+        showBlockHint = false
+        blockHintMessage = nil
+      }
+    }
+    .overlay(alignment: .top) {
+      if showConfirmation, let confirmationMode {
+        ModeSwitchConfirmationToast(mode: confirmationMode)
+          .transition(.move(edge: .top).combined(with: .opacity))
+          .padding(.top, 6)
+      }
+    }
+  }
+}
+
+private extension AppRootView {
+  @ViewBuilder
+  var modeHostView: some View {
     Group {
       switch appModeController.currentMode {
       case .match:
@@ -37,50 +65,35 @@ struct AppRootView: View {
         workoutViewID = UUID()
       }
     }
-    .onAppear(perform: presentSwitcherIfNeeded)
-    .fullScreenCover(isPresented: $showModeSwitcher) {
-      ModeSwitcherView(
-        currentMode: appModeController.currentMode,
-        lastSelectedMode: appModeController.hasPersistedSelection ? appModeController.currentMode : nil,
-        activeMode: modeSwitcherBlockReason?.activeMode,
-        allowDismiss: appModeController.hasPersistedSelection,
-        onSelect: { mode in
-          appModeController.select(mode)
-          if mode == .workout {
-            workoutViewID = UUID()
-          }
-          showModeSwitcher = false
-          confirmationMode = mode
-          withAnimation(.easeOut) { showConfirmation = true }
-          haptics.play(.tap)
-          DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-            withAnimation(.easeIn) { showConfirmation = false }
-          }
-        },
-        onDismiss: {
-          // If the user hasn't picked a mode yet, keep prompting until they do
-          showModeSwitcher = appModeController.hasPersistedSelection ? false : true
-        }
-      )
-      .environmentObject(appModeController)
-    }
-    .alert(blockHintMessage ?? "", isPresented: $showBlockHint) {
-      Button("OK", role: .cancel) {
-        showBlockHint = false
-        blockHintMessage = nil
-      }
-    }
-    .overlay(alignment: .top) {
-      if showConfirmation, let confirmationMode {
-        ModeSwitchConfirmationToast(mode: confirmationMode)
-          .transition(.move(edge: .top).combined(with: .opacity))
-          .padding(.top, 6)
-      }
-    }
   }
-}
 
-private extension AppRootView {
+  var initialModeSelectionView: some View {
+    ModeSwitcherView(
+      currentMode: appModeController.currentMode,
+      lastSelectedMode: nil,
+      activeMode: modeSwitcherBlockReason?.activeMode,
+      allowDismiss: false,
+      onSelect: handleModeSelection,
+      onDismiss: {}
+    )
+    .environmentObject(appModeController)
+  }
+
+  var modeSwitcherSheet: some View {
+    ModeSwitcherView(
+      currentMode: appModeController.currentMode,
+      lastSelectedMode: appModeController.hasPersistedSelection ? appModeController.currentMode : nil,
+      activeMode: modeSwitcherBlockReason?.activeMode,
+      allowDismiss: appModeController.hasPersistedSelection,
+      onSelect: handleModeSelection,
+      onDismiss: {
+        // If the user hasn't picked a mode yet, keep prompting until they do
+        showModeSwitcher = appModeController.hasPersistedSelection ? false : true
+      }
+    )
+    .environmentObject(appModeController)
+  }
+
   var guardedModeSwitcherBinding: Binding<Bool> {
     Binding {
       showModeSwitcher
@@ -100,12 +113,17 @@ private extension AppRootView {
     }
   }
 
-  func presentSwitcherIfNeeded() {
-    guard !didPresentInitialSwitcher else { return }
-    didPresentInitialSwitcher = true
-
-    if !appModeController.hasPersistedSelection {
-      showModeSwitcher = true
+  func handleModeSelection(_ mode: AppMode) {
+    appModeController.select(mode)
+    if mode == .workout {
+      workoutViewID = UUID()
+    }
+    showModeSwitcher = false
+    confirmationMode = mode
+    withAnimation(.easeOut) { showConfirmation = true }
+    haptics.play(.tap)
+    DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+      withAnimation(.easeIn) { showConfirmation = false }
     }
   }
 }

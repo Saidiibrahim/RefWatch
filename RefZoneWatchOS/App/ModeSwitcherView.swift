@@ -28,15 +28,6 @@ struct ModeSwitcherView: View {
   var body: some View {
     NavigationStack {
       List {
-        if !allowDismiss {
-          Section {
-            Text("Choose where to start. You can switch later.")
-              .font(.footnote)
-              .foregroundStyle(.secondary)
-              .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
-          }
-        }
-
         ForEach(AppMode.allCases, id: \.self) { mode in
           Button {
             onSelect(mode)

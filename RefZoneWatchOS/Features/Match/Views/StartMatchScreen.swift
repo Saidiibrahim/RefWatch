@@ -11,7 +11,6 @@ import RefWatchCore
 
 struct StartMatchScreen: View {
     @Environment(\.theme) private var theme
-    @Environment(\.modeSwitcherPresentation) private var modeSwitcherPresentation
     let matchViewModel: MatchViewModel
     let lifecycle: MatchLifecycleCoordinator
     @Environment(\.dismiss) private var dismiss
@@ -29,7 +28,7 @@ struct StartMatchScreen: View {
             ToolbarItem(placement: .topBarLeading) {
                 if lifecycle.state == .idle {
                     Button {
-                        modeSwitcherPresentation.wrappedValue = true
+                        dismiss()
                     } label: {
                         Image(systemName: "chevron.backward")
                     }
