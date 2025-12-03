@@ -191,8 +191,8 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				AGENTS.md,
-				Info.plist,
 				CircularView.swift,
+				Info.plist,
 				Previews.swift,
 				RectangularView.swift,
 				RefZoneWidgets.swift,
@@ -217,14 +217,14 @@
 				"App/RefZoneWatchApp-Info.plist",
 				Core/AGENTS.md,
 				Core/Components/TimerFaces/AGENTS.md,
+				Core/Persistence/SwiftData/WatchAggregateContainerFactory.swift,
+				Core/Persistence/SwiftData/WatchAggregateDataStores.swift,
+				Core/Persistence/SwiftData/WatchAggregateModels.swift,
+				Core/Persistence/SwiftData/WatchAggregateModelSchema.swift,
+				Core/Platform/AGENTS.md,
 				Core/Platform/Connectivity/AggregateSyncEnvironment.swift,
 				Core/Platform/Connectivity/WatchAggregateSyncCoordinator.swift,
 				Core/Platform/Connectivity/WatchConnectivitySyncClient.swift,
-				Core/Persistence/SwiftData/WatchAggregateContainerFactory.swift,
-				Core/Persistence/SwiftData/WatchAggregateDataStores.swift,
-				Core/Persistence/SwiftData/WatchAggregateModelSchema.swift,
-				Core/Persistence/SwiftData/WatchAggregateModels.swift,
-				Core/Platform/AGENTS.md,
 				Features/AGENTS.md,
 			);
 			target = 964A4D702D32234A00D08376 /* RefZone Watch App */;
@@ -987,7 +987,7 @@
 				CODE_SIGN_ENTITLEMENTS = "RefZone Watch App.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_ASSET_PATHS = "\"RefZoneWatchOS/Preview Content\"";
 				DEVELOPMENT_TEAM = 6NV7X5BLU7;
 				ENABLE_PREVIEWS = YES;
@@ -1041,7 +1041,7 @@
 				CODE_SIGN_ENTITLEMENTS = "RefZone Watch App.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_ASSET_PATHS = "\"RefZoneWatchOS/Preview Content\"";
 				DEVELOPMENT_TEAM = 6NV7X5BLU7;
 				ENABLE_PREVIEWS = YES;
@@ -1176,7 +1176,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = RefZoneiOS/RefZoneiOS.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = 6NV7X5BLU7;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -1217,7 +1217,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = RefZoneiOS/RefZoneiOS.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = 6NV7X5BLU7;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -1255,6 +1255,7 @@
 		96B812A42E67CDA500B23EC0 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 6NV7X5BLU7;
@@ -1269,7 +1270,6 @@
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/RefZoneiOS.app/RefZoneiOS";
-				BUNDLE_LOADER = "$(TEST_HOST)";
 				TEST_TARGET_NAME = RefZoneiOS;
 			};
 			name = Debug;
@@ -1277,6 +1277,7 @@
 		96B812A52E67CDA500B23EC0 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 6NV7X5BLU7;
@@ -1290,10 +1291,9 @@
 				SWIFT_SUPPRESS_CONCURRENCY_WARNINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				VALIDATE_PRODUCT = YES;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/RefZoneiOS.app/RefZoneiOS";
-				BUNDLE_LOADER = "$(TEST_HOST)";
 				TEST_TARGET_NAME = RefZoneiOS;
+				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;
 		};

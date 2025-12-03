@@ -1,5 +1,5 @@
 import XCTest
-@testable import RefZoneWatchOS
+@testable import RefZone_Watch_App
 import RefWatchCore
 
 final class WatchAggregateSyncCoordinatorTests: XCTestCase {

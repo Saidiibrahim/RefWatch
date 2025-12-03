@@ -42,6 +42,64 @@ final class RefWatch_Watch_AppUITests: XCTestCase {
     }
 }
 
+// MARK: - Mode switcher UX
+extension RefWatch_Watch_AppUITests {
+    @MainActor
+    func testModeSwitchConfirmationAppearsAfterSelection() throws {
+        let app = XCUIApplication()
+        app.launch()
+
+        // If the switcher is not auto-presented, open it from the toolbar
+        if !app.buttons["mode-card-workout"].waitForExistence(timeout: 2) {
+            let toolbarButton = app.buttons["matchModeSwitcherButton"].exists ? app.buttons["matchModeSwitcherButton"] : app.buttons["chevron.backward"]
+            XCTAssertTrue(toolbarButton.waitForExistence(timeout: 3))
+            toolbarButton.tap()
+        }
+
+        let workoutCard = app.buttons["mode-card-workout"]
+        XCTAssertTrue(workoutCard.waitForExistence(timeout: 3))
+        workoutCard.tap()
+
+        let confirmation = app.otherElements["modeSwitchConfirmation"]
+        XCTAssertTrue(confirmation.waitForExistence(timeout: 2))
+    }
+
+    @MainActor
+    func testModeSwitcherGuardBlocksDuringActiveMatch() throws {
+        let app = XCUIApplication()
+        app.launch()
+
+        // Start a match quickly to trigger the active-session guard
+        if app.buttons["startRow"].waitForExistence(timeout: 3) {
+            app.buttons["startRow"].tap()
+        } else if app.staticTexts["Start Match"].waitForExistence(timeout: 3) {
+            app.staticTexts["Start Match"].tap()
+        }
+
+        if app.buttons["Create Match"].exists {
+            app.buttons["Create Match"].tap()
+        } else if app.staticTexts["Create Match"].exists {
+            app.staticTexts["Create Match"].tap()
+        }
+
+        XCTAssertTrue(app.buttons["startMatchButton"].waitForExistence(timeout: 3))
+        app.buttons["startMatchButton"].tap()
+
+        XCTAssertTrue(app.buttons["homeTeamButton"].waitForExistence(timeout: 3))
+        app.buttons["homeTeamButton"].tap()
+        XCTAssertTrue(app.buttons["kickoffConfirmButton"].waitForExistence(timeout: 3))
+        app.buttons["kickoffConfirmButton"].tap()
+
+        let toolbarButton = app.buttons["matchModeSwitcherButton"].exists ? app.buttons["matchModeSwitcherButton"] : app.buttons["chevron.backward"]
+        XCTAssertTrue(toolbarButton.waitForExistence(timeout: 3))
+        toolbarButton.tap()
+
+        let guardAlert = app.alerts["Finish or abandon match to switch modes"]
+        XCTAssertTrue(guardAlert.waitForExistence(timeout: 2))
+        guardAlert.buttons.firstMatch.tap()
+    }
+}
+
 // MARK: - End-to-end lifecycle UI test
 extension RefWatch_Watch_AppUITests {
     @MainActor
