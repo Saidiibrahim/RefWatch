@@ -33,8 +33,11 @@ struct LiveActivityCommandHandlerTests {
     let store = MockCommandStore(command: .startHalfTime)
     let handler = LiveActivityCommandHandler(store: store)
     let model = MockMatchModel()
+    model.waitingForHalfTimeStart = true
 
-    _ = handler.processPendingCommand(model: model)
+    let processed = handler.processPendingCommand(model: model)
+
+    #expect(processed == .startHalfTime)
     #expect(model.startHalfTimeCallCount == 1)
   }
 
@@ -43,9 +46,36 @@ struct LiveActivityCommandHandlerTests {
     let store = MockCommandStore(command: .startSecondHalf)
     let handler = LiveActivityCommandHandler(store: store)
     let model = MockMatchModel()
+    model.waitingForSecondHalfStart = true
 
-    _ = handler.processPendingCommand(model: model)
+    let processed = handler.processPendingCommand(model: model)
+
+    #expect(processed == .startSecondHalf)
     #expect(model.startSecondHalfCallCount == 1)
+  }
+
+  @Test
+  func test_halfTimeCommand_skipped_whenNotWaiting() async throws {
+    let store = MockCommandStore(command: .startHalfTime)
+    let handler = LiveActivityCommandHandler(store: store)
+    let model = MockMatchModel()
+
+    let processed = handler.processPendingCommand(model: model)
+
+    #expect(processed == nil)
+    #expect(model.startHalfTimeCallCount == 0)
+  }
+
+  @Test
+  func test_secondHalfCommand_skipped_whenNotWaiting() async throws {
+    let store = MockCommandStore(command: .startSecondHalf)
+    let handler = LiveActivityCommandHandler(store: store)
+    let model = MockMatchModel()
+
+    let processed = handler.processPendingCommand(model: model)
+
+    #expect(processed == nil)
+    #expect(model.startSecondHalfCallCount == 0)
   }
 }
 
