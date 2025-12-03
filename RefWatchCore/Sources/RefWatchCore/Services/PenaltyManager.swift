@@ -164,15 +164,15 @@ public final class PenaltyManager: PenaltyManaging {
     }
 
     private func computeDecisionIfNeeded() {
-        // Early decision before completing initial rounds
+        // Early decision before completing initial rounds: decide as soon as the trailing
+        // side's maximum possible score (remaining kicks + current goals) can no longer
+        // catch the leader.
         let homeRem = max(0, initialRounds - homeTaken)
         let awayRem = max(0, initialRounds - awayTaken)
-        // Add a small buffer (1 kick) before declaring early to avoid overly eager decisions
-        let buffer = 1
 
         if homeTaken <= initialRounds || awayTaken <= initialRounds {
-            if homeScored > awayScored + awayRem + buffer { decide(.home); return }
-            if awayScored > homeScored + homeRem + buffer { decide(.away); return }
+            if homeScored > awayScored + awayRem { decide(.home); return }
+            if awayScored > homeScored + homeRem { decide(.away); return }
         }
 
         // Sudden death: after both reached initialRounds and attempts are equal

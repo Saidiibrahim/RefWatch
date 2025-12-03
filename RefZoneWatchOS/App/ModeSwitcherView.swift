@@ -44,7 +44,7 @@ struct ModeSwitcherView: View {
         }
       }
       .listStyle(.carousel)
-      .navigationTitle("Switch Mode")
+      .navigationTitle("Select Mode")
       .toolbar {
         if allowDismiss {
           ToolbarItem(placement: .cancellationAction) {
