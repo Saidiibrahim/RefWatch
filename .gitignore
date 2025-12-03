@@ -82,3 +82,6 @@ DerivedData/
 # SwiftPM / xcodebuild cache folders sometimes generated at repo root
 .build-modulecache/
 .build-swift/
+
+# Simulator home directory (logs and runtime artifacts)
+.home/

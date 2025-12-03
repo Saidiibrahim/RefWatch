@@ -1,5 +1,15 @@
 {
     "sourcekit-lsp.serverPath": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/sourcekit-lsp",
     "swift.path": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift",
-    "chatgpt.openOnStartup": true
+    "chatgpt.openOnStartup": true,
+    "files.exclude": {
+        "**/.build": true,
+        "**/.build-modulecache": true,
+        "**/.build-swift": true,
+        "**/.derivedData": true,
+        "**/.derivedData_tmp": true,
+        "**/build": true,
+        "**/DerivedData": true,
+        "**/.home": true
+    }
 }

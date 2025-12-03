@@ -3,3 +3,4 @@ Swift 6 migration prep
 - CompletedMatch Hashable: replace retroactive CompletedMatch: Hashable/Equatable extension with a wrapper (e.g., CompletedMatchId) or move conformance into RefWatchCore to avoid future breakage.
 - Re-run with -strict-concurrency=complete after the above; fix any Sendable/capture warnings surfaced by strict mode.
 - Keep speech permission API updated (AVAudioApplication.requestRecordPermission) and re-check for iOS 18+ deprecations when upgrading SDK. 
+- TimerFaceFactoryTests are currently skipped due to watch simulator launch failure ("Simulator device failed to launch com.IbrahimSaidi.RefZone.watchkitapp"); investigate paired device requirements / host app launch for watch unit tests and re-enable.
