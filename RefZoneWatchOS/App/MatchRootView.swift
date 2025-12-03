@@ -23,6 +23,9 @@ struct MatchRootView: View {
     @State private var showPersistenceError = false
     @State private var latestSummary: CompletedMatchSummary?
     @State private var navigationPath: [MatchRoute] = []
+    // Resets the NavigationStack identity when we return to idle to avoid
+    // stale column state causing SwiftUI AnyNavigationPath comparison crashes
+    @State private var navigationStackID = UUID()
     private let commandHandler = LiveActivityCommandHandler()
     private let livePublisher = LiveActivityStatePublisher(reloadKind: "RefZoneWidgets")
     private let navigationReducer = MatchNavigationReducer()
@@ -139,6 +142,9 @@ struct MatchRootView: View {
                 destination(for: route)
             }
         }
+        // Recreate the stack whenever we reset to idle to clear any lingering
+        // navigation column state from the previous match session.
+        .id(navigationStackID)
         .environment(settingsViewModel)
         .background(theme.colors.backgroundPrimary.ignoresSafeArea())
         .task {
@@ -192,6 +198,12 @@ struct MatchRootView: View {
             #endif
 
             handleLifecycleNavigation(from: oldState, to: newState)
+
+            if newState == .idle && oldState != .idle {
+                // Fresh stack prevents SwiftUI from comparing path elements of
+                // mismatched types after a completed match.
+                navigationStackID = UUID()
+            }
 
             #if DEBUG
             print("DEBUG: Navigation path after: \(navigationPath)")
