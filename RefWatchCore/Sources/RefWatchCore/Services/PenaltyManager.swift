@@ -167,10 +167,12 @@ public final class PenaltyManager: PenaltyManaging {
         // Early decision before completing initial rounds
         let homeRem = max(0, initialRounds - homeTaken)
         let awayRem = max(0, initialRounds - awayTaken)
+        // Add a small buffer (1 kick) before declaring early to avoid overly eager decisions
+        let buffer = 1
 
         if homeTaken <= initialRounds || awayTaken <= initialRounds {
-            if homeScored > awayScored + awayRem { decide(.home); return }
-            if awayScored > homeScored + homeRem { decide(.away); return }
+            if homeScored > awayScored + awayRem + buffer { decide(.home); return }
+            if awayScored > homeScored + homeRem + buffer { decide(.away); return }
         }
 
         // Sudden death: after both reached initialRounds and attempts are equal

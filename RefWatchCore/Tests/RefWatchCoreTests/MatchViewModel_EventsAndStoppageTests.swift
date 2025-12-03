@@ -128,4 +128,25 @@ final class MatchViewModel_EventsAndStoppageTests: XCTestCase {
         XCTAssertGreaterThan(vm.matchEvents.count, initialCount)
         XCTAssertTrue(vm.isHalfTime)
     }
+
+    func test_createMatch_resets_events_after_finalize() {
+        let vm = MatchViewModel()
+        vm.configureMatch(duration: 45, periods: 2, halfTimeLength: 15, hasExtraTime: false, hasPenalties: false)
+
+        vm.createMatch()
+        vm.startMatch()
+        vm.recordGoal(team: .home, goalType: .regular, playerNumber: 9)
+        XCTAssertFalse(vm.matchEvents.isEmpty)
+
+        vm.finalizeMatch()
+        XCTAssertFalse(vm.matchEvents.isEmpty, "Finalize does not clear events by design")
+
+        vm.configureMatch(duration: 45, periods: 2, halfTimeLength: 15, hasExtraTime: false, hasPenalties: false)
+        vm.createMatch()
+
+        XCTAssertTrue(vm.matchEvents.isEmpty, "Starting a new match should clear prior events")
+        XCTAssertEqual(vm.currentPeriod, 1)
+        XCTAssertFalse(vm.isMatchInProgress)
+        XCTAssertNil(vm.pendingConfirmation)
+    }
 }

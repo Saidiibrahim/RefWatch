@@ -101,6 +101,7 @@ public final class MatchViewModel {
     private let haptics: HapticsProviding
     private let connectivity: ConnectivitySyncProviding?
     private let scheduleStatusUpdater: MatchScheduleStatusUpdating?
+    private var penaltyStartEventLogged = false
 
     // Persistence error feedback surfaced to UI (optional alert)
     public var lastPersistenceError: String? = nil
@@ -171,6 +172,11 @@ public final class MatchViewModel {
     
     // MARK: - Match Management
     public func createMatch() {
+        // Ensure we start from a clean slate when beginning a new match. This clears any
+        // lingering events, timers, and flags from the previous session (e.g. after
+        // finalizeMatch) so the new match does not inherit old state.
+        resetMatch()
+
         currentMatch = newMatch
         localSavedMatches.append(newMatch)
         refreshSavedMatches()
@@ -189,15 +195,16 @@ public final class MatchViewModel {
         libraryVenues = snapshot.venues.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
         librarySchedules = snapshot.schedules.sorted { $0.kickoff < $1.kickoff }
 
-        // Upcoming-only filter for watch "Select Match" list
-        // - Show only schedules that are truly upcoming (status == .scheduled)
-        // - Exclude in-progress/completed/canceled
-        // - Exclude past kickoffs; allow a small grace window to avoid race conditions
+        // Upcoming/in-progress filter for watch "Select Match" list
+        // - Show scheduled or in-progress fixtures (live ones stay visible for quick mirror/controls)
+        // - Exclude completed/canceled
+        // - Exclude stale past kickoffs; allow a small grace window to avoid race conditions
         let now = Date()
         let graceSeconds: TimeInterval = 10 * 60 // 10-minute grace
         let upcomingScheduled = librarySchedules.filter { schedule in
             let status = decodeScheduleStatus(schedule.statusRaw)
-            return status == .scheduled && schedule.kickoff >= now.addingTimeInterval(-graceSeconds)
+            let isEligibleStatus: Bool = (status == .scheduled || status == .inProgress)
+            return isEligibleStatus && schedule.kickoff >= now.addingTimeInterval(-graceSeconds)
         }
 
         librarySavedMatches = upcomingScheduled.map { schedule in
@@ -744,6 +751,7 @@ public final class MatchViewModel {
         } else {
             currentPeriod = 5
         }
+        penaltyStartEventLogged = false
         if let match = currentMatch { penaltyManager.setInitialRounds(match.penaltyInitialRounds) }
         wirePenaltyCallbacks()
         penaltyManager.begin()
@@ -763,6 +771,7 @@ public final class MatchViewModel {
         stoppageTimer = nil
         isFullTime = true
         backgroundRuntimeManager?.end(reason: .completed)
+        penaltyStartEventLogged = false
     }
 
     @discardableResult
@@ -880,6 +889,7 @@ public final class MatchViewModel {
         matchEvents.removeAll()
         homeTeamKickingOffET1 = nil
         penaltyManager.end()
+        penaltyStartEventLogged = false
         pendingConfirmation = nil
         applyDefaultTeamsIfNeeded()
     }
@@ -943,9 +953,16 @@ public final class MatchViewModel {
 
     // MARK: - Penalty Manager Wiring
     private func wirePenaltyCallbacks() {
-        penaltyManager.onStart = { [weak self] in self?.recordMatchEvent(.penaltiesStart) }
+        penaltyManager.onStart = { [weak self] in
+            self?.penaltyStartEventLogged = false
+        }
         penaltyManager.onAttempt = { [weak self] team, details in
-            self?.recordEvent(.penaltyAttempt(details), team: team, details: .penalty(details))
+            guard let self else { return }
+            if self.penaltyStartEventLogged == false {
+                self.recordMatchEvent(.penaltiesStart)
+                self.penaltyStartEventLogged = true
+            }
+            self.recordEvent(.penaltyAttempt(details), team: team, details: .penalty(details))
         }
         penaltyManager.onDecided = { _ in }
         penaltyManager.onEnd = { [weak self] in self?.recordMatchEvent(.penaltiesEnd) }
