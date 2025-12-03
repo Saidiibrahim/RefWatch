@@ -8,6 +8,53 @@
 import SwiftUI
 import RefWatchCore
 
+/// Centralized color helper for SignedOutGateView that adapts to light/dark mode
+struct SignedOutGateColors {
+    let background: Color
+    let primaryText: Color
+    let secondaryText: Color
+    let tertiaryText: Color
+    let quaternaryText: Color
+    let heroIconBackground: Color
+    let heroIcon: Color
+    let cardShadow: Color
+    let primaryButtonTint: Color
+    let secondaryButtonTint: Color
+
+    init(theme: AnyTheme, colorScheme: ColorScheme) {
+        let accentSecondary = theme.colors.accentSecondary
+        let accentPrimary = theme.colors.accentPrimary
+
+        switch colorScheme {
+        case .dark:
+            // Preserve existing dark mode behavior
+            background = theme.colors.backgroundPrimary
+            primaryText = theme.colors.textPrimary
+            secondaryText = theme.colors.textSecondary
+            tertiaryText = theme.colors.textSecondary.opacity(0.86)
+            quaternaryText = theme.colors.textSecondary.opacity(0.72)
+            heroIconBackground = accentSecondary.opacity(0.18)
+            heroIcon = accentSecondary
+            cardShadow = Color.black.opacity(0.26)
+            primaryButtonTint = accentSecondary
+            secondaryButtonTint = theme.colors.textSecondary.opacity(0.9)
+
+        default: // .light
+            // New minimal, clean light mode
+            background = Color(uiColor: .systemBackground)
+            primaryText = Color(uiColor: .label)
+            secondaryText = Color(uiColor: .secondaryLabel)
+            tertiaryText = Color(uiColor: .secondaryLabel).opacity(0.75)
+            quaternaryText = Color(uiColor: .tertiaryLabel)
+            heroIconBackground = accentSecondary.opacity(0.08)
+            heroIcon = accentSecondary
+            cardShadow = Color.black.opacity(0.08)
+            primaryButtonTint = accentSecondary
+            secondaryButtonTint = accentPrimary
+        }
+    }
+}
+
 /// A blocking experience that clearly communicates the signed-in requirement on iPhone
 /// while routing users into the authentication flow.
 struct SignedOutGateView: View {
@@ -40,20 +87,20 @@ struct SignedOutGateView: View {
 }
 
 private extension SignedOutGateView {
-    var primaryTextColor: Color {
-        colorScheme == .dark ? theme.colors.textPrimary : theme.colors.textInverted
-    }
-
-    var secondaryTextColor: Color {
-        colorScheme == .dark ? theme.colors.textSecondary : theme.colors.textInverted
+    var colors: SignedOutGateColors {
+        SignedOutGateColors(theme: theme, colorScheme: colorScheme)
     }
 
     var backgroundView: some View {
         Group {
             if colorScheme == .dark {
-                LinearGradient(colors: [theme.colors.backgroundPrimary, theme.colors.backgroundPrimary.opacity(0.9)], startPoint: .top, endPoint: .bottom)
+                LinearGradient(
+                    colors: [theme.colors.backgroundPrimary, theme.colors.backgroundPrimary.opacity(0.9)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
             } else {
-                Color(uiColor: .systemBackground)
+                colors.background
             }
         }
     }
@@ -62,25 +109,25 @@ private extension SignedOutGateView {
         VStack(spacing: 16) {
             ZStack {
                 Circle()
-                    .fill(theme.colors.accentSecondary.opacity(colorScheme == .dark ? 0.18 : 0.12))
+                    .fill(colors.heroIconBackground)
                     .frame(width: 104, height: 104)
 
                 Image(systemName: "lock.fill")
                     .resizable()
                     .scaledToFit()
                     .frame(width: 64, height: 64)
-                    .foregroundStyle(theme.colors.accentSecondary)
+                    .foregroundStyle(colors.heroIcon)
             }
             .accessibilityHidden(true)
 
             Text("Sign in to continue")
                 .font(.largeTitle.bold())
                 .multilineTextAlignment(.center)
-                .foregroundStyle(primaryTextColor)
+                .foregroundStyle(colors.primaryText)
 
             Text("Sign in to keep your matches, timers, and teams in sync across your devices.")
                 .font(.title3)
-                .foregroundStyle(secondaryTextColor.opacity(colorScheme == .dark ? 0.86 : 0.75))
+                .foregroundStyle(colors.secondaryText)
                 .multilineTextAlignment(.center)
         }
     }
@@ -92,10 +139,11 @@ private extension SignedOutGateView {
             Label("One place for teams, rosters, and schedules", systemImage: "calendar.badge.clock")
         }
         .font(.headline)
+        .foregroundStyle(colors.primaryText)
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.26 : 0.18), radius: 14, y: 6)
+        .shadow(color: colors.cardShadow, radius: 14, y: 6)
         .accessibilityElement(children: .contain)
     }
 
@@ -108,7 +156,7 @@ private extension SignedOutGateView {
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
-            .tint(theme.colors.accentSecondary)
+            .tint(colors.primaryButtonTint)
             .accessibilityHint("Opens the sign-in form")
 
             Button {
@@ -118,7 +166,7 @@ private extension SignedOutGateView {
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.bordered)
-            .tint(secondaryTextColor.opacity(colorScheme == .dark ? 0.9 : 0.78))
+            .tint(colors.secondaryButtonTint)
             .accessibilityHint("Opens the account creation form")
 
             Button("See how RefZone works") {
@@ -126,18 +174,18 @@ private extension SignedOutGateView {
             }
             .buttonStyle(.plain)
             .font(.system(size: 15, weight: .medium))
-            .foregroundStyle(secondaryTextColor)
+            .foregroundStyle(colors.secondaryText)
             .padding(.top, 12)
 
             Text("Sign-in takes under 30 seconds.")
                 .font(.footnote)
-                .foregroundStyle(secondaryTextColor.opacity(colorScheme == .dark ? 0.75 : 0.62))
+                .foregroundStyle(colors.tertiaryText)
         }
     }
     var watchNote: some View {
         Text("Your Apple Watch still records matches offline. Sign in here to sync everything you've captured.")
             .font(.footnote)
-            .foregroundStyle(secondaryTextColor.opacity(colorScheme == .dark ? 0.78 : 0.65))
+            .foregroundStyle(colors.quaternaryText)
             .multilineTextAlignment(.center)
             .padding(.horizontal)
             .padding(.bottom, 80)

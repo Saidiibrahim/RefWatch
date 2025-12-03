@@ -8,6 +8,31 @@
 import RefWatchCore
 import SwiftUI
 
+/// Centralized color helper for WelcomeView that adapts to light/dark mode
+struct WelcomeColors {
+    let background: Color
+    let secondaryButtonTint: Color
+    let privacyNoteText: Color
+
+    init(theme: AnyTheme, colorScheme: ColorScheme) {
+        let accentPrimary = theme.colors.accentPrimary
+
+        switch colorScheme {
+        case .dark:
+            // Preserve existing dark mode behavior
+            background = theme.colors.backgroundPrimary
+            secondaryButtonTint = theme.colors.textSecondary.opacity(0.9)
+            privacyNoteText = theme.colors.textSecondary.opacity(0.86)
+
+        default: // .light
+            // New minimal, clean light mode
+            background = Color(uiColor: .systemBackground)
+            secondaryButtonTint = accentPrimary
+            privacyNoteText = Color(uiColor: .secondaryLabel).opacity(0.75)
+        }
+    }
+}
+
 /// A focused welcome experience that highlights key RefZone touchpoints before sign-in.
 struct WelcomeView: View {
   @EnvironmentObject private var coordinator: AuthenticationCoordinator
@@ -23,7 +48,7 @@ struct WelcomeView: View {
 
   var body: some View {
     ZStack {
-      theme.colors.backgroundPrimary.ignoresSafeArea()
+      colors.background.ignoresSafeArea()
 
       ScrollView(.vertical, showsIndicators: false) {
         VStack(spacing: theme.spacing.stackXL) {
@@ -44,6 +69,10 @@ struct WelcomeView: View {
 }
 
 private extension WelcomeView {
+  var colors: WelcomeColors {
+    WelcomeColors(theme: theme, colorScheme: colorScheme)
+  }
+
   var horizontalPadding: CGFloat {
     dynamicTypeSize.isAccessibilitySize ? theme.spacing.stackXL : theme.spacing.stackXL * CGFloat(1.5)
   }
@@ -83,7 +112,7 @@ private extension WelcomeView {
           .frame(maxWidth: .infinity)
       }
       .buttonStyle(.bordered)
-      .tint(theme.colors.textSecondary.opacity(colorScheme == .dark ? 0.9 : 0.7))
+      .tint(colors.secondaryButtonTint)
       .accessibilityHint(Text(NSLocalizedString("welcome.actions.createAccount.hint", value: "Opens the account creation form", comment: "Accessibility hint for create account button")))
     }
   }
@@ -91,7 +120,7 @@ private extension WelcomeView {
   var privacyNote: some View {
     Text(NSLocalizedString("welcome.privacyNote", value: "An active RefZone account is required on iPhone. Your Apple Watch can still log matches offline and will sync once you sign in here.", comment: "Footer note explaining onboarding requirements"))
       .font(theme.typography.caption)
-      .foregroundStyle(theme.colors.textSecondary.opacity(colorScheme == .dark ? 0.86 : 0.72))
+      .foregroundStyle(colors.privacyNoteText)
       .multilineTextAlignment(.center)
       .padding(.horizontal)
       .frame(maxWidth: 360)
