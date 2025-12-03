@@ -35,7 +35,7 @@ struct SubstitutionFlow: View {
     }
     
     var body: some View {
-        NavigationStack {
+        Group {
             switch step {
             case .playerOff:
                 PlayerNumberInputView(

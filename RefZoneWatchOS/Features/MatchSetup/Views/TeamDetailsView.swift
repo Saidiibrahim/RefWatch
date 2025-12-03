@@ -3,18 +3,27 @@ import RefWatchCore
 import WatchKit
 
 struct TeamDetailsView: View {
-    enum TeamType {
+    enum TeamType: Hashable {
         case home, away
     }
     
     let teamType: TeamType
     let matchViewModel: MatchViewModel
     let setupViewModel: MatchSetupViewModel
+    let onGoalTypeSelected: (GoalDetails.GoalType) -> Void
     
-    @State private var selectedTeamOfficial: TeamOfficialRole?
-    @State private var selectedPlayerNumber: Int?
-    @State private var showingPlayerNumberInput = false
-    @State private var selectedGoalType: GoalDetails.GoalType?
+    init(
+        teamType: TeamType,
+        matchViewModel: MatchViewModel,
+        setupViewModel: MatchSetupViewModel,
+        onGoalTypeSelected: @escaping (GoalDetails.GoalType) -> Void = { _ in }
+    ) {
+        self.teamType = teamType
+        self.matchViewModel = matchViewModel
+        self.setupViewModel = setupViewModel
+        self.onGoalTypeSelected = onGoalTypeSelected
+    }
+
     @Environment(\.theme) private var theme
     @Environment(\.watchLayoutScale) private var layout
     @Environment(SettingsViewModel.self) private var settingsViewModel
@@ -32,43 +41,6 @@ struct TeamDetailsView: View {
         .padding(.bottom, layout.safeAreaBottomPadding)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(theme.colors.backgroundPrimary.ignoresSafeArea())
-        .navigationDestination(isPresented: $showingPlayerNumberInput) {
-            if let goalType = selectedGoalType {
-                PlayerNumberInputView(
-                    team: teamType,
-                    goalType: goalType,
-                    cardType: nil,
-                    context: "goal scorer",
-                    onComplete: { number in
-                        print("DEBUG: Player number entered for goal: #\(number)")
-                        recordGoal(type: goalType, playerNumber: number)
-                        showingPlayerNumberInput = false
-                        selectedGoalType = nil
-                    }
-                )
-            }
-        }
-    }
-    
-    private func recordGoal(type: GoalDetails.GoalType, playerNumber: Int) {
-        print("DEBUG: Recording goal - Type: \(type.rawValue), Player: #\(playerNumber), Team: \(teamType)")
-        let scoringTeam: TeamSide
-        switch type {
-        case .regular, .freeKick, .penalty:
-            scoringTeam = teamType == .home ? .home : .away
-        case .ownGoal:
-            // Own goal: credit the OPPOSITE team of the side initiating this flow
-            // If entering from home team view, the away team scores, and vice versa.
-            scoringTeam = teamType == .home ? .away : .home
-        }
-        matchViewModel.recordGoal(
-            team: scoringTeam,
-            goalType: type,
-            playerNumber: playerNumber
-        )
-        print("DEBUG: Goal recording completed successfully using new system")
-        print("DEBUG: Navigating to middle screen...")
-        setupViewModel.setSelectedTab(1)
     }
 
     private var header: some View {
@@ -85,7 +57,7 @@ struct TeamDetailsView: View {
 
     private var eventGridItems: [AdaptiveEventGridItem] {
         [
-            AdaptiveEventGridItem(icon: "square.fill", color: .yellow, label: "Yellow", onTap: {
+            AdaptiveEventGridItem(id: "yellow-card", icon: "square.fill", color: .yellow, label: "Yellow", onTap: {
                 WKInterfaceDevice.current().play(haptic(for: "square.fill"))
             }) {
                 CardEventFlow(
@@ -95,7 +67,7 @@ struct TeamDetailsView: View {
                     setupViewModel: setupViewModel
                 )
             },
-            AdaptiveEventGridItem(icon: "square.fill", color: .red, label: "Red", onTap: {
+            AdaptiveEventGridItem(id: "red-card", icon: "square.fill", color: .red, label: "Red", onTap: {
                 WKInterfaceDevice.current().play(haptic(for: "square.fill"))
             }) {
                 CardEventFlow(
@@ -105,7 +77,7 @@ struct TeamDetailsView: View {
                     setupViewModel: setupViewModel
                 )
             },
-            AdaptiveEventGridItem(icon: "arrow.up.arrow.down", color: .blue, label: "Sub", onTap: {
+            AdaptiveEventGridItem(id: "substitution", icon: "arrow.up.arrow.down", color: .blue, label: "Sub", onTap: {
                 WKInterfaceDevice.current().play(haptic(for: "arrow.up.arrow.down"))
             }) {
                 SubstitutionFlow(
@@ -115,15 +87,14 @@ struct TeamDetailsView: View {
                     initialStep: initialSubstitutionStep
                 )
             },
-            AdaptiveEventGridItem(icon: "soccerball", color: .green, label: "Goal", onTap: {
+            AdaptiveEventGridItem(id: "goal", icon: "soccerball", color: .green, label: "Goal", onTap: {
                 WKInterfaceDevice.current().play(haptic(for: "soccerball"))
             }) {
                 GoalTypeSelectionView(
                     team: teamType,
                     teamDisplayName: teamDisplayName
                 ) { goalType in
-                    selectedGoalType = goalType
-                    showingPlayerNumberInput = true
+                    onGoalTypeSelected(goalType)
                 }
             }
         ]

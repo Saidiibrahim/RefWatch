@@ -2,7 +2,8 @@ import SwiftUI
 import RefWatchCore
 
 struct AdaptiveEventGridItem: Identifiable {
-    let id = UUID()
+    /// Stable identifier to prevent NavigationLink invalidation during recomposition
+    let id: String
     let icon: String
     let color: Color
     let label: String
@@ -10,7 +11,8 @@ struct AdaptiveEventGridItem: Identifiable {
     let onTap: (() -> Void)?
 
     /// Initialize with a navigation destination
-    init(icon: String, color: Color, label: String, onTap: (() -> Void)? = nil, @ViewBuilder destination: () -> some View) {
+    init(id: String, icon: String, color: Color, label: String, onTap: (() -> Void)? = nil, @ViewBuilder destination: () -> some View) {
+        self.id = id
         self.icon = icon
         self.color = color
         self.label = label
@@ -19,7 +21,8 @@ struct AdaptiveEventGridItem: Identifiable {
     }
 
     /// Initialize as a tap-only button (no navigation)
-    init(icon: String, color: Color, label: String, onTap: @escaping () -> Void) {
+    init(id: String, icon: String, color: Color, label: String, onTap: @escaping () -> Void) {
+        self.id = id
         self.icon = icon
         self.color = color
         self.label = label
