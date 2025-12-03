@@ -3,12 +3,15 @@ import RefWatchCore
 import RefWorkoutCore
 
 struct WorkoutRootView: View {
+  private let appModeController: AppModeController
   @StateObject private var viewModel: WorkoutModeViewModel
   @State private var presentError = false
   @Environment(\.modeSwitcherPresentation) private var modeSwitcherPresentation
+  @Environment(\.modeSwitcherBlockReason) private var modeSwitcherBlockReason
   @Environment(\.theme) private var theme
 
   init(services: WorkoutServices, appModeController: AppModeController) {
+    self.appModeController = appModeController
     _viewModel = StateObject(wrappedValue: WorkoutModeViewModel(services: services, appModeController: appModeController))
   }
 
@@ -17,17 +20,18 @@ struct WorkoutRootView: View {
       content
       .navigationTitle("Workout")
       .toolbar {
-        if case .list = viewModel.presentationState {
-          ToolbarItem(placement: .cancellationAction) {
-            Button {
-              modeSwitcherPresentation.wrappedValue = true
-            } label: {
-              Label("Back", systemImage: "chevron.backward")
-                .labelStyle(.iconOnly)
-            }
-            .disabled(viewModel.isPerformingAction)
+        ToolbarItem(placement: .cancellationAction) {
+          Button {
+            modeSwitcherPresentation.wrappedValue = true
+          } label: {
+            Label("Back", systemImage: "chevron.backward")
+              .labelStyle(.iconOnly)
           }
+          .opacity(isModeSwitcherBlocked ? 0.55 : 1)
+          .accessibilityIdentifier("workoutModeSwitcherButton")
+        }
 
+        if case .list = viewModel.presentationState {
           ToolbarItem(placement: .primaryAction) {
             Button {
               viewModel.reloadContent()
@@ -44,6 +48,9 @@ struct WorkoutRootView: View {
     .task {
       await viewModel.bootstrap()
     }
+    .onAppear {
+      updateModeSwitcherBlock()
+    }
     .onChange(of: viewModel.errorMessage) { _, message in
       let isSelectionError: Bool
       if case .error = viewModel.presentationState {
@@ -53,6 +60,12 @@ struct WorkoutRootView: View {
       }
       presentError = message != nil && !isSelectionError
     }
+    .onChange(of: viewModel.presentationState) { _, _ in
+      updateModeSwitcherBlock()
+    }
+    .onChange(of: viewModel.isPerformingAction) { _, _ in
+      updateModeSwitcherBlock()
+    }
     .alert("Workout Error", isPresented: $presentError) {
       Button("OK", role: .cancel) {
         presentError = false
@@ -60,6 +73,17 @@ struct WorkoutRootView: View {
       }
     } message: {
       Text(viewModel.errorMessage ?? "An unknown error occurred.")
+    }
+  }
+}
+
+private extension WorkoutPresentationState {
+  var isActiveSession: Bool {
+    switch self {
+    case .session, .starting:
+      return true
+    default:
+      return false
     }
   }
 }
@@ -126,6 +150,26 @@ private extension WorkoutRootView {
         onRequestNewSession: viewModel.abandonActiveSession
       )
       .workoutCrownReturnGesture(onReturn: viewModel.returnToList)
+    }
+  }
+
+  var isModeSwitcherBlocked: Bool {
+    viewModel.presentationState.isActiveSession || viewModel.isPerformingAction
+  }
+
+  func updateModeSwitcherBlock() {
+    if isModeSwitcherBlocked {
+      modeSwitcherBlockReason.wrappedValue = .activeWorkout
+      appModeControllerOverrideIfNeeded()
+    } else if modeSwitcherBlockReason.wrappedValue == .activeWorkout {
+      modeSwitcherBlockReason.wrappedValue = nil
+    }
+  }
+
+  func appModeControllerOverrideIfNeeded() {
+    // Keep mode in sync if the app resumes during an active workout session
+    if case .session = viewModel.presentationState {
+      appModeController.overrideForActiveSession(.workout)
     }
   }
 }

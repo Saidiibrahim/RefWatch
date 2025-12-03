@@ -15,6 +15,7 @@ struct MatchRootView: View {
     @EnvironmentObject private var appModeController: AppModeController
     @EnvironmentObject private var aggregateEnvironment: AggregateSyncEnvironment
     @Environment(\.modeSwitcherPresentation) private var modeSwitcherPresentation
+    @Environment(\.modeSwitcherBlockReason) private var modeSwitcherBlockReason
     @State private var backgroundRuntimeController: BackgroundRuntimeSessionController
     @State private var matchViewModel: MatchViewModel
     @State private var settingsViewModel: SettingsViewModel
@@ -124,13 +125,14 @@ struct MatchRootView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    if lifecycle.state == .idle {
-                        Button {
-                            modeSwitcherPresentation.wrappedValue = true
-                        } label: {
-                            Image(systemName: "chevron.backward")
-                        }
+                    Button {
+                        modeSwitcherPresentation.wrappedValue = true
+                    } label: {
+                        Image(systemName: "chevron.backward")
                     }
+                    .labelStyle(.iconOnly)
+                    .opacity(isModeSwitcherBlocked ? 0.55 : 1)
+                    .accessibilityIdentifier("matchModeSwitcherButton")
                 }
             }
             .navigationDestination(for: MatchRoute.self) { route in
@@ -144,6 +146,9 @@ struct MatchRootView: View {
         }
         .task {
             matchViewModel.updateLibrary(with: aggregateEnvironment.librarySnapshot)
+        }
+        .onAppear {
+            updateModeSwitcherBlock()
         }
         .onReceive(aggregateEnvironment.$librarySnapshot) { snapshot in
             matchViewModel.updateLibrary(with: snapshot)
@@ -195,6 +200,8 @@ struct MatchRootView: View {
             if newState != .idle {
                 appModeController.overrideForActiveSession(.match)
             }
+
+            updateModeSwitcherBlock()
         }
         .onChange(of: matchViewModel.lastPersistenceError) { newValue, _ in
             if newValue != nil { showPersistenceError = true }
@@ -339,6 +346,18 @@ private extension MatchRootView {
 
     func setNavigationPath(for route: MatchRoute) {
         navigationPath = route.canonicalPath
+    }
+
+    var isModeSwitcherBlocked: Bool {
+        lifecycle.state != .idle
+    }
+
+    func updateModeSwitcherBlock() {
+        if isModeSwitcherBlocked {
+            modeSwitcherBlockReason.wrappedValue = .activeMatch
+        } else if modeSwitcherBlockReason.wrappedValue == .activeMatch {
+            modeSwitcherBlockReason.wrappedValue = nil
+        }
     }
 
     @ViewBuilder
