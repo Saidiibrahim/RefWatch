@@ -56,15 +56,11 @@ final class LiveActivityCommandHandler {
         didHandle = true
       }
     case .startHalfTime:
-      if model.waitingForHalfTimeStart {
-        model.startHalfTimeManually()
-        didHandle = true
-      }
+      model.startHalfTimeManually()
+      didHandle = true
     case .startSecondHalf:
-      if model.waitingForSecondHalfStart {
-        model.startSecondHalfManually()
-        didHandle = true
-      }
+      model.startSecondHalfManually()
+      didHandle = true
     }
 
     return didHandle ? envelope.command : nil

@@ -13,7 +13,7 @@ struct MatchNavigationReducer {
   ///   - oldState: Lifecycle state before the transition.
   ///   - newState: Lifecycle state after the transition.
   func reduce(path: inout [MatchRoute], from oldState: MatchPhase, to newState: MatchPhase) {
-    if newState == .idle {
+    if newState == .idle && oldState != .idle {
       path.removeAll(keepingCapacity: false)
       return
     }

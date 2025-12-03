@@ -15,10 +15,9 @@ struct TeamDetailsView: View {
     @State private var selectedPlayerNumber: Int?
     @State private var showingPlayerNumberInput = false
     @State private var selectedGoalType: GoalDetails.GoalType?
-    @State private var showingYellowCard = false
-    @State private var showingRedCard = false
     @Environment(\.theme) private var theme
     @Environment(\.watchLayoutScale) private var layout
+    @Environment(SettingsViewModel.self) private var settingsViewModel
 
     var body: some View {
         VStack(spacing: theme.spacing.m) {
@@ -48,22 +47,6 @@ struct TeamDetailsView: View {
                     }
                 )
             }
-        }
-        .sheet(isPresented: $showingYellowCard) {
-            CardEventFlow(
-                cardType: .yellow,
-                team: teamType,
-                matchViewModel: matchViewModel,
-                setupViewModel: setupViewModel
-            )
-        }
-        .sheet(isPresented: $showingRedCard) {
-            CardEventFlow(
-                cardType: .red,
-                team: teamType,
-                matchViewModel: matchViewModel,
-                setupViewModel: setupViewModel
-            )
         }
     }
     
@@ -102,13 +85,25 @@ struct TeamDetailsView: View {
 
     private var eventGridItems: [AdaptiveEventGridItem] {
         [
-            AdaptiveEventGridItem(icon: "square.fill", color: .yellow, label: "Yellow") {
+            AdaptiveEventGridItem(icon: "square.fill", color: .yellow, label: "Yellow", onTap: {
                 WKInterfaceDevice.current().play(haptic(for: "square.fill"))
-                showingYellowCard = true
+            }) {
+                CardEventFlow(
+                    cardType: .yellow,
+                    team: teamType,
+                    matchViewModel: matchViewModel,
+                    setupViewModel: setupViewModel
+                )
             },
-            AdaptiveEventGridItem(icon: "square.fill", color: .red, label: "Red") {
+            AdaptiveEventGridItem(icon: "square.fill", color: .red, label: "Red", onTap: {
                 WKInterfaceDevice.current().play(haptic(for: "square.fill"))
-                showingRedCard = true
+            }) {
+                CardEventFlow(
+                    cardType: .red,
+                    team: teamType,
+                    matchViewModel: matchViewModel,
+                    setupViewModel: setupViewModel
+                )
             },
             AdaptiveEventGridItem(icon: "arrow.up.arrow.down", color: .blue, label: "Sub", onTap: {
                 WKInterfaceDevice.current().play(haptic(for: "arrow.up.arrow.down"))
@@ -116,7 +111,8 @@ struct TeamDetailsView: View {
                 SubstitutionFlow(
                     team: teamType,
                     matchViewModel: matchViewModel,
-                    setupViewModel: setupViewModel
+                    setupViewModel: setupViewModel,
+                    initialStep: initialSubstitutionStep
                 )
             },
             AdaptiveEventGridItem(icon: "soccerball", color: .green, label: "Goal", onTap: {
@@ -131,6 +127,10 @@ struct TeamDetailsView: View {
                 }
             }
         ]
+    }
+
+    private var initialSubstitutionStep: SubstitutionFlow.SubstitutionStep {
+        settingsViewModel.settings.substitutionOrderPlayerOffFirst ? .playerOff : .playerOn
     }
 
     private func haptic(for icon: String) -> WKHapticType {
@@ -165,6 +165,7 @@ struct TeamDetailsView: View {
     let setupViewModel = MatchSetupViewModel(matchViewModel: matchViewModel)
 
     return TeamDetailsView(teamType: .home, matchViewModel: matchViewModel, setupViewModel: setupViewModel)
+        .environment(SettingsViewModel())
         .watchLayoutScale(WatchLayoutScale(category: .compact))
         
 }
@@ -174,6 +175,7 @@ struct TeamDetailsView: View {
     let setupViewModel = MatchSetupViewModel(matchViewModel: matchViewModel)
 
     return TeamDetailsView(teamType: .away, matchViewModel: matchViewModel, setupViewModel: setupViewModel)
+        .environment(SettingsViewModel())
         .watchLayoutScale(WatchLayoutScale(category: .expanded))
         
 }

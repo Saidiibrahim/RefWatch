@@ -85,19 +85,22 @@ final class WatchConnectivitySyncClient: NSObject, ConnectivitySyncProvidingExte
         "type": "completedMatch",
         "data": data
       ]
+      let sendOrFallback = {
+        // Durable enqueue so we don't lose the match if the phone drops connection mid-send
+        session.transferUserInfo(payload)
+        NotificationCenter.default.post(
+          name: .syncFallbackOccurred,
+          object: nil,
+          userInfo: ["context": "watch.completedMatch.sendMessageFallback"]
+        )
+      }
+
       if session.isReachable {
         session.sendMessage(payload) { _ in
-          // Only fallback to durable transfer on ERROR
-          // (WCSessioning protocol internally provides replyHandler: nil)
-          NotificationCenter.default.post(
-            name: .syncFallbackOccurred,
-            object: nil,
-            userInfo: ["context": "watch.completedMatch.sendMessageFallback"]
-          )
-          session.transferUserInfo(payload)
+          sendOrFallback()
         }
       } else {
-        session.transferUserInfo(payload)
+        sendOrFallback()
       }
     }
 #endif

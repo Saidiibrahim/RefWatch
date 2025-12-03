@@ -22,12 +22,16 @@ struct SubstitutionFlow: View {
     }
     
     // Initialize with proper starting step based on settings
-    init(team: TeamDetailsView.TeamType, matchViewModel: MatchViewModel, setupViewModel: MatchSetupViewModel) {
+    init(
+        team: TeamDetailsView.TeamType,
+        matchViewModel: MatchViewModel,
+        setupViewModel: MatchSetupViewModel,
+        initialStep: SubstitutionStep = .playerOff
+    ) {
         self.team = team
         self.matchViewModel = matchViewModel
         self.setupViewModel = setupViewModel
-        // Will be updated in body based on settings
-        self._step = State(initialValue: .playerOff)
+        self._step = State(initialValue: initialStep)
     }
     
     var body: some View {
@@ -63,10 +67,6 @@ struct SubstitutionFlow: View {
                     // .navigationTitle("Confirm Substitution")
                     .navigationBarBackButtonHidden(false)
             }
-        }
-        .onAppear {
-            // Set initial step based on settings
-            step = settingsViewModel.settings.substitutionOrderPlayerOffFirst ? .playerOff : .playerOn
         }
     }
     
@@ -175,6 +175,7 @@ struct SubstitutionFlow: View {
         matchViewModel: PreviewMatchViewModel(),
         setupViewModel: PreviewMatchSetupViewModel()
     )
+    .environment(SettingsViewModel())
 }
 
 #Preview("Making Substitution - Player On") {
@@ -182,6 +183,7 @@ struct SubstitutionFlow: View {
         team: .away,
         initialStep: .playerOn
     )
+    .environment(SettingsViewModel())
 }
 
 #Preview("Confirming Substitution") {
@@ -189,6 +191,7 @@ struct SubstitutionFlow: View {
         team: .home,
         initialStep: .confirmation
     )
+    .environment(SettingsViewModel())
 }
 
 // MARK: - Preview Helper View
