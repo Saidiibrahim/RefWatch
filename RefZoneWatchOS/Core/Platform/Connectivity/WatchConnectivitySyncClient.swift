@@ -96,9 +96,9 @@ final class WatchConnectivitySyncClient: NSObject, ConnectivitySyncProvidingExte
       }
 
       if session.isReachable {
-        session.sendMessage(payload) { _ in
+        session.sendMessage(payload, errorHandler: { _ in
           sendOrFallback()
-        }
+        })
       } else {
         sendOrFallback()
       }

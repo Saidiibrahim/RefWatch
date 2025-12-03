@@ -49,4 +49,25 @@ struct WatchConnectivitySyncClientTests {
         #expect(mock.transferred.count == 1)
         #expect(observed == true)
     }
+
+    @Test
+    func test_sendMessage_success_doesNotFallbackOrTransferUserInfo() async throws {
+        let mock = MockWCSession(isReachable: true, sendShouldError: false)
+        let client = WatchConnectivitySyncClient(session: mock)
+
+        var observed = false
+        let token = NotificationCenter.default.addObserver(forName: .syncFallbackOccurred, object: nil, queue: .main) { _ in
+            observed = true
+        }
+        defer { NotificationCenter.default.removeObserver(token) }
+
+        let match = Match(homeTeam: "H", awayTeam: "A")
+        let snap = CompletedMatch(match: match, events: [])
+        client.sendCompletedMatch(snap)
+        // Allow any async callbacks to fire
+        try await Task.sleep(nanoseconds: 50_000_000)
+
+        #expect(mock.transferred.isEmpty)
+        #expect(observed == false)
+    }
 }
