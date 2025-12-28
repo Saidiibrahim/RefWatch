@@ -4,7 +4,33 @@
 [![Platform](https://img.shields.io/badge/platform-watchOS%20%7C%20iOS-blue.svg)](https://developer.apple.com/watchos/)
 [![Swift](https://img.shields.io/badge/Swift-5.9-orange.svg)](https://swift.org/)
 
+<table align="center">
+  <tr>
+    <td><img src="docs/images/screenshots/iphone/iphone-1.png" alt="iPhone App" height="400"></td>
+    <td><img src="docs/images/screenshots/watch/watch-1.png" alt="Watch App" height="400"></td>
+  </tr>
+</table>
+
 A watchOS-first app designed for football/soccer referees to manage matches efficiently. The Apple Watch app is production-ready for on-pitch use, while the companion iOS app provides match library management, live mirroring, and post-match review.
+
+## Table of Contents
+
+- [RefWatch](#refwatch)
+  - [Table of Contents](#table-of-contents)
+  - [Features](#features)
+    - [Match Timer Management](#match-timer-management)
+    - [Match Events Recording](#match-events-recording)
+    - [Match Configuration](#match-configuration)
+    - [Match Library (iOS)](#match-library-ios)
+  - [Quick Start](#quick-start)
+  - [Post-clone setup](#post-clone-setup)
+    - [Prerequisites](#prerequisites)
+    - [Setup](#setup)
+  - [Architecture](#architecture)
+  - [Documentation](#documentation)
+  - [Contributing](#contributing)
+  - [Security](#security)
+  - [License](#license)
 
 ## Features
 
@@ -160,8 +186,3 @@ For security vulnerabilities, please see our [Security Policy](SECURITY.md) for 
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## Acknowledgments
-
-- Built with SwiftUI and modern Swift concurrency
-- Haptic patterns designed for on-pitch use
-- Timer accuracy optimized for real match conditions
