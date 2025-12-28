@@ -25,5 +25,5 @@
 - Documentation updated (DocC + `docs/`).
 - Schemes remain shared for CI.
 
-## Slack & Questions
-- Tag maintainers in the #refzone channel with blockers or architecture questions.
+## Questions & Support
+- Open a GitHub Discussion or tag maintainers in the issue with blockers or architecture questions.

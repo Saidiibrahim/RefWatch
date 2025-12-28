@@ -1,24 +1,24 @@
-# Running RefZone Locally
+# Running RefWatch Locally
 
 ## Watch App (Primary)
-1. In Xcode, select the `RefZone Watch App` scheme.
+1. In Xcode, select the `RefWatch Watch App` scheme.
 2. Choose `Apple Watch Series 9 (45mm)` or your preferred simulator.
 3. Build & run (`⌘R`).
 4. For CLI builds:
    ```bash
-   xcodebuild -project RefZone.xcodeproj \
-     -scheme "RefZone Watch App" \
+   xcodebuild -project RefWatch.xcodeproj \
+     -scheme "RefWatch Watch App" \
      -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)' build
    ```
 
 ## iOS Companion App
-1. Switch to the `RefZoneiOS` scheme.
+1. Switch to the `RefWatchiOS` scheme.
 2. Select an `iPhone 15` simulator.
 3. Build & run (`⌘R`).
 4. CLI build command:
    ```bash
-   xcodebuild -project RefZone.xcodeproj \
-     -scheme RefZoneiOS \
+   xcodebuild -project RefWatch.xcodeproj \
+     -scheme RefWatchiOS \
      -destination 'platform=iOS Simulator,name=iPhone 15' build
    ```
 
@@ -26,8 +26,8 @@
 - Primary focus: watchOS unit/UI tests.
 - Run all tests from Xcode or via:
   ```bash
-  xcodebuild test -project RefZone.xcodeproj \
-    -scheme "RefZone Watch App" \
+  xcodebuild test -project RefWatch.xcodeproj \
+    -scheme "RefWatch Watch App" \
     -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)'
   ```
 

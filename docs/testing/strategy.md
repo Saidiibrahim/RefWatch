@@ -15,8 +15,8 @@ Use `test<Action>_when<Context>_does<Outcome>()` for clarity.
 
 ## Commands
 ```bash
-xcodebuild test -project RefZone.xcodeproj \
-  -scheme "RefZone Watch App" \
+xcodebuild test -project RefWatch.xcodeproj \
+  -scheme "RefWatch Watch App" \
   -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)'
 ```
 

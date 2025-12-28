@@ -1,6 +1,6 @@
 # Architecture Overview
 
-RefZone is split into a primary watchOS experience with an optional iOS companion. Shared logic lives in the watch target to simplify synchronization and reuse.
+RefWatch is split into a primary watchOS experience with an optional iOS companion. Shared logic lives in the watch target to simplify synchronization and reuse.
 
 ## Layering
 - **App Layer**: SwiftUI entry points and root views per platform.

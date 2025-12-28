@@ -10,7 +10,7 @@
 ### Current findings (key references)
 
 - Watch "Saved Matches" renders what `MatchViewModel.savedMatches` provides; it already listens for aggregate library snapshots:
-```124:132:RefZoneWatchOS/App/MatchRootView.swift
+```124:132:RefWatchWatchOS/App/MatchRootView.swift
 .task { matchViewModel.updateLibrary(with: aggregateEnvironment.librarySnapshot) }
 .onReceive(aggregateEnvironment.$librarySnapshot) { snapshot in
   matchViewModel.updateLibrary(with: snapshot)
@@ -18,7 +18,7 @@
 ```
 
 - iOS builds aggregate snapshots (teams, competitions, venues, schedules) and sends them to the watch:
-```137:167:RefZoneiOS/Core/Platform/Connectivity/AggregateSyncCoordinator.swift
+```137:167:RefWatchiOS/Core/Platform/Connectivity/AggregateSyncCoordinator.swift
 func buildSnapshot(teams:..., competitions:..., venues:..., schedules:...) {
   let payloads = builder.makeSnapshots(...)
   client.enqueueAggregateSnapshots(payloads)
@@ -27,7 +27,7 @@ func buildSnapshot(teams:..., competitions:..., venues:..., schedules:...) {
 
 - Watch ingests aggregate snapshots and persists schedules in SwiftData, which feed `MatchLibrarySnapshot` used by `MatchViewModel.updateLibrary`.
 - Watch history list uses only local JSON (`MatchHistoryService`) and doesn’t pull iPhone history:
-```51:53:RefZoneWatchOS/Features/Match/Views/MatchHistoryView.swift
+```51:53:RefWatchWatchOS/Features/Match/Views/MatchHistoryView.swift
 private func reload() {
   items = matchViewModel.loadRecentCompletedMatches()
 }
@@ -53,8 +53,8 @@ private func reload() {
   - Confirm/extend `subscribeToStores()` so local create/update in `ScheduleStoring` triggers `triggerSnapshotRefresh()`.
   - On history changes, also refresh snapshot (see below).
   - Files:
-    - `RefZoneiOS/Core/Platform/Connectivity/AggregateSyncCoordinator.swift`
-    - `RefZoneiOS/Core/Platform/Connectivity/ConnectivitySyncController.swift`
+    - `RefWatchiOS/Core/Platform/Connectivity/AggregateSyncCoordinator.swift`
+    - `RefWatchiOS/Core/Platform/Connectivity/ConnectivitySyncController.swift`
 
 2) iOS: Include a bounded history summary in aggregate snapshots
 
@@ -64,18 +64,18 @@ private func reload() {
   - `IOSConnectivitySyncClient` posts `.matchHistoryDidChange` after ingest; listen and call `requestSnapshotRefresh()`.
 - Files:
   - `RefWatchCore/Sources/RefWatchCore/Domain/AggregateSyncPayloads.swift` (add `HistorySummary` model in core payloads)
-  - `RefZoneiOS/Core/Platform/Connectivity/AggregateSnapshotBuilder.swift` (build history section, respect chunk sizing)
-  - `RefZoneiOS/Core/Platform/Connectivity/AggregateSyncCoordinator.swift` (source recent history from `MatchHistoryStoring`)
-  - `RefZoneiOS/Core/Platform/Connectivity/IOSConnectivitySyncClient.swift` (ensure `.matchHistoryDidChange` leads to snapshot refresh)
+  - `RefWatchiOS/Core/Platform/Connectivity/AggregateSnapshotBuilder.swift` (build history section, respect chunk sizing)
+  - `RefWatchiOS/Core/Platform/Connectivity/AggregateSyncCoordinator.swift` (source recent history from `MatchHistoryStoring`)
+  - `RefWatchiOS/Core/Platform/Connectivity/IOSConnectivitySyncClient.swift` (ensure `.matchHistoryDidChange` leads to snapshot refresh)
 
 3) Watch: Ingest and persist history summaries
 
 - Add SwiftData model and store methods to persist and read recent history summaries.
 - Extend `WatchAggregateSyncCoordinator.ingestSnapshotPayload` to upsert `historySummaries`.
 - Files:
-  - `RefZoneWatchOS/Core/Persistence/SwiftData/WatchAggregateModels.swift` (new `AggregateHistoryRecord`)
-  - `RefZoneWatchOS/Core/Persistence/SwiftData/WatchAggregateDataStores.swift` (CRUD helpers)
-  - `RefZoneWatchOS/Core/Platform/Connectivity/WatchAggregateSyncCoordinator.swift` (ingest history)
+  - `RefWatchWatchOS/Core/Persistence/SwiftData/WatchAggregateModels.swift` (new `AggregateHistoryRecord`)
+  - `RefWatchWatchOS/Core/Persistence/SwiftData/WatchAggregateDataStores.swift` (CRUD helpers)
+  - `RefWatchWatchOS/Core/Platform/Connectivity/WatchAggregateSyncCoordinator.swift` (ingest history)
 
 4) Watch UI: Merge local and inbound history, bounded
 
@@ -85,14 +85,14 @@ private func reload() {
 - Merge, deduplicate by `id`, sort by `completedAt`, bound to limit.
 - Indicate source (e.g., small secondary label “from iPhone”).
 - Files:
-  - `RefZoneWatchOS/Features/Match/Views/MatchHistoryView.swift`
+  - `RefWatchWatchOS/Features/Match/Views/MatchHistoryView.swift`
 
 5) Watch UI: Manual sync affordance
 
 - Add a “Sync from iPhone” button in Start screen or History screen overflow; call `aggregateEnvironment.connectivity.requestManualAggregateSync()`.
 - Optionally show last sync time/status in a footer using `aggregateEnvironment.status`.
 - Files:
-  - `RefZoneWatchOS/App/MatchRootView.swift` and/or `RefZoneWatchOS/Features/Match/Views/MatchHistoryView.swift`
+  - `RefWatchWatchOS/App/MatchRootView.swift` and/or `RefWatchWatchOS/Features/Match/Views/MatchHistoryView.swift`
 
 6) Bounded window policy
 

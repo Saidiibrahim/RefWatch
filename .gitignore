@@ -67,8 +67,12 @@ fastlane/test_output
 .DS_Store
 **/.DS_Store
 
-# Local secrets (iOS)
-RefZoneiOS/Config/Secrets.xcconfig
+# Local secrets and configuration (iOS)
+RefWatchiOS/Config/Secrets.xcconfig
+RefWatchiOS/Config/Config.xcconfig
+
+# Firebase configuration (contains project-specific credentials)
+**/GoogleService-Info.plist
 
 # Local Xcode build outputs (do not commit)
 build/
@@ -85,3 +89,17 @@ DerivedData/
 
 # Simulator home directory (logs and runtime artifacts)
 .home/
+
+# Internal development artifacts (not for public release)
+.agent/
+.cursor/
+.claude/
+.codesnapshot.json
+.todo
+.cursorrules
+.venv/
+pyproject.toml
+.env.local
+
+# VS Code
+.vscode/

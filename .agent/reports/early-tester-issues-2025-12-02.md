@@ -85,8 +85,8 @@ The `.navigationDestination()` modifier, by contrast, performs a navigation stac
 The `NumericKeypad` component itself is functioning correctly in both contexts—the visual difference is entirely due to the presentation layer.
 
 ### Affected Files
-- `RefZoneWatchOS/Features/MatchSetup/Views/TeamDetailsView.swift:36-67`
-- `RefZoneWatchOS/Features/Events/Views/CardEventFlow.swift` (presented via sheet)
+- `RefWatchWatchOS/Features/MatchSetup/Views/TeamDetailsView.swift:36-67`
+- `RefWatchWatchOS/Features/Events/Views/CardEventFlow.swift` (presented via sheet)
 
 ### Recommended Fix
 
@@ -171,8 +171,8 @@ init(team: TeamDetailsView.TeamType, matchViewModel: MatchViewModel, setupViewMo
 - State change completes before navigation renders
 
 ### Affected Files
-- `RefZoneWatchOS/Features/Events/Views/SubstitutionFlow.swift:24-70`
-- `RefZoneWatchOS/Features/MatchSetup/Views/TeamDetailsView.swift:113-121` (navigation trigger)
+- `RefWatchWatchOS/Features/Events/Views/SubstitutionFlow.swift:24-70`
+- `RefWatchWatchOS/Features/MatchSetup/Views/TeamDetailsView.swift:113-121` (navigation trigger)
 
 ### Recommended Fix
 
@@ -272,15 +272,15 @@ Consider auditing other event flows for similar patterns:
 ## Appendix: File References
 
 ### Issue #1 - Card Keyboard Shading
-- [TeamDetailsView.swift:36-67](RefZoneWatchOS/Features/MatchSetup/Views/TeamDetailsView.swift#L36-L67)
-- [CardEventFlow.swift](RefZoneWatchOS/Features/Events/Views/CardEventFlow.swift)
-- [PlayerNumberInputView.swift](RefZoneWatchOS/Features/Events/Views/PlayerNumberInputView.swift)
-- [NumericKeypad.swift](RefZoneWatchOS/Core/Components/Input/NumericKeypad.swift)
+- [TeamDetailsView.swift:36-67](RefWatchWatchOS/Features/MatchSetup/Views/TeamDetailsView.swift#L36-L67)
+- [CardEventFlow.swift](RefWatchWatchOS/Features/Events/Views/CardEventFlow.swift)
+- [PlayerNumberInputView.swift](RefWatchWatchOS/Features/Events/Views/PlayerNumberInputView.swift)
+- [NumericKeypad.swift](RefWatchWatchOS/Core/Components/Input/NumericKeypad.swift)
 
 ### Issue #2 - Substitution Navigation
-- [SubstitutionFlow.swift:24-70](RefZoneWatchOS/Features/Events/Views/SubstitutionFlow.swift#L24-L70)
-- [TeamDetailsView.swift:113-121](RefZoneWatchOS/Features/MatchSetup/Views/TeamDetailsView.swift#L113-L121)
-- [AdaptiveEventGrid.swift:100-113](RefZoneWatchOS/Core/Components/AdaptiveEventGrid.swift#L100-L113)
+- [SubstitutionFlow.swift:24-70](RefWatchWatchOS/Features/Events/Views/SubstitutionFlow.swift#L24-L70)
+- [TeamDetailsView.swift:113-121](RefWatchWatchOS/Features/MatchSetup/Views/TeamDetailsView.swift#L113-L121)
+- [AdaptiveEventGrid.swift:100-113](RefWatchWatchOS/Core/Components/AdaptiveEventGrid.swift#L100-L113)
 
 ---
 

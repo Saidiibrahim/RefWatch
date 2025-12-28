@@ -1,10 +1,10 @@
 # OpenAI Responses API Integration
 
-This document captures the RefZone iOS migration from the legacy Chat Completions endpoint to the modern [OpenAI Responses API](https://platform.openai.com/docs/api-reference/responses/create). It is intended as a reference for future maintenance and for onboarding teammates who need to touch the assistant feature.
+This document captures the RefWatch iOS migration from the legacy Chat Completions endpoint to the modern [OpenAI Responses API](https://platform.openai.com/docs/api-reference/responses/create). It is intended as a reference for future maintenance and for onboarding teammates who need to touch the assistant feature.
 
 ## Overview
 
-- **Primary client**: `RefZoneiOS/Core/Platform/AI/OpenAIAssistantService.swift`
+- **Primary client**: `RefWatchiOS/Core/Platform/AI/OpenAIAssistantService.swift`
 - **Protocol**: `AssistantProviding` (unchanged)
 - **Target endpoint**: `POST https://api.openai.com/v1/responses`
 - **Transport**: Server Sent Events (SSE) with `stream: true`
@@ -63,7 +63,7 @@ If the UI fails to update, confirm that `response.output_text.delta` messages ar
 
 ## Testing
 
-Unit coverage lives in `RefZoneiOSTests/OpenAIAssistantServiceTests.swift`:
+Unit coverage lives in `RefWatchiOSTests/OpenAIAssistantServiceTests.swift`:
 
 - Payload generation trims whitespace and preserves roles.
 - SSE parser tests validate delta accumulation, done events, and error paths.

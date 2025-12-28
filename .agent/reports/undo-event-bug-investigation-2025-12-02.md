@@ -269,15 +269,15 @@ Since the static code analysis shows correct implementation, the bug may stem fr
 4. [MatchViewModel.swift:694-698](RefWatchCore/Sources/RefWatchCore/ViewModels/MatchViewModel.swift#L694-L698) - `clearPendingConfirmation()`
 
 ### iOS UI Layer
-5. [MatchTimerView.swift:247-250](RefZoneiOS/Features/Match/MatchTimer/MatchTimerView.swift#L247-L250) - Undo button action
-6. [MatchTimerView.swift:304-309](RefZoneiOS/Features/Match/MatchTimer/MatchTimerView.swift#L304-L309) - EventsLogView ForEach rendering
-7. [MatchTimerView.swift:315-317](RefZoneiOS/Features/Match/MatchTimer/MatchTimerView.swift#L315-L317) - `onChange` scroll trigger
-8. [MatchTimerView.swift:241-261](RefZoneiOS/Features/Match/MatchTimer/MatchTimerView.swift#L241-L261) - Confirmation banner
+5. [MatchTimerView.swift:247-250](RefWatchiOS/Features/Match/MatchTimer/MatchTimerView.swift#L247-L250) - Undo button action
+6. [MatchTimerView.swift:304-309](RefWatchiOS/Features/Match/MatchTimer/MatchTimerView.swift#L304-L309) - EventsLogView ForEach rendering
+7. [MatchTimerView.swift:315-317](RefWatchiOS/Features/Match/MatchTimer/MatchTimerView.swift#L315-L317) - `onChange` scroll trigger
+8. [MatchTimerView.swift:241-261](RefWatchiOS/Features/Match/MatchTimer/MatchTimerView.swift#L241-L261) - Confirmation banner
 
 ### watchOS UI Layer (for comparison)
-9. [TimerView.swift:110-120](RefZoneWatchOS/Features/Timer/Views/TimerView.swift#L110-L120) - Auto-dismiss confirmation logic
-10. [MatchActionsSheet.swift:182-188](RefZoneWatchOS/Features/Timer/Views/MatchActionsSheet.swift#L182-L188) - watchOS undo button
-11. [EventConfirmationView.swift](RefZoneWatchOS/Features/Timer/Views/EventConfirmationView.swift) - watchOS confirmation overlay
+9. [TimerView.swift:110-120](RefWatchWatchOS/Features/Timer/Views/TimerView.swift#L110-L120) - Auto-dismiss confirmation logic
+10. [MatchActionsSheet.swift:182-188](RefWatchWatchOS/Features/Timer/Views/MatchActionsSheet.swift#L182-L188) - watchOS undo button
+11. [EventConfirmationView.swift](RefWatchWatchOS/Features/Timer/Views/EventConfirmationView.swift) - watchOS confirmation overlay
 
 ### Tests
 12. [MatchViewModel_EventsAndStoppageTests.swift:94-106](RefWatchCore/Tests/RefWatchCoreTests/MatchViewModel_EventsAndStoppageTests.swift#L94-L106) - Passing undo test

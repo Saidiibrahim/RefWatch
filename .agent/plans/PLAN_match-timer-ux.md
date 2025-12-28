@@ -4,8 +4,8 @@
 Improve iOS match timer flow so referees can quickly record events, keep context on the main timer, and avoid duplicated/confusing period/finish controls. The result should: (a) return users to the timer after saving events, (b) keep the event log readable for long matches, and (c) present one clear path for pausing, period transitions, and finishing.
 
 ## Context and Orientation
-- iOS timer screen: `RefZoneiOS/Features/Match/MatchTimer/MatchTimerView.swift` (score strip, timers, controls, event list, sheets).
-- Actions sheet: `RefZoneiOS/Features/Match/Events/MatchActionsSheet.swift` (launches event flows, period/finish controls).
+- iOS timer screen: `RefWatchiOS/Features/Match/MatchTimer/MatchTimerView.swift` (score strip, timers, controls, event list, sheets).
+- Actions sheet: `RefWatchiOS/Features/Match/Events/MatchActionsSheet.swift` (launches event flows, period/finish controls).
 - Event flows: `GoalEventFlowView.swift`, `CardEventFlowView.swift`, `SubstitutionEventFlowView.swift`.
 - Core logic: `RefWatchCore/Sources/RefWatchCore/ViewModels/MatchViewModel.swift` (start/end period, event recording, finalize, pendingConfirmation).
 - Watch timer already prioritizes keeping users on the timer and logs confirmations; useful for parity.

@@ -9,7 +9,7 @@
 ```bash
 git clone <repo-url>
 cd RefWatch
-open RefZone.xcodeproj
+open RefWatch.xcodeproj
 ```
 
 ## Dependency Notes
@@ -17,5 +17,7 @@ open RefZone.xcodeproj
 - If package resolution fails, run `File > Packages > Reset Package Caches` in Xcode.
 
 ## Environment Configuration
-- No secrets committed to the repo. Request Supabase keys and any feature flags from the maintainers.
+- No secrets committed to the repo.
+- Run `./scripts/setup.sh` to generate your local `Config.xcconfig`.
+- Copy `Secrets.example.xcconfig` to `Secrets.xcconfig` and add your API keys for cloud features (Supabase, OpenAI).
 - Ensure custom schemes are marked as *Shared* before running CI commands.

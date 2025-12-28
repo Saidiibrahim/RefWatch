@@ -16,9 +16,9 @@ Ensure the watch app launches into the mode switcher before any match/workout UI
 - (pending)
 
 # Context and Orientation
-- `RefZoneWatchOS/App/AppRootView.swift` currently defaults `AppModeController` to `.match` and uses a `fullScreenCover` shown on appear to present `ModeSwitcherView`, so the underlying `MatchRootView` shows first run.
-- `RefZoneWatchOS/Features/Match/Views/StartMatchScreen.swift` puts a back button that triggers `modeSwitcherPresentation`, sending users to `ModeSwitcherView` rather than popping back to `MatchRootView`.
-- `RefZoneWatchOS/App/ModeSwitcherEnvironment.swift` provides the mode switcher presentation binding and block reason; the block should remain respected when exiting active sessions.
+- `RefWatchWatchOS/App/AppRootView.swift` currently defaults `AppModeController` to `.match` and uses a `fullScreenCover` shown on appear to present `ModeSwitcherView`, so the underlying `MatchRootView` shows first run.
+- `RefWatchWatchOS/Features/Match/Views/StartMatchScreen.swift` puts a back button that triggers `modeSwitcherPresentation`, sending users to `ModeSwitcherView` rather than popping back to `MatchRootView`.
+- `RefWatchWatchOS/App/ModeSwitcherEnvironment.swift` provides the mode switcher presentation binding and block reason; the block should remain respected when exiting active sessions.
 
 # Plan of Work
 1) Create targeted tasks documenting investigation and the two fixes (initial landing and start-flow back navigation).

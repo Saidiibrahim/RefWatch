@@ -10,10 +10,10 @@ status: in_progress
 Ensure substitution entry on watchOS navigates to the keypad on the first tap and remains stable across renders; remove navigation warnings so future SwiftUI releases do not ignore destinations.
 
 ## Context and Orientation
-- watchOS match flow lives under `RefZoneWatchOS/Features/MatchSetup/Views/MatchSetupView.swift` with left/right team event grids feeding the timer.
-- Event buttons are built by `RefZoneWatchOS/Core/Components/AdaptiveEventGrid.swift` (uses `LazyVGrid`).
-- Substitution UI: `RefZoneWatchOS/Features/Events/Views/SubstitutionFlow.swift` (currently wraps its own `NavigationStack`).
-- Goal number input navigation is defined in `RefZoneWatchOS/Features/MatchSetup/Views/TeamDetailsView.swift` via `navigationDestination(isPresented:)`.
+- watchOS match flow lives under `RefWatchWatchOS/Features/MatchSetup/Views/MatchSetupView.swift` with left/right team event grids feeding the timer.
+- Event buttons are built by `RefWatchWatchOS/Core/Components/AdaptiveEventGrid.swift` (uses `LazyVGrid`).
+- Substitution UI: `RefWatchWatchOS/Features/Events/Views/SubstitutionFlow.swift` (currently wraps its own `NavigationStack`).
+- Goal number input navigation is defined in `RefWatchWatchOS/Features/MatchSetup/Views/TeamDetailsView.swift` via `navigationDestination(isPresented:)`.
 - View model hooks: `RefWatchCore/Sources/RefWatchCore/ViewModels/MatchViewModel.swift` and `MatchSetupViewModel.swift`.
 - Logged warning: navDestination inside lazy container; observed bug: first tap on "Sub" pops back, second works.
 

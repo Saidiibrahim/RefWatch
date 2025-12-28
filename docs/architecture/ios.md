@@ -1,7 +1,7 @@
 # iOS Architecture
 
 ## Entry Points
-- `RefZoneiOSApp` bootstraps the iOS experience.
+- `RefWatchiOSApp` bootstraps the iOS experience.
 - `MainTabView` provides navigation across Matches, Live, Library, Trends, and Settings.
 - `AppRouter` coordinates deep links and onboarding routes.
 

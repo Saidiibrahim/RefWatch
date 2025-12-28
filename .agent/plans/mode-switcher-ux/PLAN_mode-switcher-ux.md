@@ -23,10 +23,10 @@ Tighten the watchOS mode selection flow so referees can switch between Match and
 - Pending — to summarize after implementation.
 
 ## Context and Orientation
-- Mode selection UI: `RefZoneWatchOS/App/ModeSwitcherView.swift` (list of modes, back button, last-used indicator, carousel list).
-- Root hosting/presentation: `RefZoneWatchOS/App/AppRootView.swift` (controls full-screen cover, allowDismiss logic based on `appModeController.hasPersistedSelection`).
-- Match home/back affordance: `RefZoneWatchOS/App/MatchRootView.swift` (chevron-only back, hidden when not idle, disables mode switching during active match).
-- Workout home/back affordance: `RefZoneWatchOS/Features/Workout/Views/WorkoutRootView.swift` (labelStyle iconOnly, disabled while performing actions).
+- Mode selection UI: `RefWatchWatchOS/App/ModeSwitcherView.swift` (list of modes, back button, last-used indicator, carousel list).
+- Root hosting/presentation: `RefWatchWatchOS/App/AppRootView.swift` (controls full-screen cover, allowDismiss logic based on `appModeController.hasPersistedSelection`).
+- Match home/back affordance: `RefWatchWatchOS/App/MatchRootView.swift` (chevron-only back, hidden when not idle, disables mode switching during active match).
+- Workout home/back affordance: `RefWatchWatchOS/Features/Workout/Views/WorkoutRootView.swift` (labelStyle iconOnly, disabled while performing actions).
 - Mode state + persistence: `RefWatchCore/Sources/RefWatchCore/Services/AppModeController.swift` (currentMode, hasPersistedSelection, storage defaults, overrideForActiveSession).
 
 ## Plan of Work

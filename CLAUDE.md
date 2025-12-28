@@ -11,29 +11,28 @@ RefWatch is a multi-platform app (watchOS + iOS) designed for football/soccer re
 ### Building the Project
 ```bash
 # Build the Watch app
-xcodebuild -project RefZone.xcodeproj -scheme "RefZone Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)' build
+xcodebuild -project RefWatch.xcodeproj -scheme "RefWatch Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)' build
 
 # Build the iOS app
-xcodebuild -project RefZone.xcodeproj -scheme "RefZoneiOS" -destination 'platform=iOS Simulator,name=iPhone 15' build
+xcodebuild -project RefWatch.xcodeproj -scheme "RefWatchiOS" -destination 'platform=iOS Simulator,name=iPhone 15' build
 
 # Build all targets (schemes must be shared)
-xcodebuild -project RefZone.xcodeproj build
+xcodebuild -project RefWatch.xcodeproj build
 ```
 
 ### Running Tests
 ```bash
 # Run watchOS unit tests
-xcodebuild -project RefZone.xcodeproj -scheme "RefZone Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)' test
+xcodebuild -project RefWatch.xcodeproj -scheme "RefWatch Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)' test
 
 # (When present) Run iOS unit tests
-xcodebuild -project RefZone.xcodeproj -scheme "RefZoneiOS" -destination 'platform=iOS Simulator,name=iPhone 16' test
+xcodebuild -project RefWatch.xcodeproj -scheme "RefWatchiOS" -destination 'platform=iOS Simulator,name=iPhone 16' test
 ```
 
 ## Platform Considerations
 
 - **watchOS**: target 11.2+, WatchKit haptics; avoid per‑tick logs; keep timer scheduling in `.common` and UI updates on main thread.
-- **Development Team**: 6NV7X5BLU7
-- **Bundle ID**: com.IbrahimSaidi.RefZone.watchkitapp
+- **Development Team / Bundle IDs**: configured via `RefWatchiOS/Config/Config.xcconfig` (generate with `scripts/setup.sh`).
 - **Interface Orientations**: Portrait and Portrait Upside Down
 - **Deployment**: Watch-only app (WKWatchOnly = YES)
 
