@@ -1,0 +1,29 @@
+// RefWatch Configuration Template
+// ================================
+// Copy this file to Config.xcconfig and fill in your values.
+// DO NOT COMMIT Config.xcconfig - it contains your personal identifiers.
+//
+// Run ./scripts/setup.sh to generate this file interactively.
+
+// Include secrets if present (optional for local builds without cloud features)
+#include? "Secrets.xcconfig"
+
+// Apple Developer Team ID
+// Find this at: https://developer.apple.com/account -> Membership Details
+DEVELOPMENT_TEAM = YOUR_TEAM_ID
+
+// Bundle Identifier Prefix
+// This will be used to construct all bundle IDs in the project.
+// Example: com.yourcompany or com.yourname
+BUNDLE_ID_PREFIX = com.yourcompany
+
+// App Group Identifier
+// Used for sharing data between the watch app and widgets.
+// Must match the App Group you create in Apple Developer portal.
+// Format: group.<your-identifier>.refwatch
+APP_GROUP_ID = group.yourcompany.refwatch
+
+// URL Scheme
+// Used for deep linking from widgets to the app.
+// Can usually be left as 'refwatch' unless you need a unique scheme.
+URL_SCHEME = refwatch
