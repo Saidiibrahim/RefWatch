@@ -6,8 +6,8 @@
 
 <table align="center">
   <tr>
-    <td><img src="docs/images/screenshots/iphone/iphone-1.png" alt="iPhone App" height="400"></td>
-    <td><img src="docs/images/screenshots/watch/watch-1.png" alt="Watch App" height="400"></td>
+    <td><img src="docs/images/screenshots/iphone/iphone-3.png" alt="iPhone App" height="400"></td>
+    <td><img src="docs/images/screenshots/watch/refzone-watch.png" alt="Watch App" height="400"></td>
   </tr>
 </table>
 
