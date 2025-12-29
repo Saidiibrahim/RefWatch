@@ -1,6 +1,7 @@
 # Contributing Guide
 
 ## Before You Start
+- Read our [Code of Conduct](../../CODE_OF_CONDUCT.md).
 - Install prerequisites listed in [Installation & Tooling](../getting-started/installation.md).
 - Ensure you can build both watchOS and iOS targets locally.
 - Review the [Architecture Overview](../architecture/overview.md) for folder conventions.
