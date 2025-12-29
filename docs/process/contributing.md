@@ -26,5 +26,17 @@
 - Documentation updated (DocC + `docs/`).
 - Schemes remain shared for CI.
 
+## First-Time Contributors
+New to the project? Here's how to get started:
+1. Look for issues labeled [`good first issue`](https://github.com/Saidiibrahim/RefWatch/labels/good%20first%20issue).
+2. Comment on the issue to let maintainers know you're working on it.
+3. Fork the repo and create a branch following the naming conventions above.
+4. Submit a PR using the [pull request template](../../.github/PULL_REQUEST_TEMPLATE.md).
+
+## Reporting Issues
+Use the issue templates when reporting bugs or requesting features:
+- [Bug Report](../../.github/ISSUE_TEMPLATE/bug_report.md)
+- [Feature Request](../../.github/ISSUE_TEMPLATE/feature_request.md)
+
 ## Questions & Support
 - Open a GitHub Discussion or tag maintainers in the issue with blockers or architecture questions.
