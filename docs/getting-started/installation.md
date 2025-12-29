@@ -19,5 +19,7 @@ open RefWatch.xcodeproj
 ## Environment Configuration
 - No secrets committed to the repo.
 - Run `./scripts/setup.sh` to generate your local `Config.xcconfig`.
+- (Recommended) Install git hooks to prevent committing secrets:
+  - `./scripts/install-git-hooks.sh`
 - Copy `Secrets.example.xcconfig` to `Secrets.xcconfig` and add your API keys for cloud features (Supabase, OpenAI).
 - Ensure custom schemes are marked as *Shared* before running CI commands.

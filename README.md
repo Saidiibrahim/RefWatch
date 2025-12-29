@@ -112,6 +112,11 @@ The app works fully offline using SwiftData. When connected, data syncs to Supab
    - App Group identifier
    - URL scheme
 
+   **Recommended:** Install git hooks to prevent committing secrets:
+   ```bash
+   ./scripts/install-git-hooks.sh
+   ```
+
 3. **Configure App Group entitlements**
 
    After running setup.sh, you must manually update the App Group in the entitlements files to match your App Group ID:
@@ -209,4 +214,3 @@ For security vulnerabilities, please see our [Security Policy](SECURITY.md) for 
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-

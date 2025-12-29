@@ -1,0 +1,55 @@
+#!/bin/sh
+set -e
+
+# Simple secret scan for staged files. Skip with SKIP_SECRET_SCAN=1.
+if [ "${SKIP_SECRET_SCAN:-}" = "1" ]; then
+  exit 0
+fi
+
+OPENAI_PATTERN='sk-[A-Za-z0-9_-]{20,}'
+# Supabase keys are JWTs (anon/service role). This catches JWT-like secrets.
+SUPABASE_JWT_PATTERN='eyJ[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+'
+
+scan_content() {
+  content="$1"
+  if command -v rg >/dev/null 2>&1; then
+    printf "%s\n" "$content" | rg -n -e "$OPENAI_PATTERN" -e "$SUPABASE_JWT_PATTERN" || true
+  else
+    printf "%s\n" "$content" | grep -En "$OPENAI_PATTERN|$SUPABASE_JWT_PATTERN" || true
+  fi
+}
+
+fail=0
+
+# Scan only staged, added/modified files.
+for file in $(git diff --cached --name-only --diff-filter=ACM); do
+  # Skip paths that no longer exist or are binary in the index.
+  if [ ! -e "$file" ]; then
+    continue
+  fi
+  numstat=$(git diff --cached --numstat -- "$file" | awk '{print $1}')
+  if [ "$numstat" = "-" ]; then
+    continue
+  fi
+
+  content=$(git show ":$file" 2>/dev/null || true)
+  if [ -z "$content" ]; then
+    continue
+  fi
+
+  matches=$(scan_content "$content")
+  if [ -n "$matches" ]; then
+    echo "Secret scan: possible OpenAI API key detected in staged file: $file" >&2
+    echo "$matches" >&2
+    fail=1
+  fi
+done
+
+if [ "$fail" -ne 0 ]; then
+  echo "" >&2
+  echo "Commit aborted. Remove secrets or move them to local config." >&2
+  echo "To bypass (not recommended): SKIP_SECRET_SCAN=1 git commit ..." >&2
+  exit 1
+fi
+
+exit 0
