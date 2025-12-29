@@ -22,6 +22,7 @@ A watchOS-first app designed for football/soccer referees to manage matches effi
     - [Match Events Recording](#match-events-recording)
     - [Match Configuration](#match-configuration)
     - [Match Library (iOS)](#match-library-ios)
+  - [Tech Stack](#tech-stack)
   - [Quick Start](#quick-start)
   - [Post-clone setup](#post-clone-setup)
     - [Prerequisites](#prerequisites)
@@ -60,13 +61,25 @@ A watchOS-first app designed for football/soccer referees to manage matches effi
 - Venue tracking
 - Match history with full event logs
 
+## Tech Stack
+
+| Layer | Technology | Purpose |
+|-------|-----------|---------|
+| UI Framework | SwiftUI | Declarative UI for watchOS and iOS |
+| Local Storage | SwiftData | On-device persistence |
+| Cloud Database | [Supabase](https://supabase.com) (PostgreSQL) | Match sync, team library, user data |
+| Authentication | Supabase Auth + [Google Sign-In SDK](https://github.com/google/GoogleSignIn-iOS) | Apple Sign-In, Google OAuth |
+| AI Assistant | [OpenAI Responses API](https://platform.openai.com) | Match analysis and referee assistance |
+
+The app works fully offline using SwiftData. When connected, data syncs to Supabase with automatic retry for failed uploads.
+
 ## Quick Start
 
 ## Post-clone setup
 
 - Run `./scripts/setup.sh` to generate `RefWatchiOS/Config/Config.xcconfig` with your Team ID, bundle prefix, app group, and URL scheme (local-only, gitignored).
 - Optional: copy `RefWatchiOS/Config/Secrets.example.xcconfig` to `RefWatchiOS/Config/Secrets.xcconfig` and add API keys.
-- Optional: add `RefWatchiOS/GoogleService-Info.plist` for Firebase/Google Sign-In.
+- Optional: configure Google Sign-In credentials in `Secrets.xcconfig` (see setup step 5).
 
 ### Prerequisites
 
@@ -75,10 +88,10 @@ A watchOS-first app designed for football/soccer referees to manage matches effi
 - **watchOS 11.0+** target device or simulator
 - **iOS 17.0+** for companion app (optional)
 
-Optional services:
-- Supabase account for cloud sync
-- OpenAI API key for AI assistant features
-- Firebase project for analytics
+**Optional cloud services:**
+- [Supabase](https://supabase.com/dashboard) — Cloud sync and authentication
+- [OpenAI](https://platform.openai.com) — AI assistant (uses gpt-4o-mini)
+- [Google Cloud Console](https://console.cloud.google.com) — OAuth client ID for Google Sign-In
 
 ### Setup
 
@@ -119,10 +132,21 @@ Optional services:
    ```
    Edit `Secrets.xcconfig` with your API keys if using cloud features.
 
-5. **Firebase/Google Sign-In setup** (optional)
-   - Create a Firebase project at [console.firebase.google.com](https://console.firebase.google.com)
-   - Download `GoogleService-Info.plist` and place it in `RefWatchiOS/`
-   - Copy the `REVERSED_CLIENT_ID` value from `GoogleService-Info.plist` to `GID_REVERSED_CLIENT_ID` in your `Secrets.xcconfig`
+   **Environment Variables Reference:**
+
+   | Variable | Service | Description |
+   |----------|---------|-------------|
+   | `SUPABASE_URL` | Supabase | Your project URL |
+   | `SUPABASE_PUBLISHABLE_KEY` | Supabase | Public/anon key |
+   | `OPENAI_API_KEY` | OpenAI | API key for assistant |
+   | `GID_CLIENT_ID` | Google | OAuth client ID |
+   | `GID_REVERSED_CLIENT_ID` | Google | Reversed client ID for URL scheme |
+
+5. **Google Sign-In setup** (optional)
+   - Create an OAuth 2.0 Client ID at [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
+   - Select "iOS" as the application type and enter your bundle identifier
+   - Add the client ID to `GID_CLIENT_ID` in `Secrets.xcconfig`
+   - Add the reversed client ID (e.g., `com.googleusercontent.apps.YOUR_ID`) to `GID_REVERSED_CLIENT_ID`
 
 6. **Build and run**
    ```bash

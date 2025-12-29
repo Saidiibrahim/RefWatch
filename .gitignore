@@ -71,7 +71,7 @@ fastlane/test_output
 RefWatchiOS/Config/Secrets.xcconfig
 RefWatchiOS/Config/Config.xcconfig
 
-# Firebase configuration (contains project-specific credentials)
+# Google Sign-In configuration (optional, contains credentials)
 **/GoogleService-Info.plist
 
 # Local Xcode build outputs (do not commit)

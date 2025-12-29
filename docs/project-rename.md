@@ -170,10 +170,9 @@ xcodebuild -project RefWatch.xcodeproj -scheme "RefWatchiOS" \
 2. Create new App Group: `group.refwatch.shared`
 3. Generate new provisioning profiles for all targets
 
-### Firebase
-1. Register the new bundle ID in Firebase Console
-2. Download updated `GoogleService-Info.plist`
-3. Replace the existing file in `RefWatchiOS/`
+### Google Sign-In
+1. Update the bundle ID in [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
+2. Update `GID_CLIENT_ID` and `GID_REVERSED_CLIENT_ID` in `Secrets.xcconfig` if needed
 
 ### CI/CD
 Update any CI/CD configurations that reference the old scheme or bundle names.
@@ -183,6 +182,5 @@ Update any CI/CD configurations that reference the old scheme or bundle names.
 ## Files Not Changed
 
 The following were intentionally left unchanged:
-- `GoogleService-Info.plist` - User will update manually after Firebase configuration
 - Git history - Preserved for reference
 - Local Swift packages (`RefWatchCore`, `RefWorkoutCore`) - Already using correct naming

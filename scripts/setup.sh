@@ -98,14 +98,10 @@ if [ ! -f "$SECRETS_FILE" ]; then
     echo "Then edit Secrets.xcconfig with your API keys."
 fi
 
-# Check for GoogleService-Info.plist
-GOOGLE_PLIST="$PROJECT_ROOT/RefWatchiOS/GoogleService-Info.plist"
-if [ ! -f "$GOOGLE_PLIST" ]; then
-    echo ""
-    echo "Note: GoogleService-Info.plist not found."
-    echo "If you want to use Firebase, download it from Firebase Console"
-    echo "and place it at: $GOOGLE_PLIST"
-fi
+# Note about Google Sign-In (optional)
+echo ""
+echo "Note: For Google Sign-In, add your OAuth client ID to Secrets.xcconfig"
+echo "Create credentials at: https://console.cloud.google.com/apis/credentials"
 
 echo ""
 echo "Setup complete!"
