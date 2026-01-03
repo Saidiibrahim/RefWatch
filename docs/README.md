@@ -7,7 +7,7 @@ Welcome to the RefWatch knowledge base. This folder complements the generated AP
 - Architects: review [System Overview](architecture/overview.md) plus platform specific breakdowns.
 - Feature work: check the [Feature Guides](features/) before modifying flows.
 - Release and contribution details live in [Process Docs](process/).
+- Diagnostics guidance lives in the [Diagnostics Runbook](process/diagnostics.md).
 - Testing expectations are in [Testing Strategy](testing/strategy.md).
 
 For API-level explanations and tutorials, build the DocC catalog (see `Documentation/RefWatch.docc`).
-
