@@ -477,6 +477,8 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 964A4D972D32234B00D08376 /* Build configuration list for PBXNativeTarget "RefWatch Watch App" */;
 			buildPhases = (
+				76C13E5BC6E94E5982C5FE7D /* SwiftLint */,
+				D795024878D94576866BE1E5 /* SwiftFormat */,
 				964A4D6D2D32234A00D08376 /* Sources */,
 				964A4D6E2D32234A00D08376 /* Frameworks */,
 				964A4D6F2D32234A00D08376 /* Resources */,
@@ -549,6 +551,8 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 96B812762E67CDA500B23EC0 /* Build configuration list for PBXNativeTarget "RefWatchiOS" */;
 			buildPhases = (
+				020F919D42944099A3CE9225 /* SwiftLint */,
+				D9422EC0467F4FDBA5A498E5 /* SwiftFormat */,
 				96B8126A2E67CDA400B23EC0 /* Sources */,
 				96B8126B2E67CDA400B23EC0 /* Frameworks */,
 				96B8126C2E67CDA400B23EC0 /* Resources */,
@@ -759,6 +763,73 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		020F919D42944099A3CE9225 /* SwiftLint */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/.swiftlint.yml",
+			);
+			name = SwiftLint;
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/swiftlint",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "if command -v swiftlint >/dev/null 2>&1; then\n  swiftlint --config \"${SRCROOT}/.swiftlint.yml\"\nelse\n  if [ \"${CI:-}\" = \"true\" ]; then\n    echo \"error: SwiftLint not installed\"\n    exit 1\n  else\n    echo \"warning: SwiftLint not installed, download from https://github.com/realm/SwiftLint\"\n  fi\nfi\ntouch \"${DERIVED_FILE_DIR}/swiftlint\"\n";
+		};
+		76C13E5BC6E94E5982C5FE7D /* SwiftLint */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/.swiftlint.yml",
+			);
+			name = SwiftLint;
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/swiftlint",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "if command -v swiftlint >/dev/null 2>&1; then\n  swiftlint --config \"${SRCROOT}/.swiftlint.yml\"\nelse\n  if [ \"${CI:-}\" = \"true\" ]; then\n    echo \"error: SwiftLint not installed\"\n    exit 1\n  else\n    echo \"warning: SwiftLint not installed, download from https://github.com/realm/SwiftLint\"\n  fi\nfi\ntouch \"${DERIVED_FILE_DIR}/swiftlint\"\n";
+		};
+		D795024878D94576866BE1E5 /* SwiftFormat */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/.swiftformat",
+			);
+			name = SwiftFormat;
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/swiftformat",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "if command -v swiftformat >/dev/null 2>&1; then\n  swiftformat --lint \"${SRCROOT}\" --config \"${SRCROOT}/.swiftformat\"\nelse\n  if [ \"${CI:-}\" = \"true\" ]; then\n    echo \"error: SwiftFormat not installed\"\n    exit 1\n  else\n    echo \"warning: SwiftFormat not installed, download from https://github.com/nicklockwood/SwiftFormat\"\n  fi\nfi\ntouch \"${DERIVED_FILE_DIR}/swiftformat\"\n";
+		};
+		D9422EC0467F4FDBA5A498E5 /* SwiftFormat */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/.swiftformat",
+			);
+			name = SwiftFormat;
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/swiftformat",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "if command -v swiftformat >/dev/null 2>&1; then\n  swiftformat --lint \"${SRCROOT}\" --config \"${SRCROOT}/.swiftformat\"\nelse\n  if [ \"${CI:-}\" = \"true\" ]; then\n    echo \"error: SwiftFormat not installed\"\n    exit 1\n  else\n    echo \"warning: SwiftFormat not installed, download from https://github.com/nicklockwood/SwiftFormat\"\n  fi\nfi\ntouch \"${DERIVED_FILE_DIR}/swiftformat\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		964A4D6D2D32234A00D08376 /* Sources */ = {

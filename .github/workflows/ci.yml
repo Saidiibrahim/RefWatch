@@ -1,0 +1,201 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  macos:
+    runs-on: macos-latest
+    timeout-minutes: 60
+    env:
+      CI: true
+      MIN_IOS_COVERAGE: 0.2
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: |
+          sw_vers
+          xcodebuild -version
+          swift --version
+
+      - name: Install SwiftLint / SwiftFormat
+        run: |
+          brew install swiftlint swiftformat
+
+      - name: Lint
+        run: |
+          swiftlint --config .swiftlint.yml
+          swiftformat --lint . --config .swiftformat
+
+      - name: Select iOS simulator
+        run: |
+          set -euo pipefail
+          DEST_ID="$(
+            python3 - <<'PY'
+          import json
+          import subprocess
+          import sys
+
+          def sh(args: list[str]) -> str:
+            return subprocess.check_output(args, text=True).strip()
+
+          devices = json.loads(sh(["xcrun", "simctl", "list", "devices", "-j"])).get("devices") or {}
+          candidates: list[tuple[str, str]] = []
+          for runtime, devs in devices.items():
+            if "iOS" not in runtime:
+              continue
+            for dev in devs or []:
+              if not dev.get("isAvailable"):
+                continue
+              name = str(dev.get("name") or "")
+              udid = str(dev.get("udid") or "")
+              if not udid or not name.startswith("iPhone"):
+                continue
+              candidates.append((name, udid))
+
+          def rank(name: str) -> tuple[int, str]:
+            if "iPhone 16" in name:
+              return (0, name)
+            if "iPhone 15" in name:
+              return (1, name)
+            return (2, name)
+
+          candidates.sort(key=lambda it: rank(it[0]))
+          if not candidates:
+            print("No available iOS simulators found.", file=sys.stderr)
+            sys.exit(1)
+          print(candidates[0][1])
+          PY
+          )"
+          echo "IOS_DESTINATION=platform=iOS Simulator,id=$DEST_ID" >> "$GITHUB_ENV"
+
+      - name: Ensure watchOS runtime
+        run: |
+          set -euo pipefail
+          if xcrun simctl list runtimes -j | python3 -c 'import json, sys; data=json.load(sys.stdin); runtimes=data.get("runtimes") or []; has_watch=any(rt.get("platform")=="watchOS" and rt.get("isAvailable") for rt in runtimes); sys.exit(0 if has_watch else 1)'
+          then
+            echo "watchOS runtime already installed."
+          else
+            echo "watchOS runtime missing; downloading..."
+            for attempt in 1 2 3; do
+              echo "Attempt $attempt/3: xcodebuild -downloadPlatform watchOS"
+              if python3 -c 'import subprocess, sys; subprocess.run(["xcodebuild", "-downloadPlatform", "watchOS"], check=True, timeout=900)'
+              then
+                break
+              fi
+              if [ "$attempt" -eq 3 ]; then
+                echo "Failed to download watchOS runtime after 3 attempts."
+                exit 1
+              fi
+              sleep $((attempt * 10))
+            done
+          fi
+
+      - name: iOS tests (coverage)
+        run: |
+          set -euo pipefail
+          RESULT_BUNDLE_PATH="$RUNNER_TEMP/RefWatch-iOS.xcresult"
+          xcodebuild test \
+            -project RefWatch.xcodeproj \
+            -scheme "RefWatchiOS" \
+            -destination "$IOS_DESTINATION" \
+            -enableCodeCoverage YES \
+            -resultBundlePath "$RESULT_BUNDLE_PATH"
+
+      - name: iOS coverage summary
+        run: |
+          set -euo pipefail
+          RESULT_BUNDLE_PATH="$RUNNER_TEMP/RefWatch-iOS.xcresult"
+          xcrun xccov view --report --only-targets "$RESULT_BUNDLE_PATH"
+
+      - name: iOS coverage gate
+        run: |
+          set -euo pipefail
+          RESULT_BUNDLE_PATH="$RUNNER_TEMP/RefWatch-iOS.xcresult"
+          RESULT_BUNDLE_PATH="$RESULT_BUNDLE_PATH" python3 - <<'PY'
+          import json
+          import os
+          import subprocess
+          import sys
+
+          min_coverage = float(os.environ.get("MIN_IOS_COVERAGE", "0.2"))
+          report = json.loads(
+            subprocess.check_output(
+              ["xcrun", "xccov", "view", "--report", "--json", os.environ["RESULT_BUNDLE_PATH"]],
+              text=True,
+            )
+          )
+
+          targets = report.get("targets") or []
+          candidates = [t for t in targets if "RefWatchiOS" in str(t.get("name", ""))]
+          if not candidates:
+            candidates = [t for t in targets if str(t.get("name", "")).endswith(".app")]
+
+          if not candidates:
+            print("No app targets found in coverage report.")
+            sys.exit(1)
+
+          target = max(candidates, key=lambda t: float(t.get("lineCoverage", 0.0)))
+          coverage = float(target.get("lineCoverage", 0.0))
+          print(f"{target.get('name')} line coverage: {coverage * 100:.2f}% (min {min_coverage * 100:.2f}%)")
+          if coverage + 1e-12 < min_coverage:
+            sys.exit(1)
+          PY
+
+      - name: watchOS build
+        run: |
+          set -euo pipefail
+          xcodebuild build \
+            -project RefWatch.xcodeproj \
+            -scheme "RefWatch Watch App" \
+            -destination "generic/platform=watchOS"
+
+      - name: watchOS tests
+        run: |
+          set -euo pipefail
+          DEST_ID="$(
+            python3 - <<'PY'
+          import json
+          import subprocess
+          import sys
+
+          def sh(args: list[str]) -> str:
+            return subprocess.check_output(args, text=True).strip()
+
+          devices = json.loads(sh(["xcrun", "simctl", "list", "devices", "-j"])).get("devices") or {}
+          candidates: list[tuple[str, str]] = []
+          for runtime, devs in devices.items():
+            if "watchOS" not in runtime:
+              continue
+            for dev in devs or []:
+              if not dev.get("isAvailable"):
+                continue
+              name = str(dev.get("name") or "")
+              udid = str(dev.get("udid") or "")
+              if not udid or not name.startswith("Apple Watch"):
+                continue
+              candidates.append((name, udid))
+
+          candidates.sort(key=lambda it: it[0])
+          if not candidates:
+            print("No available watchOS simulators found.", file=sys.stderr)
+            sys.exit(1)
+          print(candidates[0][1])
+          PY
+          )"
+
+          if [ -z "$DEST_ID" ]; then
+            echo "No watchOS simulator available."
+            exit 1
+          fi
+
+          RESULT_BUNDLE_PATH="$RUNNER_TEMP/RefWatch-watchOS.xcresult"
+          xcodebuild test \
+            -project RefWatch.xcodeproj \
+            -scheme "RefWatch Watch App" \
+            -destination "platform=watchOS Simulator,id=$DEST_ID" \
+            -enableCodeCoverage YES \
+            -resultBundlePath "$RESULT_BUNDLE_PATH"
