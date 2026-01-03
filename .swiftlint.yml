@@ -108,6 +108,7 @@ force_cast: warning
 force_try: warning
 
 type_name:
+  allowed_symbols: "_"
   min_length:
     warning: 2
     error: 1
