@@ -779,7 +779,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "if [ \"${CI:-}\" = \"true\" ]; then\n  if command -v swiftlint >/dev/null 2>&1; then\n    swiftlint --config \"${SRCROOT}/.swiftlint.yml\"\n  else\n    echo \"error: SwiftLint not installed\"\n    exit 1\n  fi\nelse\n  echo \"warning: SwiftLint skipped (CI only)\"\nfi\ntouch \"${DERIVED_FILE_DIR}/swiftlint\"\n";
+			shellScript = "if [ \"${CI:-}\" = \"true\" ]; then\n  if [ -n \"${SWIFT_LINT_FILELIST:-}\" ] && [ -s \"${SWIFT_LINT_FILELIST}\" ]; then\n    if command -v swiftlint >/dev/null 2>&1; then\n      python3 - <<'PY'\nimport os\nimport subprocess\n\nfilelist = os.environ.get(\"SWIFT_LINT_FILELIST\")\nsrcroot = os.environ.get(\"SRCROOT\", \".\")\n\nwith open(filelist) as handle:\n  files = [line.strip() for line in handle if line.strip()]\n\nfor path in files:\n  subprocess.run([\"swiftlint\", \"--config\", os.path.join(srcroot, \".swiftlint.yml\"), \"--path\", path], check=True, cwd=srcroot)\nPY\n    else\n      echo \"error: SwiftLint not installed\"\n      exit 1\n    fi\n  else\n    echo \"warning: SwiftLint skipped (no changed Swift files)\"\n  fi\nelse\n  echo \"warning: SwiftLint skipped (CI only)\"\nfi\ntouch \"${DERIVED_FILE_DIR}/swiftlint\"\n";
 		};
 		76C13E5BC6E94E5982C5FE7D /* SwiftLint */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -795,7 +795,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "if [ \"${CI:-}\" = \"true\" ]; then\n  if command -v swiftlint >/dev/null 2>&1; then\n    swiftlint --config \"${SRCROOT}/.swiftlint.yml\"\n  else\n    echo \"error: SwiftLint not installed\"\n    exit 1\n  fi\nelse\n  echo \"warning: SwiftLint skipped (CI only)\"\nfi\ntouch \"${DERIVED_FILE_DIR}/swiftlint\"\n";
+			shellScript = "if [ \"${CI:-}\" = \"true\" ]; then\n  if [ -n \"${SWIFT_LINT_FILELIST:-}\" ] && [ -s \"${SWIFT_LINT_FILELIST}\" ]; then\n    if command -v swiftlint >/dev/null 2>&1; then\n      python3 - <<'PY'\nimport os\nimport subprocess\n\nfilelist = os.environ.get(\"SWIFT_LINT_FILELIST\")\nsrcroot = os.environ.get(\"SRCROOT\", \".\")\n\nwith open(filelist) as handle:\n  files = [line.strip() for line in handle if line.strip()]\n\nfor path in files:\n  subprocess.run([\"swiftlint\", \"--config\", os.path.join(srcroot, \".swiftlint.yml\"), \"--path\", path], check=True, cwd=srcroot)\nPY\n    else\n      echo \"error: SwiftLint not installed\"\n      exit 1\n    fi\n  else\n    echo \"warning: SwiftLint skipped (no changed Swift files)\"\n  fi\nelse\n  echo \"warning: SwiftLint skipped (CI only)\"\nfi\ntouch \"${DERIVED_FILE_DIR}/swiftlint\"\n";
 		};
 		D795024878D94576866BE1E5 /* SwiftFormat */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -811,7 +811,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "if [ \"${CI:-}\" = \"true\" ]; then\n  if command -v swiftformat >/dev/null 2>&1; then\n    swiftformat --lint \"${SRCROOT}\" --config \"${SRCROOT}/.swiftformat\"\n  else\n    echo \"error: SwiftFormat not installed\"\n    exit 1\n  fi\nelse\n  echo \"warning: SwiftFormat skipped (CI only)\"\nfi\ntouch \"${DERIVED_FILE_DIR}/swiftformat\"\n";
+			shellScript = "if [ \"${CI:-}\" = \"true\" ]; then\n  if [ -n \"${SWIFT_LINT_FILELIST:-}\" ] && [ -s \"${SWIFT_LINT_FILELIST}\" ]; then\n    if command -v swiftformat >/dev/null 2>&1; then\n      python3 - <<'PY'\nimport os\nimport subprocess\nimport sys\n\nfilelist = os.environ.get(\"SWIFT_LINT_FILELIST\")\nsrcroot = os.environ.get(\"SRCROOT\", \".\")\n\nwith open(filelist) as handle:\n  files = [line.strip() for line in handle if line.strip()]\n\nif not files:\n  sys.exit(0)\n\nsubprocess.run([\"swiftformat\", \"--lint\", \"--config\", os.path.join(srcroot, \".swiftformat\"), *files], check=True, cwd=srcroot)\nPY\n    else\n      echo \"error: SwiftFormat not installed\"\n      exit 1\n    fi\n  else\n    echo \"warning: SwiftFormat skipped (no changed Swift files)\"\n  fi\nelse\n  echo \"warning: SwiftFormat skipped (CI only)\"\nfi\ntouch \"${DERIVED_FILE_DIR}/swiftformat\"\n";
 		};
 		D9422EC0467F4FDBA5A498E5 /* SwiftFormat */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -827,7 +827,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "if [ \"${CI:-}\" = \"true\" ]; then\n  if command -v swiftformat >/dev/null 2>&1; then\n    swiftformat --lint \"${SRCROOT}\" --config \"${SRCROOT}/.swiftformat\"\n  else\n    echo \"error: SwiftFormat not installed\"\n    exit 1\n  fi\nelse\n  echo \"warning: SwiftFormat skipped (CI only)\"\nfi\ntouch \"${DERIVED_FILE_DIR}/swiftformat\"\n";
+			shellScript = "if [ \"${CI:-}\" = \"true\" ]; then\n  if [ -n \"${SWIFT_LINT_FILELIST:-}\" ] && [ -s \"${SWIFT_LINT_FILELIST}\" ]; then\n    if command -v swiftformat >/dev/null 2>&1; then\n      python3 - <<'PY'\nimport os\nimport subprocess\nimport sys\n\nfilelist = os.environ.get(\"SWIFT_LINT_FILELIST\")\nsrcroot = os.environ.get(\"SRCROOT\", \".\")\n\nwith open(filelist) as handle:\n  files = [line.strip() for line in handle if line.strip()]\n\nif not files:\n  sys.exit(0)\n\nsubprocess.run([\"swiftformat\", \"--lint\", \"--config\", os.path.join(srcroot, \".swiftformat\"), *files], check=True, cwd=srcroot)\nPY\n    else\n      echo \"error: SwiftFormat not installed\"\n      exit 1\n    fi\n  else\n    echo \"warning: SwiftFormat skipped (no changed Swift files)\"\n  fi\nelse\n  echo \"warning: SwiftFormat skipped (CI only)\"\nfi\ntouch \"${DERIVED_FILE_DIR}/swiftformat\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 

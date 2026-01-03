@@ -18,6 +18,21 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute changed Swift files
+        run: |
+          set -euo pipefail
+          git fetch origin main --depth=1
+          base="$(git merge-base HEAD origin/main)"
+          git diff --name-only "$base"...HEAD -- '*.swift' > "$RUNNER_TEMP/swift-files.txt"
+          echo "SWIFT_LINT_FILELIST=$RUNNER_TEMP/swift-files.txt" >> "$GITHUB_ENV"
+          count="$(wc -l < "$RUNNER_TEMP/swift-files.txt" | tr -d ' ')"
+          echo "Changed Swift files: $count"
+          if [ "$count" -gt 0 ]; then
+            cat "$RUNNER_TEMP/swift-files.txt"
+          fi
 
       - name: Set up Xcode
         uses: maxim-lobanov/setup-xcode@v1
@@ -36,8 +51,33 @@ jobs:
 
       - name: Lint
         run: |
-          swiftlint --config .swiftlint.yml
-          swiftformat --lint . --config .swiftformat
+          set -euo pipefail
+          if [ ! -s "$SWIFT_LINT_FILELIST" ]; then
+            echo "No changed Swift files; skipping SwiftLint/SwiftFormat."
+            exit 0
+          fi
+          python3 - <<'PY'
+          import os
+          import subprocess
+          import sys
+
+          filelist = os.environ.get("SWIFT_LINT_FILELIST")
+          if not filelist:
+            print("SWIFT_LINT_FILELIST not set; skipping lint.")
+            sys.exit(0)
+
+          with open(filelist) as handle:
+            files = [line.strip() for line in handle if line.strip()]
+
+          if not files:
+            print("No changed Swift files; skipping lint.")
+            sys.exit(0)
+
+          for path in files:
+            subprocess.run(["swiftlint", "--config", ".swiftlint.yml", "--path", path], check=True)
+
+          subprocess.run(["swiftformat", "--lint", "--config", ".swiftformat", *files], check=True)
+          PY
 
       - name: Select iOS simulator
         run: |
