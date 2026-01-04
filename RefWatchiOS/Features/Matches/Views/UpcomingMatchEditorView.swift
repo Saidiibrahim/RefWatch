@@ -71,10 +71,7 @@ struct UpcomingMatchEditorView: View {
     .sheet(isPresented: self.$showingAwayPicker) {
       NavigationStack { TeamsPickerView(teamStore: self.teamStore) { team in self.awayName = team.name } }
     }
-    .alert("Unable to Save", isPresented: Binding(
-      get: { self.errorMessage != nil },
-      set: { if $0 == false { self.errorMessage = nil } }
-    )) {
+    .alert("Unable to Save", isPresented: self.alertBinding) {
       Button("OK", role: .cancel) { self.errorMessage = nil }
     } message: {
       Text(self.errorMessage ?? "Sign in to save scheduled matches on your phone.")
@@ -84,6 +81,14 @@ struct UpcomingMatchEditorView: View {
   private var isValid: Bool {
     !self.homeName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
       !self.awayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+  }
+
+  private var alertBinding: Binding<Bool> {
+    Binding(
+      get: { self.errorMessage != nil },
+      set: { newValue in
+        if newValue == false { self.errorMessage = nil }
+      })
   }
 
   private func save() {

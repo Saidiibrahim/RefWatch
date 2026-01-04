@@ -75,7 +75,8 @@ struct FullTimeView: View {
     }
     .onChange(of: self.matchViewModel.matchCompleted) { completed, _ in
       #if DEBUG
-      print("DEBUG: FullTimeView.onChange matchCompleted=\(completed) state=\(self.lifecycle.state)")
+      print(
+        "DEBUG: FullTimeView.onChange matchCompleted=\(completed) state=\(self.lifecycle.state)")
       #endif
       if completed, self.lifecycle.state != .idle {
         self.lifecycle.resetToStart()

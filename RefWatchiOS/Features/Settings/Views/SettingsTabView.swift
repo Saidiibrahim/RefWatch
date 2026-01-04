@@ -65,10 +65,7 @@ struct SettingsTabView: View {
         dataSection
       }
       .navigationTitle("Settings")
-      .alert("Authentication", isPresented: Binding(
-        get: { self.authViewModel.alertMessage != nil },
-        set: { newValue in if !newValue { self.authViewModel.alertMessage = nil } }
-      )) {
+      .alert("Authentication", isPresented: self.alertBinding) {
         Button("OK", role: .cancel) { self.authViewModel.alertMessage = nil }
       } message: {
         Text(self.authViewModel.alertMessage ?? "")
@@ -85,7 +82,9 @@ struct SettingsTabView: View {
           "This will permanently remove match history and scheduled matches " +
             "stored locally on this iPhone. This action cannot be undone.")
       }
-      .onAppear { updateConnectivityStatus(with: self.syncDiagnostics.aggregateStatus) }
+      .onAppear {
+        updateConnectivityStatus(with: self.syncDiagnostics.aggregateStatus)
+      }
       .onReceive(self.syncDiagnostics.$aggregateStatus) { status in
         updateConnectivityStatus(with: status)
       }
@@ -94,6 +93,14 @@ struct SettingsTabView: View {
 }
 
 extension SettingsTabView {
+  private var alertBinding: Binding<Bool> {
+    Binding(
+      get: { self.authViewModel.alertMessage != nil },
+      set: { newValue in
+        if !newValue { self.authViewModel.alertMessage = nil }
+      })
+  }
+
   private var accountSection: some View {
     Section("Account") {
       self.signedInAccountContent

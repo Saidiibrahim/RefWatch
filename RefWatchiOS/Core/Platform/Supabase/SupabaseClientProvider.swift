@@ -69,14 +69,14 @@ enum SupabaseTestClientError: Error, Equatable, Sendable {
 protocol SupabaseClientRepresenting: AnyObject, Sendable {
   var functionsClient: SupabaseFunctionsClientRepresenting { get }
   func fetchRows<T: Decodable>(_ request: SupabaseFetchRequest) async throws -> [T]
-  func callRPC<Params: Encodable, Response: Decodable>(
+  func callRPC<Response: Decodable>(
     _ function: String,
-    params: Params,
+    params: some Encodable,
     encoder: JSONEncoder,
     decoder: JSONDecoder) async throws -> Response
-  func upsertRows<Payload: Encodable, Response: Decodable>(
+  func upsertRows<Response: Decodable>(
     into table: String,
-    payload: Payload,
+    payload: some Encodable,
     onConflict: String,
     decoder: JSONDecoder) async throws -> Response
 }

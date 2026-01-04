@@ -10,7 +10,7 @@ import Testing
 @MainActor
 struct ExtraTimeAndPenaltiesTests {
   @Test
-  func test_transition_to_ET_when_hasExtraTime() async throws {
+  func transitionToET_whenHasExtraTime() async throws {
     let vm = MatchViewModel()
     vm.configureMatch(duration: 45, periods: 2, halfTimeLength: 15, hasExtraTime: true, hasPenalties: false)
 
@@ -22,7 +22,7 @@ struct ExtraTimeAndPenaltiesTests {
   }
 
   @Test
-  func test_ET_period_start_events_and_transitions() async throws {
+  func etPeriodStartEvents_andTransitions() async throws {
     let vm = MatchViewModel()
     vm.configureMatch(duration: 45, periods: 2, halfTimeLength: 15, hasExtraTime: true, hasPenalties: false)
 
@@ -57,7 +57,7 @@ struct ExtraTimeAndPenaltiesTests {
   }
 
   @Test
-  func test_transition_to_penalties_after_et_when_hasPenalties() async throws {
+  func transitionToPenalties_afterET_whenHasPenalties() async throws {
     let vm = MatchViewModel()
     vm.configureMatch(duration: 45, periods: 2, halfTimeLength: 15, hasExtraTime: true, hasPenalties: true)
     vm.startMatch()
@@ -72,7 +72,7 @@ struct ExtraTimeAndPenaltiesTests {
   }
 
   @Test
-  func test_endCurrentPeriod_routes_to_ET1_when_hasExtraTime() async throws {
+  func endCurrentPeriod_routesToET1_whenHasExtraTime() async throws {
     let vm = MatchViewModel()
     vm.configureMatch(duration: 45, periods: 2, halfTimeLength: 15, hasExtraTime: true, hasPenalties: false)
     // Simulate being at end of regulation second half
@@ -82,7 +82,7 @@ struct ExtraTimeAndPenaltiesTests {
   }
 
   @Test
-  func test_endCurrentPeriod_routes_to_penalties_when_hasPenalties_after_ET2() async throws {
+  func endCurrentPeriod_routesToPenalties_whenHasPenalties_afterET2() async throws {
     let vm = MatchViewModel()
     vm.configureMatch(duration: 45, periods: 2, halfTimeLength: 15, hasExtraTime: true, hasPenalties: true)
     // Simulate being at end of ET2
@@ -92,7 +92,7 @@ struct ExtraTimeAndPenaltiesTests {
   }
 
   @Test
-  func test_total_match_time_accumulates_correctly_in_ET2() async throws {
+  func totalMatchTime_accumulatesCorrectly_inET2() async throws {
     let vm = MatchViewModel()
     // Custom tiny durations to make the test quick
     let match = Match(
@@ -114,7 +114,7 @@ struct ExtraTimeAndPenaltiesTests {
   }
 
   @Test
-  func test_penalty_attempt_logging_and_tallies() async throws {
+  func penaltyAttemptLogging_andTallies() async throws {
     let vm = MatchViewModel()
     vm.configureMatch(duration: 45, periods: 2, halfTimeLength: 15, hasExtraTime: true, hasPenalties: true)
 
@@ -147,7 +147,7 @@ struct ExtraTimeAndPenaltiesTests {
   }
 
   @Test
-  func test_penalties_next_team_and_early_win_detection() async throws {
+  func penaltiesNextTeam_andEarlyWinDetection() async throws {
     let vm = MatchViewModel()
     vm.configureMatch(duration: 45, periods: 2, halfTimeLength: 15, hasExtraTime: true, hasPenalties: true)
     vm.beginPenaltiesIfNeeded()
@@ -174,7 +174,7 @@ struct ExtraTimeAndPenaltiesTests {
   }
 
   @Test
-  func test_sudden_death_decision_after_equal_attempts() async throws {
+  func suddenDeathDecision_afterEqualAttempts() async throws {
     let vm = MatchViewModel()
     vm.configureMatch(duration: 45, periods: 2, halfTimeLength: 15, hasExtraTime: true, hasPenalties: true)
     vm.beginPenaltiesIfNeeded()
@@ -204,7 +204,7 @@ struct ExtraTimeAndPenaltiesTests {
   }
 
   @Test
-  func test_penalty_event_contains_round_number_and_first_kicker_setting() async throws {
+  func penaltyEvent_containsRoundNumber_andFirstKickerSetting() async throws {
     let vm = MatchViewModel()
     vm.beginPenaltiesIfNeeded()
 
@@ -227,7 +227,7 @@ struct ExtraTimeAndPenaltiesTests {
   }
 
   @Test
-  func test_isSuddenDeathActive_after_five_each() async throws {
+  func isSuddenDeathActive_afterFiveEach() async throws {
     let vm = MatchViewModel()
     vm.beginPenaltiesIfNeeded()
 
@@ -239,7 +239,7 @@ struct ExtraTimeAndPenaltiesTests {
   }
 
   @Test
-  func test_penalty_initial_rounds_configurable() async throws {
+  func penaltyInitialRounds_configurable() async throws {
     let vm = MatchViewModel()
     // Configure a match with 3 initial rounds for shootout
     vm.penaltyInitialRounds = 3

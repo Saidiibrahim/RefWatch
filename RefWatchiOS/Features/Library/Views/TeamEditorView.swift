@@ -35,10 +35,7 @@ struct TeamEditorView: View {
         TextField("Short Name", text: self.$editingShort)
         TextField("Division", text: self.$editingDivision)
       }
-      .alert("Unable to Update Team", isPresented: Binding(
-        get: { self.errorMessage != nil },
-        set: { if $0 == false { self.errorMessage = nil } }
-      )) {
+      .alert("Unable to Update Team", isPresented: self.alertBinding) {
         Button("OK", role: .cancel) { self.errorMessage = nil }
       } message: {
         Text(self.errorMessage ?? "Sign in on your phone to edit this team.")
@@ -239,6 +236,14 @@ struct TeamEditorView: View {
 // MARK: - Sorting helpers
 
 extension TeamEditorView {
+  private var alertBinding: Binding<Bool> {
+    Binding(
+      get: { self.errorMessage != nil },
+      set: { newValue in
+        if newValue == false { self.errorMessage = nil }
+      })
+  }
+
   private var sortedPlayers: [PlayerRecord] {
     self.team.players.sorted { lhs, rhs in
       let ln = lhs.number ?? Int.max

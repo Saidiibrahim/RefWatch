@@ -46,7 +46,7 @@ final class FakePenaltyManagerNeverBegins: PenaltyManaging {
 @MainActor
 struct PenaltiesStartFailureTests {
   @Test
-  func test_startPenalties_whenManagerBeginFails_returnsFalse() async throws {
+  func startPenalties_whenManagerBeginFails_returnsFalse() async throws {
     let failing = FakePenaltyManagerNeverBegins()
     let vm = MatchViewModel(history: InMemoryHistoryStore(), penaltyManager: failing)
 

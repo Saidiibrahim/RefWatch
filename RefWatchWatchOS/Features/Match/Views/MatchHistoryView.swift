@@ -433,7 +433,7 @@ private func makeSampleCompletedMatch(
       period: 2,
       eventType: .matchEnd,
       team: nil,
-      details: .general)
+      details: .general),
   ] : []
 
   return CompletedMatch(

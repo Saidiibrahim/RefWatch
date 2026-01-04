@@ -25,9 +25,9 @@ final class IOSHealthKitWorkoutTracker: NSObject, WorkoutSessionTracking {
 
     if #available(iOS 26.0, *) {
       // Use new HKLiveWorkoutBuilder API for iOS 26.0+
-      let session = try HKWorkoutSession(healthStore: healthStore, configuration: hkConfiguration)
+      let session = try HKWorkoutSession(healthStore: self.healthStore, configuration: hkConfiguration)
       let builder = session.associatedWorkoutBuilder()
-      builder.dataSource = HKLiveWorkoutDataSource(healthStore: healthStore, workoutConfiguration: hkConfiguration)
+      builder.dataSource = HKLiveWorkoutDataSource(healthStore: self.healthStore, workoutConfiguration: hkConfiguration)
       builder.delegate = self
       session.delegate = self
 
@@ -64,8 +64,8 @@ final class IOSHealthKitWorkoutTracker: NSObject, WorkoutSessionTracking {
               session: session,
               builder: builder,
               model: workoutSession)
-            activeSessions[workoutSession.id] = managed
-            sessionLookup[ObjectIdentifier(session)] = workoutSession.id
+            self.activeSessions[workoutSession.id] = managed
+            self.sessionLookup[ObjectIdentifier(session)] = workoutSession.id
             continuation.resume(returning: ())
           }
         }
@@ -179,10 +179,10 @@ final class IOSHealthKitWorkoutTracker: NSObject, WorkoutSessionTracking {
 
       var model = managed.model
       model.complete(at: date)
-      updateSummary(&model, using: workout, builder: managed.builder)
-      activeSessions.removeValue(forKey: id)
+      self.updateSummary(&model, using: workout, builder: managed.builder)
+      self.activeSessions.removeValue(forKey: id)
       if let session = managed.session {
-        sessionLookup.removeValue(forKey: ObjectIdentifier(session))
+        self.sessionLookup.removeValue(forKey: ObjectIdentifier(session))
       }
       return model
     } else if let legacyBuilder = managed.builder as? HKWorkoutBuilder {

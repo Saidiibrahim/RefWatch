@@ -80,10 +80,15 @@ struct JournalListView: View {
       self.load()
     }
     .sheet(isPresented: self.$showEditor) {
-      NavigationStack { JournalEditorView(matchId: self.snapshot.id) { self.load() } }
-        .presentationDetents([.medium, .large])
+      NavigationStack {
+        JournalEditorView(matchId: self.snapshot.id) { self.load() }
+      }
+      .presentationDetents([.medium, .large])
     }
-    .alert("Error", isPresented: self.$showError) { Button("OK", role: .cancel) {} } message: { Text(self.errorMessage)
+    .alert("Error", isPresented: self.$showError) {
+      Button("OK", role: .cancel) {}
+    } message: {
+      Text(self.errorMessage)
     }
   }
 

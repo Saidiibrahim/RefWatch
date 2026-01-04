@@ -54,10 +54,7 @@ struct MatchesTabView: View {
           }
         }
       }
-      .sheet(isPresented: Binding(
-        get: { self.isSignedIn && self.showingAddUpcoming },
-        set: { self.showingAddUpcoming = $0 }))
-      {
+      .sheet(isPresented: self.addUpcomingBinding) {
         if self.isSignedIn {
           UpcomingMatchEditorView(scheduleStore: self.scheduleStore, teamStore: self.teamStore) {
             refreshSchedule()
@@ -71,15 +68,24 @@ struct MatchesTabView: View {
         guard completed, self.isSignedIn else { return }
         refreshRecentAndPrompt()
       }
-      .onReceive(NotificationCenter.default.publisher(for: .matchHistoryDidChange).receive(on: RunLoop.main)) { _ in
+      .onReceive(
+        NotificationCenter.default.publisher(for: .matchHistoryDidChange)
+          .receive(on: RunLoop.main))
+      { _ in
         guard self.isSignedIn else { return }
         refreshRecentAndPrompt()
       }
-      .onReceive(NotificationCenter.default.publisher(for: .journalDidChange).receive(on: RunLoop.main)) { _ in
+      .onReceive(
+        NotificationCenter.default.publisher(for: .journalDidChange)
+          .receive(on: RunLoop.main))
+      { _ in
         guard self.isSignedIn else { return }
         refreshRecentAndPrompt()
       }
-      .onReceive(self.scheduleStore.changesPublisher.receive(on: RunLoop.main)) { items in
+      .onReceive(
+        self.scheduleStore.changesPublisher
+          .receive(on: RunLoop.main))
+      { items in
         guard self.isSignedIn else { return }
         handleScheduleUpdate(items)
       }
@@ -134,10 +140,7 @@ struct MatchesTabView: View {
             scheduledMatch: sched)
         }
       }
-      .alert("Unable to Delete", isPresented: Binding(
-        get: { self.deleteError != nil },
-        set: { if $0 == false { self.deleteError = nil } }
-      )) {
+      .alert("Unable to Delete", isPresented: self.deleteErrorBinding) {
         Button("OK", role: .cancel) { self.deleteError = nil }
       } message: {
         Text(self.deleteError ?? "An error occurred while deleting the scheduled match.")
@@ -146,6 +149,22 @@ struct MatchesTabView: View {
   }
 
   private var isSignedIn: Bool { self.authController.isSignedIn }
+
+  private var addUpcomingBinding: Binding<Bool> {
+    Binding(
+      get: { self.isSignedIn && self.showingAddUpcoming },
+      set: { newValue in
+        self.showingAddUpcoming = newValue
+      })
+  }
+
+  private var deleteErrorBinding: Binding<Bool> {
+    Binding(
+      get: { self.deleteError != nil },
+      set: { newValue in
+        if newValue == false { self.deleteError = nil }
+      })
+  }
 
   @ViewBuilder
   private var signedInContent: some View {

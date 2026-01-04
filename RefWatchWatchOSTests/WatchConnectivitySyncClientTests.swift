@@ -30,7 +30,7 @@ final class MockWCSession: WCSessioning {
 
 struct WatchConnectivitySyncClientTests {
   @Test
-  func test_sendMessage_error_fallsBackTo_transferUserInfo_and_postsDiagnostic() async throws {
+  func sendMessage_error_fallsBackTo_transferUserInfo_andPostsDiagnostic() async throws {
     let mock = MockWCSession(isReachable: true, sendShouldError: true)
     let client = WatchConnectivitySyncClient(session: mock)
 
@@ -55,7 +55,7 @@ struct WatchConnectivitySyncClientTests {
   }
 
   @Test
-  func test_sendMessage_success_doesNotFallbackOrTransferUserInfo() async throws {
+  func sendMessage_success_doesNotFallbackOrTransferUserInfo() async throws {
     let mock = MockWCSession(isReachable: true, sendShouldError: false)
     let client = WatchConnectivitySyncClient(session: mock)
 

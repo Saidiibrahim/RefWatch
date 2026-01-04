@@ -115,12 +115,7 @@ struct MatchActionsSheet: View {
         titleVisibility: .hidden)
       {
         Button("Yes") {
-          let isFinalReg: Bool = if let match = matchViewModel.currentMatch {
-            self.matchViewModel.currentPeriod == match.numberOfPeriods
-              && match.hasExtraTime == false
-          } else {
-            false
-          }
+          let isFinalReg = self.isFinalRegulationEnd
           self.matchViewModel.endCurrentPeriod()
           if isFinalReg {
             // When this ends the match in regulation, the timer will present Full Time
@@ -128,13 +123,7 @@ struct MatchActionsSheet: View {
         }
         Button("No", role: .cancel) {}
       } message: {
-        Text(
-          (
-            self.matchViewModel.currentMatch != nil
-              && self.matchViewModel.currentPeriod == (self.matchViewModel.currentMatch?.numberOfPeriods ?? 2)
-              && (self.matchViewModel.currentMatch?.hasExtraTime == false))
-            ? "Are you sure you want to 'End Match'?"
-            : "Are you sure you want to 'End Half'?")
+        Text(self.endPeriodConfirmationMessage)
       }
       .confirmationDialog(
         "",
@@ -171,6 +160,18 @@ struct MatchActionsSheet: View {
 }
 
 extension MatchActionsSheet {
+  private var isFinalRegulationEnd: Bool {
+    guard let match = self.matchViewModel.currentMatch else { return false }
+    return self.matchViewModel.currentPeriod == match.numberOfPeriods && match.hasExtraTime == false
+  }
+
+  private var endPeriodConfirmationMessage: String {
+    if self.isFinalRegulationEnd {
+      return "Are you sure you want to 'End Match'?"
+    }
+    return "Are you sure you want to 'End Half'?"
+  }
+
   @ViewBuilder
   private var periodButtons: some View {
     if self.matchViewModel.isMatchInProgress {

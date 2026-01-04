@@ -40,10 +40,7 @@ struct SignInView: View {
       .background(colors.background.ignoresSafeArea())
       .navigationTitle("Sign In")
       .toolbar { toolbar }
-      .alert("Authentication", isPresented: Binding(
-        get: { self.viewModel.alertMessage != nil },
-        set: { newValue in if !newValue { self.viewModel.alertMessage = nil } }
-      )) {
+      .alert("Authentication", isPresented: self.alertBinding) {
         Button("OK", role: .cancel) { self.viewModel.alertMessage = nil }
       } message: {
         Text(self.viewModel.alertMessage ?? "")
@@ -56,6 +53,14 @@ struct SignInView: View {
 extension SignInView {
   fileprivate var colors: AuthenticationScreenColors {
     AuthenticationScreenColors(theme: self.theme, colorScheme: self.colorScheme)
+  }
+
+  private var alertBinding: Binding<Bool> {
+    Binding(
+      get: { self.viewModel.alertMessage != nil },
+      set: { newValue in
+        if !newValue { self.viewModel.alertMessage = nil }
+      })
   }
 
   private var header: some View {
