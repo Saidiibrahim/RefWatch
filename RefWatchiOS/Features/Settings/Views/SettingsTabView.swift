@@ -73,15 +73,9 @@ struct SettingsTabView: View {
       .confirmationDialog(
         "Wipe Local Data?",
         isPresented: self.$showWipeConfirm,
-        titleVisibility: .visible)
-      {
-        Button("Wipe Local Data", role: .destructive, action: wipeHistory)
-        Button("Cancel", role: .cancel) {}
-      } message: {
-        Text(
-          "This will permanently remove match history and scheduled matches " +
-            "stored locally on this iPhone. This action cannot be undone.")
-      }
+        titleVisibility: .visible,
+        actions: self.wipeConfirmActions,
+        message: self.wipeConfirmMessage)
       .onAppear {
         updateConnectivityStatus(with: self.syncDiagnostics.aggregateStatus)
       }
@@ -93,6 +87,21 @@ struct SettingsTabView: View {
 }
 
 extension SettingsTabView {
+  @ViewBuilder
+  private func wipeConfirmActions() -> some View {
+    Button("Wipe Local Data", role: .destructive, action: self.wipeHistory)
+    Button("Cancel", role: .cancel) {}
+  }
+
+  private func wipeConfirmMessage() -> some View {
+    Text(self.wipeConfirmMessageText)
+  }
+
+  private var wipeConfirmMessageText: String {
+    "This will permanently remove match history and scheduled matches " +
+      "stored locally on this iPhone. This action cannot be undone."
+  }
+
   private var alertBinding: Binding<Bool> {
     Binding(
       get: { self.authViewModel.alertMessage != nil },

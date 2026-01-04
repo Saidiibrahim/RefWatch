@@ -215,23 +215,8 @@ struct RefWatchiOSApp: App {
           }
           handleAuthStateTransition(to: state)
         }
-        .fullScreenCover(item: Binding(
-          get: { self.authCoordinator.activeScreen },
-          set: { self.authCoordinator.activeScreen = $0 }))
-      { screen in
-        switch screen {
-        case .welcome:
-          WelcomeView()
-            .environmentObject(self.authCoordinator)
-        case .signIn:
-          SignInView(authController: self.authController)
-            .environmentObject(self.authCoordinator)
-        case .signUp:
-          SignUpView(authController: self.authController)
-            .environmentObject(self.authCoordinator)
-        }
-      }
-      .animation(.easeInOut(duration: 0.25), value: self.authController.state)
+        .fullScreenCover(item: self.authScreenBinding, content: self.authScreenView)
+        .animation(.easeInOut(duration: 0.25), value: self.authController.state)
     }
   }
 
@@ -251,6 +236,29 @@ struct RefWatchiOSApp: App {
         connectivityController: self.syncController)
     case .signedOut:
       SignedOutGateView()
+    }
+  }
+}
+
+extension RefWatchiOSApp {
+  private var authScreenBinding: Binding<AuthenticationCoordinator.Screen?> {
+    Binding(
+      get: { self.authCoordinator.activeScreen },
+      set: { self.authCoordinator.activeScreen = $0 })
+  }
+
+  @ViewBuilder
+  private func authScreenView(_ screen: AuthenticationCoordinator.Screen) -> some View {
+    switch screen {
+    case .welcome:
+      WelcomeView()
+        .environmentObject(self.authCoordinator)
+    case .signIn:
+      SignInView(authController: self.authController)
+        .environmentObject(self.authCoordinator)
+    case .signUp:
+      SignUpView(authController: self.authController)
+        .environmentObject(self.authCoordinator)
     }
   }
 }

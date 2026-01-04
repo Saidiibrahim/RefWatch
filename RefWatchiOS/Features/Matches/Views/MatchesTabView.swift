@@ -68,24 +68,15 @@ struct MatchesTabView: View {
         guard completed, self.isSignedIn else { return }
         refreshRecentAndPrompt()
       }
-      .onReceive(
-        NotificationCenter.default.publisher(for: .matchHistoryDidChange)
-          .receive(on: RunLoop.main))
-      { _ in
+      .onReceive(self.matchHistoryPublisher) { _ in
         guard self.isSignedIn else { return }
         refreshRecentAndPrompt()
       }
-      .onReceive(
-        NotificationCenter.default.publisher(for: .journalDidChange)
-          .receive(on: RunLoop.main))
-      { _ in
+      .onReceive(self.journalPublisher) { _ in
         guard self.isSignedIn else { return }
         refreshRecentAndPrompt()
       }
-      .onReceive(
-        self.scheduleStore.changesPublisher
-          .receive(on: RunLoop.main))
-      { items in
+      .onReceive(self.schedulePublisher) { items in
         guard self.isSignedIn else { return }
         handleScheduleUpdate(items)
       }
@@ -164,6 +155,24 @@ struct MatchesTabView: View {
       set: { newValue in
         if newValue == false { self.deleteError = nil }
       })
+  }
+
+  private var matchHistoryPublisher: AnyPublisher<Notification, Never> {
+    NotificationCenter.default.publisher(for: .matchHistoryDidChange)
+      .receive(on: RunLoop.main)
+      .eraseToAnyPublisher()
+  }
+
+  private var journalPublisher: AnyPublisher<Notification, Never> {
+    NotificationCenter.default.publisher(for: .journalDidChange)
+      .receive(on: RunLoop.main)
+      .eraseToAnyPublisher()
+  }
+
+  private var schedulePublisher: AnyPublisher<[ScheduledMatch], Never> {
+    self.scheduleStore.changesPublisher
+      .receive(on: RunLoop.main)
+      .eraseToAnyPublisher()
   }
 
   @ViewBuilder

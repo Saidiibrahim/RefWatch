@@ -80,10 +80,7 @@ struct JournalListView: View {
       self.load()
     }
     .sheet(isPresented: self.$showEditor) {
-      NavigationStack {
-        JournalEditorView(matchId: self.snapshot.id) { self.load() }
-      }
-      .presentationDetents([.medium, .large])
+      self.editorSheet
     }
     .alert("Error", isPresented: self.$showError) {
       Button("OK", role: .cancel) {}
@@ -126,6 +123,13 @@ struct JournalListView: View {
   private func show(_ error: Error) {
     self.errorMessage = error.localizedDescription
     self.showError = true
+  }
+
+  private var editorSheet: some View {
+    NavigationStack {
+      JournalEditorView(matchId: self.snapshot.id) { self.load() }
+    }
+    .presentationDetents([.medium, .large])
   }
 }
 

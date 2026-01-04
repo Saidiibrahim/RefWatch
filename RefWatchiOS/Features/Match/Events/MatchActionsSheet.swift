@@ -112,60 +112,90 @@ struct MatchActionsSheet: View {
       .confirmationDialog(
         "",
         isPresented: self.$showEndPeriodConfirm,
-        titleVisibility: .hidden)
-      {
-        Button("Yes") {
-          let isFinalReg = self.isFinalRegulationEnd
-          self.matchViewModel.endCurrentPeriod()
-          if isFinalReg {
-            // When this ends the match in regulation, the timer will present Full Time
-          }
-        }
-        Button("No", role: .cancel) {}
-      } message: {
-        Text(self.endPeriodConfirmationMessage)
-      }
+        titleVisibility: .hidden,
+        actions: self.endPeriodConfirmationActions,
+        message: self.endPeriodConfirmationMessage)
       .confirmationDialog(
         "",
         isPresented: self.$showAdvanceConfirm,
-        titleVisibility: .hidden)
-      {
-        Button("Yes") {
-          self.matchViewModel.startNextPeriod()
-        }
-        Button("No", role: .cancel) {}
-      } message: {
-        Text("Start next period now?")
-      }
-      .alert("Reset Match", isPresented: self.$showResetConfirm) {
-        Button("Cancel", role: .cancel) {}
-        Button("Reset", role: .destructive) {
-          self.matchViewModel.resetMatch()
-          self.dismiss()
-        }
-      } message: {
-        Text("This will reset score, cards, and events. This cannot be undone.")
-      }
-      .alert("Abandon Match", isPresented: self.$showAbandonConfirm) {
-        Button("Cancel", role: .cancel) {}
-        Button("Abandon", role: .destructive) {
-          self.matchViewModel.abandonMatch()
-          self.dismiss()
-        }
-      } message: {
-        Text("This will end the match immediately and record it as abandoned.")
-      }
+        titleVisibility: .hidden,
+        actions: self.advanceConfirmationActions,
+        message: self.advanceConfirmationMessage)
+      .alert(
+        "Reset Match",
+        isPresented: self.$showResetConfirm,
+        actions: self.resetAlertActions,
+        message: self.resetAlertMessage)
+      .alert(
+        "Abandon Match",
+        isPresented: self.$showAbandonConfirm,
+        actions: self.abandonAlertActions,
+        message: self.abandonAlertMessage)
     }
   }
 }
 
 extension MatchActionsSheet {
+  @ViewBuilder
+  private func endPeriodConfirmationActions() -> some View {
+    Button("Yes") {
+      let isFinalReg = self.isFinalRegulationEnd
+      self.matchViewModel.endCurrentPeriod()
+      if isFinalReg {
+        // When this ends the match in regulation, the timer will present Full Time
+      }
+    }
+    Button("No", role: .cancel) {}
+  }
+
+  private func endPeriodConfirmationMessage() -> some View {
+    Text(self.endPeriodConfirmationText)
+  }
+
+  @ViewBuilder
+  private func advanceConfirmationActions() -> some View {
+    Button("Yes") {
+      self.matchViewModel.startNextPeriod()
+    }
+    Button("No", role: .cancel) {}
+  }
+
+  private func advanceConfirmationMessage() -> some View {
+    Text("Start next period now?")
+  }
+
+  @ViewBuilder
+  private func resetAlertActions() -> some View {
+    Button("Cancel", role: .cancel) {}
+    Button("Reset", role: .destructive) {
+      self.matchViewModel.resetMatch()
+      self.dismiss()
+    }
+  }
+
+  private func resetAlertMessage() -> some View {
+    Text("This will reset score, cards, and events. This cannot be undone.")
+  }
+
+  @ViewBuilder
+  private func abandonAlertActions() -> some View {
+    Button("Cancel", role: .cancel) {}
+    Button("Abandon", role: .destructive) {
+      self.matchViewModel.abandonMatch()
+      self.dismiss()
+    }
+  }
+
+  private func abandonAlertMessage() -> some View {
+    Text("This will end the match immediately and record it as abandoned.")
+  }
+
   private var isFinalRegulationEnd: Bool {
     guard let match = self.matchViewModel.currentMatch else { return false }
     return self.matchViewModel.currentPeriod == match.numberOfPeriods && match.hasExtraTime == false
   }
 
-  private var endPeriodConfirmationMessage: String {
+  private var endPeriodConfirmationText: String {
     if self.isFinalRegulationEnd {
       return "Are you sure you want to 'End Match'?"
     }

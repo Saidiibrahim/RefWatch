@@ -74,19 +74,10 @@ struct FullTimeView: View {
       Text("Are you sure you want to 'End Match'?")
     }
     .onChange(of: self.matchViewModel.matchCompleted) { completed, _ in
-      #if DEBUG
-      print(
-        "DEBUG: FullTimeView.onChange matchCompleted=\(completed) state=\(self.lifecycle.state)")
-      #endif
-      if completed, self.lifecycle.state != .idle {
-        self.lifecycle.resetToStart()
-        self.matchViewModel.resetMatch()
-      }
+      self.handleMatchCompletedChange(completed)
     }
     .onAppear {
-      #if DEBUG
-      print("DEBUG: FullTimeView appeared")
-      #endif
+      self.logAppear()
     }
   }
 }
@@ -121,6 +112,24 @@ private struct TeamScoreBox: View {
     .overlay(
       RoundedRectangle(cornerRadius: self.theme.components.cardCornerRadius)
         .stroke(self.theme.colors.outlineMuted.opacity(0.4), lineWidth: 1))
+  }
+}
+
+extension FullTimeView {
+  private func handleMatchCompletedChange(_ completed: Bool) {
+    #if DEBUG
+    print("DEBUG: FullTimeView.onChange matchCompleted=\(completed) state=\(self.lifecycle.state)")
+    #endif
+    if completed, self.lifecycle.state != .idle {
+      self.lifecycle.resetToStart()
+      self.matchViewModel.resetMatch()
+    }
+  }
+
+  private func logAppear() {
+    #if DEBUG
+    print("DEBUG: FullTimeView appeared")
+    #endif
   }
 }
 
