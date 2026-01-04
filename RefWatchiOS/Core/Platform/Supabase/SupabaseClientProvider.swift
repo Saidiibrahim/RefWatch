@@ -53,6 +53,10 @@ enum SupabaseClientError: Error, Equatable, Sendable {
   case emptyRPCResponse
 }
 
+enum SupabaseTestClientError: Error, Equatable, Sendable {
+  case unavailable
+}
+
 protocol SupabaseClientRepresenting: AnyObject, Sendable {
   var functionsClient: SupabaseFunctionsClientRepresenting { get }
   func fetchRows<T: Decodable>(
@@ -90,6 +94,60 @@ protocol SupabaseFunctionsClientRepresenting: AnyObject, Sendable {
     options: FunctionInvokeOptions,
     decoder: JSONDecoder
   ) async throws -> T
+}
+
+private final class TestSupabaseFunctionsClient: SupabaseFunctionsClientRepresenting, @unchecked Sendable {
+  func setAuth(token: String?) {}
+
+  func invoke<Response>(
+    _ functionName: String,
+    options: FunctionInvokeOptions,
+    decode: (Data, HTTPURLResponse) throws -> Response
+  ) async throws -> Response {
+    throw SupabaseTestClientError.unavailable
+  }
+
+  func invoke<T: Decodable>(
+    _ functionName: String,
+    options: FunctionInvokeOptions,
+    decoder: JSONDecoder
+  ) async throws -> T {
+    throw SupabaseTestClientError.unavailable
+  }
+}
+
+private final class TestSupabaseClient: SupabaseClientRepresenting, @unchecked Sendable {
+  let functionsClient: SupabaseFunctionsClientRepresenting = TestSupabaseFunctionsClient()
+
+  func fetchRows<T: Decodable>(
+    from table: String,
+    select columns: String,
+    filters: [SupabaseQueryFilter],
+    orderBy column: String?,
+    ascending: Bool,
+    limit: Int,
+    decoder: JSONDecoder
+  ) async throws -> [T] {
+    return []
+  }
+
+  func callRPC<Params: Encodable, Response: Decodable>(
+    _ function: String,
+    params: Params,
+    encoder: JSONEncoder,
+    decoder: JSONDecoder
+  ) async throws -> Response {
+    throw SupabaseTestClientError.unavailable
+  }
+
+  func upsertRows<Payload: Encodable, Response: Decodable>(
+    into table: String,
+    payload: Payload,
+    onConflict: String,
+    decoder: JSONDecoder
+  ) async throws -> Response {
+    throw SupabaseTestClientError.unavailable
+  }
 }
 
 // The SDK types are now Sendable by default in modern Supabase SDK versions
@@ -294,6 +352,7 @@ extension FunctionsClient: SupabaseFunctionsClientRepresenting {}
 
 final class SupabaseClientProvider: SupabaseClientProviding {
   static let shared = SupabaseClientProvider()
+  private static let isRunningTests = TestEnvironment.isRunningTests
 
   typealias ClientFactory = (SupabaseEnvironment) throws -> SupabaseClientRepresenting
 
@@ -354,6 +413,12 @@ final class SupabaseClientProvider: SupabaseClientProviding {
       return instance
 
     } catch {
+      if Self.isRunningTests {
+        let testClient = TestSupabaseClient()
+        AppLog.supabase.warning("Supabase config missing during tests; using test client. \(error.localizedDescription, privacy: .public)")
+        cachedClient = testClient
+        return testClient
+      }
       AppLog.supabase.error("Failed to create Supabase client: \(error.localizedDescription, privacy: .public)")
       throw error
     }

@@ -190,6 +190,10 @@ struct SupabaseEnvironment {
 
 private func debugConfigurationFailure(_ message: String) {
 #if DEBUG
+  if TestEnvironment.isRunningTests {
+    AppLog.supabase.warning("Skipping Supabase configuration assertion during tests: \(message, privacy: .public)")
+    return
+  }
   assertionFailure(message)
   AppLog.supabase.error("CONFIGURATION ERROR: \(message, privacy: .public)")
   print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")

@@ -30,6 +30,10 @@
     -scheme "RefWatch Watch App" \
     -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)'
   ```
+- For iOS coverage locally:
+  ```bash
+  ./scripts/test-ios-coverage.sh
+  ```
 
 ## Troubleshooting
 - If the watch app fails to install, make sure the paired iPhone simulator is running.

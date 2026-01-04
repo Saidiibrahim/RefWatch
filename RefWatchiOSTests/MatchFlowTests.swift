@@ -6,7 +6,9 @@ import RefWatchCore
 final class MatchFlowTests: XCTestCase {
     // Creates a VM using a temporary history file location
     private func makeVM() -> (MatchViewModel, MatchHistoryService) {
-        let base = FileManager.default.temporaryDirectory.appendingPathComponent("MatchFlowTests", isDirectory: true)
+        let base = FileManager.default.temporaryDirectory
+            .appendingPathComponent("MatchFlowTests", isDirectory: true)
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
         try? FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
         let history = MatchHistoryService(baseDirectory: base)
         let vm = MatchViewModel(history: history, haptics: NoopHaptics())
