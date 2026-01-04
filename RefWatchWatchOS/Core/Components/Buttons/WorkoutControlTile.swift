@@ -1,5 +1,5 @@
-import SwiftUI
 import RefWatchCore
+import SwiftUI
 
 /// Capsule-style control tile used within workout sessions. Exposes
 /// sizing and typography overrides so feature screens can tune for
@@ -8,14 +8,14 @@ struct WorkoutControlTile: View {
   struct Style {
     var circleDiameter: CGFloat = 52
     var iconSize: CGFloat = 22
-    var verticalSpacing: CGFloat? = nil
-    var titleFont: Font? = nil
-    var titleColor: Color? = nil
-    var badgeFont: Font? = nil
+    var verticalSpacing: CGFloat?
+    var titleFont: Font?
+    var titleColor: Color?
+    var badgeFont: Font?
     var badgeHorizontalPadding: CGFloat = 4
     var badgeVerticalPadding: CGFloat = 3
-    var tileVerticalPadding: CGFloat? = nil
-    var preferredHeight: CGFloat? = nil
+    var tileVerticalPadding: CGFloat?
+    var preferredHeight: CGFloat?
   }
 
   @Environment(\.theme) private var theme
@@ -24,69 +24,69 @@ struct WorkoutControlTile: View {
   let systemImage: String
   let tint: Color
   let foreground: Color
-  var badgeText: String? = nil
+  var badgeText: String?
   var isDisabled: Bool = false
   var isLoading: Bool = false
-  var style: Style = Style()
+  var style: Style = .init()
   let action: () -> Void
 
-  private var spacing: CGFloat { style.verticalSpacing ?? theme.spacing.xs }
-  private var titleFont: Font { style.titleFont ?? theme.typography.cardMeta }
-  private var titleColor: Color { style.titleColor ?? foreground }
-  private var badgeFont: Font { style.badgeFont ?? .system(size: 12, weight: .semibold, design: .rounded) }
-  private var tilePadding: CGFloat { style.tileVerticalPadding ?? theme.spacing.xs * 0.5 }
+  private var spacing: CGFloat { self.style.verticalSpacing ?? self.theme.spacing.xs }
+  private var titleFont: Font { self.style.titleFont ?? self.theme.typography.cardMeta }
+  private var titleColor: Color { self.style.titleColor ?? self.foreground }
+  private var badgeFont: Font { self.style.badgeFont ?? .system(size: 12, weight: .semibold, design: .rounded) }
+  private var tilePadding: CGFloat { self.style.tileVerticalPadding ?? self.theme.spacing.xs * 0.5 }
 
   var body: some View {
-    Button(action: action) {
-      VStack(spacing: spacing) {
+    Button(action: self.action) {
+      VStack(spacing: self.spacing) {
         ZStack {
           Circle()
-            .fill(tint.opacity(isDisabled ? 0.45 : 1.0))
-            .frame(width: style.circleDiameter, height: style.circleDiameter)
+            .fill(self.tint.opacity(self.isDisabled ? 0.45 : 1.0))
+            .frame(width: self.style.circleDiameter, height: self.style.circleDiameter)
 
-          if isLoading {
+          if self.isLoading {
             ProgressView()
               .progressViewStyle(.circular)
-              .tint(foreground.opacity(isDisabled ? 0.6 : 1.0))
+              .tint(self.foreground.opacity(self.isDisabled ? 0.6 : 1.0))
           } else {
-            Image(systemName: systemImage)
-              .font(.system(size: style.iconSize, weight: .semibold))
-              .foregroundStyle(foreground.opacity(isDisabled ? 0.6 : 1.0))
+            Image(systemName: self.systemImage)
+              .font(.system(size: self.style.iconSize, weight: .semibold))
+              .foregroundStyle(self.foreground.opacity(self.isDisabled ? 0.6 : 1.0))
           }
         }
-        .overlay(badgeOverlay, alignment: .topTrailing)
+        .overlay(self.badgeOverlay, alignment: .topTrailing)
 
-        Text(title)
-          .font(titleFont)
-          .foregroundStyle(titleColor.opacity(isDisabled ? 0.6 : 1.0))
+        Text(self.title)
+          .font(self.titleFont)
+          .foregroundStyle(self.titleColor.opacity(self.isDisabled ? 0.6 : 1.0))
           .multilineTextAlignment(.center)
           .lineLimit(1)
           .minimumScaleFactor(0.75)
       }
-      .frame(maxWidth: .infinity, minHeight: tileHeight, alignment: .top)
-      .padding(.vertical, tilePadding)
-      .accessibilityLabel(title)
+      .frame(maxWidth: .infinity, minHeight: self.tileHeight, alignment: .top)
+      .padding(.vertical, self.tilePadding)
+      .accessibilityLabel(self.title)
     }
     .buttonStyle(.plain)
-    .disabled(isDisabled)
+    .disabled(self.isDisabled)
   }
 
   @ViewBuilder
   private var badgeOverlay: some View {
     if let badgeText {
       Text(badgeText)
-        .font(badgeFont)
-        .foregroundStyle(theme.colors.backgroundPrimary)
-        .padding(.horizontal, style.badgeHorizontalPadding)
-        .padding(.vertical, style.badgeVerticalPadding)
-        .background(tint.opacity(isDisabled ? 0.6 : 1.0), in: Capsule())
-        .offset(x: style.circleDiameter * 0.2, y: -style.circleDiameter * 0.2)
+        .font(self.badgeFont)
+        .foregroundStyle(self.theme.colors.backgroundPrimary)
+        .padding(.horizontal, self.style.badgeHorizontalPadding)
+        .padding(.vertical, self.style.badgeVerticalPadding)
+        .background(self.tint.opacity(self.isDisabled ? 0.6 : 1.0), in: Capsule())
+        .offset(x: self.style.circleDiameter * 0.2, y: -self.style.circleDiameter * 0.2)
     }
   }
 
   private var tileHeight: CGFloat {
     if let preferred = style.preferredHeight { return preferred }
-    return style.circleDiameter + spacing + 24 + tilePadding * 2
+    return self.style.circleDiameter + self.spacing + 24 + self.tilePadding * 2
   }
 }
 
@@ -101,14 +101,15 @@ struct WorkoutControlTilePlaceholder: View {
   var body: some View {
     Color.clear
       .frame(maxWidth: .infinity)
-      .frame(height: preferredHeight)
+      .frame(height: self.preferredHeight)
       .accessibilityHidden(true)
   }
 
   private var preferredHeight: CGFloat {
     if let preferred = style.preferredHeight { return preferred }
-    let spacing = style.verticalSpacing ?? theme.spacing.xs
-    return style.circleDiameter + spacing + 24 + (style.tileVerticalPadding ?? theme.spacing.xs * 0.5) * 2
+    let spacing = self.style.verticalSpacing ?? self.theme.spacing.xs
+    return self.style
+      .circleDiameter + spacing + 24 + (self.style.tileVerticalPadding ?? self.theme.spacing.xs * 0.5) * 2
   }
 }
 
@@ -119,8 +120,7 @@ struct WorkoutControlTilePlaceholder: View {
       systemImage: "pause.fill",
       tint: .orange,
       foreground: .black,
-      action: {}
-    )
+      action: {})
 
     WorkoutControlTile(
       title: "Segment",
@@ -128,8 +128,7 @@ struct WorkoutControlTilePlaceholder: View {
       tint: .green,
       foreground: .black,
       badgeText: "3",
-      style: .init(circleDiameter: 44, iconSize: 20)
-    ) { }
+      style: .init(circleDiameter: 44, iconSize: 20)) {}
   }
   .theme(DefaultTheme())
 }

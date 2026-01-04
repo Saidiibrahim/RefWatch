@@ -16,42 +16,44 @@ struct OnboardingPageIndicator: View {
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
   var body: some View {
-    HStack(spacing: theme.spacing.s) {
-      ForEach(0..<total, id: \.self) { index in
+    HStack(spacing: self.theme.spacing.s) {
+      ForEach(0..<self.total, id: \.self) { index in
         Capsule(style: .continuous)
           .fill(fillColor(for: index))
           .frame(width: width(for: index), height: 8)
-          .animation(animation, value: currentIndex)
+          .animation(animation, value: self.currentIndex)
           .accessibilityHidden(true)
       }
     }
-    .padding(.vertical, theme.spacing.s)
-    .padding(.horizontal, theme.spacing.m)
+    .padding(.vertical, self.theme.spacing.s)
+    .padding(.horizontal, self.theme.spacing.m)
     .accessibilityElement(children: .ignore)
     .accessibilityLabel(Text(indicatorLabel))
   }
 }
 
-private extension OnboardingPageIndicator {
-  var indicatorLabel: String {
+extension OnboardingPageIndicator {
+  private var indicatorLabel: String {
     String.localizedStringWithFormat(
-      NSLocalizedString("welcome.carousel.position", value: "Slide %d of %d", comment: "Accessibility label announcing the current onboarding slide position"),
-      currentIndex + 1,
-      max(total, 1)
-    )
+      NSLocalizedString(
+        "welcome.carousel.position",
+        value: "Slide %d of %d",
+        comment: "Accessibility label announcing the current onboarding slide position"),
+      self.currentIndex + 1,
+      max(self.total, 1))
   }
 
-  var animation: Animation? {
-    guard reduceMotion == false else { return nil }
+  private var animation: Animation? {
+    guard self.reduceMotion == false else { return nil }
     return .spring(response: 0.35, dampingFraction: 0.8)
   }
 
-  func width(for index: Int) -> CGFloat {
-    index == currentIndex ? 24 : 8
+  private func width(for index: Int) -> CGFloat {
+    index == self.currentIndex ? 24 : 8
   }
 
-  func fillColor(for index: Int) -> Color {
-    index == currentIndex ? theme.colors.accentPrimary : theme.colors.outlineMuted
+  private func fillColor(for index: Int) -> Color {
+    index == self.currentIndex ? self.theme.colors.accentPrimary : self.theme.colors.outlineMuted
   }
 }
 

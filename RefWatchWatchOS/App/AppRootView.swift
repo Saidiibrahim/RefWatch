@@ -1,6 +1,6 @@
-import SwiftUI
 import RefWatchCore
 import RefWorkoutCore
+import SwiftUI
 
 struct AppRootView: View {
   @EnvironmentObject private var appModeController: AppModeController
@@ -18,23 +18,23 @@ struct AppRootView: View {
 
   var body: some View {
     ZStack {
-      if appModeController.hasPersistedSelection {
+      if self.appModeController.hasPersistedSelection {
         modeHostView
       } else {
         initialModeSelectionView
       }
     }
-    .fullScreenCover(isPresented: $showModeSwitcher) {
+    .fullScreenCover(isPresented: self.$showModeSwitcher) {
       modeSwitcherSheet
     }
-    .alert(blockHintMessage ?? "", isPresented: $showBlockHint) {
+    .alert(self.blockHintMessage ?? "", isPresented: self.$showBlockHint) {
       Button("OK", role: .cancel) {
-        showBlockHint = false
-        blockHintMessage = nil
+        self.showBlockHint = false
+        self.blockHintMessage = nil
       }
     }
     .overlay(alignment: .top) {
-      if showConfirmation, let confirmationMode {
+      if self.showConfirmation, let confirmationMode {
         ModeSwitchConfirmationToast(mode: confirmationMode)
           .transition(.move(edge: .top).combined(with: .opacity))
           .padding(.top, 6)
@@ -43,87 +43,84 @@ struct AppRootView: View {
   }
 }
 
-private extension AppRootView {
+extension AppRootView {
   @ViewBuilder
-  var modeHostView: some View {
+  private var modeHostView: some View {
     Group {
-      switch appModeController.currentMode {
+      switch self.appModeController.currentMode {
       case .match:
-        MatchRootView(connectivity: aggregateEnvironment.connectivity)
+        MatchRootView(connectivity: self.aggregateEnvironment.connectivity)
       case .workout:
         WorkoutRootView(
-          services: workoutServices,
-          appModeController: appModeController
-        )
-        .id(workoutViewID)
+          services: self.workoutServices,
+          appModeController: self.appModeController)
+          .id(self.workoutViewID)
       }
     }
-    .environment(\.modeSwitcherPresentation, guardedModeSwitcherBinding)
-    .environment(\.modeSwitcherBlockReason, $modeSwitcherBlockReason)
-    .onChange(of: appModeController.currentMode) { _, mode in
+    .environment(\.modeSwitcherPresentation, self.guardedModeSwitcherBinding)
+    .environment(\.modeSwitcherBlockReason, self.$modeSwitcherBlockReason)
+    .onChange(of: self.appModeController.currentMode) { _, mode in
       if mode == .workout {
-        workoutViewID = UUID()
+        self.workoutViewID = UUID()
       }
     }
   }
 
-  var initialModeSelectionView: some View {
+  private var initialModeSelectionView: some View {
     ModeSwitcherView(
-      currentMode: appModeController.currentMode,
+      currentMode: self.appModeController.currentMode,
       lastSelectedMode: nil,
-      activeMode: modeSwitcherBlockReason?.activeMode,
+      activeMode: self.modeSwitcherBlockReason?.activeMode,
       allowDismiss: false,
-      onSelect: handleModeSelection,
-      onDismiss: {}
-    )
-    .environmentObject(appModeController)
+      onSelect: self.handleModeSelection,
+      onDismiss: {})
+      .environmentObject(self.appModeController)
   }
 
-  var modeSwitcherSheet: some View {
+  private var modeSwitcherSheet: some View {
     ModeSwitcherView(
-      currentMode: appModeController.currentMode,
-      lastSelectedMode: appModeController.hasPersistedSelection ? appModeController.currentMode : nil,
-      activeMode: modeSwitcherBlockReason?.activeMode,
-      allowDismiss: appModeController.hasPersistedSelection,
-      onSelect: handleModeSelection,
+      currentMode: self.appModeController.currentMode,
+      lastSelectedMode: self.appModeController.hasPersistedSelection ? self.appModeController.currentMode : nil,
+      activeMode: self.modeSwitcherBlockReason?.activeMode,
+      allowDismiss: self.appModeController.hasPersistedSelection,
+      onSelect: self.handleModeSelection,
       onDismiss: {
         // If the user hasn't picked a mode yet, keep prompting until they do
-        showModeSwitcher = appModeController.hasPersistedSelection ? false : true
-      }
-    )
-    .environmentObject(appModeController)
+        self.showModeSwitcher = self.appModeController.hasPersistedSelection ? false : true
+      })
+      .environmentObject(self.appModeController)
   }
 
-  var guardedModeSwitcherBinding: Binding<Bool> {
+  private var guardedModeSwitcherBinding: Binding<Bool> {
     Binding {
-      showModeSwitcher
+      self.showModeSwitcher
     } set: { shouldShow in
       guard shouldShow else {
-        showModeSwitcher = false
+        self.showModeSwitcher = false
         return
       }
 
       if let reason = modeSwitcherBlockReason {
-        blockHintMessage = reason.message
-        showBlockHint = true
+        self.blockHintMessage = reason.message
+        self.showBlockHint = true
         return
       }
 
-      showModeSwitcher = true
+      self.showModeSwitcher = true
     }
   }
 
-  func handleModeSelection(_ mode: AppMode) {
-    appModeController.select(mode)
+  private func handleModeSelection(_ mode: AppMode) {
+    self.appModeController.select(mode)
     if mode == .workout {
-      workoutViewID = UUID()
+      self.workoutViewID = UUID()
     }
-    showModeSwitcher = false
-    confirmationMode = mode
-    withAnimation(.easeOut) { showConfirmation = true }
-    haptics.play(.tap)
+    self.showModeSwitcher = false
+    self.confirmationMode = mode
+    withAnimation(.easeOut) { self.showConfirmation = true }
+    self.haptics.play(.tap)
     DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-      withAnimation(.easeIn) { showConfirmation = false }
+      withAnimation(.easeIn) { self.showConfirmation = false }
     }
   }
 }
@@ -135,7 +132,7 @@ private struct ModeSwitchConfirmationToast: View {
     HStack(spacing: 8) {
       Image(systemName: "checkmark.circle.fill")
         .foregroundStyle(.green)
-      Text("Switched to \(mode.displayName)")
+      Text("Switched to \(self.mode.displayName)")
         .font(.footnote)
         .lineLimit(1)
     }
@@ -150,7 +147,7 @@ private struct ModeSwitchConfirmationToast: View {
   let controller = AppModeController()
   controller.select(.match, persist: false)
   let environment = makePreviewAggregateEnvironment()
-  
+
   return AppRootView()
     .environmentObject(controller)
     .environmentObject(environment)
@@ -161,7 +158,7 @@ private struct ModeSwitchConfirmationToast: View {
   let controller = AppModeController()
   controller.select(.workout, persist: false)
   let environment = makePreviewAggregateEnvironment()
-  
+
   return AppRootView()
     .environmentObject(controller)
     .environmentObject(environment)
@@ -172,7 +169,7 @@ private struct ModeSwitchConfirmationToast: View {
   let controller = AppModeController()
   // Don't set a selection to trigger the switcher
   let environment = makePreviewAggregateEnvironment()
-  
+
   return AppRootView()
     .environmentObject(controller)
     .environmentObject(environment)
@@ -181,21 +178,21 @@ private struct ModeSwitchConfirmationToast: View {
 
 @MainActor
 private func makePreviewAggregateEnvironment() -> AggregateSyncEnvironment {
-  let container = try! WatchAggregateContainerFactory.makeContainer(inMemory: true)
+  guard let container = try? WatchAggregateContainerFactory.makeContainer(inMemory: true) else {
+    fatalError("Failed to create preview aggregate container")
+  }
   let library = WatchAggregateLibraryStore(container: container)
   let chunk = WatchAggregateSnapshotChunkStore(container: container)
   let delta = WatchAggregateDeltaOutboxStore(container: container)
   let coordinator = WatchAggregateSyncCoordinator(
     libraryStore: library,
     chunkStore: chunk,
-    deltaStore: delta
-  )
+    deltaStore: delta)
   let connectivity = WatchConnectivitySyncClient(session: nil, aggregateCoordinator: coordinator)
   return AggregateSyncEnvironment(
     libraryStore: library,
     chunkStore: chunk,
     deltaStore: delta,
     coordinator: coordinator,
-    connectivity: connectivity
-  )
+    connectivity: connectivity)
 }

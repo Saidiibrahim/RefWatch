@@ -12,8 +12,10 @@ import Supabase
 internal import os
 
 protocol SupabaseMatchIngestServing {
-  func ingestMatchBundle(_ request: SupabaseMatchIngestService.MatchBundleRequest) async throws -> SupabaseMatchIngestService.SyncResult
-  func fetchMatchBundles(ownerId: UUID, updatedAfter: Date?) async throws -> [SupabaseMatchIngestService.RemoteMatchBundle]
+  func ingestMatchBundle(_ request: SupabaseMatchIngestService.MatchBundleRequest) async throws
+    -> SupabaseMatchIngestService.SyncResult
+  func fetchMatchBundles(ownerId: UUID, updatedAfter: Date?) async throws
+    -> [SupabaseMatchIngestService.RemoteMatchBundle]
   func deleteMatch(id: UUID) async throws
 }
 
@@ -302,8 +304,8 @@ struct SupabaseMatchIngestService: SupabaseMatchIngestServing {
     clientProvider: SupabaseClientProviding = SupabaseClientProvider.shared,
     encoder: JSONEncoder = SupabaseMatchIngestService.makeEncoder(),
     decoder: JSONDecoder = SupabaseMatchIngestService.makeDecoder(),
-    isoFormatter: ISO8601DateFormatter = SupabaseMatchIngestService.makeISOFormatter()
-  ) {
+    isoFormatter: ISO8601DateFormatter = SupabaseMatchIngestService.makeISOFormatter())
+  {
     self.clientProvider = clientProvider
     self.encoder = encoder
     self.decoder = decoder
@@ -335,23 +337,22 @@ struct SupabaseMatchIngestService: SupabaseMatchIngestServing {
         "Authorization": authHeader,
         "Content-Type": "application/json",
         "Idempotency-Key": request.match.id.uuidString,
-        "X-RefWatch-Client": "ios"
+        "X-RefWatch-Client": "ios",
       ],
-      body: payload
-    )
+      body: payload)
 
     do {
       return try await supabaseClient.functionsClient.invoke(
         "matches-ingest",
-        options: options
-      ) { data, _ in
+        options: options)
+      { data, _ in
         #if DEBUG
         if let responseString = String(data: data, encoding: .utf8) {
           AppLog.supabase.debug("Match ingest raw response: \(responseString, privacy: .public)")
         }
         #endif
 
-        return try decoder.decode(SyncResult.self, from: data)
+        return try self.decoder.decode(SyncResult.self, from: data)
       }
     } catch {
       #if DEBUG
@@ -365,48 +366,109 @@ struct SupabaseMatchIngestService: SupabaseMatchIngestServing {
     let client = try await clientProvider.authorizedClient()
     guard let supabaseClient = client as? SupabaseClient else { throw APIError.unsupportedClient }
 
+    let matchSelect = [
+      "id",
+      "owner_id",
+      "status",
+      "started_at",
+      "completed_at",
+      "duration_seconds",
+      "number_of_periods",
+      "regulation_minutes",
+      "half_time_minutes",
+      "competition_id",
+      "competition_name",
+      "venue_id",
+      "venue_name",
+      "home_team_id",
+      "home_team_name",
+      "away_team_id",
+      "away_team_name",
+      "extra_time_enabled",
+      "extra_time_half_minutes",
+      "penalties_enabled",
+      "penalty_initial_rounds",
+      "home_score",
+      "away_score",
+      "final_score",
+      "source_device_id",
+      "updated_at",
+    ].joined(separator: ", ")
+    let eventSelect = [
+      "id",
+      "match_id",
+      "occurred_at",
+      "period_index",
+      "clock_seconds",
+      "match_time_label",
+      "event_type",
+      "payload",
+      "team_side",
+    ].joined(separator: ", ")
+    let metricsSelect = [
+      "match_id",
+      "owner_id",
+      "regulation_minutes",
+      "half_time_minutes",
+      "extra_time_minutes",
+      "penalties_enabled",
+      "total_goals",
+      "total_cards",
+      "total_penalties",
+      "yellow_cards",
+      "red_cards",
+      "home_cards",
+      "away_cards",
+      "home_substitutions",
+      "away_substitutions",
+      "penalties_scored",
+      "penalties_missed",
+      "avg_added_time_seconds",
+      "generated_at",
+    ].joined(separator: ", ")
+
     let matches: [MatchRowDTO] = try await supabaseClient.fetchRows(
-      from: "matches",
-      select: "id, owner_id, status, started_at, completed_at, duration_seconds, number_of_periods, regulation_minutes, half_time_minutes, competition_id, competition_name, venue_id, venue_name, home_team_id, home_team_name, away_team_id, away_team_name, extra_time_enabled, extra_time_half_minutes, penalties_enabled, penalty_initial_rounds, home_score, away_score, final_score, source_device_id, updated_at",
-      filters: makeMatchFilters(ownerId: ownerId, updatedAfter: updatedAfter),
-      orderBy: "updated_at",
-      ascending: true,
-      limit: 0,
-      decoder: decoder
-    )
+      SupabaseFetchRequest(
+        table: "matches",
+        columns: matchSelect,
+        filters: makeMatchFilters(ownerId: ownerId, updatedAfter: updatedAfter),
+        orderBy: "updated_at",
+        ascending: true,
+        limit: 0,
+        decoder: self.decoder))
 
     guard matches.isEmpty == false else { return [] }
 
-    let matchIds = matches.map { $0.id.uuidString }
+    let matchIds = matches.map(\.id.uuidString)
     let periods: [PeriodRowDTO] = try await supabaseClient.fetchRows(
-      from: "match_periods",
-      select: "id, match_id, index, regulation_seconds, added_time_seconds, result",
-      filters: [.in("match_id", values: matchIds)],
-      orderBy: nil,
-      ascending: true,
-      limit: 0,
-      decoder: decoder
-    )
+      SupabaseFetchRequest(
+        table: "match_periods",
+        columns: "id, match_id, index, regulation_seconds, added_time_seconds, result",
+        filters: [.in("match_id", values: matchIds)],
+        orderBy: nil,
+        ascending: true,
+        limit: 0,
+        decoder: self.decoder))
 
     let events: [EventRowDTO] = try await supabaseClient.fetchRows(
-      from: "match_events",
-      select: "id, match_id, occurred_at, period_index, clock_seconds, match_time_label, event_type, payload, team_side",
-      filters: [.in("match_id", values: matchIds)],
-      orderBy: "occurred_at",
-      ascending: true,
-      limit: 0,
-      decoder: decoder
-    )
+      SupabaseFetchRequest(
+        table: "match_events",
+        columns: eventSelect,
+        filters: [.in("match_id", values: matchIds)],
+        orderBy: "occurred_at",
+        ascending: true,
+        limit: 0,
+        decoder: self.decoder))
 
     let metricsRows: [MatchMetricsRowDTO] = try await supabaseClient.fetchRows(
-      from: "match_metrics",
-      select: "match_id, owner_id, regulation_minutes, half_time_minutes, extra_time_minutes, penalties_enabled, total_goals, total_cards, total_penalties, yellow_cards, red_cards, home_cards, away_cards, home_substitutions, away_substitutions, penalties_scored, penalties_missed, avg_added_time_seconds, generated_at",
-      filters: [.in("match_id", values: matchIds)],
-      orderBy: nil,
-      ascending: true,
-      limit: 0,
-      decoder: decoder
-    )
+      SupabaseFetchRequest(
+        table: "match_metrics",
+        columns: metricsSelect,
+        filters: [.in("match_id", values: matchIds)],
+        orderBy: nil,
+        ascending: true,
+        limit: 0,
+        decoder: self.decoder))
 
     let periodsByMatch = Dictionary(grouping: periods, by: { $0.matchId })
     let eventsByMatch = Dictionary(grouping: events, by: { $0.matchId })
@@ -455,15 +517,14 @@ extension SupabaseMatchIngestService {
       if let date = SupabaseDateParser.parse(
         value,
         isoWithFraction: isoWithFraction,
-        isoWithoutFraction: isoWithoutFraction
-      ) {
+        isoWithoutFraction: isoWithoutFraction)
+      {
         return date
       }
 
       throw DecodingError.dataCorruptedError(
         in: container,
-        debugDescription: "Cannot decode date from: \(value)"
-      )
+        debugDescription: "Cannot decode date from: \(value)")
     }
     return decoder
   }
@@ -476,10 +537,10 @@ extension SupabaseMatchIngestService {
 
   private func makeMatchFilters(ownerId: UUID, updatedAfter: Date?) -> [SupabaseQueryFilter] {
     var filters: [SupabaseQueryFilter] = [
-      .equals("owner_id", value: ownerId.uuidString)
+      .equals("owner_id", value: ownerId.uuidString),
     ]
     if let updatedAfter {
-      filters.append(.greaterThan("updated_at", value: isoFormatter.string(from: updatedAfter)))
+      filters.append(.greaterThan("updated_at", value: self.isoFormatter.string(from: updatedAfter)))
     }
     return filters
   }
@@ -546,33 +607,32 @@ private struct MatchRowDTO: Decodable {
 
   func toRemoteMatch() -> SupabaseMatchIngestService.RemoteMatch {
     SupabaseMatchIngestService.RemoteMatch(
-      id: id,
-      ownerId: ownerId,
-      status: status,
-      startedAt: startedAt,
-      completedAt: completedAt,
-      durationSeconds: durationSeconds,
-      numberOfPeriods: numberOfPeriods,
-      regulationMinutes: regulationMinutes,
-      halfTimeMinutes: halfTimeMinutes,
-      competitionId: competitionId,
-      competitionName: competitionName,
-      venueId: venueId,
-      venueName: venueName,
-      homeTeamId: homeTeamId,
-      homeTeamName: homeTeamName,
-      awayTeamId: awayTeamId,
-      awayTeamName: awayTeamName,
-      extraTimeEnabled: extraTimeEnabled,
-      extraTimeHalfMinutes: extraTimeHalfMinutes,
-      penaltiesEnabled: penaltiesEnabled,
-      penaltyInitialRounds: penaltyInitialRounds,
-      homeScore: homeScore,
-      awayScore: awayScore,
-      finalScore: finalScore,
-      sourceDeviceId: sourceDeviceId,
-      updatedAt: updatedAt
-    )
+      id: self.id,
+      ownerId: self.ownerId,
+      status: self.status,
+      startedAt: self.startedAt,
+      completedAt: self.completedAt,
+      durationSeconds: self.durationSeconds,
+      numberOfPeriods: self.numberOfPeriods,
+      regulationMinutes: self.regulationMinutes,
+      halfTimeMinutes: self.halfTimeMinutes,
+      competitionId: self.competitionId,
+      competitionName: self.competitionName,
+      venueId: self.venueId,
+      venueName: self.venueName,
+      homeTeamId: self.homeTeamId,
+      homeTeamName: self.homeTeamName,
+      awayTeamId: self.awayTeamId,
+      awayTeamName: self.awayTeamName,
+      extraTimeEnabled: self.extraTimeEnabled,
+      extraTimeHalfMinutes: self.extraTimeHalfMinutes,
+      penaltiesEnabled: self.penaltiesEnabled,
+      penaltyInitialRounds: self.penaltyInitialRounds,
+      homeScore: self.homeScore,
+      awayScore: self.awayScore,
+      finalScore: self.finalScore,
+      sourceDeviceId: self.sourceDeviceId,
+      updatedAt: self.updatedAt)
   }
 }
 
@@ -595,13 +655,12 @@ private struct PeriodRowDTO: Decodable {
 
   func toRemotePeriod() -> SupabaseMatchIngestService.RemotePeriod {
     SupabaseMatchIngestService.RemotePeriod(
-      id: id,
-      matchId: matchId,
-      index: index,
-      regulationSeconds: regulationSeconds,
-      addedTimeSeconds: addedTimeSeconds,
-      result: result
-    )
+      id: self.id,
+      matchId: self.matchId,
+      index: self.index,
+      regulationSeconds: self.regulationSeconds,
+      addedTimeSeconds: self.addedTimeSeconds,
+      result: self.result)
   }
 }
 
@@ -630,19 +689,17 @@ private struct EventRowDTO: Decodable {
 
   func toRemoteEvent() -> SupabaseMatchIngestService.RemoteEvent {
     SupabaseMatchIngestService.RemoteEvent(
-      id: id,
-      matchId: matchId,
-      occurredAt: occurredAt,
-      periodIndex: periodIndex,
-      clockSeconds: clockSeconds,
-      matchTimeLabel: matchTimeLabel,
-      eventType: eventType,
-      payload: payload,
-      teamSide: teamSide
-    )
+      id: self.id,
+      matchId: self.matchId,
+      occurredAt: self.occurredAt,
+      periodIndex: self.periodIndex,
+      clockSeconds: self.clockSeconds,
+      matchTimeLabel: self.matchTimeLabel,
+      eventType: self.eventType,
+      payload: self.payload,
+      teamSide: self.teamSide)
   }
 }
-
 
 private struct MatchMetricsRowDTO: Decodable {
   let matchId: UUID
@@ -689,25 +746,24 @@ private struct MatchMetricsRowDTO: Decodable {
 
   func toRemoteMetrics() -> SupabaseMatchIngestService.RemoteMetrics {
     SupabaseMatchIngestService.RemoteMetrics(
-      matchId: matchId,
-      ownerId: ownerId,
-      regulationMinutes: regulationMinutes,
-      halfTimeMinutes: halfTimeMinutes,
-      extraTimeMinutes: extraTimeMinutes,
-      penaltiesEnabled: penaltiesEnabled,
-      totalGoals: totalGoals,
-      totalCards: totalCards,
-      totalPenalties: totalPenalties,
-      yellowCards: yellowCards,
-      redCards: redCards,
-      homeCards: homeCards,
-      awayCards: awayCards,
-      homeSubstitutions: homeSubstitutions,
-      awaySubstitutions: awaySubstitutions,
-      penaltiesScored: penaltiesScored,
-      penaltiesMissed: penaltiesMissed,
-      avgAddedTimeSeconds: avgAddedTimeSeconds,
-      generatedAt: generatedAt
-    )
+      matchId: self.matchId,
+      ownerId: self.ownerId,
+      regulationMinutes: self.regulationMinutes,
+      halfTimeMinutes: self.halfTimeMinutes,
+      extraTimeMinutes: self.extraTimeMinutes,
+      penaltiesEnabled: self.penaltiesEnabled,
+      totalGoals: self.totalGoals,
+      totalCards: self.totalCards,
+      totalPenalties: self.totalPenalties,
+      yellowCards: self.yellowCards,
+      redCards: self.redCards,
+      homeCards: self.homeCards,
+      awayCards: self.awayCards,
+      homeSubstitutions: self.homeSubstitutions,
+      awaySubstitutions: self.awaySubstitutions,
+      penaltiesScored: self.penaltiesScored,
+      penaltiesMissed: self.penaltiesMissed,
+      avgAddedTimeSeconds: self.avgAddedTimeSeconds,
+      generatedAt: self.generatedAt)
   }
 }

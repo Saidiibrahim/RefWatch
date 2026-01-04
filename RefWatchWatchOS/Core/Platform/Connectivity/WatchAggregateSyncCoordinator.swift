@@ -24,8 +24,8 @@ final class WatchAggregateSyncCoordinator {
     libraryStore: WatchAggregateLibraryStore,
     chunkStore: WatchAggregateSnapshotChunkStore,
     deltaStore: WatchAggregateDeltaOutboxStore,
-    decoder: JSONDecoder = AggregateSyncCoding.makeDecoder()
-  ) {
+    decoder: JSONDecoder = AggregateSyncCoding.makeDecoder())
+  {
     self.libraryStore = libraryStore
     self.chunkStore = chunkStore
     self.deltaStore = deltaStore
@@ -37,28 +37,32 @@ final class WatchAggregateSyncCoordinator {
       let payload = try decoder.decode(AggregateSnapshotPayload.self, from: data)
       try ingestSnapshotPayload(payload, rawData: data)
     } catch {
-      log.error("Failed to decode aggregate snapshot: \(error.localizedDescription, privacy: .public)")
+      self.log.error("Failed to decode aggregate snapshot: \(error.localizedDescription, privacy: .public)")
     }
   }
 
   func enqueueDeltaEnvelope(_ envelope: AggregateDeltaEnvelope) {
     do {
-      try deltaStore.enqueue(envelope)
+      try self.deltaStore.enqueue(envelope)
       updateQueuedDeltaCount()
     } catch {
-      log.error("Failed to enqueue delta envelope: \(error.localizedDescription, privacy: .public)")
+      self.log.error("Failed to enqueue delta envelope: \(error.localizedDescription, privacy: .public)")
     }
   }
 
   func pendingDeltaEnvelopes() -> [AggregateDeltaEnvelope] {
     do {
-      return try deltaStore.pendingDeltas().compactMap { record in
+      return try self.deltaStore.pendingDeltas().compactMap { record in
         guard
           let entity = AggregateSyncEntity(rawValue: record.entityRaw),
           let action = AggregateDeltaAction(rawValue: record.actionRaw),
           let origin = AggregateSyncOrigin(rawValue: record.originRaw)
         else {
-          log.error("Dropping delta with unknown metadata entity=\(record.entityRaw, privacy: .public) action=\(record.actionRaw, privacy: .public)")
+          self.log
+            .error(
+              "Dropping delta with unknown metadata " +
+                "entity=\(record.entityRaw, privacy: .public) " +
+                "action=\(record.actionRaw, privacy: .public)")
           return nil
         }
         return AggregateDeltaEnvelope(
@@ -71,24 +75,23 @@ final class WatchAggregateSyncCoordinator {
           origin: origin,
           dependencies: record.dependencies,
           idempotencyKey: record.idempotencyKey,
-          requiresSnapshotRefresh: record.requiresSnapshotRefresh
-        )
+          requiresSnapshotRefresh: record.requiresSnapshotRefresh)
       }
     } catch {
-      log.error("Failed to load pending delta envelopes: \(error.localizedDescription, privacy: .public)")
+      self.log.error("Failed to load pending delta envelopes: \(error.localizedDescription, privacy: .public)")
       return []
     }
   }
 
   func currentStatus() -> AggregateSyncStatusRecord {
-    libraryStore.loadOrCreateStatus()
+    self.libraryStore.loadOrCreateStatus()
   }
 
   func markDeltasAttempted(ids: [UUID]) {
     do {
-      try deltaStore.markAttempted(ids: ids)
+      try self.deltaStore.markAttempted(ids: ids)
     } catch {
-      log.error("Failed to mark delta attempt: \(error.localizedDescription, privacy: .public)")
+      self.log.error("Failed to mark delta attempt: \(error.localizedDescription, privacy: .public)")
     }
   }
 
@@ -104,33 +107,33 @@ final class WatchAggregateSyncCoordinator {
 
   func wipeAllData() {
     do {
-      try libraryStore.wipeAll()
-      try chunkStore.reset()
-      try deltaStore.removeAll()
+      try self.libraryStore.wipeAll()
+      try self.chunkStore.reset()
+      try self.deltaStore.removeAll()
       notifyStatusChange()
-      libraryDidChange?()
+      self.libraryDidChange?()
     } catch {
-      log.error("Failed to wipe aggregate state: \(error.localizedDescription, privacy: .public)")
+      self.log.error("Failed to wipe aggregate state: \(error.localizedDescription, privacy: .public)")
     }
   }
 }
 
-private extension WatchAggregateSyncCoordinator {
-  func ingestSnapshotPayload(_ payload: AggregateSnapshotPayload, rawData: Data) throws {
-    guard shouldProcess(payload: payload) else {
+extension WatchAggregateSyncCoordinator {
+  private func ingestSnapshotPayload(_ payload: AggregateSnapshotPayload, rawData: Data) throws {
+    guard self.shouldProcess(payload: payload) else {
       if payload.chunk != nil {
-        try? chunkStore.removeChunks(for: payload.generatedAt)
+        try? self.chunkStore.removeChunks(for: payload.generatedAt)
       }
       return
     }
 
     if let chunk = payload.chunk {
       if chunk.index == 0 {
-        try chunkStore.reset()
+        try self.chunkStore.reset()
       }
       let records = try chunkStore.saveChunk(data: rawData, payload: payload)
       let remaining = max(chunk.count - records.count, 0)
-      mutateStatus { status in
+      self.mutateStatus { status in
         status.pendingSnapshotChunks = remaining
         status.lastSnapshotGeneratedAt = payload.generatedAt
         if let settings = payload.settings {
@@ -145,25 +148,25 @@ private extension WatchAggregateSyncCoordinator {
       guard remaining == 0, records.count == chunk.count else { return }
       let assembled = try assembleSnapshot(from: records)
       try chunkStore.removeChunks(for: payload.generatedAt)
-      try applySnapshot(assembled)
+      try self.applySnapshot(assembled)
     } else {
-      try chunkStore.reset()
-      try chunkStore.removeChunks(for: payload.generatedAt)
-      try applySnapshot(payload)
+      try self.chunkStore.reset()
+      try self.chunkStore.removeChunks(for: payload.generatedAt)
+      try self.applySnapshot(payload)
     }
   }
 
-  func applySnapshot(_ payload: AggregateSnapshotPayload) throws {
-    try libraryStore.replaceLibrary(with: payload)
+  private func applySnapshot(_ payload: AggregateSnapshotPayload) throws {
+    try self.libraryStore.replaceLibrary(with: payload)
     let ackIds = Array(Set(payload.acknowledgedChangeIds))
     if ackIds.isEmpty == false {
-      try deltaStore.markAcknowledged(ids: ackIds)
+      try self.deltaStore.markAcknowledged(ids: ackIds)
     }
-    let pendingDeltaCount = (try? deltaStore.pendingDeltas().count) ?? 0
+    let pendingDeltaCount = (try? self.deltaStore.pendingDeltas().count) ?? 0
     if ackIds.isEmpty == false {
-      log.debug("Acknowledged \(ackIds.count, privacy: .public) aggregate delta(s)")
+      self.log.debug("Acknowledged \(ackIds.count, privacy: .public) aggregate delta(s)")
     }
-    mutateStatus { status in
+    self.mutateStatus { status in
       status.pendingSnapshotChunks = 0
       status.lastSnapshotGeneratedAt = payload.generatedAt
       status.lastSnapshotAppliedAt = Date()
@@ -178,12 +181,12 @@ private extension WatchAggregateSyncCoordinator {
         status.requiresBackfill = false
       }
     }
-    libraryDidChange?()
+    self.libraryDidChange?()
   }
 
-  func assembleSnapshot(from records: [AggregateSnapshotChunkRecord]) throws -> AggregateSnapshotPayload {
+  private func assembleSnapshot(from records: [AggregateSnapshotChunkRecord]) throws -> AggregateSnapshotPayload {
     let partials = try records.sorted { $0.index < $1.index }.map { record in
-      try decoder.decode(AggregateSnapshotPayload.self, from: record.data)
+      try self.decoder.decode(AggregateSnapshotPayload.self, from: record.data)
     }
     guard let first = partials.first else {
       throw AggregateSyncPayloadError.missingPayload
@@ -230,45 +233,50 @@ private extension WatchAggregateSyncCoordinator {
       venues: venues,
       competitions: competitions,
       schedules: schedules,
-      history: history
-    )
+      history: history)
   }
 
-  func mutateStatus(_ update: (AggregateSyncStatusRecord) -> Void) {
-    libraryStore.updateStatus(update)
-    notifyStatusChange()
+  private func mutateStatus(_ update: (AggregateSyncStatusRecord) -> Void) {
+    self.libraryStore.updateStatus(update)
+    self.notifyStatusChange()
   }
 
-  func shouldProcess(payload: AggregateSnapshotPayload) -> Bool {
-    let status = libraryStore.loadOrCreateStatus()
+  private func shouldProcess(payload: AggregateSnapshotPayload) -> Bool {
+    let status = self.libraryStore.loadOrCreateStatus()
     guard let lastGenerated = status.lastSnapshotGeneratedAt else {
       return true
     }
     if payload.generatedAt < lastGenerated {
-      log.notice("Dropping stale snapshot payload generatedAt=\(payload.generatedAt as NSDate, privacy: .public) lastGenerated=\(lastGenerated as NSDate, privacy: .public)")
+      self.log
+        .notice(
+          "Dropping stale snapshot payload " +
+            "generatedAt=\(payload.generatedAt as NSDate, privacy: .public) " +
+            "lastGenerated=\(lastGenerated as NSDate, privacy: .public)")
       return false
     }
     if payload.generatedAt == lastGenerated, status.pendingSnapshotChunks == 0 {
-      log.notice("Dropping duplicate snapshot payload for generatedAt=\(payload.generatedAt as NSDate, privacy: .public)")
+      self.log
+        .notice(
+          "Dropping duplicate snapshot payload for generatedAt=\(payload.generatedAt as NSDate, privacy: .public)")
       return false
     }
     return true
   }
 
-  func updateQueuedDeltaCount() {
+  private func updateQueuedDeltaCount() {
     do {
       let pending = try deltaStore.pendingDeltas().count
-      mutateStatus { status in
+      self.mutateStatus { status in
         status.queuedDeltas = pending
       }
     } catch {
-      log.error("Failed to refresh delta queue count: \(error.localizedDescription, privacy: .public)")
+      self.log.error("Failed to refresh delta queue count: \(error.localizedDescription, privacy: .public)")
     }
   }
 
-  func notifyStatusChange() {
-    let status = libraryStore.loadOrCreateStatus()
-    statusDidChange?(status)
+  private func notifyStatusChange() {
+    let status = self.libraryStore.loadOrCreateStatus()
+    self.statusDidChange?(status)
     NotificationCenter.default.post(
       name: .syncStatusUpdate,
       object: nil,
@@ -279,8 +287,7 @@ private extension WatchAggregateSyncCoordinator {
         "signedIn": true,
         "timestamp": Date(),
         "pendingSnapshotChunks": status.pendingSnapshotChunks,
-        "reachable": status.reachable
-      ]
-    )
+        "reachable": status.reachable,
+      ])
   }
 }

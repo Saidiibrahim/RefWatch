@@ -14,185 +14,198 @@ import WatchKit
 
 @Observable
 public final class PenaltyManager: PenaltyManaging {
-    // MARK: - Configuration
-    private(set) public var initialRounds: Int // typically 5; configurable
+  // MARK: - Configuration
 
-    // MARK: - Lifecycle
-    private(set) public var isActive: Bool = false
-    private(set) public var isDecided: Bool = false
-    private(set) public var winner: TeamSide? = nil
+  public private(set) var initialRounds: Int // typically 5; configurable
 
-    // MARK: - First Kicker
-    private(set) public var firstKicker: TeamSide = .home
-    private(set) public var hasChosenFirstKicker: Bool = false
+  // MARK: - Lifecycle
 
-    // MARK: - Tallies and Results
-    private(set) public var homeTaken: Int = 0
-    private(set) public var homeScored: Int = 0
-    private(set) public var homeResults: [PenaltyAttemptDetails.Result] = []
-    private(set) public var homeAttempts: [PenaltyAttemptDetails] = []
+  public private(set) var isActive: Bool = false
+  public private(set) var isDecided: Bool = false
+  public private(set) var winner: TeamSide?
 
-    private(set) public var awayTaken: Int = 0
-    private(set) public var awayScored: Int = 0
-    private(set) public var awayResults: [PenaltyAttemptDetails.Result] = []
-    private(set) public var awayAttempts: [PenaltyAttemptDetails] = []
+  // MARK: - First Kicker
 
-    /// Tracks the actual order attempts were recorded so undo remains reliable even if
-    /// first-kicker swaps after play has started.
-    private var attemptStack: [TeamSide] = []
+  public private(set) var firstKicker: TeamSide = .home
+  public private(set) var hasChosenFirstKicker: Bool = false
 
-    // MARK: - Callbacks (wired by VM)
-    public var onStart: (() -> Void)?
-    public var onAttempt: ((TeamSide, PenaltyAttemptDetails) -> Void)?
-    public var onDecided: ((TeamSide) -> Void)?
-    public var onEnd: (() -> Void)?
+  // MARK: - Tallies and Results
 
-    // MARK: - Init
-    public init(initialRounds: Int = 5) {
-        self.initialRounds = max(1, initialRounds)
+  public private(set) var homeTaken: Int = 0
+  public private(set) var homeScored: Int = 0
+  public private(set) var homeResults: [PenaltyAttemptDetails.Result] = []
+  public private(set) var homeAttempts: [PenaltyAttemptDetails] = []
+
+  public private(set) var awayTaken: Int = 0
+  public private(set) var awayScored: Int = 0
+  public private(set) var awayResults: [PenaltyAttemptDetails.Result] = []
+  public private(set) var awayAttempts: [PenaltyAttemptDetails] = []
+
+  /// Tracks the actual order attempts were recorded so undo remains reliable even if
+  /// first-kicker swaps after play has started.
+  private var attemptStack: [TeamSide] = []
+
+  // MARK: - Callbacks (wired by VM)
+
+  public var onStart: (() -> Void)?
+  public var onAttempt: ((TeamSide, PenaltyAttemptDetails) -> Void)?
+  public var onDecided: ((TeamSide) -> Void)?
+  public var onEnd: (() -> Void)?
+
+  // MARK: - Init
+
+  public init(initialRounds: Int = 5) {
+    self.initialRounds = max(1, initialRounds)
+  }
+
+  // MARK: - Public API
+
+  public func setInitialRounds(_ rounds: Int) {
+    self.initialRounds = max(1, rounds)
+  }
+
+  public var roundsVisible: Int {
+    max(self.initialRounds, max(self.homeResults.count, self.awayResults.count))
+  }
+
+  public var nextTeam: TeamSide {
+    if self.homeTaken == self.awayTaken { return self.firstKicker }
+    return self.homeTaken < self.awayTaken ? .home : .away
+  }
+
+  public var isSuddenDeathActive: Bool {
+    self.homeTaken >= self.initialRounds && self.awayTaken >= self.initialRounds
+  }
+
+  public func begin() {
+    guard !self.isActive else { return }
+    self.resetInternal()
+    self.isActive = true
+    self.onStart?()
+  }
+
+  public func setFirstKicker(_ team: TeamSide) {
+    self.firstKicker = team
+    self.hasChosenFirstKicker = true
+  }
+
+  public func markHasChosenFirstKicker(_ chosen: Bool) {
+    self.hasChosenFirstKicker = chosen
+  }
+
+  public func recordAttempt(team: TeamSide, result: PenaltyAttemptDetails.Result, playerNumber: Int? = nil) {
+    guard self.isActive else { return }
+    let round = (team == .home ? self.homeTaken : self.awayTaken) + 1
+    let details = PenaltyAttemptDetails(result: result, playerNumber: playerNumber, round: round)
+    self.onAttempt?(team, details)
+
+    if team == .home {
+      self.homeTaken += 1
+      if result == .scored { self.homeScored += 1 }
+      self.homeResults.append(result)
+      self.homeAttempts.append(details)
+    } else {
+      self.awayTaken += 1
+      if result == .scored { self.awayScored += 1 }
+      self.awayResults.append(result)
+      self.awayAttempts.append(details)
     }
 
-    // MARK: - Public API
+    self.attemptStack.append(team)
+    self.computeDecisionIfNeeded()
+  }
 
-    public func setInitialRounds(_ rounds: Int) {
-        self.initialRounds = max(1, rounds)
+  @discardableResult
+  public func undoLastAttempt() -> PenaltyUndoResult? {
+    guard self.isActive else { return nil }
+    guard self.homeTaken > 0 || self.awayTaken > 0 else { return nil }
+
+    guard let lastTeam = attemptStack.popLast() else { return nil }
+
+    let undoneDetails: PenaltyAttemptDetails
+
+    switch lastTeam {
+    case .home:
+      guard self.homeTaken > 0,
+            let details = homeAttempts.popLast(),
+            homeResults.popLast() != nil
+      else { return nil }
+      self.homeTaken -= 1
+      if details.result == .scored { self.homeScored = max(0, self.homeScored - 1) }
+      undoneDetails = details
+    case .away:
+      guard self.awayTaken > 0,
+            let details = awayAttempts.popLast(),
+            awayResults.popLast() != nil
+      else { return nil }
+      self.awayTaken -= 1
+      if details.result == .scored { self.awayScored = max(0, self.awayScored - 1) }
+      undoneDetails = details
     }
 
-    public var roundsVisible: Int {
-        max(initialRounds, max(homeResults.count, awayResults.count))
+    self.computeDecisionIfNeeded()
+    if !self.isDecided { self.didPlayDecisionHaptic = false }
+
+    return PenaltyUndoResult(team: lastTeam, details: undoneDetails)
+  }
+
+  public func swapKickingOrder() {
+    guard self.isActive else { return }
+    self.firstKicker = self.firstKicker == .home ? .away : .home
+    self.hasChosenFirstKicker = true
+  }
+
+  public func end() {
+    guard self.isActive else { return }
+    self.onEnd?()
+    self.isActive = false
+  }
+
+  // MARK: - Internal
+
+  private var didPlayDecisionHaptic: Bool = false
+
+  private func resetInternal() {
+    self.isDecided = false
+    self.winner = nil
+    self.didPlayDecisionHaptic = false
+    self.hasChosenFirstKicker = false
+    self.firstKicker = .home
+    self.homeTaken = 0; self.homeScored = 0; self.homeResults.removeAll(); self.homeAttempts.removeAll()
+    self.awayTaken = 0; self.awayScored = 0; self.awayResults.removeAll(); self.awayAttempts.removeAll()
+    self.attemptStack.removeAll()
+  }
+
+  private func computeDecisionIfNeeded() {
+    // Early decision before completing initial rounds: decide as soon as the trailing
+    // side's maximum possible score (remaining kicks + current goals) can no longer
+    // catch the leader.
+    let homeRem = max(0, initialRounds - self.homeTaken)
+    let awayRem = max(0, initialRounds - self.awayTaken)
+
+    if self.homeTaken <= self.initialRounds || self.awayTaken <= self.initialRounds {
+      if self.homeScored > self.awayScored + awayRem { self.decide(.home); return }
+      if self.awayScored > self.homeScored + homeRem { self.decide(.away); return }
     }
 
-    public var nextTeam: TeamSide {
-        if homeTaken == awayTaken { return firstKicker }
-        return homeTaken < awayTaken ? .home : .away
+    // Sudden death: after both reached initialRounds and attempts are equal
+    if self.homeTaken >= self.initialRounds, self.awayTaken >= self.initialRounds, self.homeTaken == self.awayTaken {
+      if self.homeScored != self.awayScored { self.decide(self.homeScored > self.awayScored ? .home : .away); return }
     }
 
-    public var isSuddenDeathActive: Bool {
-        homeTaken >= initialRounds && awayTaken >= initialRounds
+    self.isDecided = false
+    self.winner = nil
+  }
+
+  private func decide(_ team: TeamSide) {
+    self.isDecided = true
+    self.winner = team
+    if !self.didPlayDecisionHaptic {
+      #if os(watchOS)
+      WKInterfaceDevice.current().play(.success)
+      #endif
+      self.didPlayDecisionHaptic = true
     }
-
-    public func begin() {
-        guard !isActive else { return }
-        resetInternal()
-        isActive = true
-        onStart?()
-    }
-
-    public func setFirstKicker(_ team: TeamSide) {
-        firstKicker = team
-        hasChosenFirstKicker = true
-    }
-
-    public func markHasChosenFirstKicker(_ chosen: Bool) {
-        hasChosenFirstKicker = chosen
-    }
-
-    public func recordAttempt(team: TeamSide, result: PenaltyAttemptDetails.Result, playerNumber: Int? = nil) {
-        guard isActive else { return }
-        let round = (team == .home ? homeTaken : awayTaken) + 1
-        let details = PenaltyAttemptDetails(result: result, playerNumber: playerNumber, round: round)
-        onAttempt?(team, details)
-
-        if team == .home {
-            homeTaken += 1
-            if result == .scored { homeScored += 1 }
-            homeResults.append(result)
-            homeAttempts.append(details)
-        } else {
-            awayTaken += 1
-            if result == .scored { awayScored += 1 }
-            awayResults.append(result)
-            awayAttempts.append(details)
-        }
-
-        attemptStack.append(team)
-        computeDecisionIfNeeded()
-    }
-
-    @discardableResult
-    public func undoLastAttempt() -> PenaltyUndoResult? {
-        guard isActive else { return nil }
-        guard homeTaken > 0 || awayTaken > 0 else { return nil }
-
-        guard let lastTeam = attemptStack.popLast() else { return nil }
-
-        let undoneDetails: PenaltyAttemptDetails
-
-        switch lastTeam {
-        case .home:
-            guard homeTaken > 0, let details = homeAttempts.popLast(), let _ = homeResults.popLast() else { return nil }
-            homeTaken -= 1
-            if details.result == .scored { homeScored = max(0, homeScored - 1) }
-            undoneDetails = details
-        case .away:
-            guard awayTaken > 0, let details = awayAttempts.popLast(), let _ = awayResults.popLast() else { return nil }
-            awayTaken -= 1
-            if details.result == .scored { awayScored = max(0, awayScored - 1) }
-            undoneDetails = details
-        }
-
-        computeDecisionIfNeeded()
-        if !isDecided { didPlayDecisionHaptic = false }
-
-        return PenaltyUndoResult(team: lastTeam, details: undoneDetails)
-    }
-
-    public func swapKickingOrder() {
-        guard isActive else { return }
-        firstKicker = firstKicker == .home ? .away : .home
-        hasChosenFirstKicker = true
-    }
-
-    public func end() {
-        guard isActive else { return }
-        onEnd?()
-        isActive = false
-    }
-
-    // MARK: - Internal
-    private var didPlayDecisionHaptic: Bool = false
-
-    private func resetInternal() {
-        isDecided = false
-        winner = nil
-        didPlayDecisionHaptic = false
-        hasChosenFirstKicker = false
-        firstKicker = .home
-        homeTaken = 0; homeScored = 0; homeResults.removeAll(); homeAttempts.removeAll()
-        awayTaken = 0; awayScored = 0; awayResults.removeAll(); awayAttempts.removeAll()
-        attemptStack.removeAll()
-    }
-
-    private func computeDecisionIfNeeded() {
-        // Early decision before completing initial rounds: decide as soon as the trailing
-        // side's maximum possible score (remaining kicks + current goals) can no longer
-        // catch the leader.
-        let homeRem = max(0, initialRounds - homeTaken)
-        let awayRem = max(0, initialRounds - awayTaken)
-
-        if homeTaken <= initialRounds || awayTaken <= initialRounds {
-            if homeScored > awayScored + awayRem { decide(.home); return }
-            if awayScored > homeScored + homeRem { decide(.away); return }
-        }
-
-        // Sudden death: after both reached initialRounds and attempts are equal
-        if homeTaken >= initialRounds && awayTaken >= initialRounds && homeTaken == awayTaken {
-            if homeScored != awayScored { decide(homeScored > awayScored ? .home : .away); return }
-        }
-
-        isDecided = false
-        winner = nil
-    }
-
-    private func decide(_ team: TeamSide) {
-        isDecided = true
-        winner = team
-        if !didPlayDecisionHaptic {
-            #if os(watchOS)
-            WKInterfaceDevice.current().play(.success)
-            #endif
-            didPlayDecisionHaptic = true
-        }
-        onDecided?(team)
-    }
+    self.onDecided?(team)
+  }
 }

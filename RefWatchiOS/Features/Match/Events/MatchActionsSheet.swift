@@ -5,172 +5,196 @@
 //  iOS actions hub for recording detailed match events.
 //
 
-import SwiftUI
 import RefWatchCore
+import SwiftUI
 
 struct MatchActionsSheet: View {
-    let matchViewModel: MatchViewModel
-    var onRecordGoal: (() -> Void)? = nil
-    var onRecordCard: (() -> Void)? = nil
-    var onRecordSubstitution: (() -> Void)? = nil
-    var onStartNextPeriod: (() -> Void)? = nil
-    var onEndPeriod: (() -> Void)? = nil
-    var onFinishMatch: (() -> Void)? = nil
+  let matchViewModel: MatchViewModel
+  var onRecordGoal: (() -> Void)?
+  var onRecordCard: (() -> Void)?
+  var onRecordSubstitution: (() -> Void)?
+  var onStartNextPeriod: (() -> Void)?
+  var onEndPeriod: (() -> Void)?
+  var onFinishMatch: (() -> Void)?
 
-    @State private var showGoalFlow = false
-    @State private var showCardFlow = false
-    @State private var showSubFlow = false
-    @State private var showEndPeriodConfirm = false
-    @State private var showAdvanceConfirm = false
-    @State private var showFullTime = false
-    @State private var showResetConfirm = false
-    @State private var showAbandonConfirm = false
-    @Environment(\.dismiss) private var dismiss
+  @State private var showGoalFlow = false
+  @State private var showCardFlow = false
+  @State private var showSubFlow = false
+  @State private var showEndPeriodConfirm = false
+  @State private var showAdvanceConfirm = false
+  @State private var showFullTime = false
+  @State private var showResetConfirm = false
+  @State private var showAbandonConfirm = false
+  @Environment(\.dismiss) private var dismiss
 
-    var body: some View {
-        NavigationStack {
-            List {
-                Section("Events") {
-                    Button {
-                        if let onRecordGoal { onRecordGoal() }
-                        else { showGoalFlow = true }
-                    } label: {
-                        Label("Record Goal", systemImage: "soccerball")
-                    }
+  var body: some View {
+    NavigationStack {
+      List {
+        Section("Events") {
+          Button {
+            if let onRecordGoal {
+              onRecordGoal()
+            } else {
+              self.showGoalFlow = true
+            }
+          } label: {
+            Label("Record Goal", systemImage: "soccerball")
+          }
 
-                    Button {
-                        if let onRecordCard { onRecordCard() }
-                        else { showCardFlow = true }
-                    } label: {
-                        Label("Record Card", systemImage: "rectangle.fill")
-                    }
+          Button {
+            if let onRecordCard {
+              onRecordCard()
+            } else {
+              self.showCardFlow = true
+            }
+          } label: {
+            Label("Record Card", systemImage: "rectangle.fill")
+          }
 
-                    Button {
-                        if let onRecordSubstitution { onRecordSubstitution() }
-                        else { showSubFlow = true }
-                    } label: {
-                        Label("Record Substitution", systemImage: "arrow.up.arrow.down")
-                    }
-                }
-
-                Section("Period") {
-                    if matchViewModel.isMatchInProgress {
-                        Button {
-                            matchViewModel.pauseMatch()
-                        } label: { Label("Pause Timer", systemImage: "pause.circle") }
-                    } else if !matchViewModel.isFullTime {
-                        Button {
-                            matchViewModel.resumeMatch()
-                        } label: { Label("Resume Timer", systemImage: "play.circle") }
-                    }
-                    periodButtons
-                }
-
-                Section("Finish") {
-                    Button(role: .destructive) {
-                        if let onFinishMatch { onFinishMatch() }
-                        else { showFullTime = true }
-                    } label: { Label("Finish Match", systemImage: "flag.checkered") }
-                }
-
-                Section("Options") {
-                    Button {
-                        showResetConfirm = true
-                    } label: { Label("Reset Match", systemImage: "arrow.counterclockwise") }
-
-                    Button(role: .destructive) {
-                        showAbandonConfirm = true
-                    } label: { Label("Abandon Match", systemImage: "xmark.circle") }
-                }
+          Button {
+            if let onRecordSubstitution {
+              onRecordSubstitution()
+            } else {
+              self.showSubFlow = true
             }
-            .navigationTitle("Match Actions")
-            .navigationBarTitleDisplayMode(.inline)
-            .sheet(isPresented: $showGoalFlow) {
-                GoalEventFlowView(matchViewModel: matchViewModel)
-            }
-            .sheet(isPresented: $showCardFlow) {
-                CardEventFlowView(matchViewModel: matchViewModel)
-            }
-            .sheet(isPresented: $showSubFlow) {
-                SubstitutionEventFlowView(matchViewModel: matchViewModel)
-            }
-            .sheet(isPresented: $showFullTime) {
-                FullTimeView_iOS(matchViewModel: matchViewModel)
-            }
-            .confirmationDialog(
-                "",
-                isPresented: $showEndPeriodConfirm,
-                titleVisibility: .hidden
-            ) {
-                Button("Yes") {
-                    let isFinalReg = (matchViewModel.currentMatch != nil
-                                      && matchViewModel.currentPeriod == (matchViewModel.currentMatch?.numberOfPeriods ?? 2)
-                                      && (matchViewModel.currentMatch?.hasExtraTime == false))
-                    matchViewModel.endCurrentPeriod()
-                    if isFinalReg {
-                        // When this ends the match in regulation, the timer will present Full Time
-                    }
-                }
-                Button("No", role: .cancel) {}
-            } message: {
-                Text(
-                    (matchViewModel.currentMatch != nil
-                     && matchViewModel.currentPeriod == (matchViewModel.currentMatch?.numberOfPeriods ?? 2)
-                     && (matchViewModel.currentMatch?.hasExtraTime == false))
-                    ? "Are you sure you want to 'End Match'?"
-                    : "Are you sure you want to 'End Half'?"
-                )
-            }
-            .confirmationDialog(
-                "",
-                isPresented: $showAdvanceConfirm,
-                titleVisibility: .hidden
-            ) {
-                Button("Yes") {
-                    matchViewModel.startNextPeriod()
-                }
-                Button("No", role: .cancel) {}
-            } message: {
-                Text("Start next period now?")
-            }
-            .alert("Reset Match", isPresented: $showResetConfirm) {
-                Button("Cancel", role: .cancel) {}
-                Button("Reset", role: .destructive) {
-                    matchViewModel.resetMatch()
-                    dismiss()
-                }
-            } message: {
-                Text("This will reset score, cards, and events. This cannot be undone.")
-            }
-            .alert("Abandon Match", isPresented: $showAbandonConfirm) {
-                Button("Cancel", role: .cancel) {}
-                Button("Abandon", role: .destructive) {
-                    matchViewModel.abandonMatch()
-                    dismiss()
-                }
-            } message: {
-                Text("This will end the match immediately and record it as abandoned.")
-            }
+          } label: {
+            Label("Record Substitution", systemImage: "arrow.up.arrow.down")
+          }
         }
+
+        Section("Period") {
+          if self.matchViewModel.isMatchInProgress {
+            Button {
+              self.matchViewModel.pauseMatch()
+            } label: { Label("Pause Timer", systemImage: "pause.circle") }
+          } else if !self.matchViewModel.isFullTime {
+            Button {
+              self.matchViewModel.resumeMatch()
+            } label: { Label("Resume Timer", systemImage: "play.circle") }
+          }
+          periodButtons
+        }
+
+        Section("Finish") {
+          Button(role: .destructive) {
+            if let onFinishMatch {
+              onFinishMatch()
+            } else {
+              self.showFullTime = true
+            }
+          } label: { Label("Finish Match", systemImage: "flag.checkered") }
+        }
+
+        Section("Options") {
+          Button {
+            self.showResetConfirm = true
+          } label: { Label("Reset Match", systemImage: "arrow.counterclockwise") }
+
+          Button(role: .destructive) {
+            self.showAbandonConfirm = true
+          } label: { Label("Abandon Match", systemImage: "xmark.circle") }
+        }
+      }
+      .navigationTitle("Match Actions")
+      .navigationBarTitleDisplayMode(.inline)
+      .sheet(isPresented: self.$showGoalFlow) {
+        GoalEventFlowView(matchViewModel: self.matchViewModel)
+      }
+      .sheet(isPresented: self.$showCardFlow) {
+        CardEventFlowView(matchViewModel: self.matchViewModel)
+      }
+      .sheet(isPresented: self.$showSubFlow) {
+        SubstitutionEventFlowView(matchViewModel: self.matchViewModel)
+      }
+      .sheet(isPresented: self.$showFullTime) {
+        FullTimeView_iOS(matchViewModel: self.matchViewModel)
+      }
+      .confirmationDialog(
+        "",
+        isPresented: self.$showEndPeriodConfirm,
+        titleVisibility: .hidden)
+      {
+        Button("Yes") {
+          let isFinalReg: Bool = if let match = matchViewModel.currentMatch {
+            self.matchViewModel.currentPeriod == match.numberOfPeriods
+              && match.hasExtraTime == false
+          } else {
+            false
+          }
+          self.matchViewModel.endCurrentPeriod()
+          if isFinalReg {
+            // When this ends the match in regulation, the timer will present Full Time
+          }
+        }
+        Button("No", role: .cancel) {}
+      } message: {
+        Text(
+          (
+            self.matchViewModel.currentMatch != nil
+              && self.matchViewModel.currentPeriod == (self.matchViewModel.currentMatch?.numberOfPeriods ?? 2)
+              && (self.matchViewModel.currentMatch?.hasExtraTime == false))
+            ? "Are you sure you want to 'End Match'?"
+            : "Are you sure you want to 'End Half'?")
+      }
+      .confirmationDialog(
+        "",
+        isPresented: self.$showAdvanceConfirm,
+        titleVisibility: .hidden)
+      {
+        Button("Yes") {
+          self.matchViewModel.startNextPeriod()
+        }
+        Button("No", role: .cancel) {}
+      } message: {
+        Text("Start next period now?")
+      }
+      .alert("Reset Match", isPresented: self.$showResetConfirm) {
+        Button("Cancel", role: .cancel) {}
+        Button("Reset", role: .destructive) {
+          self.matchViewModel.resetMatch()
+          self.dismiss()
+        }
+      } message: {
+        Text("This will reset score, cards, and events. This cannot be undone.")
+      }
+      .alert("Abandon Match", isPresented: self.$showAbandonConfirm) {
+        Button("Cancel", role: .cancel) {}
+        Button("Abandon", role: .destructive) {
+          self.matchViewModel.abandonMatch()
+          self.dismiss()
+        }
+      } message: {
+        Text("This will end the match immediately and record it as abandoned.")
+      }
     }
+  }
 }
 
-private extension MatchActionsSheet {
-    @ViewBuilder
-    var periodButtons: some View {
-        if matchViewModel.isMatchInProgress {
-            Button(role: .destructive) {
-                if let onEndPeriod { onEndPeriod(); dismiss() }
-                else { showEndPeriodConfirm = true }
-            } label: { Label("End Current Period", systemImage: "stop.circle") }
-        } else if matchViewModel.waitingForHalfTimeStart
-                    || matchViewModel.waitingForSecondHalfStart
-                    || matchViewModel.waitingForET1Start
-                    || matchViewModel.waitingForET2Start {
-            Button {
-                if let onStartNextPeriod { onStartNextPeriod(); dismiss() }
-                else { showAdvanceConfirm = true }
-            } label: { Label("Start Next Period", systemImage: "forward.fill") }
+extension MatchActionsSheet {
+  @ViewBuilder
+  private var periodButtons: some View {
+    if self.matchViewModel.isMatchInProgress {
+      Button(role: .destructive) {
+        if let onEndPeriod {
+          onEndPeriod()
+          self.dismiss()
+        } else {
+          self.showEndPeriodConfirm = true
         }
+      } label: { Label("End Current Period", systemImage: "stop.circle") }
+    } else if self.matchViewModel.waitingForHalfTimeStart
+      || self.matchViewModel.waitingForSecondHalfStart
+      || self.matchViewModel.waitingForET1Start
+      || self.matchViewModel.waitingForET2Start
+    {
+      Button {
+        if let onStartNextPeriod {
+          onStartNextPeriod()
+          self.dismiss()
+        } else {
+          self.showAdvanceConfirm = true
+        }
+      } label: { Label("Start Next Period", systemImage: "forward.fill") }
     }
+  }
 }

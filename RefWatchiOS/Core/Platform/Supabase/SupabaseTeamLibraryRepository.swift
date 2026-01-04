@@ -31,7 +31,7 @@ final class SupabaseTeamLibraryRepository: TeamLibraryStoring {
   private var remoteCursor: Date?
 
   var changesPublisher: AnyPublisher<[TeamRecord], Never> {
-    store.changesPublisher
+    self.store.changesPublisher
   }
 
   init(
@@ -40,8 +40,8 @@ final class SupabaseTeamLibraryRepository: TeamLibraryStoring {
     api: SupabaseTeamLibraryServing,
     backlog: TeamLibrarySyncBacklogStoring,
     metadataPersistor: TeamLibraryMetadataPersisting? = nil,
-    dateProvider: @escaping () -> Date = Date.init
-  ) {
+    dateProvider: @escaping () -> Date = Date.init)
+  {
     self.store = store
     self.authStateProvider = authStateProvider
     self.api = api
@@ -52,11 +52,12 @@ final class SupabaseTeamLibraryRepository: TeamLibraryStoring {
     publishSyncStatus()
 
     if let userId = authStateProvider.currentUserId,
-       let uuid = UUID(uuidString: userId) {
-      ownerUUID = uuid
+       let uuid = UUID(uuidString: userId)
+    {
+      self.ownerUUID = uuid
     }
 
-    authCancellable = authStateProvider.statePublisher
+    self.authCancellable = authStateProvider.statePublisher
       .receive(on: DispatchQueue.main)
       .sink { [weak self] state in
         Task { @MainActor in
@@ -64,7 +65,7 @@ final class SupabaseTeamLibraryRepository: TeamLibraryStoring {
         }
       }
 
-    if ownerUUID != nil {
+    if self.ownerUUID != nil {
       scheduleInitialSync()
     }
   }
@@ -76,30 +77,30 @@ final class SupabaseTeamLibraryRepository: TeamLibraryStoring {
 
   // MARK: - TeamLibraryStoring
 
-  func loadAllTeams() throws -> [TeamRecord] { try store.loadAllTeams() }
+  func loadAllTeams() throws -> [TeamRecord] { try self.store.loadAllTeams() }
 
-  func searchTeams(query: String) throws -> [TeamRecord] { try store.searchTeams(query: query) }
+  func searchTeams(query: String) throws -> [TeamRecord] { try self.store.searchTeams(query: query) }
 
   func createTeam(name: String, shortName: String?, division: String?) throws -> TeamRecord {
     let team = try store.createTeam(name: name, shortName: shortName, division: division)
     applyOwnerIdentityIfNeeded(to: team)
-    try metadataPersistor.persistMetadataChanges(for: team)
+    try self.metadataPersistor.persistMetadataChanges(for: team)
     enqueuePush(for: team.id)
     return team
   }
 
   func updateTeam(_ team: TeamRecord) throws {
-    try store.updateTeam(team)
+    try self.store.updateTeam(team)
     applyOwnerIdentityIfNeeded(to: team)
     enqueuePush(for: team.id)
   }
 
   func deleteTeam(_ team: TeamRecord) throws {
     let teamId = team.id
-    try store.deleteTeam(team)
-    pendingPushes.remove(teamId)
-    pendingDeletions.insert(teamId)
-    backlog.addPendingDeletion(id: teamId)
+    try self.store.deleteTeam(team)
+    self.pendingPushes.remove(teamId)
+    self.pendingDeletions.insert(teamId)
+    self.backlog.addPendingDeletion(id: teamId)
     scheduleProcessingTask()
     publishSyncStatus()
   }
@@ -111,7 +112,7 @@ final class SupabaseTeamLibraryRepository: TeamLibraryStoring {
   }
 
   func updatePlayer(_ player: PlayerRecord) throws {
-    try store.updatePlayer(player)
+    try self.store.updatePlayer(player)
     if let teamId = player.team?.id {
       enqueuePush(for: teamId)
     }
@@ -119,7 +120,7 @@ final class SupabaseTeamLibraryRepository: TeamLibraryStoring {
 
   func deletePlayer(_ player: PlayerRecord) throws {
     let teamId = player.team?.id
-    try store.deletePlayer(player)
+    try self.store.deletePlayer(player)
     if let teamId {
       enqueuePush(for: teamId)
     }
@@ -132,7 +133,7 @@ final class SupabaseTeamLibraryRepository: TeamLibraryStoring {
   }
 
   func updateOfficial(_ official: TeamOfficialRecord) throws {
-    try store.updateOfficial(official)
+    try self.store.updateOfficial(official)
     if let teamId = official.team?.id {
       enqueuePush(for: teamId)
     }
@@ -140,7 +141,7 @@ final class SupabaseTeamLibraryRepository: TeamLibraryStoring {
 
   func deleteOfficial(_ official: TeamOfficialRecord) throws {
     let teamId = official.team?.id
-    try store.deleteOfficial(official)
+    try self.store.deleteOfficial(official)
     if let teamId {
       enqueuePush(for: teamId)
     }
@@ -155,76 +156,76 @@ final class SupabaseTeamLibraryRepository: TeamLibraryStoring {
       try await pushDirtyTeams()
       try await pullRemoteUpdates(for: ownerUUID)
     } catch {
-      log.error("Team library refresh failed: \(error.localizedDescription, privacy: .public)")
+      self.log.error("Team library refresh failed: \(error.localizedDescription, privacy: .public)")
       throw error
     }
   }
- }
+}
 
 // MARK: - Identity Handling & Sync Scheduling
 
-private extension SupabaseTeamLibraryRepository {
-  func handleAuthState(_ state: AuthState) async {
+extension SupabaseTeamLibraryRepository {
+  private func handleAuthState(_ state: AuthState) async {
     switch state {
     case .signedOut:
-      ownerUUID = nil
-      remoteCursor = nil
-      processingTask?.cancel()
-      processingTask = nil
-      pendingPushes.removeAll()
-      pendingDeletions.removeAll()
-      backlog.clearAll()
+      self.ownerUUID = nil
+      self.remoteCursor = nil
+      self.processingTask?.cancel()
+      self.processingTask = nil
+      self.pendingPushes.removeAll()
+      self.pendingDeletions.removeAll()
+      self.backlog.clearAll()
       do {
-        try store.wipeAllForLogout()
-        log.notice("Cleared team library cache after sign-out")
+        try self.store.wipeAllForLogout()
+        self.log.notice("Cleared team library cache after sign-out")
       } catch {
-        log.error("Failed to wipe team library on sign-out: \(error.localizedDescription, privacy: .public)")
+        self.log.error("Failed to wipe team library on sign-out: \(error.localizedDescription, privacy: .public)")
       }
       publishSyncStatus()
     case let .signedIn(userId, _, _):
       guard let uuid = UUID(uuidString: userId) else {
-        log.error("Supabase auth linked with non-UUID id: \(userId, privacy: .public)")
+        self.log.error("Supabase auth linked with non-UUID id: \(userId, privacy: .public)")
         return
       }
-      ownerUUID = uuid
+      self.ownerUUID = uuid
       publishSyncStatus()
-      scheduleInitialSync()
+      self.scheduleInitialSync()
     }
   }
 
-  func scheduleInitialSync() {
-    scheduleProcessingTask()
+  private func scheduleInitialSync() {
+    self.scheduleProcessingTask()
     Task { [weak self] in
       await self?.performInitialPull()
     }
   }
 
-  func performInitialPull() async {
+  private func performInitialPull() async {
     guard let ownerUUID else { return }
     do {
       try await flushPendingDeletions()
       try await pushDirtyTeams()
       try await pullRemoteUpdates(for: ownerUUID)
     } catch {
-      log.error("Initial team sync failed: \(error.localizedDescription, privacy: .public)")
+      self.log.error("Initial team sync failed: \(error.localizedDescription, privacy: .public)")
     }
   }
 
-  func enqueuePush(for teamId: UUID) {
-    pendingPushes.insert(teamId)
+  private func enqueuePush(for teamId: UUID) {
+    self.pendingPushes.insert(teamId)
     applyOwnerIdentityIfNeeded(forTeamId: teamId)
-    scheduleProcessingTask()
+    self.scheduleProcessingTask()
     publishSyncStatus()
   }
 
-  func scheduleProcessingTask() {
-    guard processingTask == nil else { return }
-    processingTask = Task { [weak self] in
+  private func scheduleProcessingTask() {
+    guard self.processingTask == nil else { return }
+    self.processingTask = Task { [weak self] in
       await self?.drainQueues()
     }
   }
 
-  func drainQueues() async {
+  private func drainQueues() async {
     defer {
       Task { @MainActor in self.processingTask = nil }
     }
@@ -232,22 +233,22 @@ private extension SupabaseTeamLibraryRepository {
     while true {
       guard let operation = await nextOperation() else { return }
       switch operation {
-      case .delete(let teamId):
+      case let .delete(teamId):
         await performRemoteDeletion(teamId: teamId)
-      case .push(let teamId):
+      case let .push(teamId):
         await performRemotePush(teamId: teamId)
       }
     }
   }
 
-  enum SyncOperation {
+  fileprivate enum SyncOperation {
     case push(UUID)
     case delete(UUID)
   }
 
-  func nextOperation() async -> SyncOperation? {
+  private func nextOperation() async -> SyncOperation? {
     await MainActor.run {
-      guard ownerUUID != nil else { return nil }
+      guard self.ownerUUID != nil else { return nil }
       if let deletionId = pendingDeletions.popFirst() {
         return .delete(deletionId)
       }
@@ -263,20 +264,20 @@ extension SupabaseTeamLibraryRepository: AggregateTeamApplying {
   func upsertTeam(from aggregate: AggregateSnapshotPayload.Team) throws {
     let ownerUUID = try requireOwnerUUIDForAggregate(operation: "aggregate team upsert")
     let record = try store.upsertFromAggregate(aggregate, ownerSupabaseId: ownerUUID.uuidString)
-    pendingDeletions.remove(record.id)
-    backlog.removePendingDeletion(id: record.id)
-    enqueuePush(for: record.id)
+    self.pendingDeletions.remove(record.id)
+    self.backlog.removePendingDeletion(id: record.id)
+    self.enqueuePush(for: record.id)
   }
 
   func deleteTeam(id: UUID) throws {
     _ = try requireOwnerUUIDForAggregate(operation: "aggregate team delete")
     if let existing = try fetchTeam(with: id) {
-      try deleteTeam(existing)
+      try self.deleteTeam(existing)
     } else {
-      pendingPushes.remove(id)
-      pendingDeletions.insert(id)
-      backlog.addPendingDeletion(id: id)
-      scheduleProcessingTask()
+      self.pendingPushes.remove(id)
+      self.pendingDeletions.insert(id)
+      self.backlog.addPendingDeletion(id: id)
+      self.scheduleProcessingTask()
       publishSyncStatus()
     }
   }
@@ -284,28 +285,30 @@ extension SupabaseTeamLibraryRepository: AggregateTeamApplying {
 
 // MARK: - Remote Operations
 
-private extension SupabaseTeamLibraryRepository {
-  func flushPendingDeletions() async throws {
-    guard ownerUUID != nil else { return }
+extension SupabaseTeamLibraryRepository {
+  private func flushPendingDeletions() async throws {
+    guard self.ownerUUID != nil else { return }
     while let deletionId = pendingDeletions.popFirst() {
-      await performRemoteDeletion(teamId: deletionId)
+      await self.performRemoteDeletion(teamId: deletionId)
     }
   }
 
-  func performRemoteDeletion(teamId: UUID) async {
+  private func performRemoteDeletion(teamId: UUID) async {
     do {
-      try await api.deleteTeam(teamId: teamId)
-      backlog.removePendingDeletion(id: teamId)
+      try await self.api.deleteTeam(teamId: teamId)
+      self.backlog.removePendingDeletion(id: teamId)
     } catch {
-      pendingDeletions.insert(teamId)
-      log.error("Supabase team delete failed id=\(teamId.uuidString, privacy: .public) error=\(error.localizedDescription, privacy: .public)")
+      self.pendingDeletions.insert(teamId)
+      self.log.error(
+        "Supabase team delete failed id=\(teamId.uuidString, privacy: .public) " +
+          "error=\(error.localizedDescription, privacy: .public)")
       reportTeamSyncFailure(error, phase: .delete, teamId: teamId)
       try? await Task.sleep(nanoseconds: 1_000_000_000)
     }
     publishSyncStatus()
   }
 
-  func performRemotePush(teamId: UUID) async {
+  private func performRemotePush(teamId: UUID) async {
     guard let ownerUUID else { return }
     guard let team = try? fetchTeam(with: teamId) else { return }
     guard team.needsRemoteSync else { return }
@@ -317,42 +320,43 @@ private extension SupabaseTeamLibraryRepository {
       team.applyRemoteSyncMetadata(
         ownerId: ownerUUID.uuidString,
         remoteUpdatedAt: syncResult.updatedAt,
-        synchronizedAt: dateProvider()
-      )
-      try metadataPersistor.persistMetadataChanges(for: team)
-      remoteCursor = max(remoteCursor ?? syncResult.updatedAt, syncResult.updatedAt)
-      store.publishChanges()
+        synchronizedAt: self.dateProvider())
+      try self.metadataPersistor.persistMetadataChanges(for: team)
+      self.remoteCursor = max(self.remoteCursor ?? syncResult.updatedAt, syncResult.updatedAt)
+      self.store.publishChanges()
     } catch {
-      pendingPushes.insert(teamId)
-      log.error("Supabase team push failed id=\(teamId.uuidString, privacy: .public) error=\(error.localizedDescription, privacy: .public)")
+      self.pendingPushes.insert(teamId)
+      self.log.error(
+        "Supabase team push failed id=\(teamId.uuidString, privacy: .public) " +
+          "error=\(error.localizedDescription, privacy: .public)")
       reportTeamSyncFailure(error, phase: .push, teamId: teamId)
       try? await Task.sleep(nanoseconds: 1_000_000_000)
     }
     publishSyncStatus()
   }
 
-  func pushDirtyTeams() async throws {
+  private func pushDirtyTeams() async throws {
     guard let ownerUUID else { return }
-    let teams = try store.loadAllTeams().filter { $0.needsRemoteSync }
+    let teams = try store.loadAllTeams().filter(\.needsRemoteSync)
     for team in teams {
-      pendingPushes.insert(team.id)
+      self.pendingPushes.insert(team.id)
     }
-    guard pendingPushes.isEmpty == false else { return }
-    scheduleProcessingTask()
+    guard self.pendingPushes.isEmpty == false else { return }
+    self.scheduleProcessingTask()
     publishSyncStatus()
     // Wait briefly for processing to drain
     try? await Task.sleep(nanoseconds: 100_000_000)
-    try await pullRemoteUpdates(for: ownerUUID)
+    try await self.pullRemoteUpdates(for: ownerUUID)
   }
 
-  func pullRemoteUpdates(for ownerUUID: UUID) async throws {
-    let remoteTeams = try await api.fetchTeams(ownerId: ownerUUID, updatedAfter: remoteCursor)
+  private func pullRemoteUpdates(for ownerUUID: UUID) async throws {
+    let remoteTeams = try await api.fetchTeams(ownerId: ownerUUID, updatedAfter: self.remoteCursor)
     guard remoteTeams.isEmpty == false else { return }
-    let filtered = remoteTeams.filter { !pendingDeletions.contains($0.team.id) }
+    let filtered = remoteTeams.filter { !self.pendingDeletions.contains($0.team.id) }
     guard filtered.isEmpty == false else { return }
     try mergeRemoteTeams(filtered, ownerUUID: ownerUUID)
-    if let maxDate = filtered.map({ $0.team.updatedAt }).max() {
-      remoteCursor = max(remoteCursor ?? maxDate, maxDate)
+    if let maxDate = filtered.map(\.team.updatedAt).max() {
+      self.remoteCursor = max(self.remoteCursor ?? maxDate, maxDate)
     }
     publishSyncStatus()
   }
@@ -360,42 +364,42 @@ private extension SupabaseTeamLibraryRepository {
 
 // MARK: - Local Merge Helpers
 
-private extension SupabaseTeamLibraryRepository {
-  func fetchTeam(with id: UUID) throws -> TeamRecord? {
+extension SupabaseTeamLibraryRepository {
+  private func fetchTeam(with id: UUID) throws -> TeamRecord? {
     let descriptor = FetchDescriptor<TeamRecord>(predicate: #Predicate { $0.id == id })
-    return try store.context.fetch(descriptor).first
+    return try self.store.context.fetch(descriptor).first
   }
 
-  func requireOwnerUUIDForAggregate(operation: String) throws -> UUID {
+  private func requireOwnerUUIDForAggregate(operation: String) throws -> UUID {
     guard let ownerUUID else {
       throw PersistenceAuthError.signedOut(operation: operation)
     }
     return ownerUUID
   }
 
-  func mergeRemoteTeams(_ remoteTeams: [SupabaseTeamLibraryAPI.RemoteTeam], ownerUUID: UUID) throws {
+  private func mergeRemoteTeams(_ remoteTeams: [SupabaseTeamLibraryAPI.RemoteTeam], ownerUUID: UUID) throws {
     var didChange = false
     for remote in remoteTeams {
       if let existing = try fetchTeam(with: remote.team.id) {
         let remoteUpdatedAt = remote.team.updatedAt
         let currentRemote = existing.remoteUpdatedAt ?? .distantPast
-        if remoteUpdatedAt <= currentRemote && existing.needsRemoteSync == false {
+        if remoteUpdatedAt <= currentRemote, existing.needsRemoteSync == false {
           continue
         }
-        apply(remote: remote, to: existing, ownerUUID: ownerUUID)
+        self.apply(remote: remote, to: existing, ownerUUID: ownerUUID)
         didChange = true
       } else {
-        try insertRemoteTeam(remote, ownerUUID: ownerUUID)
+        try self.insertRemoteTeam(remote, ownerUUID: ownerUUID)
         didChange = true
       }
     }
     if didChange {
-      try store.context.save()
-      store.publishChanges()
+      try self.store.context.save()
+      self.store.publishChanges()
     }
   }
 
-  func insertRemoteTeam(_ remote: SupabaseTeamLibraryAPI.RemoteTeam, ownerUUID: UUID) throws {
+  private func insertRemoteTeam(_ remote: SupabaseTeamLibraryAPI.RemoteTeam, ownerUUID: UUID) throws {
     let team = TeamRecord(
       id: remote.team.id,
       name: remote.team.name,
@@ -406,8 +410,7 @@ private extension SupabaseTeamLibraryRepository {
       ownerSupabaseId: remote.team.ownerId.uuidString,
       lastModifiedAt: remote.team.updatedAt,
       remoteUpdatedAt: remote.team.updatedAt,
-      needsRemoteSync: false
-    )
+      needsRemoteSync: false)
 
     for member in remote.members {
       let player = PlayerRecord(
@@ -416,10 +419,9 @@ private extension SupabaseTeamLibraryRepository {
         number: Int(member.jerseyNumber ?? ""),
         position: member.position,
         notes: member.notes,
-        team: team
-      )
+        team: team)
       team.players.append(player)
-      store.context.insert(player)
+      self.store.context.insert(player)
     }
 
     for official in remote.officials {
@@ -429,16 +431,15 @@ private extension SupabaseTeamLibraryRepository {
         roleRaw: official.role,
         phone: official.phone,
         email: official.email,
-        team: team
-      )
+        team: team)
       team.officials.append(record)
-      store.context.insert(record)
+      self.store.context.insert(record)
     }
 
-    store.context.insert(team)
+    self.store.context.insert(team)
   }
 
-  func apply(remote: SupabaseTeamLibraryAPI.RemoteTeam, to team: TeamRecord, ownerUUID: UUID) {
+  private func apply(remote: SupabaseTeamLibraryAPI.RemoteTeam, to team: TeamRecord, ownerUUID: UUID) {
     team.name = remote.team.name
     team.shortName = remote.team.shortName
     team.division = remote.team.division
@@ -463,10 +464,9 @@ private extension SupabaseTeamLibraryRepository {
           number: Int(member.jerseyNumber ?? ""),
           position: member.position,
           notes: member.notes,
-          team: team
-        )
+          team: team)
         team.players.append(player)
-        store.context.insert(player)
+        self.store.context.insert(player)
         retainedPlayers[member.id] = player
       }
     }
@@ -475,7 +475,7 @@ private extension SupabaseTeamLibraryRepository {
       if retainedPlayers[player.id] != nil {
         return false
       }
-      store.context.delete(player)
+      self.store.context.delete(player)
       return true
     }
 
@@ -496,10 +496,9 @@ private extension SupabaseTeamLibraryRepository {
           roleRaw: official.role,
           phone: official.phone,
           email: official.email,
-          team: team
-        )
+          team: team)
         team.officials.append(record)
-        store.context.insert(record)
+        self.store.context.insert(record)
         retainedOfficials[official.id] = record
       }
     }
@@ -508,33 +507,32 @@ private extension SupabaseTeamLibraryRepository {
       if retainedOfficials[official.id] != nil {
         return false
       }
-      store.context.delete(official)
+      self.store.context.delete(official)
       return true
     }
 
     team.applyRemoteSyncMetadata(
       ownerId: ownerUUID.uuidString,
       remoteUpdatedAt: remote.team.updatedAt,
-      synchronizedAt: dateProvider()
-    )
+      synchronizedAt: self.dateProvider())
   }
 
-  func applyOwnerIdentityIfNeeded(to team: TeamRecord) {
+  private func applyOwnerIdentityIfNeeded(to team: TeamRecord) {
     guard let ownerUUID else { return }
     if team.ownerSupabaseId != ownerUUID.uuidString {
       team.ownerSupabaseId = ownerUUID.uuidString
     }
   }
 
-  func applyOwnerIdentityIfNeeded(forTeamId teamId: UUID) {
+  private func applyOwnerIdentityIfNeeded(forTeamId teamId: UUID) {
     guard let ownerUUID else { return }
     if let team = try? fetchTeam(with: teamId), team.ownerSupabaseId != ownerUUID.uuidString {
       team.ownerSupabaseId = ownerUUID.uuidString
-      try? metadataPersistor.persistMetadataChanges(for: team)
+      try? self.metadataPersistor.persistMetadataChanges(for: team)
     }
   }
 
-  func makeBundleRequest(for team: TeamRecord, ownerUUID: UUID) -> SupabaseTeamLibraryAPI.TeamBundleRequest {
+  private func makeBundleRequest(for team: TeamRecord, ownerUUID: UUID) -> SupabaseTeamLibraryAPI.TeamBundleRequest {
     let teamInput = SupabaseTeamLibraryAPI.TeamInput(
       id: team.id,
       ownerId: ownerUUID,
@@ -542,8 +540,7 @@ private extension SupabaseTeamLibraryRepository {
       shortName: team.shortName,
       division: team.division,
       primaryColorHex: team.primaryColorHex,
-      secondaryColorHex: team.secondaryColorHex
-    )
+      secondaryColorHex: team.secondaryColorHex)
 
     let memberInputs: [SupabaseTeamLibraryAPI.MemberInput] = team.players.map { player in
       SupabaseTeamLibraryAPI.MemberInput(
@@ -554,8 +551,7 @@ private extension SupabaseTeamLibraryRepository {
         role: nil,
         position: player.position,
         notes: player.notes,
-        createdAt: nil
-      )
+        createdAt: nil)
     }
 
     let officialInputs: [SupabaseTeamLibraryAPI.OfficialInput] = team.officials.map { official in
@@ -566,36 +562,34 @@ private extension SupabaseTeamLibraryRepository {
         role: official.roleRaw,
         phone: official.phone,
         email: official.email,
-        createdAt: nil
-      )
+        createdAt: nil)
     }
 
     return SupabaseTeamLibraryAPI.TeamBundleRequest(
       team: teamInput,
       members: memberInputs,
       officials: officialInputs,
-      tags: []
-    )
+      tags: [])
   }
 
-  func publishSyncStatus() {
+  private func publishSyncStatus() {
     let info: [String: Any] = [
       "component": "team_library",
       "pendingPushes": pendingPushes.count,
-      "pendingDeletions": pendingDeletions.count,
-      "signedIn": ownerUUID != nil,
-      "timestamp": dateProvider()
+      "pendingDeletions": self.pendingDeletions.count,
+      "signedIn": self.ownerUUID != nil,
+      "timestamp": self.dateProvider(),
     ]
     NotificationCenter.default.post(name: .syncStatusUpdate, object: nil, userInfo: info)
   }
 
-  enum TeamSyncPhase { case push, delete }
+  fileprivate enum TeamSyncPhase { case push, delete }
 
-  func reportTeamSyncFailure(_ error: Error, phase: TeamSyncPhase, teamId: UUID) {
+  private func reportTeamSyncFailure(_ error: Error, phase: TeamSyncPhase, teamId: UUID) {
     let description = String(describing: error)
     let phaseLabel = phase == .push ? "sync" : "delete"
     let message = "Supabase team \(phaseLabel) failed: \(description)"
-    let contextSuffix = containsHTTPStatus(error, code: 404) ? ".404" : ""
+    let contextSuffix = self.containsHTTPStatus(error, code: 404) ? ".404" : ""
     let context = "team_library.\(phaseLabel)\(contextSuffix)"
 
     NotificationCenter.default.post(
@@ -603,12 +597,11 @@ private extension SupabaseTeamLibraryRepository {
       object: nil,
       userInfo: [
         "error": "\(message) [team_id=\(teamId.uuidString)]",
-        "context": context
-      ]
-    )
+        "context": context,
+      ])
   }
 
-  func containsHTTPStatus(_ error: Error, code: Int) -> Bool {
+  private func containsHTTPStatus(_ error: Error, code: Int) -> Bool {
     let nsError = error as NSError
     if nsError.code == code { return true }
     let description = String(describing: error)

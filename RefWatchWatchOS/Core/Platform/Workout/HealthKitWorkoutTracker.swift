@@ -23,7 +23,7 @@ final class HealthKitWorkoutTracker: NSObject {
     let hkConfiguration = try makeWorkoutConfiguration(for: configuration.kind)
     let session = try HKWorkoutSession(healthStore: healthStore, configuration: hkConfiguration)
     let builder = session.associatedWorkoutBuilder()
-    builder.dataSource = HKLiveWorkoutDataSource(healthStore: healthStore, workoutConfiguration: hkConfiguration)
+    builder.dataSource = HKLiveWorkoutDataSource(healthStore: self.healthStore, workoutConfiguration: hkConfiguration)
     builder.delegate = self
     session.delegate = self
 
@@ -35,8 +35,7 @@ final class HealthKitWorkoutTracker: NSObject {
       startedAt: startDate,
       segments: configuration.segments,
       presetId: configuration.presetId,
-      metadata: configuration.metadata
-    )
+      metadata: configuration.metadata)
 
     session.startActivity(with: startDate)
 
@@ -50,7 +49,11 @@ final class HealthKitWorkoutTracker: NSObject {
             continuation.resume(throwing: error ?? WorkoutSessionError.collectionBeginFailed)
             return
           }
-          let managed = ManagedSession(configuration: configuration, session: session, builder: builder, model: workoutSession)
+          let managed = ManagedSession(
+            configuration: configuration,
+            session: session,
+            builder: builder,
+            model: workoutSession)
           self?.activeSessions[workoutSession.id] = managed
           self?.sessionLookup[ObjectIdentifier(session)] = workoutSession.id
           continuation.resume(returning: ())
@@ -110,9 +113,9 @@ final class HealthKitWorkoutTracker: NSObject {
 
     var model = managed.model
     model.complete(at: date)
-    updateSummary(&model, using: workout, builder: managed.builder)
-    activeSessions.removeValue(forKey: id)
-    sessionLookup.removeValue(forKey: ObjectIdentifier(managed.session))
+    self.updateSummary(&model, using: workout, builder: managed.builder)
+    self.activeSessions.removeValue(forKey: id)
+    self.sessionLookup.removeValue(forKey: ObjectIdentifier(managed.session))
     return model
   }
 
@@ -142,12 +145,14 @@ final class HealthKitWorkoutTracker: NSObject {
     }
     if let energyType = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned),
        let stats = builder.statistics(for: energyType),
-       let sum = stats.sumQuantity()?.doubleValue(for: HKUnit.kilocalorie()) {
+       let sum = stats.sumQuantity()?.doubleValue(for: HKUnit.kilocalorie())
+    {
       session.summary.activeEnergy = sum
     }
 
     if let heartRateType = HKQuantityType.quantityType(forIdentifier: .heartRate),
-       let stats = builder.statistics(for: heartRateType) {
+       let stats = builder.statistics(for: heartRateType)
+    {
       let heartUnit = HKUnit.count().unitDivided(by: HKUnit.minute())
       if let average = stats.averageQuantity()?.doubleValue(for: heartUnit) {
         session.summary.averageHeartRate = average
@@ -171,12 +176,16 @@ final class HealthKitWorkoutTracker: NSObject {
   }
 
   private func broadcastLiveMetrics(_ metrics: WorkoutLiveMetrics) {
-    for continuation in liveMetricsContinuations.values {
+    for continuation in self.liveMetricsContinuations.values {
       continuation.yield(metrics)
     }
   }
 
-  private func metrics(for builder: HKLiveWorkoutBuilder, session: ManagedSession, collectedTypes: Set<HKSampleType>?) -> WorkoutLiveMetrics? {
+  private func metrics(
+    for builder: HKLiveWorkoutBuilder,
+    session: ManagedSession,
+    collectedTypes: Set<HKSampleType>?) -> WorkoutLiveMetrics?
+  {
     let timestamp = Date()
     var metrics = WorkoutLiveMetrics(sessionId: session.model.id, timestamp: timestamp)
     var didUpdate = false
@@ -190,7 +199,8 @@ final class HealthKitWorkoutTracker: NSObject {
     if let distanceType = HKQuantityType.quantityType(forIdentifier: .distanceWalkingRunning) {
       if collectedTypes == nil || collectedTypes?.contains(distanceType) == true {
         if let stats = builder.statistics(for: distanceType),
-           let sum = stats.sumQuantity()?.doubleValue(for: HKUnit.meter()) {
+           let sum = stats.sumQuantity()?.doubleValue(for: HKUnit.meter())
+        {
           metrics.totalDistance = sum
           didUpdate = true
         }
@@ -200,7 +210,8 @@ final class HealthKitWorkoutTracker: NSObject {
     if let energyType = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned) {
       if collectedTypes == nil || collectedTypes?.contains(energyType) == true {
         if let stats = builder.statistics(for: energyType),
-           let sum = stats.sumQuantity()?.doubleValue(for: HKUnit.kilocalorie()) {
+           let sum = stats.sumQuantity()?.doubleValue(for: HKUnit.kilocalorie())
+        {
           metrics.activeEnergy = sum
           didUpdate = true
         }
@@ -227,8 +238,9 @@ final class HealthKitWorkoutTracker: NSObject {
 
     if let distance = metrics.totalDistance ?? session.model.summary.totalDistance,
        distance > 0,
-       elapsed > 5 {
-      let kilometres = distance / 1_000
+       elapsed > 5
+    {
+      let kilometres = distance / 1000
       if kilometres > 0 {
         metrics.averagePace = elapsed / kilometres
         didUpdate = true
@@ -239,7 +251,7 @@ final class HealthKitWorkoutTracker: NSObject {
       return nil
     }
 
-    updateSummary(&session.model, with: metrics)
+    self.updateSummary(&session.model, with: metrics)
     session.latestMetrics = metrics
     return metrics
   }
@@ -279,14 +291,19 @@ final class HealthKitWorkoutTracker: NSObject {
 
   private func managedSession(for workoutSession: HKWorkoutSession) -> ManagedSession? {
     guard let modelId = sessionLookup[ObjectIdentifier(workoutSession)] else { return nil }
-    return activeSessions[modelId]
+    return self.activeSessions[modelId]
   }
 }
 
 extension HealthKitWorkoutTracker: @MainActor WorkoutSessionTracking {}
 
 extension HealthKitWorkoutTracker: HKWorkoutSessionDelegate {
-  nonisolated func workoutSession(_ workoutSession: HKWorkoutSession, didChangeTo toState: HKWorkoutSessionState, from fromState: HKWorkoutSessionState, date: Date) {
+  nonisolated func workoutSession(
+    _ workoutSession: HKWorkoutSession,
+    didChangeTo toState: HKWorkoutSessionState,
+    from fromState: HKWorkoutSessionState,
+    date: Date)
+  {
     Task { @MainActor in
       guard let managed = self.managedSession(for: workoutSession) else { return }
 
@@ -318,7 +335,10 @@ extension HealthKitWorkoutTracker: HKWorkoutSessionDelegate {
 }
 
 extension HealthKitWorkoutTracker: HKLiveWorkoutBuilderDelegate {
-  nonisolated func workoutBuilder(_ workoutBuilder: HKLiveWorkoutBuilder, didCollectDataOf collectedTypes: Set<HKSampleType>) {
+  nonisolated func workoutBuilder(
+    _ workoutBuilder: HKLiveWorkoutBuilder,
+    didCollectDataOf collectedTypes: Set<HKSampleType>)
+  {
     Task { @MainActor in
       guard
         let session = workoutBuilder.workoutSession,
@@ -373,6 +393,7 @@ extension HealthKitWorkoutTracker: HKLiveWorkoutBuilderDelegate {
       self.broadcastLiveMetrics(metrics)
     }
   }
+
   nonisolated func workoutBuilderDidFinishCollection(_ workoutBuilder: HKLiveWorkoutBuilder) {}
 }
 
@@ -384,7 +405,12 @@ private final class ManagedSession {
   var events: [WorkoutEvent]
   var latestMetrics: WorkoutLiveMetrics?
 
-  init(configuration: WorkoutSessionConfiguration, session: HKWorkoutSession, builder: HKLiveWorkoutBuilder, model: WorkoutSession) {
+  init(
+    configuration: WorkoutSessionConfiguration,
+    session: HKWorkoutSession,
+    builder: HKLiveWorkoutBuilder,
+    model: WorkoutSession)
+  {
     self.configuration = configuration
     self.session = session
     self.builder = builder
@@ -394,8 +420,8 @@ private final class ManagedSession {
   }
 }
 
-private extension HKWorkoutEventType {
-  var refIdentifier: String {
+extension HKWorkoutEventType {
+  fileprivate var refIdentifier: String {
     switch self {
     case .pause:
       return "pause"

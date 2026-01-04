@@ -5,8 +5,8 @@
 //  Description: Simple history list of completed matches with navigation to details.
 //
 
-import SwiftUI
 import RefWatchCore
+import SwiftUI
 
 private let matchHistoryDateFormatter: DateFormatter = {
   let formatter = DateFormatter()
@@ -32,42 +32,41 @@ struct MatchHistoryView: View {
 
   var body: some View {
     List {
-      if items.isEmpty {
-        emptyState
+      if self.items.isEmpty {
+        self.emptyState
       } else {
-        ForEach(items) { item in
+        ForEach(self.items) { item in
           NavigationLink(destination: MatchHistoryDetailView(snapshot: item)) {
             MatchHistoryRow(snapshot: item)
           }
           .buttonStyle(.plain)
-          .listRowInsets(rowInsets)
+          .listRowInsets(self.rowInsets)
           .listRowBackground(Color.clear)
         }
-        .onDelete(perform: delete)
+        .onDelete(perform: self.delete)
       }
     }
     .listStyle(.carousel)
     .scrollContentBackground(.hidden)
-    .padding(.vertical, theme.components.listRowVerticalInset)
-    .background(theme.colors.backgroundPrimary)
+    .padding(.vertical, self.theme.components.listRowVerticalInset)
+    .background(self.theme.colors.backgroundPrimary)
     .navigationTitle("History")
-    .onAppear(perform: reload)
-    .onChange(of: scenePhase) { phase, _ in
-      if phase == .active { reload() }
+    .onAppear(perform: self.reload)
+    .onChange(of: self.scenePhase) { phase, _ in
+      if phase == .active { self.reload() }
     }
   }
 
   private func reload() {
     // Merge local JSON history with inbound iPhone summaries persisted via aggregate store
-    let local = matchViewModel.loadRecentCompletedMatches(limit: 100)
+    let local = self.matchViewModel.loadRecentCompletedMatches(limit: 100)
     let inbound: [CompletedMatch] = {
-      let records = (try? aggregateEnvironment.libraryStore.fetchInboundHistory(limit: 100, cutoffDays: 90)) ?? []
+      let records = (try? self.aggregateEnvironment.libraryStore.fetchInboundHistory(limit: 100, cutoffDays: 90)) ?? []
       return records.map { rec in
         var match = Match(
           id: rec.id,
           homeTeam: rec.homeName,
-          awayTeam: rec.awayName
-        )
+          awayTeam: rec.awayName)
         match.homeScore = rec.homeScore
         match.awayScore = rec.awayScore
         match.competitionName = rec.competitionName
@@ -94,395 +93,374 @@ struct MatchHistoryView: View {
     }
     let merged = Array(byId.values)
       .sorted { $0.completedAt > $1.completedAt }
-    items = Array(merged.prefix(100))
+    self.items = Array(merged.prefix(100))
   }
 
   private func delete(at offsets: IndexSet) {
     for index in offsets {
-      let id = items[index].id
-      matchViewModel.deleteCompletedMatch(id: id)
+      let id = self.items[index].id
+      self.matchViewModel.deleteCompletedMatch(id: id)
     }
-    reload()
+    self.reload()
   }
 
   private var emptyState: some View {
-    VStack(spacing: theme.spacing.m) {
+    VStack(spacing: self.theme.spacing.m) {
       Image(systemName: "clock")
-        .font(theme.typography.iconAccent)
-        .foregroundStyle(theme.colors.textSecondary)
+        .font(self.theme.typography.iconAccent)
+        .foregroundStyle(self.theme.colors.textSecondary)
 
       Text("No Completed Matches")
-        .font(theme.typography.cardHeadline)
-        .foregroundStyle(theme.colors.textPrimary)
+        .font(self.theme.typography.cardHeadline)
+        .foregroundStyle(self.theme.colors.textPrimary)
 
       Text("Matches you finish will appear here")
-        .font(theme.typography.cardMeta)
-        .foregroundStyle(theme.colors.textSecondary)
+        .font(self.theme.typography.cardMeta)
+        .foregroundStyle(self.theme.colors.textSecondary)
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
-    .listRowInsets(rowInsets)
+    .listRowInsets(self.rowInsets)
     .listRowBackground(Color.clear)
   }
 
   private var rowInsets: EdgeInsets {
     EdgeInsets(
-      top: theme.components.listRowVerticalInset,
-      leading: theme.components.cardHorizontalPadding,
-      bottom: theme.components.listRowVerticalInset,
-      trailing: theme.components.cardHorizontalPadding
-    )
+      top: self.theme.components.listRowVerticalInset,
+      leading: self.theme.components.cardHorizontalPadding,
+      bottom: self.theme.components.listRowVerticalInset,
+      trailing: self.theme.components.cardHorizontalPadding)
   }
-
 }
 
 struct MatchHistoryDetailView: View {
-    let snapshot: CompletedMatch
+  let snapshot: CompletedMatch
 
-    @Environment(\.theme) private var theme
+  @Environment(\.theme) private var theme
 
-    var body: some View {
-        ScrollView {
-            VStack(spacing: theme.spacing.l) {
-                ThemeCardContainer(role: .secondary) {
-                    HStack(spacing: theme.spacing.l) {
-                        teamScoreColumn(name: snapshot.match.homeTeam, score: snapshot.match.homeScore)
-                        Divider()
-                            .overlay(theme.colors.outlineMuted)
-                        teamScoreColumn(name: snapshot.match.awayTeam, score: snapshot.match.awayScore)
-                    }
-                    .padding(.vertical, theme.spacing.m)
-                }
+  var body: some View {
+    ScrollView {
+      VStack(spacing: self.theme.spacing.l) {
+        ThemeCardContainer(role: .secondary) {
+          HStack(spacing: self.theme.spacing.l) {
+            self.teamScoreColumn(name: self.snapshot.match.homeTeam, score: self.snapshot.match.homeScore)
+            Divider()
+              .overlay(self.theme.colors.outlineMuted)
+            self.teamScoreColumn(name: self.snapshot.match.awayTeam, score: self.snapshot.match.awayScore)
+          }
+          .padding(.vertical, self.theme.spacing.m)
+        }
 
-                ThemeCardContainer(role: .secondary) {
-                    VStack(alignment: .leading, spacing: theme.spacing.m) {
-                        Text("Timeline")
-                            .font(theme.typography.cardHeadline)
-                            .foregroundStyle(theme.colors.textPrimary)
+        ThemeCardContainer(role: .secondary) {
+          VStack(alignment: .leading, spacing: self.theme.spacing.m) {
+            Text("Timeline")
+              .font(self.theme.typography.cardHeadline)
+              .foregroundStyle(self.theme.colors.textPrimary)
 
-                        if snapshot.events.isEmpty {
-                            Text("Match completed on iPhone")
-                                .font(theme.typography.cardMeta)
-                                .foregroundStyle(theme.colors.textSecondary)
-                                .padding(.vertical, theme.spacing.s)
-                        } else {
-                            ForEach(snapshot.events.reversed()) { event in
-                                MatchEventDetailRow(event: event)
-                            }
-                        }
-                    }
-                    .padding(.vertical, theme.spacing.m)
-                }
+            if self.snapshot.events.isEmpty {
+              Text("Match completed on iPhone")
+                .font(self.theme.typography.cardMeta)
+                .foregroundStyle(self.theme.colors.textSecondary)
+                .padding(.vertical, self.theme.spacing.s)
+            } else {
+              ForEach(self.snapshot.events.reversed()) { event in
+                MatchEventDetailRow(event: event)
+              }
             }
-            .padding(.horizontal, theme.components.cardHorizontalPadding)
-            .padding(.vertical, theme.components.listRowVerticalInset)
+          }
+          .padding(.vertical, self.theme.spacing.m)
         }
-        .background(theme.colors.backgroundPrimary.ignoresSafeArea())
-        .navigationTitle("Details")
+      }
+      .padding(.horizontal, self.theme.components.cardHorizontalPadding)
+      .padding(.vertical, self.theme.components.listRowVerticalInset)
     }
+    .background(self.theme.colors.backgroundPrimary.ignoresSafeArea())
+    .navigationTitle("Details")
+  }
 
-    private func teamScoreColumn(name: String, score: Int) -> some View {
-        VStack(spacing: theme.spacing.xs) {
-            Text(name)
-                .font(theme.typography.cardMeta)
-                .foregroundStyle(theme.colors.textSecondary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
+  private func teamScoreColumn(name: String, score: Int) -> some View {
+    VStack(spacing: self.theme.spacing.xs) {
+      Text(name)
+        .font(self.theme.typography.cardMeta)
+        .foregroundStyle(self.theme.colors.textSecondary)
+        .lineLimit(1)
+        .minimumScaleFactor(0.7)
 
-            Text("\(score)")
-                .font(theme.typography.timerSecondary)
-                .foregroundStyle(theme.colors.textPrimary)
-        }
-        .frame(maxWidth: .infinity)
+      Text("\(score)")
+        .font(self.theme.typography.timerSecondary)
+        .foregroundStyle(self.theme.colors.textPrimary)
     }
+    .frame(maxWidth: .infinity)
+  }
 }
 
 #Preview("Empty State") {
-    let vm = MatchViewModel(haptics: WatchHaptics())
-    let environment = makePreviewAggregateEnvironment()
-    return NavigationStack { MatchHistoryView(matchViewModel: vm) }
-      .theme(DefaultTheme())
-      .environmentObject(environment)
+  let vm = MatchViewModel(haptics: WatchHaptics())
+  let environment = makePreviewAggregateEnvironment()
+  return NavigationStack { MatchHistoryView(matchViewModel: vm) }
+    .theme(DefaultTheme())
+    .environmentObject(environment)
 }
 
 #Preview("With Matches") {
-    let vm = makePreviewMatchViewModel()
-    let environment = makePreviewAggregateEnvironment()
-    return NavigationStack { MatchHistoryView(matchViewModel: vm) }
-      .theme(DefaultTheme())
-      .environmentObject(environment)
+  let vm = makePreviewMatchViewModel()
+  let environment = makePreviewAggregateEnvironment()
+  return NavigationStack { MatchHistoryView(matchViewModel: vm) }
+    .theme(DefaultTheme())
+    .environmentObject(environment)
 }
 
 #Preview("Match History Row - Local Match") {
-    let sampleMatch = makeSampleCompletedMatch(
-        homeTeam: "Arsenal",
-        awayTeam: "Chelsea",
-        homeScore: 2,
-        awayScore: 1,
-        hasEvents: true
-    )
-    return NavigationStack {
-        List {
-            MatchHistoryRow(snapshot: sampleMatch)
-                .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
-                .listRowBackground(Color.clear)
-        }
-        .listStyle(.carousel)
-        .scrollContentBackground(.hidden)
+  let sampleMatch = makeSampleCompletedMatch(
+    homeTeam: "Arsenal",
+    awayTeam: "Chelsea",
+    homeScore: 2,
+    awayScore: 1,
+    hasEvents: true)
+  return NavigationStack {
+    List {
+      MatchHistoryRow(snapshot: sampleMatch)
+        .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
+        .listRowBackground(Color.clear)
     }
-    .theme(DefaultTheme())
+    .listStyle(.carousel)
+    .scrollContentBackground(.hidden)
+  }
+  .theme(DefaultTheme())
 }
 
 #Preview("Match History Row - iPhone Match") {
-    let sampleMatch = makeSampleCompletedMatch(
-        homeTeam: "Manchester United",
-        awayTeam: "Liverpool",
-        homeScore: 3,
-        awayScore: 2,
-        hasEvents: false
-    )
-    return NavigationStack {
-        List {
-            MatchHistoryRow(snapshot: sampleMatch)
-                .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
-                .listRowBackground(Color.clear)
-        }
-        .listStyle(.carousel)
-        .scrollContentBackground(.hidden)
+  let sampleMatch = makeSampleCompletedMatch(
+    homeTeam: "Manchester United",
+    awayTeam: "Liverpool",
+    homeScore: 3,
+    awayScore: 2,
+    hasEvents: false)
+  return NavigationStack {
+    List {
+      MatchHistoryRow(snapshot: sampleMatch)
+        .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
+        .listRowBackground(Color.clear)
     }
-    .theme(DefaultTheme())
+    .listStyle(.carousel)
+    .scrollContentBackground(.hidden)
+  }
+  .theme(DefaultTheme())
 }
 
 #Preview("Match History Row - Long Team Names") {
-    let sampleMatch = makeSampleCompletedMatch(
-        homeTeam: "Very Long Team Name That Might Overflow",
-        awayTeam: "Another Extremely Long Team Name Here",
-        homeScore: 5,
-        awayScore: 4,
-        hasEvents: true
-    )
-    return NavigationStack {
-        List {
-            MatchHistoryRow(snapshot: sampleMatch)
-                .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
-                .listRowBackground(Color.clear)
-        }
-        .listStyle(.carousel)
-        .scrollContentBackground(.hidden)
+  let sampleMatch = makeSampleCompletedMatch(
+    homeTeam: "Very Long Team Name That Might Overflow",
+    awayTeam: "Another Extremely Long Team Name Here",
+    homeScore: 5,
+    awayScore: 4,
+    hasEvents: true)
+  return NavigationStack {
+    List {
+      MatchHistoryRow(snapshot: sampleMatch)
+        .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
+        .listRowBackground(Color.clear)
     }
-    .theme(DefaultTheme())
+    .listStyle(.carousel)
+    .scrollContentBackground(.hidden)
+  }
+  .theme(DefaultTheme())
 }
 
 #Preview("Match History Detail - With Events") {
-    let sampleMatch = makeSampleCompletedMatch(
-        homeTeam: "Arsenal",
-        awayTeam: "Chelsea",
-        homeScore: 2,
-        awayScore: 1,
-        hasEvents: true
-    )
-    return NavigationStack {
-        MatchHistoryDetailView(snapshot: sampleMatch)
-    }
-    .theme(DefaultTheme())
+  let sampleMatch = makeSampleCompletedMatch(
+    homeTeam: "Arsenal",
+    awayTeam: "Chelsea",
+    homeScore: 2,
+    awayScore: 1,
+    hasEvents: true)
+  return NavigationStack {
+    MatchHistoryDetailView(snapshot: sampleMatch)
+  }
+  .theme(DefaultTheme())
 }
 
 #Preview("Match History Detail - iPhone Match") {
-    let sampleMatch = makeSampleCompletedMatch(
-        homeTeam: "Manchester United",
-        awayTeam: "Liverpool",
-        homeScore: 3,
-        awayScore: 2,
-        hasEvents: false
-    )
-    return NavigationStack {
-        MatchHistoryDetailView(snapshot: sampleMatch)
-    }
-    .theme(DefaultTheme())
+  let sampleMatch = makeSampleCompletedMatch(
+    homeTeam: "Manchester United",
+    awayTeam: "Liverpool",
+    homeScore: 3,
+    awayScore: 2,
+    hasEvents: false)
+  return NavigationStack {
+    MatchHistoryDetailView(snapshot: sampleMatch)
+  }
+  .theme(DefaultTheme())
 }
 
 #Preview("Score Badge") {
-    HStack(spacing: 20) {
-        ScoreBadge(home: 2, away: 1)
-        ScoreBadge(home: 0, away: 0)
-        ScoreBadge(home: 5, away: 3)
-    }
-    .padding()
-    .theme(DefaultTheme())
+  HStack(spacing: 20) {
+    ScoreBadge(home: 2, away: 1)
+    ScoreBadge(home: 0, away: 0)
+    ScoreBadge(home: 5, away: 3)
+  }
+  .padding()
+  .theme(DefaultTheme())
 }
 
 // MARK: - Preview Helpers
 
 @MainActor
 private func makePreviewMatchViewModel() -> MatchViewModel {
-    let mockHistory = MockMatchHistoryService()
-    let vm = MatchViewModel(history: mockHistory, haptics: WatchHaptics())
-    
-    // Add sample matches to the mock history
-    let sampleMatches = [
-        makeSampleCompletedMatch(
-            homeTeam: "Arsenal",
-            awayTeam: "Chelsea",
-            homeScore: 2,
-            awayScore: 1,
-            hasEvents: true,
-            completedAt: Date().addingTimeInterval(-3600)
-        ),
-        makeSampleCompletedMatch(
-            homeTeam: "Manchester United",
-            awayTeam: "Liverpool",
-            homeScore: 3,
-            awayScore: 2,
-            hasEvents: false,
-            completedAt: Date().addingTimeInterval(-7200)
-        ),
-        makeSampleCompletedMatch(
-            homeTeam: "Tottenham",
-            awayTeam: "Newcastle",
-            homeScore: 1,
-            awayScore: 0,
-            hasEvents: true,
-            completedAt: Date().addingTimeInterval(-10800)
-        )
-    ]
-    
-    for match in sampleMatches {
-        try? mockHistory.save(match)
-    }
-    
-    return vm
+  let mockHistory = MockMatchHistoryService()
+  let vm = MatchViewModel(history: mockHistory, haptics: WatchHaptics())
+
+  // Add sample matches to the mock history
+  let sampleMatches = [
+    makeSampleCompletedMatch(
+      homeTeam: "Arsenal",
+      awayTeam: "Chelsea",
+      homeScore: 2,
+      awayScore: 1,
+      hasEvents: true,
+      completedAt: Date().addingTimeInterval(-3600)),
+    makeSampleCompletedMatch(
+      homeTeam: "Manchester United",
+      awayTeam: "Liverpool",
+      homeScore: 3,
+      awayScore: 2,
+      hasEvents: false,
+      completedAt: Date().addingTimeInterval(-7200)),
+    makeSampleCompletedMatch(
+      homeTeam: "Tottenham",
+      awayTeam: "Newcastle",
+      homeScore: 1,
+      awayScore: 0,
+      hasEvents: true,
+      completedAt: Date().addingTimeInterval(-10800)),
+  ]
+
+  for match in sampleMatches {
+    try? mockHistory.save(match)
+  }
+
+  return vm
 }
 
 @MainActor
 private func makePreviewAggregateEnvironment() -> AggregateSyncEnvironment {
-    let container = try! WatchAggregateContainerFactory.makeContainer(inMemory: true)
-    let library = WatchAggregateLibraryStore(container: container)
-    let chunk = WatchAggregateSnapshotChunkStore(container: container)
-    let delta = WatchAggregateDeltaOutboxStore(container: container)
-    let coordinator = WatchAggregateSyncCoordinator(
-        libraryStore: library,
-        chunkStore: chunk,
-        deltaStore: delta
-    )
-    let connectivity = WatchConnectivitySyncClient(session: nil, aggregateCoordinator: coordinator)
-    return AggregateSyncEnvironment(
-        libraryStore: library,
-        chunkStore: chunk,
-        deltaStore: delta,
-        coordinator: coordinator,
-        connectivity: connectivity
-    )
+  guard let container = try? WatchAggregateContainerFactory.makeContainer(inMemory: true) else {
+    fatalError("Failed to create preview aggregate container")
+  }
+  let library = WatchAggregateLibraryStore(container: container)
+  let chunk = WatchAggregateSnapshotChunkStore(container: container)
+  let delta = WatchAggregateDeltaOutboxStore(container: container)
+  let coordinator = WatchAggregateSyncCoordinator(
+    libraryStore: library,
+    chunkStore: chunk,
+    deltaStore: delta)
+  let connectivity = WatchConnectivitySyncClient(session: nil, aggregateCoordinator: coordinator)
+  return AggregateSyncEnvironment(
+    libraryStore: library,
+    chunkStore: chunk,
+    deltaStore: delta,
+    coordinator: coordinator,
+    connectivity: connectivity)
 }
 
 private func makeSampleCompletedMatch(
-    homeTeam: String,
-    awayTeam: String,
-    homeScore: Int,
-    awayScore: Int,
-    hasEvents: Bool,
-    completedAt: Date = Date()
-) -> CompletedMatch {
-    var match = Match(
-        id: UUID(),
-        homeTeam: homeTeam,
-        awayTeam: awayTeam
-    )
-    match.homeScore = homeScore
-    match.awayScore = awayScore
-    match.competitionName = "Premier League"
-    match.venueName = "Stadium"
-    
-    let events: [MatchEventRecord] = hasEvents ? [
-        MatchEventRecord(
-            matchTime: "00:00",
-            period: 1,
-            eventType: .kickOff,
-            team: nil,
-            details: .general
-        ),
-        MatchEventRecord(
-            matchTime: "15:30",
-            period: 1,
-            eventType: .goal(.init(goalType: .regular, playerNumber: 9, playerName: "Player 9")),
-            team: .home,
-            details: .goal(.init(goalType: .regular, playerNumber: 9, playerName: "Player 9"))
-        ),
-        MatchEventRecord(
-            matchTime: "45:00",
-            period: 1,
-            eventType: .halfTime,
-            team: nil,
-            details: .general
-        ),
-        MatchEventRecord(
-            matchTime: "60:15",
-            period: 2,
-            eventType: .goal(.init(goalType: .regular, playerNumber: 7, playerName: "Player 7")),
-            team: .home,
-            details: .goal(.init(goalType: .regular, playerNumber: 7, playerName: "Player 7"))
-        ),
-        MatchEventRecord(
-            matchTime: "75:20",
-            period: 2,
-            eventType: .card(.init(
-                cardType: .yellow,
-                recipientType: .player,
-                playerNumber: 5,
-                playerName: "Player 5",
-                officialRole: nil,
-                reason: "Unsporting behavior"
-            )),
-            team: .away,
-            details: .card(.init(
-                cardType: .yellow,
-                recipientType: .player,
-                playerNumber: 5,
-                playerName: "Player 5",
-                officialRole: nil,
-                reason: "Unsporting behavior"
-            ))
-        ),
-        MatchEventRecord(
-            matchTime: "82:10",
-            period: 2,
-            eventType: .goal(.init(goalType: .regular, playerNumber: 11, playerName: "Player 11")),
-            team: .away,
-            details: .goal(.init(goalType: .regular, playerNumber: 11, playerName: "Player 11"))
-        ),
-        MatchEventRecord(
-            matchTime: "90:00",
-            period: 2,
-            eventType: .matchEnd,
-            team: nil,
-            details: .general
-        )
-    ] : []
-    
-    return CompletedMatch(
-        id: UUID(),
-        completedAt: completedAt,
-        match: match,
-        events: events
-    )
+  homeTeam: String,
+  awayTeam: String,
+  homeScore: Int,
+  awayScore: Int,
+  hasEvents: Bool,
+  completedAt: Date = Date()) -> CompletedMatch
+{
+  var match = Match(
+    id: UUID(),
+    homeTeam: homeTeam,
+    awayTeam: awayTeam)
+  match.homeScore = homeScore
+  match.awayScore = awayScore
+  match.competitionName = "Premier League"
+  match.venueName = "Stadium"
+
+  let events: [MatchEventRecord] = hasEvents ? [
+    MatchEventRecord(
+      matchTime: "00:00",
+      period: 1,
+      eventType: .kickOff,
+      team: nil,
+      details: .general),
+    MatchEventRecord(
+      matchTime: "15:30",
+      period: 1,
+      eventType: .goal(.init(goalType: .regular, playerNumber: 9, playerName: "Player 9")),
+      team: .home,
+      details: .goal(.init(goalType: .regular, playerNumber: 9, playerName: "Player 9"))),
+    MatchEventRecord(
+      matchTime: "45:00",
+      period: 1,
+      eventType: .halfTime,
+      team: nil,
+      details: .general),
+    MatchEventRecord(
+      matchTime: "60:15",
+      period: 2,
+      eventType: .goal(.init(goalType: .regular, playerNumber: 7, playerName: "Player 7")),
+      team: .home,
+      details: .goal(.init(goalType: .regular, playerNumber: 7, playerName: "Player 7"))),
+    MatchEventRecord(
+      matchTime: "75:20",
+      period: 2,
+      eventType: .card(.init(
+        cardType: .yellow,
+        recipientType: .player,
+        playerNumber: 5,
+        playerName: "Player 5",
+        officialRole: nil,
+        reason: "Unsporting behavior")),
+      team: .away,
+      details: .card(.init(
+        cardType: .yellow,
+        recipientType: .player,
+        playerNumber: 5,
+        playerName: "Player 5",
+        officialRole: nil,
+        reason: "Unsporting behavior"))),
+    MatchEventRecord(
+      matchTime: "82:10",
+      period: 2,
+      eventType: .goal(.init(goalType: .regular, playerNumber: 11, playerName: "Player 11")),
+      team: .away,
+      details: .goal(.init(goalType: .regular, playerNumber: 11, playerName: "Player 11"))),
+    MatchEventRecord(
+      matchTime: "90:00",
+      period: 2,
+      eventType: .matchEnd,
+      team: nil,
+      details: .general)
+  ] : []
+
+  return CompletedMatch(
+    id: UUID(),
+    completedAt: completedAt,
+    match: match,
+    events: events)
 }
 
 private class MockMatchHistoryService: MatchHistoryStoring {
-    private var matches: [CompletedMatch] = []
-    
-    func loadAll() throws -> [CompletedMatch] {
-        return matches
-    }
-    
-    func save(_ match: CompletedMatch) throws {
-        matches.append(match)
-    }
-    
-    func delete(id: UUID) throws {
-        matches.removeAll { $0.id == id }
-    }
-    
-    func wipeAll() throws {
-        matches.removeAll()
-    }
+  private var matches: [CompletedMatch] = []
+
+  func loadAll() throws -> [CompletedMatch] {
+    self.matches
+  }
+
+  func save(_ match: CompletedMatch) throws {
+    self.matches.append(match)
+  }
+
+  func delete(id: UUID) throws {
+    self.matches.removeAll { $0.id == id }
+  }
+
+  func wipeAll() throws {
+    self.matches.removeAll()
+  }
 }
 
 private struct MatchHistoryRow: View {
@@ -491,32 +469,32 @@ private struct MatchHistoryRow: View {
 
   var body: some View {
     ThemeCardContainer(role: .secondary, minHeight: 88) {
-      VStack(alignment: .leading, spacing: theme.spacing.xs) {
+      VStack(alignment: .leading, spacing: self.theme.spacing.xs) {
         // Show teams on separate lines for better readability
         VStack(alignment: .leading, spacing: 2) {
-          Text(snapshot.match.homeTeam)
-            .font(theme.typography.cardHeadline)
-            .foregroundStyle(theme.colors.textPrimary)
+          Text(self.snapshot.match.homeTeam)
+            .font(self.theme.typography.cardHeadline)
+            .foregroundStyle(self.theme.colors.textPrimary)
             .lineLimit(1)
             .minimumScaleFactor(0.75)
-          
-          Text(snapshot.match.awayTeam)
-            .font(theme.typography.cardHeadline)
-            .foregroundStyle(theme.colors.textPrimary)
+
+          Text(self.snapshot.match.awayTeam)
+            .font(self.theme.typography.cardHeadline)
+            .foregroundStyle(self.theme.colors.textPrimary)
             .lineLimit(1)
             .minimumScaleFactor(0.75)
         }
 
-        HStack(spacing: theme.spacing.xs) {
-          Text(shortDateText)
-            .font(theme.typography.cardMeta)
-            .foregroundStyle(theme.colors.textSecondary)
+        HStack(spacing: self.theme.spacing.xs) {
+          Text(self.shortDateText)
+            .font(self.theme.typography.cardMeta)
+            .foregroundStyle(self.theme.colors.textSecondary)
             .lineLimit(1)
 
-          if snapshot.events.isEmpty {
+          if self.snapshot.events.isEmpty {
             Image(systemName: "iphone")
               .font(.system(size: 12))
-              .foregroundStyle(theme.colors.accentSecondary)
+              .foregroundStyle(self.theme.colors.accentSecondary)
           }
         }
       }
@@ -526,7 +504,7 @@ private struct MatchHistoryRow: View {
 
   // Simplified date format - date only, no time
   private var shortDateText: String {
-    matchHistoryShortDateFormatter.string(from: snapshot.completedAt)
+    matchHistoryShortDateFormatter.string(from: self.snapshot.completedAt)
   }
 }
 
@@ -537,19 +515,18 @@ private struct ScoreBadge: View {
   let away: Int
 
   var body: some View {
-    HStack(spacing: theme.spacing.xs) {
-      Text("\(home)")
+    HStack(spacing: self.theme.spacing.xs) {
+      Text("\(self.home)")
       Text("-")
-      Text("\(away)")
+      Text("\(self.away)")
     }
-    .font(theme.typography.cardHeadline.monospacedDigit())
-    .foregroundStyle(theme.colors.textPrimary)
-    .padding(.horizontal, theme.spacing.s)
-    .padding(.vertical, theme.spacing.xs)
+    .font(self.theme.typography.cardHeadline.monospacedDigit())
+    .foregroundStyle(self.theme.colors.textPrimary)
+    .padding(.horizontal, self.theme.spacing.s)
+    .padding(.vertical, self.theme.spacing.xs)
     .background(
       Capsule(style: .continuous)
-        .fill(theme.colors.surfaceOverlay)
-    )
+        .fill(self.theme.colors.surfaceOverlay))
   }
 }
 
@@ -558,89 +535,89 @@ private struct MatchEventDetailRow: View {
   @Environment(\.theme) private var theme
 
   var body: some View {
-    VStack(alignment: .leading, spacing: theme.spacing.xs) {
+    VStack(alignment: .leading, spacing: self.theme.spacing.xs) {
       HStack {
-        Text(event.matchTime)
-          .font(theme.typography.cardMeta.monospacedDigit())
-          .foregroundStyle(theme.colors.textPrimary)
+        Text(self.event.matchTime)
+          .font(self.theme.typography.cardMeta.monospacedDigit())
+          .foregroundStyle(self.theme.colors.textPrimary)
 
         Spacer()
 
-        Text(event.periodDisplayName)
-          .font(theme.typography.caption)
-          .foregroundStyle(theme.colors.textSecondary)
+        Text(self.event.periodDisplayName)
+          .font(self.theme.typography.caption)
+          .foregroundStyle(self.theme.colors.textSecondary)
       }
 
-      HStack(alignment: .top, spacing: theme.spacing.s) {
-        Image(systemName: icon)
-          .font(theme.typography.iconAccent)
-          .foregroundStyle(color)
+      HStack(alignment: .top, spacing: self.theme.spacing.s) {
+        Image(systemName: self.icon)
+          .font(self.theme.typography.iconAccent)
+          .foregroundStyle(self.color)
           .frame(width: 22, height: 22)
 
-        VStack(alignment: .leading, spacing: theme.spacing.xs) {
+        VStack(alignment: .leading, spacing: self.theme.spacing.xs) {
           if let team = event.teamDisplayName {
             Text(team)
-              .font(theme.typography.cardMeta)
-              .foregroundStyle(theme.colors.textSecondary)
+              .font(self.theme.typography.cardMeta)
+              .foregroundStyle(self.theme.colors.textSecondary)
           }
 
-          Text(event.displayDescription)
-            .font(theme.typography.caption)
-            .foregroundStyle(theme.colors.textPrimary)
+          Text(self.event.displayDescription)
+            .font(self.theme.typography.caption)
+            .foregroundStyle(self.theme.colors.textPrimary)
             .fixedSize(horizontal: false, vertical: true)
         }
       }
     }
-    .padding(.vertical, theme.spacing.xs)
+    .padding(.vertical, self.theme.spacing.xs)
   }
 
   private var icon: String {
-    switch event.eventType {
+    switch self.event.eventType {
     case .goal:
-      return "soccerball"
+      "soccerball"
     case .card:
-      return "square.fill"
+      "square.fill"
     case .substitution:
-      return "arrow.up.arrow.down"
+      "arrow.up.arrow.down"
     case .kickOff:
-      return "play.circle"
+      "play.circle"
     case .periodStart:
-      return "play.circle.fill"
+      "play.circle.fill"
     case .halfTime:
-      return "pause.circle"
+      "pause.circle"
     case .periodEnd:
-      return "stop.circle"
+      "stop.circle"
     case .matchEnd:
-      return "stop.circle.fill"
+      "stop.circle.fill"
     case .penaltiesStart:
-      return "flag"
-    case .penaltyAttempt(let details):
-      return details.result == .scored ? "checkmark.circle" : "xmark.circle"
+      "flag"
+    case let .penaltyAttempt(details):
+      details.result == .scored ? "checkmark.circle" : "xmark.circle"
     case .penaltiesEnd:
-      return "flag.checkered"
+      "flag.checkered"
     }
   }
 
   private var color: Color {
-    switch event.eventType {
+    switch self.event.eventType {
     case .goal:
-      return theme.colors.matchPositive
-    case .card(let details):
-      return details.cardType == .yellow ? theme.colors.matchWarning : theme.colors.matchCritical
+      self.theme.colors.matchPositive
+    case let .card(details):
+      details.cardType == .yellow ? self.theme.colors.matchWarning : self.theme.colors.matchCritical
     case .substitution:
-      return theme.colors.accentSecondary
+      self.theme.colors.accentSecondary
     case .kickOff, .periodStart:
-      return theme.colors.accentSecondary
+      self.theme.colors.accentSecondary
     case .halfTime:
-      return theme.colors.matchNeutral
+      self.theme.colors.matchNeutral
     case .periodEnd, .matchEnd:
-      return theme.colors.matchCritical
+      self.theme.colors.matchCritical
     case .penaltiesStart:
-      return theme.colors.matchWarning
-    case .penaltyAttempt(let details):
-      return details.result == .scored ? theme.colors.matchPositive : theme.colors.matchCritical
+      self.theme.colors.matchWarning
+    case let .penaltyAttempt(details):
+      details.result == .scored ? self.theme.colors.matchPositive : self.theme.colors.matchCritical
     case .penaltiesEnd:
-      return theme.colors.matchPositive
+      self.theme.colors.matchPositive
     }
   }
 }

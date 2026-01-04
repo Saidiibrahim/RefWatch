@@ -7,14 +7,13 @@ final class OpenAIAssistantServiceTests: XCTestCase {
       ChatMessage(role: .user, text: "  Hello there "),
       ChatMessage(role: .assistant, text: "Hi ref!"),
       ChatMessage(role: .user, text: " "),
-      ChatMessage(role: .user, text: "Need substitution guidance.")
+      ChatMessage(role: .user, text: "Need substitution guidance."),
     ]
 
     let payload = try OpenAIAssistantService.Testing.buildPayload(
       model: "gpt-4o-mini",
       systemPrompt: "System prompt",
-      messages: messages
-    )
+      messages: messages)
 
     XCTAssertEqual(payload.instructions, "System prompt")
     XCTAssertEqual(payload.model, "gpt-4o-mini")
@@ -40,12 +39,13 @@ final class OpenAIAssistantServiceTests: XCTestCase {
       try OpenAIAssistantService.Testing.buildPayload(
         model: "gpt-4o-mini",
         systemPrompt: "System prompt",
-        messages: emptyMessages
-      )
-    )
+        messages: emptyMessages))
   }
 
   func testParseStream_whenReceivingDeltaEvents_emitsChunksAndUsage() {
+    let donePayload =
+      #"data: {"type":"response.done","response":{"id":"resp_123","status":"completed","# +
+      #"usage":{"input_tokens":42,"output_tokens":7,"total_tokens":49}}}"#
     let lines = [
       "event: response.content_part.added",
       #"data: {"type":"response.content_part.added","content":{"type":"output_text","text":""}}"#,
@@ -57,8 +57,8 @@ final class OpenAIAssistantServiceTests: XCTestCase {
       #"data: {"type":"response.output_text.delta","delta":" world"}"#,
       "",
       "event: response.done",
-      #"data: {"type":"response.done","response":{"id":"resp_123","status":"completed","usage":{"input_tokens":42,"output_tokens":7,"total_tokens":49}}}"#,
-      ""
+      donePayload,
+      "",
     ]
 
     let result = OpenAIAssistantService.Testing.parseStream(lines: lines)
@@ -74,7 +74,7 @@ final class OpenAIAssistantServiceTests: XCTestCase {
     let lines = [
       "event: error",
       #"data: {"error":{"message":"Invalid authentication"} }"#,
-      ""
+      "",
     ]
 
     let result = OpenAIAssistantService.Testing.parseStream(lines: lines)

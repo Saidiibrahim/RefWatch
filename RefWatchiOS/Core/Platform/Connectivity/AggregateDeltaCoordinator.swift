@@ -32,8 +32,8 @@ final class AggregateDeltaCoordinator: AggregateDeltaHandling {
     venueRepository: AggregateVenueApplying,
     scheduleRepository: AggregateScheduleApplying,
     ackStore: AggregateDeltaAckStoring,
-    snapshotRefreshHandler: @escaping () -> Void
-  ) {
+    snapshotRefreshHandler: @escaping () -> Void)
+  {
     self.teamRepository = teamRepository
     self.competitionRepository = competitionRepository
     self.venueRepository = venueRepository
@@ -55,12 +55,16 @@ final class AggregateDeltaCoordinator: AggregateDeltaHandling {
         try processScheduleDelta(envelope)
       }
 
-      ackStore.recordAck(id: envelope.id)
+      self.ackStore.recordAck(id: envelope.id)
       if envelope.requiresSnapshotRefresh {
-        snapshotRefreshHandler()
+        self.snapshotRefreshHandler()
       }
     } catch {
-      log.error("Failed to process aggregate delta id=\(envelope.id.uuidString, privacy: .public) entity=\(envelope.entity.rawValue, privacy: .public) action=\(envelope.action.rawValue, privacy: .public) error=\(error.localizedDescription, privacy: .public)")
+      self.log.error(
+        "Failed to process aggregate delta id=\(envelope.id.uuidString, privacy: .public) " +
+          "entity=\(envelope.entity.rawValue, privacy: .public) " +
+          "action=\(envelope.action.rawValue, privacy: .public) " +
+          "error=\(error.localizedDescription, privacy: .public)")
       NotificationCenter.default.post(
         name: .syncNonrecoverableError,
         object: nil,
@@ -68,63 +72,62 @@ final class AggregateDeltaCoordinator: AggregateDeltaHandling {
           "error": error.localizedDescription,
           "context": "ios.aggregate.delta.apply",
           "entity": envelope.entity.rawValue,
-          "action": envelope.action.rawValue
-        ]
-      )
+          "action": envelope.action.rawValue,
+        ])
       throw error
     }
   }
 }
 
-private extension AggregateDeltaCoordinator {
-  func decodePayload<T: Decodable>(_ envelope: AggregateDeltaEnvelope, as type: T.Type) throws -> T {
+extension AggregateDeltaCoordinator {
+  private func decodePayload<T: Decodable>(_ envelope: AggregateDeltaEnvelope, as type: T.Type) throws -> T {
     guard let data = envelope.payload else {
       throw AggregateSyncPayloadError.missingPayload
     }
-    return try decoder.decode(T.self, from: data)
+    return try self.decoder.decode(T.self, from: data)
   }
 
-  func processTeamDelta(_ envelope: AggregateDeltaEnvelope) throws {
+  private func processTeamDelta(_ envelope: AggregateDeltaEnvelope) throws {
     switch envelope.action {
     case .create, .update:
       let payload = try decodePayload(envelope, as: AggregateSnapshotPayload.Team.self)
-      try teamRepository.upsertTeam(from: payload)
+      try self.teamRepository.upsertTeam(from: payload)
     case .delete:
       let payload = try decodePayload(envelope, as: AggregateSnapshotPayload.Team.self)
-      try teamRepository.deleteTeam(id: payload.id)
+      try self.teamRepository.deleteTeam(id: payload.id)
     }
   }
 
-  func processCompetitionDelta(_ envelope: AggregateDeltaEnvelope) throws {
+  private func processCompetitionDelta(_ envelope: AggregateDeltaEnvelope) throws {
     switch envelope.action {
     case .create, .update:
       let payload = try decodePayload(envelope, as: AggregateSnapshotPayload.Competition.self)
-      try competitionRepository.upsertCompetition(from: payload)
+      try self.competitionRepository.upsertCompetition(from: payload)
     case .delete:
       let payload = try decodePayload(envelope, as: AggregateSnapshotPayload.Competition.self)
-      try competitionRepository.deleteCompetition(id: payload.id)
+      try self.competitionRepository.deleteCompetition(id: payload.id)
     }
   }
 
-  func processVenueDelta(_ envelope: AggregateDeltaEnvelope) throws {
+  private func processVenueDelta(_ envelope: AggregateDeltaEnvelope) throws {
     switch envelope.action {
     case .create, .update:
       let payload = try decodePayload(envelope, as: AggregateSnapshotPayload.Venue.self)
-      try venueRepository.upsertVenue(from: payload)
+      try self.venueRepository.upsertVenue(from: payload)
     case .delete:
       let payload = try decodePayload(envelope, as: AggregateSnapshotPayload.Venue.self)
-      try venueRepository.deleteVenue(id: payload.id)
+      try self.venueRepository.deleteVenue(id: payload.id)
     }
   }
 
-  func processScheduleDelta(_ envelope: AggregateDeltaEnvelope) throws {
+  private func processScheduleDelta(_ envelope: AggregateDeltaEnvelope) throws {
     switch envelope.action {
     case .create, .update:
       let payload = try decodePayload(envelope, as: AggregateSnapshotPayload.Schedule.self)
-      try scheduleRepository.upsertSchedule(from: payload)
+      try self.scheduleRepository.upsertSchedule(from: payload)
     case .delete:
       let payload = try decodePayload(envelope, as: AggregateSnapshotPayload.Schedule.self)
-      try scheduleRepository.deleteSchedule(id: payload.id)
+      try self.scheduleRepository.deleteSchedule(id: payload.id)
     }
   }
 }

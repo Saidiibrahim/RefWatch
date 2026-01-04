@@ -32,25 +32,31 @@ struct SupabaseEnvironment {
     var errorDescription: String? {
       switch self {
       case let .missingValue(key):
-        "Missing configuration value for '\(key)'. Check your Secrets.xcconfig file and ensure it contains a valid value for this key."
+        "Missing configuration value for '\(key)'. " +
+          "Check your Secrets.xcconfig file and ensure it contains a valid value for this key."
       case let .unresolvedPlaceholder(key):
-        "Configuration value for '\(key)' contains an unresolved placeholder like '$(VARIABLE_NAME)'. This usually means:\n" +
-        "1. The Secrets.xcconfig file is missing or not properly configured\n" +
-        "2. The xcconfig file is not included in your Xcode project\n" +
-        "3. Build settings are not properly configured\n" +
-        "Please check your project configuration and ensure Secrets.xcconfig exists with valid values."
+        "Configuration value for '\(key)' contains an unresolved placeholder " +
+          "like '$(VARIABLE_NAME)'. This usually means:\n" +
+          "1. The Secrets.xcconfig file is missing or not properly configured\n" +
+          "2. The xcconfig file is not included in your Xcode project\n" +
+          "3. Build settings are not properly configured\n" +
+          "Please check your project configuration and ensure Secrets.xcconfig exists " +
+          "with valid values."
       case let .invalidURL(rawValue):
-        "Supabase URL is invalid: '\(rawValue)'. The URL must be a valid absolute URL with both a scheme (http/https) and a host (e.g., 'https://yourproject.supabase.co'). " +
-        "Check your SUPABASE_URL configuration in Secrets.xcconfig."
+        "Supabase URL is invalid: '\(rawValue)'. The URL must be a valid absolute URL " +
+          "with both a scheme (http/https) and a host (e.g., 'https://yourproject.supabase.co'). " +
+          "Check your SUPABASE_URL configuration in Secrets.xcconfig."
       }
     }
 
     var recoverySuggestion: String? {
       switch self {
-      case .missingValue(let key):
-        "Add a valid value for '\(key)' to your Secrets.xcconfig file. You can copy from Secrets.example.xcconfig as a template."
-      case .unresolvedPlaceholder(_):
-        "Create or update your Secrets.xcconfig file with proper values. Ensure the file is included in your Xcode project and build settings."
+      case let .missingValue(key):
+        "Add a valid value for '\(key)' to your Secrets.xcconfig file. " +
+          "You can copy from Secrets.example.xcconfig as a template."
+      case .unresolvedPlaceholder:
+        "Create or update your Secrets.xcconfig file with proper values. " +
+          "Ensure the file is included in your Xcode project and build settings."
       case .invalidURL:
         "Verify your SUPABASE_URL in Secrets.xcconfig follows the format: https://yourproject.supabase.co"
       }
@@ -64,8 +70,8 @@ struct SupabaseEnvironment {
   /// Priority: Info.plist value (if non-empty and resolved) → process env → error.
   static func load(
     infoDictionary: [String: Any]? = Bundle.main.infoDictionary,
-    environment: [String: String] = ProcessInfo.processInfo.environment
-  ) throws -> SupabaseEnvironment {
+    environment: [String: String] = ProcessInfo.processInfo.environment) throws -> SupabaseEnvironment
+  {
     AppLog.supabase.info("Loading Supabase environment configuration...")
 
     do {
@@ -74,8 +80,7 @@ struct SupabaseEnvironment {
       let rawURL = try resolveValue(
         key: "SUPABASE_URL",
         infoDictionary: infoDictionary,
-        environment: environment
-      )
+        environment: environment)
 
       // Check for unresolved placeholder before processing
       if rawURL.value.contains("$(") {
@@ -85,7 +90,7 @@ struct SupabaseEnvironment {
 
       // Trim whitespace and optional surrounding quotes from xcconfig values
       var urlString = rawURL.value.trimmingCharacters(in: .whitespacesAndNewlines)
-      if urlString.hasPrefix("\"") && urlString.hasSuffix("\"") && urlString.count > 1 {
+      if urlString.hasPrefix("\""), urlString.hasSuffix("\""), urlString.count > 1 {
         urlString.removeFirst()
         urlString.removeLast()
       }
@@ -100,7 +105,9 @@ struct SupabaseEnvironment {
         url.scheme?.isEmpty == false,
         let host = url.host, host.isEmpty == false
       else {
-        AppLog.supabase.error("SupabaseEnvironment invalid URL: '\(urlString, privacy: .public)' - must be a valid absolute URL with scheme and host")
+        AppLog.supabase
+          .error(
+            "SupabaseEnvironment invalid URL: '\(urlString, privacy: .public)' (needs scheme and host)")
         debugConfigurationFailure("SupabaseEnvironment invalid URL: \(urlString)")
         throw ConfigurationError.invalidURL(urlString)
       }
@@ -109,12 +116,13 @@ struct SupabaseEnvironment {
       let anonResolved = try resolveAnyValue(
         keys: ["SUPABASE_PUBLISHABLE_KEY", "SUPABASE_ANON_KEY"],
         infoDictionary: infoDictionary,
-        environment: environment
-      )
+        environment: environment)
 
       // Check for unresolved placeholder in key
       if anonResolved.value.contains("$(") {
-        AppLog.supabase.error("\(anonResolved.key, privacy: .public) contains unresolved placeholder: \(anonResolved.value, privacy: .public)")
+        AppLog.supabase
+          .error(
+            "Placeholder \(anonResolved.key, privacy: .public): \(anonResolved.value, privacy: .public)")
         throw ConfigurationError.unresolvedPlaceholder(key: anonResolved.key)
       }
 
@@ -129,11 +137,13 @@ struct SupabaseEnvironment {
       let hostForLog = host
       let schemeForLog = url.scheme ?? "<nil>"
       AppLog.supabase.info(
-        "SupabaseEnvironment resolved SUPABASE_URL source=\(rawURL.source.description, privacy: .public) scheme=\(schemeForLog, privacy: .public) host=\(hostForLog, privacy: .public)"
-      )
+        "Resolved SUPABASE_URL source=\(rawURL.source.description, privacy: .public)")
       AppLog.supabase.info(
-        "SupabaseEnvironment resolved \(anonResolved.key, privacy: .public) source=\(anonResolved.source.description, privacy: .public) length=\(anonKey.count)"
-      )
+        "Resolved SUPABASE_URL scheme=\(schemeForLog, privacy: .public) host=\(hostForLog, privacy: .public)")
+      AppLog.supabase.info(
+        "Resolved \(anonResolved.key, privacy: .public) source=\(anonResolved.source.description, privacy: .public)")
+      AppLog.supabase.info(
+        "Resolved \(anonResolved.key, privacy: .public) length=\(anonKey.count)")
 
       AppLog.supabase.info("Supabase environment configuration loaded successfully")
       return SupabaseEnvironment(url: url, anonKey: anonKey)
@@ -147,8 +157,8 @@ struct SupabaseEnvironment {
   private static func resolveValue(
     key: String,
     infoDictionary: [String: Any]?,
-    environment: [String: String]
-  ) throws -> ResolvedValue {
+    environment: [String: String]) throws -> ResolvedValue
+  {
     if let infoValue = infoDictionary?[key] as? String, infoValue.isEmpty == false {
       guard infoValue.contains("$(") == false else {
         debugConfigurationFailure("SupabaseEnvironment unresolved placeholder for key \(key)")
@@ -169,10 +179,12 @@ struct SupabaseEnvironment {
   private static func resolveAnyValue(
     keys: [String],
     infoDictionary: [String: Any]?,
-    environment: [String: String]
-  ) throws -> ResolvedValue {
+    environment: [String: String]) throws -> ResolvedValue
+  {
     for key in keys {
-      if let infoValue = infoDictionary?[key] as? String, infoValue.isEmpty == false, infoValue.contains("$(") == false {
+      if let infoValue = infoDictionary?[key] as? String, infoValue.isEmpty == false,
+         infoValue.contains("$(") == false
+      {
         return ResolvedValue(key: key, value: infoValue, source: .infoDictionary)
       }
       if let envValue = environment[key], envValue.isEmpty == false {
@@ -189,16 +201,17 @@ struct SupabaseEnvironment {
 }
 
 private func debugConfigurationFailure(_ message: String) {
-#if DEBUG
+  #if DEBUG
+  let divider = String(repeating: "━", count: 69)
   if TestEnvironment.isRunningTests {
     AppLog.supabase.warning("Skipping Supabase configuration assertion during tests: \(message, privacy: .public)")
     return
   }
   assertionFailure(message)
   AppLog.supabase.error("CONFIGURATION ERROR: \(message, privacy: .public)")
-  print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+  print(divider)
   print("🚨 SUPABASE CONFIGURATION PROBLEM")
-  print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+  print(divider)
   print("   \(message)")
   print("")
   print("💡 QUICK FIX:")
@@ -210,6 +223,6 @@ private func debugConfigurationFailure(_ message: String) {
   print("📄 Example Secrets.xcconfig:")
   print("   SUPABASE_URL = https://yourproject.supabase.co")
   print("   SUPABASE_PUBLISHABLE_KEY = your_publishable_key_here")
-  print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-#endif
+  print(divider)
+  #endif
 }

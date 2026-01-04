@@ -17,7 +17,7 @@ protocol WorkoutMediaCommandHandling {
 final class SystemMusicMediaCommandHandler: WorkoutMediaCommandHandling {
   func handle(_ command: WorkoutMediaCommand) {
     Task {
-      guard await ensureAuthorization() else {
+      guard await self.ensureAuthorization() else {
         AppLog.connectivity.warning("Music authorization denied; ignoring media command \(command.rawValue)")
         return
       }
@@ -31,7 +31,8 @@ final class SystemMusicMediaCommandHandler: WorkoutMediaCommandHandling {
           player.pause()
         default:
           do { try await player.play() } catch {
-            AppLog.connectivity.error("Failed to play via SystemMusicPlayer: \(error.localizedDescription, privacy: .public)")
+            AppLog.connectivity.error(
+              "Failed to play via SystemMusicPlayer: \(error.localizedDescription, privacy: .public)")
           }
         }
 
@@ -51,11 +52,11 @@ final class SystemMusicMediaCommandHandler: WorkoutMediaCommandHandling {
   private func ensureAuthorization() async -> Bool {
     switch MusicAuthorization.currentStatus {
     case .authorized:
-      return true
+      true
     case .notDetermined:
-      return await MusicAuthorization.request() == .authorized
+      await MusicAuthorization.request() == .authorized
     default:
-      return false
+      false
     }
   }
 }

@@ -1,6 +1,6 @@
+import RefWorkoutCore
 import XCTest
 @testable import RefWatch_Watch_App
-import RefWorkoutCore
 
 @MainActor
 final class WorkoutModeViewModelTests: XCTestCase {
@@ -10,11 +10,10 @@ final class WorkoutModeViewModelTests: XCTestCase {
       kind: .outdoorRun,
       title: "Intervals",
       startedAt: Date().addingTimeInterval(-1800),
-      endedAt: Date()
-    )
+      endedAt: Date())
 
     let services = WorkoutServices.inMemoryStub(historySessions: [session])
-    let viewModel = makeViewModel(services: services)
+    let viewModel = self.makeViewModel(services: services)
 
     await viewModel.bootstrap()
 
@@ -29,22 +28,19 @@ final class WorkoutModeViewModelTests: XCTestCase {
       kind: .outdoorRun,
       title: "Tempo",
       startedAt: Date().addingTimeInterval(-1200),
-      endedAt: Date()
-    )
+      endedAt: Date())
 
     let status = WorkoutAuthorizationStatus(
       state: .limited,
-      deniedMetrics: [.vo2Max]
-    )
+      deniedMetrics: [.vo2Max])
 
     let preset = WorkoutModeBootstrap.samplePreset
     let services = WorkoutServices.inMemoryStub(
       presets: [preset],
       historySessions: [session],
-      authorizationStatus: status
-    )
+      authorizationStatus: status)
 
-    let viewModel = makeViewModel(services: services)
+    let viewModel = self.makeViewModel(services: services)
     await viewModel.bootstrap()
 
     let ids = viewModel.selectionItems.map(\.id)
@@ -57,9 +53,8 @@ final class WorkoutModeViewModelTests: XCTestCase {
         .quickStart(.outdoorWalk),
         .quickStart(.strength),
         .quickStart(.mobility),
-        .preset(preset.id)
-      ]
-    )
+        .preset(preset.id),
+      ])
 
     let authorizationItem = try XCTUnwrap(viewModel.selectionItems.first)
     XCTAssertEqual(authorizationItem.authorizationStatus?.state, .limited)
@@ -69,21 +64,21 @@ final class WorkoutModeViewModelTests: XCTestCase {
   func testDwellTransitionsToPreviewWhenCrownStable() async throws {
     let services = WorkoutServices.inMemoryStub(presets: [WorkoutModeBootstrap.samplePreset])
     let config = WorkoutSelectionDwellConfiguration(dwellDuration: 0.05, velocityThreshold: 0.2)
-    let viewModel = makeViewModel(services: services, dwellConfiguration: config)
+    let viewModel = self.makeViewModel(services: services, dwellConfiguration: config)
 
     await viewModel.bootstrap()
 
     let itemID: WorkoutSelectionItem.ID = .quickStart(.outdoorRun)
     viewModel.updateFocusedSelection(to: itemID, crownVelocity: 0.05)
 
-    await waitFor {
-      if case .preview(let item) = viewModel.presentationState {
+    await self.waitFor {
+      if case let .preview(item) = viewModel.presentationState {
         return item.id == itemID
       }
       return false
     }
 
-    if case .preview(let item) = viewModel.presentationState {
+    if case let .preview(item) = viewModel.presentationState {
       XCTAssertEqual(item.id, itemID)
     } else {
       XCTFail("Expected preview state after dwell completes")
@@ -93,7 +88,7 @@ final class WorkoutModeViewModelTests: XCTestCase {
   func testDwellCancelsWhenVelocityExceedsThreshold() async throws {
     let services = WorkoutServices.inMemoryStub(presets: [WorkoutModeBootstrap.samplePreset])
     let config = WorkoutSelectionDwellConfiguration(dwellDuration: 0.05, velocityThreshold: 0.15)
-    let viewModel = makeViewModel(services: services, dwellConfiguration: config)
+    let viewModel = self.makeViewModel(services: services, dwellConfiguration: config)
 
     await viewModel.bootstrap()
 
@@ -110,14 +105,14 @@ final class WorkoutModeViewModelTests: XCTestCase {
 
   func testRequestPreviewTransitionsPresentationState() async throws {
     let services = WorkoutServices.inMemoryStub(presets: [WorkoutModeBootstrap.samplePreset])
-    let viewModel = makeViewModel(services: services)
+    let viewModel = self.makeViewModel(services: services)
 
     await viewModel.bootstrap()
     let item = try XCTUnwrap(viewModel.selectionItems.first(where: { $0.quickStartKind == .outdoorRun }))
 
     viewModel.requestPreview(for: item)
 
-    if case .preview(let previewItem) = viewModel.presentationState {
+    if case let .preview(previewItem) = viewModel.presentationState {
       XCTAssertEqual(previewItem, item)
       XCTAssertEqual(viewModel.focusedSelectionID, item.id)
     } else {
@@ -127,7 +122,7 @@ final class WorkoutModeViewModelTests: XCTestCase {
 
   func testReturnToListRestoresFocus() async throws {
     let services = WorkoutServices.inMemoryStub(presets: [WorkoutModeBootstrap.samplePreset])
-    let viewModel = makeViewModel(services: services)
+    let viewModel = self.makeViewModel(services: services)
 
     await viewModel.bootstrap()
     let item = try XCTUnwrap(viewModel.selectionItems.first(where: { $0.quickStartKind == .outdoorRun }))
@@ -142,7 +137,7 @@ final class WorkoutModeViewModelTests: XCTestCase {
   func testReturnToListClearsErrorAndRestoresFocus() async throws {
     var services = WorkoutServices.inMemoryStub(presets: [WorkoutModeBootstrap.samplePreset])
     services.sessionTracker = FailingSessionTracker()
-    let viewModel = makeViewModel(services: services)
+    let viewModel = self.makeViewModel(services: services)
 
     await viewModel.bootstrap()
     let item = try XCTUnwrap(viewModel.selectionItems.first(where: { $0.quickStartKind == .outdoorRun }))
@@ -150,7 +145,7 @@ final class WorkoutModeViewModelTests: XCTestCase {
     viewModel.requestPreview(for: item)
     viewModel.startSelection(for: item)
 
-    await waitFor {
+    await self.waitFor {
       if case .error = viewModel.presentationState { return true }
       return false
     }
@@ -169,17 +164,16 @@ final class WorkoutModeViewModelTests: XCTestCase {
       state: .ended,
       kind: preset.kind,
       title: preset.title,
-      startedAt: Date().addingTimeInterval(-1_800),
+      startedAt: Date().addingTimeInterval(-1800),
       endedAt: Date(),
       segments: preset.segments,
-      summary: .init(totalDistance: 3_000, duration: 1_800),
-      presetId: preset.id
-    )
+      summary: .init(totalDistance: 3000, duration: 1800),
+      presetId: preset.id)
     session.metadata["source"] = "preset"
 
     let services = WorkoutServices.inMemoryStub(presets: [preset], historySessions: [session])
     let tracker = try XCTUnwrap(services.sessionTracker as? WorkoutSessionTrackerStub)
-    let viewModel = makeViewModel(services: services)
+    let viewModel = self.makeViewModel(services: services)
 
     await viewModel.bootstrap()
 
@@ -191,12 +185,12 @@ final class WorkoutModeViewModelTests: XCTestCase {
     viewModel.requestPreview(for: item)
     viewModel.startSelection(for: item)
 
-    await waitFor {
+    await self.waitFor {
       if case .session = viewModel.presentationState { return true }
       return false
     }
 
-    if case .session(let active) = viewModel.presentationState {
+    if case let .session(active) = viewModel.presentationState {
       XCTAssertEqual(active.presetId, preset.id)
     } else {
       XCTFail("Expected active session presentation state")
@@ -210,7 +204,7 @@ final class WorkoutModeViewModelTests: XCTestCase {
   func testStartSelectionFailureEmitsErrorState() async throws {
     var services = WorkoutServices.inMemoryStub(presets: [WorkoutModeBootstrap.samplePreset])
     services.sessionTracker = FailingSessionTracker()
-    let viewModel = makeViewModel(services: services)
+    let viewModel = self.makeViewModel(services: services)
 
     await viewModel.bootstrap()
     let item = try XCTUnwrap(viewModel.selectionItems.first(where: { $0.quickStartKind == .outdoorRun }))
@@ -218,12 +212,12 @@ final class WorkoutModeViewModelTests: XCTestCase {
     viewModel.requestPreview(for: item)
     viewModel.startSelection(for: item)
 
-    await waitFor {
+    await self.waitFor {
       if case .error = viewModel.presentationState { return true }
       return false
     }
 
-    if case .error(let failedItem, let error) = viewModel.presentationState {
+    if case let .error(failedItem, error) = viewModel.presentationState {
       XCTAssertEqual(failedItem, item)
       XCTAssertEqual(error, .collectionFailed(reason: WorkoutSessionError.collectionBeginFailed.localizedDescription))
     } else {
@@ -236,7 +230,7 @@ final class WorkoutModeViewModelTests: XCTestCase {
     let tracker = FlakySessionTracker(failuresBeforeSuccess: 1)
     var services = WorkoutServices.inMemoryStub(presets: [preset])
     services.sessionTracker = tracker
-    let viewModel = makeViewModel(services: services)
+    let viewModel = self.makeViewModel(services: services)
 
     await viewModel.bootstrap()
     let item = try XCTUnwrap(viewModel.selectionItems.first(where: { $0.quickStartKind == .outdoorRun }))
@@ -244,14 +238,14 @@ final class WorkoutModeViewModelTests: XCTestCase {
     viewModel.requestPreview(for: item)
     viewModel.startSelection(for: item)
 
-    await waitFor {
+    await self.waitFor {
       if case .error = viewModel.presentationState { return true }
       return false
     }
 
     viewModel.startSelection(for: item)
 
-    await waitFor {
+    await self.waitFor {
       if case .session = viewModel.presentationState { return true }
       return false
     }
@@ -261,7 +255,7 @@ final class WorkoutModeViewModelTests: XCTestCase {
     let preset = WorkoutModeBootstrap.samplePreset
     var services = WorkoutServices.inMemoryStub(presets: [preset])
     services.sessionTracker = FailingSessionTracker()
-    let viewModel = makeViewModel(services: services)
+    let viewModel = self.makeViewModel(services: services)
 
     await viewModel.bootstrap()
     let item = try XCTUnwrap(viewModel.selectionItems.first(where: { candidate in
@@ -272,12 +266,12 @@ final class WorkoutModeViewModelTests: XCTestCase {
     viewModel.requestPreview(for: item)
     viewModel.startSelection(for: item)
 
-    await waitFor {
+    await self.waitFor {
       if case .error = viewModel.presentationState { return true }
       return false
     }
 
-    if case .error(let failedItem, let error) = viewModel.presentationState {
+    if case let .error(failedItem, error) = viewModel.presentationState {
       XCTAssertEqual(failedItem, item)
       XCTAssertEqual(error, .collectionFailed(reason: WorkoutSessionError.collectionBeginFailed.localizedDescription))
     } else {
@@ -287,12 +281,12 @@ final class WorkoutModeViewModelTests: XCTestCase {
 
   func testPauseAndResumeToggleState() async throws {
     let services = WorkoutServices.inMemoryStub(presets: [WorkoutModeBootstrap.samplePreset])
-    let viewModel = makeViewModel(services: services)
+    let viewModel = self.makeViewModel(services: services)
 
     await viewModel.bootstrap()
     viewModel.quickStart(kind: .outdoorRun)
 
-    await waitFor { viewModel.activeSession != nil }
+    await self.waitFor { viewModel.activeSession != nil }
     if case .session = viewModel.presentationState {
       // expected
     } else {
@@ -300,23 +294,23 @@ final class WorkoutModeViewModelTests: XCTestCase {
     }
 
     viewModel.pauseActiveSession()
-    await waitFor { viewModel.isActiveSessionPaused }
+    await self.waitFor { viewModel.isActiveSessionPaused }
     XCTAssertTrue(viewModel.isActiveSessionPaused)
 
     viewModel.resumeActiveSession()
-    await waitFor { viewModel.isActiveSessionPaused == false }
+    await self.waitFor { viewModel.isActiveSessionPaused == false }
     XCTAssertFalse(viewModel.isActiveSessionPaused)
   }
 
   func testMarkSegmentRecordsLap() async throws {
     let services = WorkoutServices.inMemoryStub(presets: [WorkoutModeBootstrap.samplePreset])
     let tracker = services.sessionTracker as? WorkoutSessionTrackerStub
-    let viewModel = makeViewModel(services: services)
+    let viewModel = self.makeViewModel(services: services)
 
     await viewModel.bootstrap()
     viewModel.quickStart(kind: .outdoorRun)
 
-    await waitFor { viewModel.activeSession != nil }
+    await self.waitFor { viewModel.activeSession != nil }
     if case .session = viewModel.presentationState {
       // expected
     } else {
@@ -326,7 +320,7 @@ final class WorkoutModeViewModelTests: XCTestCase {
 
     viewModel.markSegment()
 
-    await waitFor { viewModel.lapCount == 1 }
+    await self.waitFor { viewModel.lapCount == 1 }
     XCTAssertEqual(viewModel.lapCount, 1)
     XCTAssertFalse(viewModel.isRecordingSegment)
 
@@ -352,17 +346,17 @@ final class WorkoutModeViewModelTests: XCTestCase {
   func testMarkSegmentIgnoresRapidDoubleTap() async throws {
     let services = WorkoutServices.inMemoryStub(presets: [WorkoutModeBootstrap.samplePreset])
     let tracker = services.sessionTracker as? WorkoutSessionTrackerStub
-    let viewModel = makeViewModel(services: services)
+    let viewModel = self.makeViewModel(services: services)
 
     await viewModel.bootstrap()
     viewModel.quickStart(kind: .outdoorRun)
 
-    await waitFor { viewModel.activeSession != nil }
+    await self.waitFor { viewModel.activeSession != nil }
 
     viewModel.markSegment()
     viewModel.markSegment()
 
-    await waitFor { viewModel.lapCount == 1 }
+    await self.waitFor { viewModel.lapCount == 1 }
     XCTAssertEqual(viewModel.lapCount, 1)
     XCTAssertFalse(viewModel.isRecordingSegment)
 
@@ -379,10 +373,9 @@ final class WorkoutModeViewModelTests: XCTestCase {
   func testAuthorizationRemainsAuthorizedWhenOnlyOptionalMetricsDenied() async throws {
     let status = WorkoutAuthorizationStatus(
       state: .authorized,
-      deniedMetrics: [.vo2Max]
-    )
+      deniedMetrics: [.vo2Max])
     let services = WorkoutServices.inMemoryStub(authorizationStatus: status)
-    let viewModel = makeViewModel(services: services)
+    let viewModel = self.makeViewModel(services: services)
 
     await viewModel.refreshAuthorization()
 
@@ -396,20 +389,19 @@ final class WorkoutModeViewModelTests: XCTestCase {
     let grantedStatus = WorkoutAuthorizationStatus(state: .authorized)
     let authorizationManager = AuthorizationManagerSwitchingStub(
       initialStatus: initialStatus,
-      requestResult: grantedStatus
-    )
+      requestResult: grantedStatus)
 
     var services = WorkoutServices.inMemoryStub(authorizationStatus: initialStatus)
     services.authorizationManager = authorizationManager
 
-    let viewModel = makeViewModel(services: services)
+    let viewModel = self.makeViewModel(services: services)
 
     await viewModel.bootstrap()
     XCTAssertTrue(viewModel.selectionItems.contains(where: { $0.id == .authorization }))
 
     viewModel.requestAuthorization()
 
-    await waitFor {
+    await self.waitFor {
       !viewModel.selectionItems.contains(where: { $0.id == .authorization })
     }
 
@@ -421,15 +413,15 @@ final class WorkoutModeViewModelTests: XCTestCase {
     let unauthorizedStatus = WorkoutAuthorizationStatus(state: .notDetermined)
     var services = WorkoutServices.inMemoryStub(authorizationStatus: unauthorizedStatus)
     let tracker = try XCTUnwrap(services.sessionTracker as? WorkoutSessionTrackerStub)
-    let viewModel = makeViewModel(services: services)
+    let viewModel = self.makeViewModel(services: services)
 
     await viewModel.bootstrap()
 
     let item = try XCTUnwrap(viewModel.selectionItems.first(where: { $0.quickStartKind == .outdoorRun }))
     viewModel.startSelection(for: item)
 
-    await waitFor {
-      if case .error(_, let error) = viewModel.presentationState {
+    await self.waitFor {
+      if case let .error(_, error) = viewModel.presentationState {
         return error == .authorizationDenied
       }
       return false
@@ -443,25 +435,24 @@ final class WorkoutModeViewModelTests: XCTestCase {
 
   func testLiveMetricsStreamUpdatesSessionAndClearsOnEnd() async throws {
     let services = WorkoutServices.inMemoryStub(presets: [WorkoutModeBootstrap.samplePreset])
-    let viewModel = makeViewModel(services: services)
+    let viewModel = self.makeViewModel(services: services)
     let tracker = try XCTUnwrap(services.sessionTracker as? WorkoutSessionTrackerStub)
 
     await viewModel.bootstrap()
     viewModel.quickStart(kind: .outdoorRun)
 
-    await waitFor { viewModel.activeSession != nil }
+    await self.waitFor { viewModel.activeSession != nil }
     let sessionID = try XCTUnwrap(viewModel.activeSession?.id)
 
     let metrics = WorkoutLiveMetrics(
       sessionId: sessionID,
       elapsedTime: 120,
-      totalDistance: 1_500,
+      totalDistance: 1500,
       activeEnergy: 42,
-      heartRate: 137
-    )
+      heartRate: 137)
 
     await tracker.sendLiveMetrics(metrics)
-    await waitFor { viewModel.liveMetrics?.totalDistance == metrics.totalDistance }
+    await self.waitFor { viewModel.liveMetrics?.totalDistance == metrics.totalDistance }
 
     XCTAssertEqual(viewModel.liveMetrics, metrics)
     XCTAssertEqual(viewModel.activeSession?.summary.totalDistance, metrics.totalDistance)
@@ -471,31 +462,32 @@ final class WorkoutModeViewModelTests: XCTestCase {
 
     viewModel.endActiveSession()
 
-    await waitFor { viewModel.activeSession == nil }
+    await self.waitFor { viewModel.activeSession == nil }
     XCTAssertNil(viewModel.liveMetrics)
   }
 
   private func makeViewModel(
     services: WorkoutServices,
-    dwellConfiguration: WorkoutSelectionDwellConfiguration = WorkoutSelectionDwellConfiguration(dwellDuration: 0.05, velocityThreshold: 1.0)
-  ) -> WorkoutModeViewModel {
+    dwellConfiguration: WorkoutSelectionDwellConfiguration = WorkoutSelectionDwellConfiguration(
+      dwellDuration: 0.05,
+      velocityThreshold: 1.0)) -> WorkoutModeViewModel
+  {
     let suiteName = "WorkoutModeViewModelTests.\(UUID().uuidString)"
     let defaults = UserDefaults(suiteName: suiteName) ?? .standard
     let controller = AppModeController(defaults: defaults, storageKey: "mode_pref")
     return WorkoutModeViewModel(
       services: services,
       appModeController: controller,
-      dwellConfiguration: dwellConfiguration
-    )
+      dwellConfiguration: dwellConfiguration)
   }
 
   private func waitFor(
     _ condition: @escaping () -> Bool,
     timeout: TimeInterval = 1,
-    pollingInterval: UInt64 = 20_000_000
-  ) async {
+    pollingInterval: UInt64 = 20_000_000) async
+  {
     let deadline = Date().addingTimeInterval(timeout)
-    while !condition() && Date() < deadline {
+    while !condition(), Date() < deadline {
       await Task.yield()
       try? await Task.sleep(nanoseconds: pollingInterval)
     }
@@ -538,31 +530,31 @@ private final class FlakySessionTracker: WorkoutSessionTracking {
   }
 
   func startSession(configuration: WorkoutSessionConfiguration) async throws -> WorkoutSession {
-    if failuresRemaining > 0 {
-      failuresRemaining -= 1
+    if self.failuresRemaining > 0 {
+      self.failuresRemaining -= 1
       throw WorkoutSessionError.collectionBeginFailed
     }
-    return try await underlying.startSession(configuration: configuration)
+    return try await self.underlying.startSession(configuration: configuration)
   }
 
   func pauseSession(id: UUID) async throws {
-    try await underlying.pauseSession(id: id)
+    try await self.underlying.pauseSession(id: id)
   }
 
   func resumeSession(id: UUID) async throws {
-    try await underlying.resumeSession(id: id)
+    try await self.underlying.resumeSession(id: id)
   }
 
   func endSession(id: UUID, at date: Date) async throws -> WorkoutSession {
-    try await underlying.endSession(id: id, at: date)
+    try await self.underlying.endSession(id: id, at: date)
   }
 
   func recordEvent(_ event: WorkoutEvent, sessionId: UUID) async {
-    await underlying.recordEvent(event, sessionId: sessionId)
+    await self.underlying.recordEvent(event, sessionId: sessionId)
   }
 
   func liveMetricsStream() -> AsyncStream<WorkoutLiveMetrics> {
-    underlying.liveMetricsStream()
+    self.underlying.liveMetricsStream()
   }
 }
 
@@ -576,11 +568,11 @@ private final actor AuthorizationManagerSwitchingStub: WorkoutAuthorizationManag
   }
 
   func authorizationStatus() async -> WorkoutAuthorizationStatus {
-    currentStatus
+    self.currentStatus
   }
 
   func requestAuthorization() async throws -> WorkoutAuthorizationStatus {
-    currentStatus = requestResult
-    return requestResult
+    self.currentStatus = self.requestResult
+    return self.requestResult
   }
 }

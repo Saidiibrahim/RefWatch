@@ -20,8 +20,8 @@ struct SupabaseUserProfileSynchronizer: SupabaseUserProfileSynchronizing {
 
   init(
     clientProvider: SupabaseClientProviding,
-    now: @escaping () -> Date = { Date() }
-  ) {
+    now: @escaping () -> Date = { Date() })
+  {
     self.clientProvider = clientProvider
     self.now = now
   }
@@ -36,13 +36,12 @@ struct SupabaseUserProfileSynchronizer: SupabaseUserProfileSynchronizing {
       into: "users",
       payload: [payload],
       onConflict: "id",
-      decoder: Self.makeDecoder()
-    ) as [SupabaseUserProfileRow]
+      decoder: Self.makeDecoder()) as [SupabaseUserProfileRow]
   }
 }
 
-private extension SupabaseUserProfileSynchronizer {
-  func makePayload(from session: Session) -> SupabaseUserProfilePayload {
+extension SupabaseUserProfileSynchronizer {
+  private func makePayload(from session: Session) -> SupabaseUserProfilePayload {
     let user = session.user
     let appMetadata = Self.normalizeAppMetadata(Self.metadataJSON(from: user.appMetadata))
     let userMetadata = Self.normalizeUserMetadata(Self.metadataJSON(from: user.userMetadata))
@@ -69,16 +68,15 @@ private extension SupabaseUserProfileSynchronizer {
       rawAppMetadata: AnyEncodable(appMetadata),
       rawUserMetadata: AnyEncodable(userMetadata),
       createdAt: user.createdAt,
-      updatedAt: user.updatedAt
-    )
+      updatedAt: user.updatedAt)
   }
 
-  static func makeDecoder() -> JSONDecoder {
+  fileprivate static func makeDecoder() -> JSONDecoder {
     SupabaseJSONDecoderFactory.makeDecoder()
   }
 
-  static func displayName(from user: User) -> String? {
-    let metadata = metadataJSON(from: user.userMetadata)
+  fileprivate static func displayName(from user: User) -> String? {
+    let metadata = self.metadataJSON(from: user.userMetadata)
     if let name = string(for: "full_name", in: metadata) { return name }
     if let given = string(for: "name", in: metadata) { return given }
     if let display = string(for: "display_name", in: metadata) { return display }
@@ -87,14 +85,14 @@ private extension SupabaseUserProfileSynchronizer {
     return nil
   }
 
-  static func avatarURL(from metadata: [String: Any]) -> String? {
+  fileprivate static func avatarURL(from metadata: [String: Any]) -> String? {
     if let direct = string(for: "avatar_url", in: metadata) { return direct }
     if let picture = string(for: "picture", in: metadata) { return picture }
     if let image = string(for: "image", in: metadata) { return image }
     return nil
   }
 
-  static func string(for key: String, in metadata: [String: Any]?) -> String? {
+  fileprivate static func string(for key: String, in metadata: [String: Any]?) -> String? {
     guard let value = metadata?[key] else { return nil }
     if let stringValue = value as? String {
       let trimmed = stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -103,37 +101,37 @@ private extension SupabaseUserProfileSynchronizer {
     return nil
   }
 
-  static func metadataJSON(from value: Any?) -> [String: Any] {
-    let resolved = resolveJSONValue(value)
+  fileprivate static func metadataJSON(from value: Any?) -> [String: Any] {
+    let resolved = self.resolveJSONValue(value)
     return resolved as? [String: Any] ?? [:]
   }
 
-  static func unwrap(_ dictionary: [String: AnyJSON]) -> [String: Any] {
+  fileprivate static func unwrap(_ dictionary: [String: AnyJSON]) -> [String: Any] {
     dictionary.reduce(into: [String: Any]()) { result, element in
-      result[element.key] = unwrap(element.value)
+      result[element.key] = self.unwrap(element.value)
     }
   }
 
-  static func unwrap(_ value: AnyJSON) -> Any {
+  fileprivate static func unwrap(_ value: AnyJSON) -> Any {
     switch value {
     case .null:
-      return NSNull()
+      NSNull()
     case let .bool(bool):
-      return bool
+      bool
     case let .integer(int):
-      return int
+      int
     case let .double(double):
-      return double
+      double
     case let .string(string):
-      return string
+      string
     case let .object(dictionary):
-      return unwrap(dictionary)
+      self.unwrap(dictionary)
     case let .array(array):
-      return array.map { unwrap($0) }
+      array.map { self.unwrap($0) }
     }
   }
 
-  static func resolveJSONValue(_ value: Any?) -> Any {
+  fileprivate static func resolveJSONValue(_ value: Any?) -> Any {
     guard let value else { return NSNull() }
 
     if let optionalResolved = resolveOptional(value) {
@@ -141,19 +139,19 @@ private extension SupabaseUserProfileSynchronizer {
     }
 
     if let anyCodableResolved = resolveAnyCodable(value) {
-      return resolveJSONValue(anyCodableResolved)
+      return self.resolveJSONValue(anyCodableResolved)
     }
 
     switch value {
     case let json as AnyJSON:
-      return unwrap(json)
+      return self.unwrap(json)
     case let dictionary as [String: AnyJSON]:
-      return unwrap(dictionary)
+      return self.unwrap(dictionary)
     case let array as [AnyJSON]:
-      return array.map { unwrap($0) }
+      return array.map { self.unwrap($0) }
     case let dictionary as [String: Any]:
       return dictionary.reduce(into: [String: Any]()) { result, element in
-        let resolvedValue = resolveJSONValue(element.value)
+        let resolvedValue = self.resolveJSONValue(element.value)
         if !(resolvedValue is NSNull) {
           result[element.key] = resolvedValue
         }
@@ -162,7 +160,7 @@ private extension SupabaseUserProfileSynchronizer {
       var normalized: [String: Any] = [:]
       for (key, rawValue) in dictionary {
         guard let key = key as? String else { continue }
-        let resolvedValue = resolveJSONValue(rawValue)
+        let resolvedValue = self.resolveJSONValue(rawValue)
         if !(resolvedValue is NSNull) {
           normalized[key] = resolvedValue
         }
@@ -172,12 +170,12 @@ private extension SupabaseUserProfileSynchronizer {
       return resolveDictionaryViaMirror(value)
     case let array as [Any]:
       return array.map { element -> Any in
-        let resolved = resolveJSONValue(element)
+        let resolved = self.resolveJSONValue(element)
         return resolved is NSNull ? NSNull() : resolved
       }
     case let array as NSArray:
       return array.map { element -> Any in
-        let resolved = resolveJSONValue(element)
+        let resolved = self.resolveJSONValue(element)
         return resolved is NSNull ? NSNull() : resolved
       }
     case _ where canResolveCollectionViaMirror(value):
@@ -187,14 +185,14 @@ private extension SupabaseUserProfileSynchronizer {
     }
   }
 
-  static func resolveOptional(_ value: Any) -> Any? {
+  fileprivate static func resolveOptional(_ value: Any) -> Any? {
     let mirror = Mirror(reflecting: value)
     guard mirror.displayStyle == .optional else { return nil }
     guard let child = mirror.children.first else { return NSNull() }
-    return resolveJSONValue(child.value)
+    return self.resolveJSONValue(child.value)
   }
 
-  static func resolveAnyCodable(_ value: Any) -> Any? {
+  fileprivate static func resolveAnyCodable(_ value: Any) -> Any? {
     let typeName = String(describing: type(of: value))
     guard typeName.contains("AnyCodable") else { return nil }
 
@@ -206,16 +204,16 @@ private extension SupabaseUserProfileSynchronizer {
     return nil
   }
 
-  static func normalizeAppMetadata(_ metadata: [String: Any]) -> [String: Any] {
+  fileprivate static func normalizeAppMetadata(_ metadata: [String: Any]) -> [String: Any] {
     var normalized = metadata
-    normalized["providers"] = normalizeProviders(metadata["providers"])
+    normalized["providers"] = self.normalizeProviders(metadata["providers"])
     return normalized
   }
 
-  static func normalizeUserMetadata(_ metadata: [String: Any]) -> [String: Any] {
+  fileprivate static func normalizeUserMetadata(_ metadata: [String: Any]) -> [String: Any] {
     var normalized = metadata
     if let claims = metadata["custom_claims"] {
-      normalized["custom_claims"] = normalizeCustomClaims(claims)
+      normalized["custom_claims"] = self.normalizeCustomClaims(claims)
     }
     if let verified = parseBoolean(metadata["email_verified"]) {
       normalized["email_verified"] = verified
@@ -226,55 +224,54 @@ private extension SupabaseUserProfileSynchronizer {
     return normalized
   }
 
-  static func normalizeProviders(_ value: Any?) -> [String] {
+  fileprivate static func normalizeProviders(_ value: Any?) -> [String] {
     guard let value else { return [] }
 
-    let resolved = resolveJSONValue(value)
+    let resolved = self.resolveJSONValue(value)
 
     if resolved is NSNull {
       return []
     }
 
     if let array = resolved as? [Any] {
-      return normalizeProviderArray(array)
+      return self.normalizeProviderArray(array)
     }
 
     if let string = resolved as? String {
       if let data = string.data(using: .utf8),
-         let parsed = try? JSONSerialization.jsonObject(with: data) as? [Any] {
-        return normalizeProviders(parsed)
+         let parsed = try? JSONSerialization.jsonObject(with: data) as? [Any]
+      {
+        return self.normalizeProviders(parsed)
       }
 
       let segments = string
         .split(separator: ",")
         .map { String($0) }
 
-      return normalizeProviderArray(segments.map { $0 as Any })
+      return self.normalizeProviderArray(segments.map { $0 as Any })
     }
 
     return []
   }
 
-  static func normalizeProviderArray(_ elements: [Any]) -> [String] {
+  fileprivate static func normalizeProviderArray(_ elements: [Any]) -> [String] {
     var seen = Set<String>()
     var normalized: [String] = []
 
     for element in elements {
-      let rawString: String?
-
-      switch resolveJSONValue(element) {
+      let rawString: String? = switch self.resolveJSONValue(element) {
       case let string as String:
-        rawString = string
+        string
       case let bool as Bool:
-        rawString = bool ? "true" : "false"
+        bool ? "true" : "false"
       case let int as Int:
-        rawString = String(int)
+        String(int)
       case let double as Double:
-        rawString = String(double)
+        String(double)
       case let number as NSNumber:
-        rawString = number.stringValue
+        number.stringValue
       default:
-        rawString = nil
+        nil
       }
 
       guard let raw = rawString?.trimmingCharacters(in: .whitespacesAndNewlines), raw.isEmpty == false else {
@@ -293,23 +290,24 @@ private extension SupabaseUserProfileSynchronizer {
     return normalized
   }
 
-  static func normalizeCustomClaims(_ value: Any) -> [String: Any] {
-    let resolved = resolveJSONValue(value)
+  fileprivate static func normalizeCustomClaims(_ value: Any) -> [String: Any] {
+    let resolved = self.resolveJSONValue(value)
     if let dictionary = resolved as? [String: Any] {
       return dictionary
     }
 
     if let string = resolved as? String,
        let data = string.data(using: .utf8),
-       let dictionary = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+       let dictionary = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+    {
       return dictionary
     }
 
     return [:]
   }
 
-  static func parseBoolean(_ value: Any?) -> Bool? {
-    let resolved = resolveJSONValue(value)
+  fileprivate static func parseBoolean(_ value: Any?) -> Bool? {
+    let resolved = self.resolveJSONValue(value)
 
     switch resolved {
     case let bool as Bool:
@@ -331,12 +329,12 @@ private extension SupabaseUserProfileSynchronizer {
     }
   }
 
-  static func bool(for key: String, in metadata: [String: Any]) -> Bool? {
+  fileprivate static func bool(for key: String, in metadata: [String: Any]) -> Bool? {
     guard let value = metadata[key] else { return nil }
-    return parseBoolean(value)
+    return self.parseBoolean(value)
   }
 
-  static func boolProperty(named key: String, in user: User) -> Bool? {
+  fileprivate static func boolProperty(named key: String, in user: User) -> Bool? {
     guard let value = Mirror(reflecting: user).children.first(where: { $0.label == key })?.value else {
       return nil
     }
@@ -358,12 +356,12 @@ private extension SupabaseUserProfileSynchronizer {
   }
 }
 
-private extension SupabaseUserProfileSynchronizer {
-  static func canResolveDictionaryViaMirror(_ value: Any) -> Bool {
+extension SupabaseUserProfileSynchronizer {
+  fileprivate static func canResolveDictionaryViaMirror(_ value: Any) -> Bool {
     Mirror(reflecting: value).displayStyle == .dictionary
   }
 
-  static func resolveDictionaryViaMirror(_ value: Any) -> [String: Any] {
+  fileprivate static func resolveDictionaryViaMirror(_ value: Any) -> [String: Any] {
     let mirror = Mirror(reflecting: value)
     var result: [String: Any] = [:]
 
@@ -386,7 +384,7 @@ private extension SupabaseUserProfileSynchronizer {
       }
 
       guard let key, let rawValue = value else { continue }
-      let resolvedValue = resolveJSONValue(rawValue)
+      let resolvedValue = self.resolveJSONValue(rawValue)
       if !(resolvedValue is NSNull) {
         result[key] = resolvedValue
       }
@@ -395,14 +393,14 @@ private extension SupabaseUserProfileSynchronizer {
     return result
   }
 
-  static func canResolveCollectionViaMirror(_ value: Any) -> Bool {
+  fileprivate static func canResolveCollectionViaMirror(_ value: Any) -> Bool {
     Mirror(reflecting: value).displayStyle == .collection
   }
 
-  static func resolveCollectionViaMirror(_ value: Any) -> [Any] {
+  fileprivate static func resolveCollectionViaMirror(_ value: Any) -> [Any] {
     let mirror = Mirror(reflecting: value)
     return mirror.children.map { element -> Any in
-      let resolved = resolveJSONValue(element.value)
+      let resolved = self.resolveJSONValue(element.value)
       return resolved is NSNull ? NSNull() : resolved
     }
   }
@@ -452,82 +450,40 @@ struct AnyEncodable: Encodable {
   }
 
   func encode(to encoder: Encoder) throws {
-    let resolved = SupabaseUserProfileSynchronizer.resolveJSONValue(value)
+    let resolved = SupabaseUserProfileSynchronizer.resolveJSONValue(self.value)
 
-    switch resolved {
-    case is NSNull:
+    if resolved is NSNull {
       var container = encoder.singleValueContainer()
       try container.encodeNil()
-    case let bool as Bool:
+    } else if let bool = resolved as? Bool {
       var container = encoder.singleValueContainer()
       try container.encode(bool)
-    case let int as Int:
+    } else if let number = resolved as? NSNumber {
       var container = encoder.singleValueContainer()
-      try container.encode(int)
-    case let int8 as Int8:
-      var container = encoder.singleValueContainer()
-      try container.encode(int8)
-    case let int16 as Int16:
-      var container = encoder.singleValueContainer()
-      try container.encode(int16)
-    case let int32 as Int32:
-      var container = encoder.singleValueContainer()
-      try container.encode(int32)
-    case let int64 as Int64:
-      var container = encoder.singleValueContainer()
-      try container.encode(int64)
-    case let uint as UInt:
-      var container = encoder.singleValueContainer()
-      try container.encode(uint)
-    case let uint8 as UInt8:
-      var container = encoder.singleValueContainer()
-      try container.encode(uint8)
-    case let uint16 as UInt16:
-      var container = encoder.singleValueContainer()
-      try container.encode(uint16)
-    case let uint32 as UInt32:
-      var container = encoder.singleValueContainer()
-      try container.encode(uint32)
-    case let uint64 as UInt64:
-      var container = encoder.singleValueContainer()
-      try container.encode(uint64)
-    case let double as Double:
-      var container = encoder.singleValueContainer()
-      try container.encode(double)
-    case let float as Float:
-      var container = encoder.singleValueContainer()
-      try container.encode(float)
-    case let number as NSNumber:
-      if CFGetTypeID(number) == CFBooleanGetTypeID() {
-        var container = encoder.singleValueContainer()
-        try container.encode(number.boolValue)
-      } else {
-        var container = encoder.singleValueContainer()
-        try container.encode(number.doubleValue)
-      }
-    case let string as String:
+      try container.encode(number)
+    } else if let string = resolved as? String {
       var container = encoder.singleValueContainer()
       try container.encode(string)
-    case let date as Date:
+    } else if let date = resolved as? Date {
       var container = encoder.singleValueContainer()
       try container.encode(date)
-    case let url as URL:
+    } else if let url = resolved as? URL {
       var container = encoder.singleValueContainer()
       try container.encode(url.absoluteString)
-    case let array as [Any]:
+    } else if let array = resolved as? [Any] {
       var container = encoder.unkeyedContainer()
       for element in array {
         try container.encode(AnyEncodable(element))
       }
-    case let dictionary as [String: Any]:
+    } else if let dictionary = resolved as? [String: Any] {
       var container = encoder.container(keyedBy: DynamicCodingKey.self)
       for (key, value) in dictionary {
         guard let codingKey = DynamicCodingKey(stringValue: key) else { continue }
         try container.encode(AnyEncodable(value), forKey: codingKey)
       }
-    default:
+    } else {
       var container = encoder.singleValueContainer()
-      try container.encode("\(value)")
+      try container.encode("\(self.value)")
     }
   }
 }

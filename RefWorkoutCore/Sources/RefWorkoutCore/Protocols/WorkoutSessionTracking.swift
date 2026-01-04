@@ -14,8 +14,8 @@ public protocol WorkoutSessionTracking {
 import Combine
 
 @MainActor
-public extension WorkoutSessionTracking {
-  func liveMetricsPublisher() -> AnyPublisher<WorkoutLiveMetrics, Never> {
+extension WorkoutSessionTracking {
+  public func liveMetricsPublisher() -> AnyPublisher<WorkoutLiveMetrics, Never> {
     LiveMetricsPublisher(streamFactory: { self.liveMetricsStream() })
       .eraseToAnyPublisher()
   }
@@ -27,14 +27,21 @@ private struct LiveMetricsPublisher<Element: Sendable>: Publisher {
 
   let streamFactory: () -> AsyncStream<Element>
 
-  func receive<S>(subscriber: S) where S: Subscriber, Failure == S.Failure, Output == S.Input {
-    let stream = streamFactory()
+  func receive<S>(subscriber: S) where
+    S: Subscriber,
+    Failure == S.Failure,
+    Output == S.Input
+  {
+    let stream = self.streamFactory()
     let subscription = LiveMetricsSubscription(subscriber: subscriber, stream: stream)
     subscriber.receive(subscription: subscription)
   }
 }
 
-private final class LiveMetricsSubscription<S: Subscriber, Element: Sendable>: Subscription where S.Input == Element, S.Failure == Never {
+private final class LiveMetricsSubscription<S: Subscriber, Element: Sendable>: Subscription where
+  S.Input == Element,
+  S.Failure == Never
+{
   private var subscriber: S?
   private var task: Task<Void, Never>?
   private var stream: AsyncStream<Element>?
@@ -45,9 +52,9 @@ private final class LiveMetricsSubscription<S: Subscriber, Element: Sendable>: S
   }
 
   func request(_ demand: Subscribers.Demand) {
-    guard demand > .none, task == nil else { return }
-    guard let stream = stream else { return }
-    task = Task {
+    guard demand > .none, self.task == nil else { return }
+    guard let stream else { return }
+    self.task = Task {
       guard let subscriber = self.subscriber else { return }
       for await metrics in stream {
         if Task.isCancelled { break }
@@ -61,14 +68,14 @@ private final class LiveMetricsSubscription<S: Subscriber, Element: Sendable>: S
   }
 
   func cancel() {
-    task?.cancel()
-    cleanup()
+    self.task?.cancel()
+    self.cleanup()
   }
 
   private func cleanup() {
-    task = nil
-    subscriber = nil
-    stream = nil
+    self.task = nil
+    self.subscriber = nil
+    self.stream = nil
   }
 }
 #endif

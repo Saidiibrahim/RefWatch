@@ -81,7 +81,10 @@ enum SupabaseAuthError: Error, LocalizedError, Equatable {
       if lower.contains("invalid login") || lower.contains("invalid email") {
         return .invalidCredentials
       }
-      if lower.contains("user already registered") || lower.contains("already registered") || lower.contains("already exists") {
+      if lower.contains("user already registered") ||
+        lower.contains("already registered") ||
+        lower.contains("already exists")
+      {
         return .emailAlreadyInUse
       }
       if lower.contains("not found") {
@@ -106,14 +109,14 @@ enum SupabaseAuthError: Error, LocalizedError, Equatable {
   }
 }
 
-private extension String {
+extension String {
   /// Returns `nil` when the string is empty or matches a generic placeholder message.
-  var nilIfPlaceholder: String? {
+  fileprivate var nilIfPlaceholder: String? {
     let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
     if trimmed.isEmpty { return nil }
     let defaultDescriptions: Set<String> = [
       "the operation couldn’t be completed.",
-      "the operation couldn’t be completed (supabase.autherror error 1)."
+      "the operation couldn’t be completed (supabase.autherror error 1).",
     ]
     if defaultDescriptions.contains(trimmed.lowercased()) {
       return nil
