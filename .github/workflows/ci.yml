@@ -44,7 +44,7 @@ jobs:
           set -euo pipefail
           git fetch origin main --depth=1
           base="$(git merge-base HEAD origin/main)"
-          git diff --name-only "$base"...HEAD -- '*.swift' > "$RUNNER_TEMP/swift-files.txt"
+          git diff --name-only --diff-filter=d "$base"...HEAD -- '*.swift' > "$RUNNER_TEMP/swift-files.txt"
           echo "SWIFT_LINT_FILELIST=$RUNNER_TEMP/swift-files.txt" >> "$GITHUB_ENV"
           count="$(wc -l < "$RUNNER_TEMP/swift-files.txt" | tr -d ' ')"
           echo "Changed Swift files: $count"
@@ -97,6 +97,8 @@ jobs:
 
           with open(filelist) as handle:
             files = [line.strip() for line in handle if line.strip()]
+
+          files = [path for path in files if os.path.exists(path)]
 
           if not files:
             print("No changed Swift files; skipping lint.")
