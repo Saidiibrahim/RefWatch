@@ -103,7 +103,7 @@ jobs:
             sys.exit(0)
 
           for path in files:
-            subprocess.run(["swiftlint", "lint", "--config", ".swiftlint.yml", "--path", path], check=True)
+            subprocess.run(["swiftlint", "lint", "--config", ".swiftlint.yml", path], check=True)
 
           subprocess.run(["swiftformat", "--lint", "--config", ".swiftformat", *files], check=True)
           PY
