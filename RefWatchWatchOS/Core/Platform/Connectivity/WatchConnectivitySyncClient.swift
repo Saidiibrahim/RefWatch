@@ -12,63 +12,63 @@ import WatchConnectivity
 #endif
 
 final class WatchConnectivitySyncClient: NSObject, ConnectivitySyncProvidingExtended {
-#if canImport(WatchConnectivity)
+  #if canImport(WatchConnectivity)
   private let session: WCSessioning?
   private let queue = DispatchQueue(label: "WatchConnectivitySyncClient")
   private var aggregateCoordinator: WatchAggregateSyncCoordinator? {
     didSet {
-      configureAggregateCoordinatorCallbacks(previous: oldValue)
+      self.configureAggregateCoordinatorCallbacks(previous: oldValue)
     }
   }
+
   private let aggregateEncoder = AggregateSyncCoding.makeEncoder()
   private let aggregateDecoder = AggregateSyncCoding.makeDecoder()
   private var lastManualStatus: ManualSyncStatusMessage?
-#endif
+  #endif
 
   init(session: WCSessioning? = nil, aggregateCoordinator: WatchAggregateSyncCoordinator? = nil) {
-#if canImport(WatchConnectivity)
+    #if canImport(WatchConnectivity)
     self.session = session ?? (WCSession.isSupported() ? WCSessionWrapper.shared : nil)
     self.aggregateCoordinator = aggregateCoordinator
-#endif
+    #endif
     super.init()
-#if canImport(WatchConnectivity)
+    #if canImport(WatchConnectivity)
     self.session?.delegate = self
     self.session?.activate()
-    configureAggregateCoordinatorCallbacks(previous: nil)
-    applyInitialApplicationContext()
-    flushAggregateDeltas()
-#endif
+    self.configureAggregateCoordinatorCallbacks(previous: nil)
+    self.applyInitialApplicationContext()
+    self.flushAggregateDeltas()
+    #endif
   }
 
   func setAggregateCoordinator(_ coordinator: WatchAggregateSyncCoordinator) {
-#if canImport(WatchConnectivity)
-    aggregateCoordinator = coordinator
-    applyInitialApplicationContext()
-    flushAggregateDeltas()
-#endif
+    #if canImport(WatchConnectivity)
+    self.aggregateCoordinator = coordinator
+    self.applyInitialApplicationContext()
+    self.flushAggregateDeltas()
+    #endif
   }
 
   var isAvailable: Bool {
-#if canImport(WatchConnectivity)
+    #if canImport(WatchConnectivity)
     return WCSession.isSupported()
-#else
+    #else
     return false
-#endif
+    #endif
   }
 
   func sendCompletedMatch(_ match: CompletedMatch) {
-#if canImport(WatchConnectivity)
+    #if canImport(WatchConnectivity)
     guard let session else {
       DispatchQueue.main.async {
         NotificationCenter.default.post(
           name: .syncNonrecoverableError,
           object: nil,
-          userInfo: ["error": "WCSession unavailable", "context": "watch.sendCompletedMatch.sessionNil"]
-        )
+          userInfo: ["error": "WCSession unavailable", "context": "watch.sendCompletedMatch.sessionNil"])
       }
       return
     }
-    queue.async {
+    self.queue.async {
       let encoder = JSONEncoder()
       encoder.dateEncodingStrategy = .iso8601
       guard let data = try? encoder.encode(match) else {
@@ -76,14 +76,13 @@ final class WatchConnectivitySyncClient: NSObject, ConnectivitySyncProvidingExte
           NotificationCenter.default.post(
             name: .syncNonrecoverableError,
             object: nil,
-            userInfo: ["error": "encode failed", "context": "watch.sendCompletedMatch.encode"]
-          )
+            userInfo: ["error": "encode failed", "context": "watch.sendCompletedMatch.encode"])
         }
         return
       }
       let payload: [String: Any] = [
         "type": "completedMatch",
-        "data": data
+        "data": data,
       ]
       let sendOrFallback = {
         // Durable enqueue so we don't lose the match if the phone drops connection mid-send
@@ -91,8 +90,7 @@ final class WatchConnectivitySyncClient: NSObject, ConnectivitySyncProvidingExte
         NotificationCenter.default.post(
           name: .syncFallbackOccurred,
           object: nil,
-          userInfo: ["context": "watch.completedMatch.sendMessageFallback"]
-        )
+          userInfo: ["context": "watch.completedMatch.sendMessageFallback"])
       }
 
       if session.isReachable {
@@ -103,19 +101,20 @@ final class WatchConnectivitySyncClient: NSObject, ConnectivitySyncProvidingExte
         sendOrFallback()
       }
     }
-#endif
+    #endif
   }
 
   // MARK: - Schedule status update (lightweight)
+
   /// Sends a lightweight schedule status update to the paired iPhone.
   /// Intended for flipping a scheduled match to in_progress at kickoff.
   func sendScheduleStatusUpdate(scheduledId: UUID, status: String = "in_progress") {
-#if canImport(WatchConnectivity)
+    #if canImport(WatchConnectivity)
     guard let session else { return }
     let payload: [String: Any] = [
       "type": "scheduleStatusUpdate",
       "scheduledId": scheduledId.uuidString,
-      "status": status
+      "status": status,
     ]
     if session.isReachable {
       session.sendMessage(payload) { _ in
@@ -126,10 +125,10 @@ final class WatchConnectivitySyncClient: NSObject, ConnectivitySyncProvidingExte
     } else {
       _ = session.transferUserInfo(payload)
     }
-#endif
+    #endif
   }
 
-#if canImport(WatchConnectivity)
+  #if canImport(WatchConnectivity)
   func requestManualAggregateSync(reason: ManualSyncRequestMessage.Reason = .manual) {
     guard let session else { return }
     let message = ManualSyncRequestMessage(reason: reason)
@@ -137,13 +136,12 @@ final class WatchConnectivitySyncClient: NSObject, ConnectivitySyncProvidingExte
       NotificationCenter.default.post(
         name: .syncNonrecoverableError,
         object: nil,
-        userInfo: ["error": "encode failed", "context": "watch.manualSync.encode"]
-      )
+        userInfo: ["error": "encode failed", "context": "watch.manualSync.encode"])
       return
     }
     let payload: [String: Any] = [
       "type": message.type,
-      "payload": data
+      "payload": data,
     ]
     if session.isReachable {
       session.sendMessage(payload) { _ in
@@ -152,16 +150,14 @@ final class WatchConnectivitySyncClient: NSObject, ConnectivitySyncProvidingExte
         NotificationCenter.default.post(
           name: .syncFallbackOccurred,
           object: nil,
-          userInfo: ["context": "watch.manualSync.sendMessageFallback"]
-        )
+          userInfo: ["context": "watch.manualSync.sendMessageFallback"])
         session.transferUserInfo(payload)
       }
     } else {
       NotificationCenter.default.post(
         name: .syncFallbackOccurred,
         object: nil,
-        userInfo: ["context": "watch.manualSync.unreachable"]
-      )
+        userInfo: ["context": "watch.manualSync.unreachable"])
       session.transferUserInfo(payload)
     }
   }
@@ -179,13 +175,12 @@ final class WatchConnectivitySyncClient: NSObject, ConnectivitySyncProvidingExte
           NotificationCenter.default.post(
             name: .syncNonrecoverableError,
             object: nil,
-            userInfo: ["error": "delta encode failed", "context": "watch.aggregate.encodeDelta"]
-          )
+            userInfo: ["error": "delta encode failed", "context": "watch.aggregate.encodeDelta"])
           continue
         }
         let payload: [String: Any] = [
           "type": envelope.type,
-          "payload": data
+          "payload": data,
         ]
         session.transferUserInfo(payload)
         sent.append(envelope.id)
@@ -207,24 +202,24 @@ final class WatchConnectivitySyncClient: NSObject, ConnectivitySyncProvidingExte
   }
 
   func latestManualStatus() -> ManualSyncStatusMessage? {
-    lastManualStatus
+    self.lastManualStatus
   }
 
   private func applyInitialApplicationContext() {
     guard let session else { return }
-    handleApplicationContext(session.receivedApplicationContext)
+    self.handleApplicationContext(session.receivedApplicationContext)
   }
 
   private func handleApplicationContext(_ context: [String: Any]) {
     guard
       let data = context["aggregatesSnapshot"] as? Data
     else { return }
-    ingestAggregatesSnapshot(data)
+    self.ingestAggregatesSnapshot(data)
   }
 
   private func handleIncomingMessage(_ message: [String: Any]) {
     if let data = message["aggregatesSnapshot"] as? Data {
-      ingestAggregatesSnapshot(data)
+      self.ingestAggregatesSnapshot(data)
       return
     }
 
@@ -238,11 +233,10 @@ final class WatchConnectivitySyncClient: NSObject, ConnectivitySyncProvidingExte
         NotificationCenter.default.post(
           name: .syncNonrecoverableError,
           object: nil,
-          userInfo: ["error": "status decode failed", "context": "watch.aggregate.status.decode"]
-        )
+          userInfo: ["error": "status decode failed", "context": "watch.aggregate.status.decode"])
         return
       }
-      lastManualStatus = status
+      self.lastManualStatus = status
       Task { @MainActor [weak self] in
         self?.aggregateCoordinator?.applyManualSyncStatus(status)
       }
@@ -251,47 +245,53 @@ final class WatchConnectivitySyncClient: NSObject, ConnectivitySyncProvidingExte
         NotificationCenter.default.post(
           name: .syncNonrecoverableError,
           object: nil,
-          userInfo: ["error": "missing aggregates snapshot payload", "context": "watch.aggregate.snapshot.messagePayload"]
-        )
+          userInfo: [
+            "error": "missing aggregates snapshot payload",
+            "context": "watch.aggregate.snapshot.messagePayload",
+          ])
         return
       }
-      ingestAggregatesSnapshot(data)
+      self.ingestAggregatesSnapshot(data)
     default:
       break
     }
   }
 
   private func ingestAggregatesSnapshot(_ data: Data) {
-    guard aggregateCoordinator != nil else { return }
+    guard self.aggregateCoordinator != nil else { return }
     Task { @MainActor [weak self] in
       self?.aggregateCoordinator?.ingestSnapshotData(data)
       self?.flushAggregateDeltas()
     }
   }
-#endif
+  #endif
 }
 
 #if canImport(WatchConnectivity)
 extension WatchConnectivitySyncClient: WCSessionDelegate {
-  func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
-    applyInitialApplicationContext()
-    flushAggregateDeltas()
+  func session(
+    _ session: WCSession,
+    activationDidCompleteWith activationState: WCSessionActivationState,
+    error: Error?)
+  {
+    self.applyInitialApplicationContext()
+    self.flushAggregateDeltas()
   }
 
   func sessionReachabilityDidChange(_ session: WCSession) {
-    flushAggregateDeltas()
+    self.flushAggregateDeltas()
   }
 
-  func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String : Any]) {
-    handleApplicationContext(applicationContext)
+  func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
+    self.handleApplicationContext(applicationContext)
   }
 
-  func session(_ session: WCSession, didReceiveMessage message: [String : Any]) {
-    handleIncomingMessage(message)
+  func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
+    self.handleIncomingMessage(message)
   }
 
-  func session(_ session: WCSession, didReceiveUserInfo userInfo: [String : Any] = [:]) {
-    handleIncomingMessage(userInfo)
+  func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any] = [:]) {
+    self.handleIncomingMessage(userInfo)
   }
 }
 #endif

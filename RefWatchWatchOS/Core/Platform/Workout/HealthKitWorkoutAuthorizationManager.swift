@@ -39,36 +39,35 @@ final class HealthKitWorkoutAuthorizationManager: WorkoutAuthorizationManaging {
       optionalReads[.vo2Max] = vo2
     }
 
-    shareTypes = share
-    readTypes = read
-    requiredReadTypes = requiredReads
-    optionalReadTypes = optionalReads
+    self.shareTypes = share
+    self.readTypes = read
+    self.requiredReadTypes = requiredReads
+    self.optionalReadTypes = optionalReads
   }
 
   func authorizationStatus() async -> WorkoutAuthorizationStatus {
     guard HKHealthStore.isHealthDataAvailable() else {
-      return WorkoutAuthorizationStatus(state: .denied, lastPromptedAt: lastPromptedAt)
+      return WorkoutAuthorizationStatus(state: .denied, lastPromptedAt: self.lastPromptedAt)
     }
 
     let workoutType = HKObjectType.workoutType()
-    let shareStatus = healthStore.authorizationStatus(for: workoutType)
+    let shareStatus = self.healthStore.authorizationStatus(for: workoutType)
 
     switch shareStatus {
     case .notDetermined:
-      return WorkoutAuthorizationStatus(state: .notDetermined, lastPromptedAt: lastPromptedAt)
+      return WorkoutAuthorizationStatus(state: .notDetermined, lastPromptedAt: self.lastPromptedAt)
     case .sharingDenied:
-      return WorkoutAuthorizationStatus(state: .denied, lastPromptedAt: lastPromptedAt)
+      return WorkoutAuthorizationStatus(state: .denied, lastPromptedAt: self.lastPromptedAt)
     case .sharingAuthorized:
       // Compute denied metrics asynchronously to properly check read-only permissions
       let (deniedRequired, deniedOptional) = await computeDeniedMetrics()
       let state: WorkoutAuthorizationStatus.State = deniedRequired.isEmpty ? .authorized : .limited
       return WorkoutAuthorizationStatus(
         state: state,
-        lastPromptedAt: lastPromptedAt,
-        deniedMetrics: deniedRequired.union(deniedOptional)
-      )
+        lastPromptedAt: self.lastPromptedAt,
+        deniedMetrics: deniedRequired.union(deniedOptional))
     @unknown default:
-      return WorkoutAuthorizationStatus(state: .denied, lastPromptedAt: lastPromptedAt)
+      return WorkoutAuthorizationStatus(state: .denied, lastPromptedAt: self.lastPromptedAt)
     }
   }
 
@@ -78,21 +77,22 @@ final class HealthKitWorkoutAuthorizationManager: WorkoutAuthorizationManaging {
     }
 
     return try await withCheckedThrowingContinuation { continuation in
-      healthStore.requestAuthorization(toShare: shareTypes, read: readTypes) { [weak self] success, error in
-        Task { @MainActor in
-          if let error {
-            continuation.resume(throwing: error)
-            return
+      self.healthStore
+        .requestAuthorization(toShare: self.shareTypes, read: self.readTypes) { [weak self] success, error in
+          Task { @MainActor in
+            if let error {
+              continuation.resume(throwing: error)
+              return
+            }
+            guard success else {
+              continuation.resume(throwing: WorkoutAuthorizationError.requestFailed)
+              return
+            }
+            self?.lastPromptedAt = Date()
+            let status = await self?.authorizationStatus() ?? WorkoutAuthorizationStatus(state: .denied)
+            continuation.resume(returning: status)
           }
-          guard success else {
-            continuation.resume(throwing: WorkoutAuthorizationError.requestFailed)
-            return
-          }
-          self?.lastPromptedAt = Date()
-          let status = await self?.authorizationStatus() ?? WorkoutAuthorizationStatus(state: .denied)
-          continuation.resume(returning: status)
         }
-      }
     }
   }
 
@@ -105,7 +105,7 @@ final class HealthKitWorkoutAuthorizationManager: WorkoutAuthorizationManaging {
     // types we must use getRequestStatusForAuthorization to check read permission
     func shouldRequestReadAuthorization(for type: HKObjectType) async -> Bool {
       await withCheckedContinuation { continuation in
-        healthStore.getRequestStatusForAuthorization(toShare: [], read: [type]) { status, error in
+        self.healthStore.getRequestStatusForAuthorization(toShare: [], read: [type]) { status, error in
           // If status is .shouldRequest, we still need authorization (denied)
           // If status is .unnecessary, authorization was already granted
           continuation.resume(returning: status == .shouldRequest && error == nil)
@@ -114,13 +114,14 @@ final class HealthKitWorkoutAuthorizationManager: WorkoutAuthorizationManaging {
     }
 
     // For types we request to SHARE, we can check share authorization status directly
-    func deniedFromShareTypes(_ mapping: [WorkoutAuthorizationMetric: HKQuantityType]) -> Set<WorkoutAuthorizationMetric> {
+    func deniedFromShareTypes(_ mapping: [WorkoutAuthorizationMetric: HKQuantityType])
+    -> Set<WorkoutAuthorizationMetric> {
       Set(mapping.compactMap { metric, quantityType in
         // Only check share status for types we're requesting write access to
-        guard shareTypes.contains(quantityType) else {
+        guard self.shareTypes.contains(quantityType) else {
           return nil
         }
-        let status = healthStore.authorizationStatus(for: quantityType)
+        let status = self.healthStore.authorizationStatus(for: quantityType)
         switch status {
         case .sharingAuthorized:
           return nil // Authorized, not denied
@@ -133,11 +134,14 @@ final class HealthKitWorkoutAuthorizationManager: WorkoutAuthorizationManaging {
     }
 
     // For READ-ONLY types (not in shareTypes), check read authorization status
-    func deniedFromReadOnlyTypes(_ mapping: [WorkoutAuthorizationMetric: HKQuantityType]) async -> Set<WorkoutAuthorizationMetric> {
-      let readOnlyTypes = mapping.filter { !shareTypes.contains($0.value) }
-      
+    func deniedFromReadOnlyTypes(_ mapping: [WorkoutAuthorizationMetric: HKQuantityType]) async
+    -> Set<WorkoutAuthorizationMetric> {
+      let readOnlyTypes = mapping.filter { !self.shareTypes.contains($0.value) }
+
       // Check all read-only types concurrently
-      let results = await withTaskGroup(of: (WorkoutAuthorizationMetric, Bool).self) { group -> [(WorkoutAuthorizationMetric, Bool)] in
+      let results = await withTaskGroup(of: (WorkoutAuthorizationMetric, Bool).self) { group -> [(
+        WorkoutAuthorizationMetric,
+        Bool)] in
         for (metric, quantityType) in readOnlyTypes {
           group.addTask {
             let needsRequest = await shouldRequestReadAuthorization(for: quantityType)
@@ -150,7 +154,7 @@ final class HealthKitWorkoutAuthorizationManager: WorkoutAuthorizationManaging {
         }
         return collected
       }
-      
+
       // Return metrics that still need authorization (denied)
       return Set(results.compactMap { metric, needsRequest in
         needsRequest ? metric : nil

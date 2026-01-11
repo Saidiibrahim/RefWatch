@@ -12,8 +12,11 @@ import OSLog
 import Supabase
 
 protocol SupabaseScheduleServing {
-  func fetchScheduledMatches(ownerId: UUID, updatedAfter: Date?) async throws -> [SupabaseScheduleAPI.RemoteScheduledMatch]
-  func syncScheduledMatch(_ request: SupabaseScheduleAPI.UpsertRequest) async throws -> SupabaseScheduleAPI.SyncResult
+  func fetchScheduledMatches(
+    ownerId: UUID,
+    updatedAfter: Date?) async throws -> [SupabaseScheduleAPI.RemoteScheduledMatch]
+  func syncScheduledMatch(
+    _ request: SupabaseScheduleAPI.UpsertRequest) async throws -> SupabaseScheduleAPI.SyncResult
   func deleteScheduledMatch(id: UUID) async throws
 }
 
@@ -71,8 +74,8 @@ struct SupabaseScheduleAPI: SupabaseScheduleServing {
   init(
     clientProvider: SupabaseClientProviding = SupabaseClientProvider.shared,
     decoder: JSONDecoder = SupabaseScheduleAPI.makeDecoder(),
-    isoFormatter: ISO8601DateFormatter = SupabaseScheduleAPI.makeISOFormatter()
-  ) {
+    isoFormatter: ISO8601DateFormatter = SupabaseScheduleAPI.makeISOFormatter())
+  {
     self.clientProvider = clientProvider
     self.decoder = decoder
     self.isoFormatter = isoFormatter
@@ -85,22 +88,40 @@ struct SupabaseScheduleAPI: SupabaseScheduleServing {
     }
 
     var filters: [SupabaseQueryFilter] = [
-      .equals("owner_id", value: ownerId.uuidString)
+      .equals("owner_id", value: ownerId.uuidString),
     ]
     if let updatedAfter {
-      let value = isoFormatter.string(from: updatedAfter)
+      let value = self.isoFormatter.string(from: updatedAfter)
       filters.append(.greaterThan("updated_at", value: value))
     }
 
+    let selectColumns = [
+      "id",
+      "owner_id",
+      "home_team_name",
+      "away_team_name",
+      "home_team_id",
+      "away_team_id",
+      "kickoff_at",
+      "status",
+      "competition_id",
+      "competition_name",
+      "venue_id",
+      "venue_name",
+      "notes",
+      "source_device_id",
+      "created_at",
+      "updated_at",
+    ].joined(separator: ", ")
     let rows: [ScheduledMatchRowDTO] = try await supabaseClient.fetchRows(
-      from: "scheduled_matches",
-      select: "id, owner_id, home_team_name, away_team_name, home_team_id, away_team_id, kickoff_at, status, competition_id, competition_name, venue_id, venue_name, notes, source_device_id, created_at, updated_at",
-      filters: filters,
-      orderBy: "updated_at",
-      ascending: true,
-      limit: 0,
-      decoder: decoder
-    )
+      SupabaseFetchRequest(
+        table: "scheduled_matches",
+        columns: selectColumns,
+        filters: filters,
+        orderBy: "updated_at",
+        ascending: true,
+        limit: 0,
+        decoder: self.decoder))
 
     return rows.map { row in
       RemoteScheduledMatch(
@@ -119,8 +140,7 @@ struct SupabaseScheduleAPI: SupabaseScheduleServing {
         notes: row.notes,
         sourceDeviceId: row.sourceDeviceId,
         createdAt: row.createdAt,
-        updatedAt: row.updatedAt
-      )
+        updatedAt: row.updatedAt)
     }
   }
 
@@ -144,8 +164,7 @@ struct SupabaseScheduleAPI: SupabaseScheduleServing {
       venueId: request.venueId,
       venueName: request.venueName,
       notes: request.notes,
-      sourceDeviceId: request.sourceDeviceId
-    )
+      sourceDeviceId: request.sourceDeviceId)
 
     let response = try await supabaseClient
       .from("scheduled_matches")
@@ -153,12 +172,12 @@ struct SupabaseScheduleAPI: SupabaseScheduleServing {
       .execute()
 
     if let raw = String(data: response.data, encoding: .utf8) {
-      log.debug("Scheduled match upsert response: \(raw, privacy: .public)")
+      self.log.debug("Scheduled match upsert response: \(raw, privacy: .public)")
     } else {
-      log.debug("Scheduled match upsert response size=\(response.data.count, privacy: .public) bytes")
+      self.log.debug("Scheduled match upsert response size=\(response.data.count, privacy: .public) bytes")
     }
 
-    let updatedRows = try Self.decodeUpsertResponse(data: response.data, decoder: decoder)
+    let updatedRows = try Self.decodeUpsertResponse(data: response.data, decoder: self.decoder)
     guard let updated = updatedRows.first else {
       throw APIError.invalidResponse
     }
@@ -198,8 +217,7 @@ extension SupabaseScheduleAPI {
 
       throw DecodingError.dataCorruptedError(
         in: container,
-        debugDescription: "Invalid date string: \(value)"
-      )
+        debugDescription: "Invalid date string: \(value)")
     }
 
     return decoder
@@ -232,21 +250,21 @@ extension SupabaseScheduleAPI {
   }
 }
 
-private extension SupabaseScheduleAPI {
-  static func parseTimestamp(
+extension SupabaseScheduleAPI {
+  fileprivate static func parseTimestamp(
     _ value: String,
     isoWithFraction: ISO8601DateFormatter,
-    isoWithoutFraction: ISO8601DateFormatter
-  ) -> Date? {
+    isoWithoutFraction: ISO8601DateFormatter) -> Date?
+  {
     if let date = isoWithFraction.date(from: value) ?? isoWithoutFraction.date(from: value) {
       return date
     }
 
-    let normalized = normalizePostgresTimestamp(value)
+    let normalized = self.normalizePostgresTimestamp(value)
     return isoWithFraction.date(from: normalized) ?? isoWithoutFraction.date(from: normalized)
   }
 
-  static func normalizePostgresTimestamp(_ value: String) -> String {
+  fileprivate static func normalizePostgresTimestamp(_ value: String) -> String {
     var result = value
 
     if let spaceIndex = result.firstIndex(of: " ") {
@@ -354,19 +372,19 @@ private struct ScheduledMatchUpsertDTO: Encodable, Sendable {
   // Explicit nonisolated Encodable conformance so it can be used with Sendable generics (Supabase upsert).
   nonisolated func encode(to encoder: Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(id, forKey: .id)
-    try container.encode(ownerId, forKey: .ownerId)
-    try container.encode(homeTeamName, forKey: .homeTeamName)
-    try container.encode(awayTeamName, forKey: .awayTeamName)
-    try container.encodeIfPresent(homeTeamId, forKey: .homeTeamId)
-    try container.encodeIfPresent(awayTeamId, forKey: .awayTeamId)
-    try container.encode(kickoffAt, forKey: .kickoffAt)
-    try container.encode(status, forKey: .status)
-    try container.encodeIfPresent(competitionId, forKey: .competitionId)
-    try container.encodeIfPresent(competitionName, forKey: .competitionName)
-    try container.encodeIfPresent(venueId, forKey: .venueId)
-    try container.encodeIfPresent(venueName, forKey: .venueName)
-    try container.encodeIfPresent(notes, forKey: .notes)
-    try container.encodeIfPresent(sourceDeviceId, forKey: .sourceDeviceId)
+    try container.encode(self.id, forKey: .id)
+    try container.encode(self.ownerId, forKey: .ownerId)
+    try container.encode(self.homeTeamName, forKey: .homeTeamName)
+    try container.encode(self.awayTeamName, forKey: .awayTeamName)
+    try container.encodeIfPresent(self.homeTeamId, forKey: .homeTeamId)
+    try container.encodeIfPresent(self.awayTeamId, forKey: .awayTeamId)
+    try container.encode(self.kickoffAt, forKey: .kickoffAt)
+    try container.encode(self.status, forKey: .status)
+    try container.encodeIfPresent(self.competitionId, forKey: .competitionId)
+    try container.encodeIfPresent(self.competitionName, forKey: .competitionName)
+    try container.encodeIfPresent(self.venueId, forKey: .venueId)
+    try container.encodeIfPresent(self.venueName, forKey: .venueName)
+    try container.encodeIfPresent(self.notes, forKey: .notes)
+    try container.encodeIfPresent(self.sourceDeviceId, forKey: .sourceDeviceId)
   }
 }

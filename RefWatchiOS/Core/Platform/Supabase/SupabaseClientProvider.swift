@@ -45,7 +45,16 @@ struct SupabaseQueryFilter: Equatable {
   static func `in`(_ column: String, values: [String]) -> SupabaseQueryFilter {
     SupabaseQueryFilter(column: column, op: .in, value: .collection(values))
   }
+}
 
+struct SupabaseFetchRequest {
+  let table: String
+  let columns: String
+  let filters: [SupabaseQueryFilter]
+  let orderBy: String?
+  let ascending: Bool
+  let limit: Int
+  let decoder: JSONDecoder
 }
 
 enum SupabaseClientError: Error, Equatable, Sendable {
@@ -53,29 +62,23 @@ enum SupabaseClientError: Error, Equatable, Sendable {
   case emptyRPCResponse
 }
 
+enum SupabaseTestClientError: Error, Equatable, Sendable {
+  case unavailable
+}
+
 protocol SupabaseClientRepresenting: AnyObject, Sendable {
   var functionsClient: SupabaseFunctionsClientRepresenting { get }
-  func fetchRows<T: Decodable>(
-    from table: String,
-    select columns: String,
-    filters: [SupabaseQueryFilter],
-    orderBy column: String?,
-    ascending: Bool,
-    limit: Int,
-    decoder: JSONDecoder
-  ) async throws -> [T]
-  func callRPC<Params: Encodable, Response: Decodable>(
+  func fetchRows<T: Decodable>(_ request: SupabaseFetchRequest) async throws -> [T]
+  func callRPC<Response: Decodable>(
     _ function: String,
-    params: Params,
+    params: some Encodable,
     encoder: JSONEncoder,
-    decoder: JSONDecoder
-  ) async throws -> Response
-  func upsertRows<Payload: Encodable, Response: Decodable>(
+    decoder: JSONDecoder) async throws -> Response
+  func upsertRows<Response: Decodable>(
     into table: String,
-    payload: Payload,
+    payload: some Encodable,
     onConflict: String,
-    decoder: JSONDecoder
-  ) async throws -> Response
+    decoder: JSONDecoder) async throws -> Response
 }
 
 protocol SupabaseFunctionsClientRepresenting: AnyObject, Sendable {
@@ -83,31 +86,67 @@ protocol SupabaseFunctionsClientRepresenting: AnyObject, Sendable {
   func invoke<Response>(
     _ functionName: String,
     options: FunctionInvokeOptions,
-    decode: (Data, HTTPURLResponse) throws -> Response
-  ) async throws -> Response
+    decode: (Data, HTTPURLResponse) throws -> Response) async throws -> Response
   func invoke<T: Decodable>(
     _ functionName: String,
     options: FunctionInvokeOptions,
-    decoder: JSONDecoder
-  ) async throws -> T
+    decoder: JSONDecoder) async throws -> T
+}
+
+private final class TestSupabaseFunctionsClient: SupabaseFunctionsClientRepresenting, @unchecked Sendable {
+  func setAuth(token: String?) {}
+
+  func invoke<Response>(
+    _ functionName: String,
+    options: FunctionInvokeOptions,
+    decode: (Data, HTTPURLResponse) throws -> Response) async throws -> Response
+  {
+    throw SupabaseTestClientError.unavailable
+  }
+
+  func invoke<T: Decodable>(
+    _ functionName: String,
+    options: FunctionInvokeOptions,
+    decoder: JSONDecoder) async throws -> T
+  {
+    throw SupabaseTestClientError.unavailable
+  }
+}
+
+private final class TestSupabaseClient: SupabaseClientRepresenting, @unchecked Sendable {
+  let functionsClient: SupabaseFunctionsClientRepresenting = TestSupabaseFunctionsClient()
+
+  func fetchRows<T: Decodable>(_ request: SupabaseFetchRequest) async throws -> [T] {
+    []
+  }
+
+  func callRPC<Response: Decodable>(
+    _ function: String,
+    params: some Encodable,
+    encoder: JSONEncoder,
+    decoder: JSONDecoder) async throws -> Response
+  {
+    throw SupabaseTestClientError.unavailable
+  }
+
+  func upsertRows<Response: Decodable>(
+    into table: String,
+    payload: some Encodable,
+    onConflict: String,
+    decoder: JSONDecoder) async throws -> Response
+  {
+    throw SupabaseTestClientError.unavailable
+  }
 }
 
 // The SDK types are now Sendable by default in modern Supabase SDK versions
 
 extension SupabaseClient: SupabaseClientRepresenting {
   var functionsClient: SupabaseFunctionsClientRepresenting { functions }
-  func fetchRows<T: Decodable>(
-    from table: String,
-    select columns: String,
-    filters: [SupabaseQueryFilter],
-    orderBy column: String?,
-    ascending: Bool,
-    limit: Int,
-    decoder: JSONDecoder
-  ) async throws -> [T] {
-    var filterQuery = from(table).select(columns)
+  func fetchRows<T: Decodable>(_ request: SupabaseFetchRequest) async throws -> [T] {
+    var filterQuery = from(request.table).select(request.columns)
 
-    for filter in filters {
+    for filter in request.filters {
       switch filter.op {
       case .equals:
         if case let .scalar(value) = filter.value {
@@ -126,14 +165,14 @@ extension SupabaseClient: SupabaseClientRepresenting {
 
     var query: PostgrestTransformBuilder = filterQuery
 
-    if let column {
+    if let column = request.orderBy {
       // Supabase Swift updated signatures: first params are unlabeled.
       // Using unlabeled column + limit avoids "Extraneous argument label" errors.
-      query = query.order(column, ascending: ascending)
+      query = query.order(column, ascending: request.ascending)
     }
 
-    if limit > 0 {
-      query = query.limit(limit)
+    if request.limit > 0 {
+      query = query.limit(request.limit)
     }
 
     let response = try await query.execute()
@@ -141,15 +180,15 @@ extension SupabaseClient: SupabaseClientRepresenting {
     if data.isEmpty {
       return []
     }
-    return try decoder.decode([T].self, from: data)
+    return try request.decoder.decode([T].self, from: data)
   }
 
-  func callRPC<Params: Encodable, Response: Decodable>(
+  func callRPC<Response: Decodable>(
     _ function: String,
-    params: Params,
+    params: some Encodable,
     encoder: JSONEncoder,
-    decoder: JSONDecoder
-  ) async throws -> Response {
+    decoder: JSONDecoder) async throws -> Response
+  {
     let encodedParams = try encoder.encode(params)
     let jsonObject = try JSONSerialization.jsonObject(with: encodedParams)
     guard let dictionary = jsonObject as? [String: Any] else {
@@ -159,8 +198,7 @@ extension SupabaseClient: SupabaseClientRepresenting {
     let payload = try EncodableDictionary(anyDictionary: dictionary)
     let response = try await self.rpc(
       function,
-      params: payload
-    ).execute()
+      params: payload).execute()
     let data = response.data
     guard data.isEmpty == false else {
       throw SupabaseClientError.emptyRPCResponse
@@ -168,12 +206,12 @@ extension SupabaseClient: SupabaseClientRepresenting {
     return try decoder.decode(Response.self, from: data)
   }
 
-  func upsertRows<Payload, Response>(
+  func upsertRows<Response>(
     into table: String,
-    payload: Payload,
+    payload: some Encodable,
     onConflict: String,
-    decoder: JSONDecoder
-  ) async throws -> Response where Payload : Encodable, Response : Decodable {
+    decoder: JSONDecoder) async throws -> Response where Response: Decodable
+  {
     let response = try await from(table)
       .upsert(payload, onConflict: onConflict, returning: .representation)
       .execute()
@@ -195,7 +233,7 @@ private struct EncodableDictionary: Encodable, Sendable {
 
   nonisolated func encode(to encoder: Encoder) throws {
     var container = encoder.container(keyedBy: DynamicCodingKey.self)
-    for (key, value) in values {
+    for (key, value) in self.values {
       guard let codingKey = DynamicCodingKey(stringValue: key) else {
         throw SupabaseClientError.invalidRPCParameters
       }
@@ -213,7 +251,7 @@ private struct DynamicCodingKey: CodingKey, Sendable {
   }
 
   init?(intValue: Int) {
-    return nil
+    nil
   }
 }
 
@@ -246,7 +284,7 @@ private enum JSONValue: Sendable {
       }
       self = .object(converted)
     case let array as [Any]:
-      self = .array(try array.map { try JSONValue(any: $0) })
+      self = try .array(array.map { try JSONValue(any: $0) })
     case is NSNull:
       self = .null
     default:
@@ -294,6 +332,7 @@ extension FunctionsClient: SupabaseFunctionsClientRepresenting {}
 
 final class SupabaseClientProvider: SupabaseClientProviding {
   static let shared = SupabaseClientProvider()
+  private static let isRunningTests = TestEnvironment.isRunningTests
 
   typealias ClientFactory = (SupabaseEnvironment) throws -> SupabaseClientRepresenting
 
@@ -309,17 +348,16 @@ final class SupabaseClientProvider: SupabaseClientProviding {
       let instance = SupabaseClient(
         supabaseURL: environment.url,
         supabaseKey: environment.anonKey,
-        options: SupabaseClientOptions()
-      )
+        options: SupabaseClientOptions())
       return instance
-    }
-  ) {
+    })
+  {
     self.environmentLoader = environmentLoader
     self.clientFactory = clientFactory
   }
 
   func client() throws -> SupabaseClientRepresenting {
-    lock.lock()
+    self.lock.lock()
     defer { lock.unlock() }
 
     if let cachedClient {
@@ -338,7 +376,9 @@ final class SupabaseClientProvider: SupabaseClientProviding {
       // unwrap. Surfacing a descriptive configuration error here makes Settings
       // diagnostics much clearer and avoids a hard crash.
       guard let host = environment.url.host, host.isEmpty == false else {
-        AppLog.supabase.error("Supabase client creation failed: invalid URL host - \(environment.url.absoluteString, privacy: .public)")
+        AppLog.supabase
+          .error(
+            "Supabase client creation failed: invalid URL host - \(environment.url.absoluteString, privacy: .public)")
         throw SupabaseEnvironment.ConfigurationError.invalidURL(environment.url.absoluteString)
       }
 
@@ -347,13 +387,23 @@ final class SupabaseClientProvider: SupabaseClientProviding {
       // Diagnostics: log resolved host and anon key length only (not the key
       // itself). Helps quickly spot misconfiguration in local/dev builds.
       let hostForLog = environment.url.host ?? "<nil>"
-      AppLog.supabase.info("Successfully created Supabase client host=\(hostForLog, privacy: .public) anonLen=\(environment.anonKey.count)")
+      AppLog.supabase
+        .info(
+          "Supabase client created host=\(hostForLog, privacy: .public) anonLen=\(environment.anonKey.count)")
 
       cachedClient = instance
-      cachedEnvironment = environment
+      self.cachedEnvironment = environment
       return instance
 
     } catch {
+      if Self.isRunningTests {
+        let testClient = TestSupabaseClient()
+        AppLog.supabase
+          .warning(
+            "Supabase config missing during tests; using test client. \(error.localizedDescription, privacy: .public)")
+        cachedClient = testClient
+        return testClient
+      }
       AppLog.supabase.error("Failed to create Supabase client: \(error.localizedDescription, privacy: .public)")
       throw error
     }
@@ -387,7 +437,8 @@ final class SupabaseClientProvider: SupabaseClientProviding {
       } catch {
         // Clear any stale token to prevent using outdated credentials
         client.functionsClient.setAuth(token: nil)
-        AppLog.supabase.error("Functions auth failed - no valid session: \(error.localizedDescription, privacy: .public)")
+        AppLog.supabase
+          .error("Functions auth failed - no valid session: \(error.localizedDescription, privacy: .public)")
         // Note: Caller should handle this by ensuring user is signed in before invoking functions
       }
     } else {
@@ -397,9 +448,9 @@ final class SupabaseClientProvider: SupabaseClientProviding {
   }
 
   func reset() {
-    lock.lock()
-    cachedClient = nil
-    cachedEnvironment = nil
-    lock.unlock()
+    self.lock.lock()
+    self.cachedClient = nil
+    self.cachedEnvironment = nil
+    self.lock.unlock()
   }
 }

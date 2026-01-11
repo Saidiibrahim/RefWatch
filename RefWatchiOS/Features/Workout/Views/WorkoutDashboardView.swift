@@ -1,6 +1,6 @@
-import SwiftUI
 import RefWatchCore
 import RefWorkoutCore
+import SwiftUI
 
 struct WorkoutDashboardView: View {
   @StateObject private var viewModel: WorkoutDashboardViewModel
@@ -17,8 +17,8 @@ struct WorkoutDashboardView: View {
   var body: some View {
     NavigationStack {
       ScrollView {
-        LazyVStack(spacing: theme.spacing.stackSpacing, pinnedViews: []) {
-          if viewModel.authorization.state != .authorized {
+        LazyVStack(spacing: self.theme.spacing.stackSpacing, pinnedViews: []) {
+          if self.viewModel.authorization.state != .authorized {
             authorizationCard
           }
 
@@ -28,99 +28,101 @@ struct WorkoutDashboardView: View {
 
           historySection
         }
-        .padding(.vertical, theme.spacing.l)
-        .padding(.horizontal, theme.spacing.l)
+        .padding(.vertical, self.theme.spacing.l)
+        .padding(.horizontal, self.theme.spacing.l)
       }
-      .background(theme.colors.backgroundPrimary.ignoresSafeArea())
+      .background(self.theme.colors.backgroundPrimary.ignoresSafeArea())
       .navigationTitle("Workout")
       .toolbar {
         ToolbarItem(placement: .navigationBarTrailing) {
-          Button { viewModel.reloadPresets() } label: {
+          Button { self.viewModel.reloadPresets() } label: {
             Image(systemName: "arrow.clockwise")
           }
         }
       }
       .refreshable {
-        await viewModel.refresh()
+        await self.viewModel.refresh()
       }
     }
     .onAppear {
-      guard !didLoad else { return }
-      didLoad = true
-      viewModel.load()
+      guard !self.didLoad else { return }
+      self.didLoad = true
+      self.viewModel.load()
     }
-    .onChange(of: viewModel.errorMessage) { _, message in
-      showError = message != nil
+    .onChange(of: self.viewModel.errorMessage) { _, message in
+      self.showError = message != nil
     }
-    .alert("Workout Error", isPresented: $showError) {
+    .alert("Workout Error", isPresented: self.$showError) {
       Button("OK", role: .cancel) {
-        viewModel.errorMessage = nil
+        self.viewModel.errorMessage = nil
       }
     } message: {
-      Text(viewModel.errorMessage ?? "An unexpected error occurred.")
+      Text(self.viewModel.errorMessage ?? "An unexpected error occurred.")
     }
-    .alert("Start on Your Watch", isPresented: $showStartReminder) {
+    .alert("Start on Your Watch", isPresented: self.$showStartReminder) {
       Button("OK", role: .cancel) {}
     } message: {
-      Text("Launch \(selectedPresetTitle) from RefWatch on Apple Watch to capture live metrics.")
+      Text("Launch \(self.selectedPresetTitle) from RefWatch on Apple Watch to capture live metrics.")
     }
   }
 }
 
-private extension WorkoutDashboardView {
-  var authorizationCard: some View {
+extension WorkoutDashboardView {
+  private var authorizationCard: some View {
     ThemeCardContainer(role: .secondary) {
-      VStack(alignment: .leading, spacing: theme.spacing.s) {
-        Text(authorizationMessage)
-          .font(theme.typography.cardMeta)
-          .foregroundStyle(theme.colors.textSecondary)
+      VStack(alignment: .leading, spacing: self.theme.spacing.s) {
+        Text(self.authorizationMessage)
+          .font(self.theme.typography.cardMeta)
+          .foregroundStyle(self.theme.colors.textSecondary)
 
-        Button(action: viewModel.requestAuthorization) {
-          Text(viewModel.authorization.state == .notDetermined ? "Grant Health Access" : "Review Health Access")
-            .font(theme.typography.button)
+        Button(action: self.viewModel.requestAuthorization) {
+          Text(self.viewModel.authorization.state == .notDetermined ? "Grant Health Access" : "Review Health Access")
+            .font(self.theme.typography.button)
             .frame(maxWidth: .infinity)
         }
         .buttonStyle(.borderedProminent)
-        .tint(theme.colors.accentSecondary)
+        .tint(self.theme.colors.accentSecondary)
       }
     }
   }
 
-  var overviewCard: some View {
+  private var overviewCard: some View {
     ThemeCardContainer(role: .secondary) {
-      VStack(alignment: .leading, spacing: theme.spacing.m) {
+      VStack(alignment: .leading, spacing: self.theme.spacing.m) {
         Text("Overview")
-          .font(theme.typography.heroSubtitle)
-          .foregroundStyle(theme.colors.textPrimary)
+          .font(self.theme.typography.heroSubtitle)
+          .foregroundStyle(self.theme.colors.textPrimary)
 
-        HStack(spacing: theme.spacing.l) {
-          statBlock(title: "Presets", value: "\(viewModel.presets.count)")
+        HStack(spacing: self.theme.spacing.l) {
+          self.statBlock(title: "Presets", value: "\(self.viewModel.presets.count)")
           Divider()
-            .background(theme.colors.outlineMuted)
-          statBlock(title: "Recent Sessions", value: "\(viewModel.recentSessions.count)")
+            .background(self.theme.colors.outlineMuted)
+          self.statBlock(title: "Recent Sessions", value: "\(self.viewModel.recentSessions.count)")
         }
 
-        Text("Start workouts on your Apple Watch to capture real-time metrics. Presets and history stay in sync once connectivity is established.")
-          .font(theme.typography.cardMeta)
-          .foregroundStyle(theme.colors.textSecondary)
+        Text(
+          "Start workouts on your Apple Watch to capture real-time metrics. " +
+            "Presets and history stay in sync once connectivity is established.")
+          .font(self.theme.typography.cardMeta)
+          .foregroundStyle(self.theme.colors.textSecondary)
           .fixedSize(horizontal: false, vertical: true)
       }
     }
   }
 
   @ViewBuilder
-  var presetsSection: some View {
-    VStack(alignment: .leading, spacing: theme.spacing.s) {
-      sectionHeader("Presets")
+  private var presetsSection: some View {
+    VStack(alignment: .leading, spacing: self.theme.spacing.s) {
+      self.sectionHeader("Presets")
 
-      if viewModel.presets.isEmpty {
+      if self.viewModel.presets.isEmpty {
         ThemeCardContainer(role: .secondary) {
           Text("Create your first workout preset to build repeatable training sessions.")
-            .font(theme.typography.cardMeta)
-            .foregroundStyle(theme.colors.textSecondary)
+            .font(self.theme.typography.cardMeta)
+            .foregroundStyle(self.theme.colors.textSecondary)
         }
       } else {
-        ForEach(viewModel.presets) { preset in
+        ForEach(self.viewModel.presets) { preset in
           NavigationLink {
             Text("Preset detail for \(preset.title) coming soon.")
               .padding()
@@ -128,12 +130,11 @@ private extension WorkoutDashboardView {
           } label: {
             WorkoutPresetCard(
               preset: preset,
-              presetLine: presetLine(preset),
+              presetLine: self.presetLine(preset),
               onStart: {
-                selectedPresetTitle = preset.title
-                showStartReminder = true
-              }
-            )
+                self.selectedPresetTitle = preset.title
+                self.showStartReminder = true
+              })
           }
           .buttonStyle(.plain)
         }
@@ -143,17 +144,17 @@ private extension WorkoutDashboardView {
         // Placeholder for preset creation flow
       } label: {
         ThemeCardContainer(role: .primary, minHeight: 72) {
-          HStack(spacing: theme.spacing.m) {
+          HStack(spacing: self.theme.spacing.m) {
             Image(systemName: "plus.circle.fill")
-              .font(theme.typography.iconAccent)
-              .foregroundStyle(theme.colors.textPrimary)
-            VStack(alignment: .leading, spacing: theme.spacing.xs) {
+              .font(self.theme.typography.iconAccent)
+              .foregroundStyle(self.theme.colors.textPrimary)
+            VStack(alignment: .leading, spacing: self.theme.spacing.xs) {
               Text("New Preset")
-                .font(theme.typography.heroSubtitle)
-                .foregroundStyle(theme.colors.textPrimary)
+                .font(self.theme.typography.heroSubtitle)
+                .foregroundStyle(self.theme.colors.textPrimary)
               Text("Design referee-specific drills and repeats from here.")
-                .font(theme.typography.cardMeta)
-                .foregroundStyle(theme.colors.textPrimary.opacity(0.8))
+                .font(self.theme.typography.cardMeta)
+                .foregroundStyle(self.theme.colors.textPrimary.opacity(0.8))
             }
             Spacer()
           }
@@ -164,18 +165,18 @@ private extension WorkoutDashboardView {
   }
 
   @ViewBuilder
-  var historySection: some View {
-    VStack(alignment: .leading, spacing: theme.spacing.s) {
-      sectionHeader("Recent Sessions")
+  private var historySection: some View {
+    VStack(alignment: .leading, spacing: self.theme.spacing.s) {
+      self.sectionHeader("Recent Sessions")
 
-      if viewModel.recentSessions.isEmpty {
+      if self.viewModel.recentSessions.isEmpty {
         ThemeCardContainer(role: .secondary) {
           Text("Completed workouts will appear here once synced from the watch.")
-            .font(theme.typography.cardMeta)
-            .foregroundStyle(theme.colors.textSecondary)
+            .font(self.theme.typography.cardMeta)
+            .foregroundStyle(self.theme.colors.textSecondary)
         }
       } else {
-        ForEach(viewModel.recentSessions) { session in
+        ForEach(self.viewModel.recentSessions) { session in
           NavigationLink {
             Text("Session detail for \(session.title) coming soon.")
               .padding()
@@ -183,8 +184,7 @@ private extension WorkoutDashboardView {
           } label: {
             WorkoutHistoryCard(
               session: session,
-              summaryLine: sessionLine(session)
-            )
+              summaryLine: self.sessionLine(session))
           }
           .buttonStyle(.plain)
         }
@@ -192,58 +192,58 @@ private extension WorkoutDashboardView {
     }
   }
 
-  func statBlock(title: String, value: String) -> some View {
-    VStack(alignment: .leading, spacing: theme.spacing.xs) {
+  private func statBlock(title: String, value: String) -> some View {
+    VStack(alignment: .leading, spacing: self.theme.spacing.xs) {
       Text(title)
-        .font(theme.typography.cardMeta)
-        .foregroundStyle(theme.colors.textSecondary)
+        .font(self.theme.typography.cardMeta)
+        .foregroundStyle(self.theme.colors.textSecondary)
       Text(value)
-        .font(theme.typography.heroTitle)
-        .foregroundStyle(theme.colors.textPrimary)
+        .font(self.theme.typography.heroTitle)
+        .foregroundStyle(self.theme.colors.textPrimary)
     }
   }
 
-  func sectionHeader(_ title: String) -> some View {
+  private func sectionHeader(_ title: String) -> some View {
     Text(title)
-      .font(theme.typography.heroSubtitle)
-      .foregroundStyle(theme.colors.textPrimary)
-      .padding(.horizontal, theme.spacing.xs)
+      .font(self.theme.typography.heroSubtitle)
+      .foregroundStyle(self.theme.colors.textPrimary)
+      .padding(.horizontal, self.theme.spacing.xs)
   }
 
-  var authorizationMessage: String {
-    switch viewModel.authorization.state {
+  private var authorizationMessage: String {
+    switch self.viewModel.authorization.state {
     case .notDetermined:
-      return "RefWatch needs permission to read workouts, heart rate, and distance from Health to power the dashboard."
+      "RefWatch needs permission to read workouts, heart rate, and distance from Health to power the dashboard."
     case .denied:
-      return "Health access is currently denied. Update permissions in the Health app to sync workouts."
+      "Health access is currently denied. Update permissions in the Health app to sync workouts."
     case .limited:
-      return "Health access is limited. Allow all metrics for richer insights."
+      "Health access is limited. Allow all metrics for richer insights."
     case .authorized:
-      return ""
+      ""
     }
   }
 
-  func presetLine(_ preset: WorkoutPreset) -> String {
+  fileprivate func presetLine(_ preset: WorkoutPreset) -> String {
     var parts: [String] = []
     let duration = preset.totalPlannedDuration
     if duration > 0 {
-      parts.append(formatDuration(duration))
+      parts.append(self.formatDuration(duration))
     }
     let distance = preset.totalPlannedDistance
     if distance > 0 {
-      parts.append(formatDistance(distance))
+      parts.append(self.formatDistance(distance))
     }
     parts.append(preset.kind.displayName)
     return parts.joined(separator: " • ")
   }
 
-  func sessionLine(_ session: WorkoutSession) -> String {
+  private func sessionLine(_ session: WorkoutSession) -> String {
     var parts: [String] = []
     if let duration = session.totalDuration ?? session.summary.duration {
-      parts.append(formatDuration(duration))
+      parts.append(self.formatDuration(duration))
     }
     if let distance = session.summary.totalDistance {
-      parts.append(formatDistance(distance))
+      parts.append(self.formatDistance(distance))
     }
     if let completed = session.endedAt {
       let formatter = RelativeDateTimeFormatter()
@@ -253,7 +253,7 @@ private extension WorkoutDashboardView {
     return parts.joined(separator: " • ")
   }
 
-  func formatDuration(_ interval: TimeInterval) -> String {
+  private func formatDuration(_ interval: TimeInterval) -> String {
     let formatter = DateComponentsFormatter()
     formatter.unitsStyle = .abbreviated
     formatter.allowedUnits = [.hour, .minute]
@@ -261,7 +261,7 @@ private extension WorkoutDashboardView {
     return formatter.string(from: interval) ?? "0m"
   }
 
-  func formatDistance(_ meters: Double) -> String {
+  private func formatDistance(_ meters: Double) -> String {
     String(format: "%.1f km", meters / 1000)
   }
 }
@@ -283,33 +283,29 @@ private struct ThemeCardSurfaceStyle {
 private func surfaceStyle(for role: ThemeCardRole, theme: AnyTheme) -> ThemeCardSurfaceStyle {
   switch role {
   case .primary:
-    return ThemeCardSurfaceStyle(
+    ThemeCardSurfaceStyle(
       background: theme.colors.accentPrimary,
       outline: nil,
       titleColor: theme.colors.textPrimary,
-      subtitleColor: theme.colors.textPrimary.opacity(0.84)
-    )
+      subtitleColor: theme.colors.textPrimary.opacity(0.84))
   case .secondary:
-    return ThemeCardSurfaceStyle(
+    ThemeCardSurfaceStyle(
       background: theme.colors.backgroundElevated,
       outline: theme.colors.outlineMuted,
       titleColor: theme.colors.textPrimary,
-      subtitleColor: theme.colors.textSecondary
-    )
+      subtitleColor: theme.colors.textSecondary)
   case .positive:
-    return ThemeCardSurfaceStyle(
+    ThemeCardSurfaceStyle(
       background: theme.colors.matchPositive,
       outline: nil,
       titleColor: Color.white,
-      subtitleColor: Color.white.opacity(0.85)
-    )
+      subtitleColor: Color.white.opacity(0.85))
   case .destructive:
-    return ThemeCardSurfaceStyle(
+    ThemeCardSurfaceStyle(
       background: theme.colors.matchCritical,
       outline: nil,
       titleColor: theme.colors.textPrimary,
-      subtitleColor: theme.colors.textPrimary.opacity(0.84)
-    )
+      subtitleColor: theme.colors.textPrimary.opacity(0.84))
   }
 }
 
@@ -329,26 +325,23 @@ private struct ThemeCardContainer<Content: View>: View {
   var body: some View {
     let styling = surfaceStyle(for: role, theme: theme)
 
-    content
-      .padding(.vertical, theme.spacing.m)
-      .padding(.horizontal, theme.components.cardHorizontalPadding)
+    self.content
+      .padding(.vertical, self.theme.spacing.m)
+      .padding(.horizontal, self.theme.components.cardHorizontalPadding)
       .frame(maxWidth: .infinity, alignment: .leading)
-      .frame(minHeight: minHeight, alignment: .leading)
+      .frame(minHeight: self.minHeight, alignment: .leading)
       .background(
-        RoundedRectangle(cornerRadius: theme.components.cardCornerRadius, style: .continuous)
+        RoundedRectangle(cornerRadius: self.theme.components.cardCornerRadius, style: .continuous)
           .fill(styling.background)
           .overlay(
-            RoundedRectangle(cornerRadius: theme.components.cardCornerRadius, style: .continuous)
-              .stroke(styling.outline ?? .clear, lineWidth: styling.outline == nil ? 0 : 1)
-          )
-      )
+            RoundedRectangle(cornerRadius: self.theme.components.cardCornerRadius, style: .continuous)
+              .stroke(styling.outline ?? .clear, lineWidth: styling.outline == nil ? 0 : 1)))
       .shadow(
-        color: Color.black.opacity(theme.components.cardShadowOpacity),
-        radius: theme.components.cardShadowRadius,
+        color: Color.black.opacity(self.theme.components.cardShadowOpacity),
+        radius: self.theme.components.cardShadowRadius,
         x: 0,
-        y: theme.components.cardShadowYOffset
-      )
-      .contentShape(RoundedRectangle(cornerRadius: theme.components.cardCornerRadius, style: .continuous))
+        y: self.theme.components.cardShadowYOffset)
+      .contentShape(RoundedRectangle(cornerRadius: self.theme.components.cardCornerRadius, style: .continuous))
   }
 }
 
@@ -368,49 +361,48 @@ private struct WorkoutPresetCard: View {
     [
       QuickAction(icon: "speaker.slash.fill", accessibilityLabel: "Mute cues"),
       QuickAction(icon: "bell.slash.fill", accessibilityLabel: "Silence reminders"),
-      QuickAction(icon: "clock.arrow.circlepath", accessibilityLabel: "Repeat intervals")
+      QuickAction(icon: "clock.arrow.circlepath", accessibilityLabel: "Repeat intervals"),
     ]
   }
 
   var body: some View {
     ThemeCardContainer(role: .secondary, minHeight: 120) {
-      VStack(alignment: .leading, spacing: theme.spacing.m) {
-        HStack(alignment: .top, spacing: theme.spacing.m) {
-          workoutGlyph
+      VStack(alignment: .leading, spacing: self.theme.spacing.m) {
+        HStack(alignment: .top, spacing: self.theme.spacing.m) {
+          self.workoutGlyph
 
-          VStack(alignment: .leading, spacing: theme.spacing.xs) {
-            Text(preset.title)
-              .font(theme.typography.heroTitle)
-              .foregroundStyle(theme.colors.textPrimary)
+          VStack(alignment: .leading, spacing: self.theme.spacing.xs) {
+            Text(self.preset.title)
+              .font(self.theme.typography.heroTitle)
+              .foregroundStyle(self.theme.colors.textPrimary)
               .lineLimit(1)
               .truncationMode(.tail)
 
-            Text(presetLine)
-              .font(theme.typography.cardMeta)
-              .foregroundStyle(theme.colors.textSecondary)
+            Text(self.presetLine)
+              .font(self.theme.typography.cardMeta)
+              .foregroundStyle(self.theme.colors.textSecondary)
           }
 
           Spacer()
 
-          Button(action: onStart) {
+          Button(action: self.onStart) {
             Image(systemName: "play.fill")
               .font(.system(size: 18, weight: .semibold))
-              .foregroundStyle(theme.colors.textInverted)
+              .foregroundStyle(self.theme.colors.textInverted)
               .frame(width: 44, height: 44)
-              .background(Circle().fill(theme.colors.matchPositive))
+              .background(Circle().fill(self.theme.colors.matchPositive))
           }
           .buttonStyle(.plain)
-          .accessibilityLabel(Text("Start \(preset.title) on watch"))
+          .accessibilityLabel(Text("Start \(self.preset.title) on watch"))
         }
 
-        HStack(spacing: theme.spacing.s) {
-          ForEach(quickActions) { action in
-            RoundedRectangle(cornerRadius: theme.components.controlCornerRadius)
-              .fill(theme.colors.backgroundSecondary)
+        HStack(spacing: self.theme.spacing.s) {
+          ForEach(self.quickActions) { action in
+            RoundedRectangle(cornerRadius: self.theme.components.controlCornerRadius)
+              .fill(self.theme.colors.backgroundSecondary)
               .overlay(
                 Image(systemName: action.icon)
-                  .foregroundStyle(theme.colors.textSecondary)
-              )
+                  .foregroundStyle(self.theme.colors.textSecondary))
               .frame(maxWidth: .infinity)
               .frame(height: 44)
               .accessibilityLabel(Text(action.accessibilityLabel))
@@ -422,25 +414,25 @@ private struct WorkoutPresetCard: View {
 
   private var workoutGlyph: some View {
     ZStack {
-      RoundedRectangle(cornerRadius: theme.components.controlCornerRadius)
-        .fill(theme.colors.matchPositive.opacity(0.18))
+      RoundedRectangle(cornerRadius: self.theme.components.controlCornerRadius)
+        .fill(self.theme.colors.matchPositive.opacity(0.18))
         .frame(width: 48, height: 48)
-      Image(systemName: icon(for: preset.kind))
+      Image(systemName: self.icon(for: self.preset.kind))
         .font(.system(size: 24, weight: .medium))
-        .foregroundStyle(theme.colors.matchPositive)
+        .foregroundStyle(self.theme.colors.matchPositive)
     }
   }
 
   private func icon(for kind: WorkoutKind) -> String {
     switch kind {
-    case .outdoorRun: return "figure.run"
-    case .outdoorWalk: return "figure.walk"
-    case .indoorRun: return "figure.run.circle"
-    case .indoorCycle: return "bicycle"
-    case .strength: return "dumbbell.fill"
-    case .mobility: return "figure.cooldown"
-    case .refereeDrill: return "whistle"
-    case .custom: return "slider.horizontal.3"
+    case .outdoorRun: "figure.run"
+    case .outdoorWalk: "figure.walk"
+    case .indoorRun: "figure.run.circle"
+    case .indoorCycle: "bicycle"
+    case .strength: "dumbbell.fill"
+    case .mobility: "figure.cooldown"
+    case .refereeDrill: "whistle"
+    case .custom: "slider.horizontal.3"
     }
   }
 }
@@ -452,19 +444,19 @@ private struct WorkoutHistoryCard: View {
 
   var body: some View {
     ThemeCardContainer(role: .secondary, minHeight: 96) {
-      VStack(alignment: .leading, spacing: theme.spacing.xs) {
-        Text(session.title)
-          .font(theme.typography.heroSubtitle)
-          .foregroundStyle(theme.colors.textPrimary)
+      VStack(alignment: .leading, spacing: self.theme.spacing.xs) {
+        Text(self.session.title)
+          .font(self.theme.typography.heroSubtitle)
+          .foregroundStyle(self.theme.colors.textPrimary)
           .lineLimit(1)
 
-        Text(session.kind.displayName)
-          .font(theme.typography.cardMeta)
-          .foregroundStyle(theme.colors.textSecondary)
+        Text(self.session.kind.displayName)
+          .font(self.theme.typography.cardMeta)
+          .foregroundStyle(self.theme.colors.textSecondary)
 
-        Text(summaryLine)
-          .font(theme.typography.cardMeta)
-          .foregroundStyle(theme.colors.textSecondary)
+        Text(self.summaryLine)
+          .font(self.theme.typography.cardMeta)
+          .foregroundStyle(self.theme.colors.textSecondary)
       }
     }
   }

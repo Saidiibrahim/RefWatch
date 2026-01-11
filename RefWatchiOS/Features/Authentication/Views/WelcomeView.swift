@@ -10,27 +10,27 @@ import SwiftUI
 
 /// Centralized color helper for WelcomeView that adapts to light/dark mode
 struct WelcomeColors {
-    let background: Color
-    let secondaryButtonTint: Color
-    let privacyNoteText: Color
+  let background: Color
+  let secondaryButtonTint: Color
+  let privacyNoteText: Color
 
-    init(theme: AnyTheme, colorScheme: ColorScheme) {
-        let accentPrimary = theme.colors.accentPrimary
+  init(theme: AnyTheme, colorScheme: ColorScheme) {
+    let accentPrimary = theme.colors.accentPrimary
 
-        switch colorScheme {
-        case .dark:
-            // Preserve existing dark mode behavior
-            background = theme.colors.backgroundPrimary
-            secondaryButtonTint = theme.colors.textSecondary.opacity(0.9)
-            privacyNoteText = theme.colors.textSecondary.opacity(0.86)
+    switch colorScheme {
+    case .dark:
+      // Preserve existing dark mode behavior
+      self.background = theme.colors.backgroundPrimary
+      self.secondaryButtonTint = theme.colors.textSecondary.opacity(0.9)
+      self.privacyNoteText = theme.colors.textSecondary.opacity(0.86)
 
-        default: // .light
-            // New minimal, clean light mode
-            background = Color(uiColor: .systemBackground)
-            secondaryButtonTint = accentPrimary
-            privacyNoteText = Color(uiColor: .secondaryLabel).opacity(0.75)
-        }
+    default: // .light
+      // New minimal, clean light mode
+      self.background = Color(uiColor: .systemBackground)
+      self.secondaryButtonTint = accentPrimary
+      self.privacyNoteText = Color(uiColor: .secondaryLabel).opacity(0.75)
     }
+  }
 }
 
 /// A focused welcome experience that highlights key RefWatch touchpoints before sign-in.
@@ -43,7 +43,7 @@ struct WelcomeView: View {
   @State private var currentSlideIndex = 0
 
   private var slides: [WelcomeSlide] {
-    WelcomeSlide.defaultSlides(theme: theme)
+    WelcomeSlide.defaultSlides(theme: self.theme)
   }
 
   var body: some View {
@@ -51,89 +51,108 @@ struct WelcomeView: View {
       colors.background.ignoresSafeArea()
 
       ScrollView(.vertical, showsIndicators: false) {
-        VStack(spacing: theme.spacing.stackXL) {
+        VStack(spacing: self.theme.spacing.stackXL) {
           carousel
-          OnboardingPageIndicator(total: slides.count, currentIndex: currentSlideIndex)
+          OnboardingPageIndicator(total: self.slides.count, currentIndex: self.currentSlideIndex)
           primaryActions
           privacyNote
         }
         .padding(.horizontal, horizontalPadding)
-        .padding(.vertical, theme.spacing.stackXL)
+        .padding(.vertical, self.theme.spacing.stackXL)
         .frame(maxWidth: .infinity)
       }
     }
-    .onChange(of: slides.count) { _, newCount in
-      currentSlideIndex = min(currentSlideIndex, max(newCount - 1, 0))
+    .onChange(of: self.slides.count) { _, newCount in
+      self.currentSlideIndex = min(self.currentSlideIndex, max(newCount - 1, 0))
     }
   }
 }
 
-private extension WelcomeView {
-  var colors: WelcomeColors {
-    WelcomeColors(theme: theme, colorScheme: colorScheme)
+extension WelcomeView {
+  fileprivate var colors: WelcomeColors {
+    WelcomeColors(theme: self.theme, colorScheme: self.colorScheme)
   }
 
-  var horizontalPadding: CGFloat {
-    dynamicTypeSize.isAccessibilitySize ? theme.spacing.stackXL : theme.spacing.stackXL * CGFloat(1.5)
+  private var horizontalPadding: CGFloat {
+    self.dynamicTypeSize.isAccessibilitySize ? self.theme.spacing.stackXL : self.theme.spacing.stackXL * CGFloat(1.5)
   }
 
-  var carousel: some View {
-    TabView(selection: $currentSlideIndex) {
-      ForEach(Array(slides.enumerated()), id: \.element.id) { index, slide in
+  private var carousel: some View {
+    TabView(selection: self.$currentSlideIndex) {
+      ForEach(Array(self.slides.enumerated()), id: \.element.id) { index, slide in
         OnboardingCardView(slide: slide)
-          .padding(.horizontal, theme.spacing.stackSM)
+          .padding(.horizontal, self.theme.spacing.stackSM)
           .tag(index)
-          .accessibilityAddTraits(index == currentSlideIndex ? .isSelected : [])
+          .accessibilityAddTraits(index == self.currentSlideIndex ? .isSelected : [])
       }
     }
-    .frame(height: cardHeight)
+    .frame(height: self.cardHeight)
     .tabViewStyle(.page(indexDisplayMode: .never))
     .accessibilityElement(children: .contain)
-    .accessibilityLabel(Text(slides[safe: currentSlideIndex]?.title ?? ""))
-    .accessibilityHint(Text(slides[safe: currentSlideIndex]?.subtitle ?? ""))
+    .accessibilityLabel(Text(self.slides[safe: self.currentSlideIndex]?.title ?? ""))
+    .accessibilityHint(Text(self.slides[safe: self.currentSlideIndex]?.subtitle ?? ""))
   }
 
-  var primaryActions: some View {
+  private var primaryActions: some View {
     VStack(spacing: 10) {
       Button {
-        coordinator.showSignIn()
+        self.coordinator.showSignIn()
       } label: {
-        Text(NSLocalizedString("welcome.actions.signIn", value: "Sign In", comment: "Primary CTA to sign in from the welcome carousel"))
+        Text(NSLocalizedString(
+          "welcome.actions.signIn",
+          value: "Sign In",
+          comment: "Primary CTA to sign in from the welcome carousel"))
           .frame(maxWidth: .infinity)
       }
       .buttonStyle(.borderedProminent)
-      .tint(theme.colors.accentSecondary)
-      .accessibilityHint(Text(NSLocalizedString("welcome.actions.signIn.hint", value: "Opens the sign-in form", comment: "Accessibility hint for sign-in button")))
+      .tint(self.theme.colors.accentSecondary)
+      .accessibilityHint(Text(NSLocalizedString(
+        "welcome.actions.signIn.hint",
+        value: "Opens the sign-in form",
+        comment: "Accessibility hint for sign-in button")))
 
       Button {
-        coordinator.showSignUp()
+        self.coordinator.showSignUp()
       } label: {
-        Text(NSLocalizedString("welcome.actions.createAccount", value: "Create Account", comment: "Secondary CTA to create a new RefWatch account"))
+        Text(NSLocalizedString(
+          "welcome.actions.createAccount",
+          value: "Create Account",
+          comment: "Secondary CTA to create a new RefWatch account"))
           .frame(maxWidth: .infinity)
       }
       .buttonStyle(.bordered)
-      .tint(colors.secondaryButtonTint)
-      .accessibilityHint(Text(NSLocalizedString("welcome.actions.createAccount.hint", value: "Opens the account creation form", comment: "Accessibility hint for create account button")))
+      .tint(self.colors.secondaryButtonTint)
+      .accessibilityHint(Text(NSLocalizedString(
+        "welcome.actions.createAccount.hint",
+        value: "Opens the account creation form",
+        comment: "Accessibility hint for create account button")))
     }
   }
 
-  var privacyNote: some View {
-    Text(NSLocalizedString("welcome.privacyNote", value: "An active RefWatch account is required on iPhone. Your Apple Watch can still log matches offline and will sync once you sign in here.", comment: "Footer note explaining onboarding requirements"))
-      .font(theme.typography.caption)
-      .foregroundStyle(colors.privacyNoteText)
+  private var privacyNote: some View {
+    Text(NSLocalizedString(
+      "welcome.privacyNote",
+      value: "An active RefWatch account is required on iPhone. " +
+        "Your Apple Watch can still log matches offline and will sync once you sign in here.",
+      comment: "Footer note explaining onboarding requirements"))
+      .font(self.theme.typography.caption)
+      .foregroundStyle(self.colors.privacyNoteText)
       .multilineTextAlignment(.center)
       .padding(.horizontal)
       .frame(maxWidth: 360)
-      .accessibilityHint(Text(NSLocalizedString("welcome.privacyNote.hint", value: "Explains why signing in is required on iPhone", comment: "Accessibility hint for the welcome privacy note")))
+      .accessibilityHint(Text(NSLocalizedString(
+        "welcome.privacyNote.hint",
+        value: "Explains why signing in is required on iPhone",
+        comment: "Accessibility hint for the welcome privacy note")))
   }
 
-  var cardHeight: CGFloat {
-    dynamicTypeSize.isAccessibilitySize ? 480 : 420
+  private var cardHeight: CGFloat {
+    self.dynamicTypeSize.isAccessibilitySize ? 480 : 420
   }
 }
 
-private extension Collection {
-  subscript(safe index: Index) -> Element? {
+extension Collection {
+  fileprivate subscript(safe index: Index) -> Element? {
     indices.contains(index) ? self[index] : nil
   }
 }
@@ -142,8 +161,7 @@ private extension Collection {
 #Preview {
   WelcomeView()
     .environmentObject(AuthenticationCoordinator(authController: SupabaseAuthController(
-      clientProvider: SupabaseClientProvider.shared
-    )))
+      clientProvider: SupabaseClientProvider.shared)))
     .theme(DefaultTheme())
 }
 #endif

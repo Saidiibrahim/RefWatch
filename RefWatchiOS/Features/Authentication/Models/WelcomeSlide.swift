@@ -47,7 +47,7 @@ struct WelcomeSlide: Identifiable, Hashable {
     let paletteTokens: [PaletteColorToken]
 
     func colors(using theme: AnyTheme) -> [Color] {
-      paletteTokens.map { $0.resolve(using: theme.colors) }
+      self.paletteTokens.map { $0.resolve(using: theme.colors) }
     }
   }
 
@@ -68,16 +68,13 @@ extension WelcomeSlide {
   static func defaultSlides(theme: AnyTheme) -> [WelcomeSlide] {
     let watchStyle = SymbolStyle(
       renderingMode: .palette,
-      paletteTokens: [.accentSecondary, .accentMuted]
-    )
+      paletteTokens: [.accentSecondary, .accentMuted])
     let iphoneStyle = SymbolStyle(
       renderingMode: .palette,
-      paletteTokens: [.accentPrimary, .textSecondary]
-    )
+      paletteTokens: [.accentPrimary, .textSecondary])
     let webStyle = SymbolStyle(
       renderingMode: .palette,
-      paletteTokens: [.accentSecondary, .accentPrimary]
-    )
+      paletteTokens: [.accentSecondary, .accentPrimary])
 
     // Touch the palette to silence unused parameter warnings until dynamic theming evolves.
     _ = [watchStyle, iphoneStyle, webStyle].map { $0.colors(using: theme) }
@@ -86,31 +83,55 @@ extension WelcomeSlide {
     return [
       WelcomeSlide(
         id: "watch",
-        title: NSLocalizedString("welcome.carousel.watch.title", value: "Match control on your wrist", comment: "Title for the Apple Watch onboarding slide"),
-        subtitle: NSLocalizedString("welcome.carousel.watch.subtitle", value: "Start matches, track stoppage, and log incidents directly from Apple Watch.", comment: "Subtitle for the Apple Watch onboarding slide"),
+        title: NSLocalizedString(
+          "welcome.carousel.watch.title",
+          value: "Match control on your wrist",
+          comment: "Title for the Apple Watch onboarding slide"),
+        subtitle: NSLocalizedString(
+          "welcome.carousel.watch.subtitle",
+          value: "Start matches, track stoppage, and log incidents directly from Apple Watch.",
+          comment: "Subtitle for the Apple Watch onboarding slide"),
         symbolName: "applewatch",
         symbolStyle: watchStyle,
-        accessibilityLabel: NSLocalizedString("welcome.carousel.watch.accessibility", value: "Apple Watch showing live match timer", comment: "Accessibility label describing the Apple Watch onboarding slide illustration"),
-        analyticsIdentifier: "welcome_slide_watch"
-      ),
+        accessibilityLabel: NSLocalizedString(
+          "welcome.carousel.watch.accessibility",
+          value: "Apple Watch showing live match timer",
+          comment: "Accessibility label describing the Apple Watch onboarding slide illustration"),
+        analyticsIdentifier: "welcome_slide_watch"),
       WelcomeSlide(
         id: "iphone",
-        title: NSLocalizedString("welcome.carousel.iphone.title", value: "Insights that travel with you", comment: "Title for the iPhone onboarding slide"),
-        subtitle: NSLocalizedString("welcome.carousel.iphone.subtitle", value: "Review performance trends, hydrate your prep, and stay synced across every match.", comment: "Subtitle for the iPhone onboarding slide"),
+        title: NSLocalizedString(
+          "welcome.carousel.iphone.title",
+          value: "Insights that travel with you",
+          comment: "Title for the iPhone onboarding slide"),
+        subtitle: NSLocalizedString(
+          "welcome.carousel.iphone.subtitle",
+          value: "Review performance trends, hydrate your prep, and stay synced across every match.",
+          comment: "Subtitle for the iPhone onboarding slide"),
         symbolName: "iphone.gen3",
         symbolStyle: iphoneStyle,
-        accessibilityLabel: NSLocalizedString("welcome.carousel.iphone.accessibility", value: "iPhone displaying officiating insights", comment: "Accessibility label describing the iPhone onboarding slide illustration"),
-        analyticsIdentifier: "welcome_slide_iphone"
-      ),
+        accessibilityLabel: NSLocalizedString(
+          "welcome.carousel.iphone.accessibility",
+          value: "iPhone displaying officiating insights",
+          comment: "Accessibility label describing the iPhone onboarding slide illustration"),
+        analyticsIdentifier: "welcome_slide_iphone"),
       WelcomeSlide(
         id: "web",
-        title: NSLocalizedString("welcome.carousel.web.title", value: "Plan and collaborate anywhere", comment: "Title for the web dashboard onboarding slide"),
-        subtitle: NSLocalizedString("welcome.carousel.web.subtitle", value: "Coordinate crews, share match libraries, and sync with the web dashboard.", comment: "Subtitle for the web dashboard onboarding slide"),
+        title: NSLocalizedString(
+          "welcome.carousel.web.title",
+          value: "Plan and collaborate anywhere",
+          comment: "Title for the web dashboard onboarding slide"),
+        subtitle: NSLocalizedString(
+          "welcome.carousel.web.subtitle",
+          value: "Coordinate crews, share match libraries, and sync with the web dashboard.",
+          comment: "Subtitle for the web dashboard onboarding slide"),
         symbolName: "macbook.and.iphone",
         symbolStyle: webStyle,
-        accessibilityLabel: NSLocalizedString("welcome.carousel.web.accessibility", value: "MacBook and iPhone illustrating synced dashboards", comment: "Accessibility label describing the web dashboard onboarding slide illustration"),
-        analyticsIdentifier: "welcome_slide_web"
-      )
+        accessibilityLabel: NSLocalizedString(
+          "welcome.carousel.web.accessibility",
+          value: "MacBook and iPhone illustrating synced dashboards",
+          comment: "Accessibility label describing the web dashboard onboarding slide illustration"),
+        analyticsIdentifier: "welcome_slide_web"),
     ]
   }
 }

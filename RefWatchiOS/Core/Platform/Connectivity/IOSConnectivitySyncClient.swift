@@ -13,7 +13,7 @@ import WatchConnectivity
 import OSLog
 
 extension Notification.Name {
-    static let matchHistoryDidChange = Notification.Name("MatchHistoryDidChange")
+  static let matchHistoryDidChange = Notification.Name("MatchHistoryDidChange")
 }
 
 /// iOS WatchConnectivity receiver for completed match snapshots.
@@ -31,665 +31,694 @@ extension Notification.Name {
 /// - Posts `.syncNonrecoverableError` on malformed payloads or decode failures.
 /// - `.syncFallbackOccurred` is posted by the watch sender during error fallback.
 final class IOSConnectivitySyncClient: NSObject {
-    private let history: MatchHistoryStoring
-    private let auth: AuthenticationProviding
-    private let scheduleStore: ScheduleStoring?
-    private let mediaHandler: WorkoutMediaCommandHandling?
-    private let stateQueue = DispatchQueue(label: "IOSConnectivitySyncClient.state")
-    private var signedInFlag: Bool = false
-    private var pendingMatches: [CompletedMatch] = []
-    private var aggregateSnapshots: [Data] = []
-    private var pendingSnapshotChunks: Int = 0
-    private var lastSnapshotGeneratedAt: Date?
-    private var manualSyncRequestHandler: ((ManualSyncRequestMessage) -> Void)?
-    private var lastManualStatus: ManualSyncStatusMessage?
-    private var pendingAggregateDeltas: [AggregateDeltaEnvelope] = []
-    private var aggregateDeltaHandler: AggregateDeltaHandling?
-    private var isProcessingAggregateDeltas = false
-#if canImport(WatchConnectivity)
-    private let queue = DispatchQueue(label: "IOSConnectivitySyncClient.decode")
-#endif
+  private struct AggregateStatusSnapshot {
+    let pendingSnapshotChunks: Int
+    let lastSnapshotGeneratedAt: Date?
+    let signedIn: Bool
+    let queuedSnapshots: Int
+    let queuedDeltas: Int
+  }
 
-    init(
-        history: MatchHistoryStoring,
-        auth: AuthenticationProviding,
-        scheduleStore: ScheduleStoring? = nil,
-        mediaHandler: WorkoutMediaCommandHandling? = nil
-    ) {
-        self.history = history
-        self.auth = auth
-        self.scheduleStore = scheduleStore
-        self.mediaHandler = mediaHandler
-        super.init()
+  private let history: MatchHistoryStoring
+  private let auth: AuthenticationProviding
+  private let scheduleStore: ScheduleStoring?
+  private let mediaHandler: WorkoutMediaCommandHandling?
+  private let stateQueue = DispatchQueue(label: "IOSConnectivitySyncClient.state")
+  private var signedInFlag: Bool = false
+  private var pendingMatches: [CompletedMatch] = []
+  private var aggregateSnapshots: [Data] = []
+  private var pendingSnapshotChunks: Int = 0
+  private var lastSnapshotGeneratedAt: Date?
+  private var manualSyncRequestHandler: ((ManualSyncRequestMessage) -> Void)?
+  private var lastManualStatus: ManualSyncStatusMessage?
+  private var pendingAggregateDeltas: [AggregateDeltaEnvelope] = []
+  private var aggregateDeltaHandler: AggregateDeltaHandling?
+  private var isProcessingAggregateDeltas = false
+  #if canImport(WatchConnectivity)
+  private let queue = DispatchQueue(label: "IOSConnectivitySyncClient.decode")
+  #endif
+
+  init(
+    history: MatchHistoryStoring,
+    auth: AuthenticationProviding,
+    scheduleStore: ScheduleStoring? = nil,
+    mediaHandler: WorkoutMediaCommandHandling? = nil)
+  {
+    self.history = history
+    self.auth = auth
+    self.scheduleStore = scheduleStore
+    self.mediaHandler = mediaHandler
+    super.init()
+  }
+
+  func activate() {
+    #if canImport(WatchConnectivity)
+    guard WCSession.isSupported() else { return }
+    guard isSignedIn else {
+      AppLog.connectivity.info("Skipping WatchConnectivity activation while signed out")
+      return
+    }
+    WCSession.default.delegate = self
+    WCSession.default.activate()
+    #endif
+  }
+
+  deinit {
+    #if canImport(WatchConnectivity)
+    if WCSession.isSupported() {
+      // Ensure delegate does not outlive this object
+      if WCSession.default.delegate === self {
+        WCSession.default.delegate = nil
+      }
+    }
+    #endif
+  }
+
+  // Exposed for tests to bypass WCSession
+  func handleCompletedMatch(_ match: CompletedMatch) {
+    let shouldQueue = self.stateQueue.sync { () -> Bool in
+      guard self.signedInFlag else {
+        self.pendingMatches.append(match)
+        return true
+      }
+      return false
     }
 
-    func activate() {
-        #if canImport(WatchConnectivity)
-        guard WCSession.isSupported() else { return }
-        guard isSignedIn else {
-            AppLog.connectivity.info("Skipping WatchConnectivity activation while signed out")
-            return
-        }
-        WCSession.default.delegate = self
-        WCSession.default.activate()
-        #endif
+    if shouldQueue {
+      AppLog.connectivity.notice("Queued completed match from watch while signed out")
+      NotificationCenter.default.post(name: .syncFallbackOccurred, object: nil, userInfo: [
+        "context": "ios.connectivity.queuedWhileSignedOut",
+      ])
+      return
     }
 
-    deinit {
-        #if canImport(WatchConnectivity)
-        if WCSession.isSupported() {
-            // Ensure delegate does not outlive this object
-            if WCSession.default.delegate === self {
-                WCSession.default.delegate = nil
-            }
-        }
-        #endif
+    persist(match)
+  }
+
+  func setManualSyncRequestHandler(_ handler: ((ManualSyncRequestMessage) -> Void)?) {
+    self.stateQueue.sync {
+      self.manualSyncRequestHandler = handler
+    }
+  }
+
+  func setAggregateDeltaHandler(_ handler: AggregateDeltaHandling?) {
+    self.stateQueue.sync {
+      self.aggregateDeltaHandler = handler
+    }
+    processPendingAggregateDeltas()
+  }
+
+  /// Queues an aggregate delta for processing once signed in and a handler is available.
+  /// Exposed as internal so test targets can inject envelopes without going through WCSession.
+  func enqueueAggregateDelta(_ envelope: AggregateDeltaEnvelope) {
+    let state = self.stateQueue.sync { () -> (Bool, Bool, Bool, Bool) in
+      // Check for duplicate using idempotencyKey to prevent double processing
+      // when deltas arrive via both sendMessage and transferUserInfo.
+      let isDuplicate = self.pendingAggregateDeltas.contains {
+        $0.idempotencyKey == envelope.idempotencyKey
+      }
+      if isDuplicate {
+        AppLog.connectivity
+          .debug(
+            "Dropping duplicate aggregate delta idempotencyKey=\(envelope.idempotencyKey.uuidString, privacy: .public)")
+        return (false, false, false, true)
+      }
+      self.pendingAggregateDeltas.append(envelope)
+      return (self.signedInFlag, self.aggregateDeltaHandler != nil, self.isProcessingAggregateDeltas, false)
+    }
+    let signedIn = state.0
+    let handlerAvailable = state.1
+    let processing = state.2
+    let duplicate = state.3
+
+    if duplicate {
+      return
     }
 
-    // Exposed for tests to bypass WCSession
-    func handleCompletedMatch(_ match: CompletedMatch) {
-        let shouldQueue = stateQueue.sync { () -> Bool in
-            guard signedInFlag else {
-                pendingMatches.append(match)
-                return true
-            }
-            return false
-        }
+    if handlerAvailable && signedIn && processing == false {
+      processPendingAggregateDeltas()
+    } else if handlerAvailable == false || signedIn == false {
+      NotificationCenter.default.post(name: .syncFallbackOccurred, object: nil, userInfo: [
+        "context": "ios.aggregate.delta.queued",
+      ])
+    }
+  }
 
-        if shouldQueue {
-            AppLog.connectivity.notice("Queued completed match from watch while signed out")
-            NotificationCenter.default.post(name: .syncFallbackOccurred, object: nil, userInfo: [
-                "context": "ios.connectivity.queuedWhileSignedOut"
-            ])
-            return
+  func enqueueAggregateSnapshots(_ snapshots: [AggregateSnapshotPayload]) {
+    #if canImport(WatchConnectivity)
+    guard WCSession.isSupported() else { return }
+    let encoder = AggregateSyncCoding.makeEncoder()
+    var dataPayloads: [Data] = []
+    for snapshot in snapshots {
+      do {
+        let data = try encoder.encode(snapshot)
+        dataPayloads.append(data)
+      } catch {
+        DispatchQueue.main.async {
+          NotificationCenter.default.post(name: .syncNonrecoverableError, object: nil, userInfo: [
+            "error": "aggregate encode failed",
+            "context": "ios.aggregate.encode",
+          ])
         }
-
-        persist(match)
+        return
+      }
     }
 
-    func setManualSyncRequestHandler(_ handler: ((ManualSyncRequestMessage) -> Void)?) {
-        stateQueue.sync {
-            manualSyncRequestHandler = handler
-        }
+    self.stateQueue.sync {
+      self.aggregateSnapshots = dataPayloads
+      self.pendingSnapshotChunks = dataPayloads.count
+      self.lastSnapshotGeneratedAt = snapshots.last?.generatedAt
     }
 
-    func setAggregateDeltaHandler(_ handler: AggregateDeltaHandling?) {
-        stateQueue.sync {
-            aggregateDeltaHandler = handler
-        }
-        processPendingAggregateDeltas()
+    flushAggregateSnapshots()
+    postAggregateStatus()
+    #endif
+  }
+
+  func reachabilityStatus() -> AggregateSnapshotPayload.Settings.ConnectivityStatus {
+    #if canImport(WatchConnectivity)
+    guard WCSession.isSupported() else { return .unknown }
+    let session = WCSession.default
+    switch session.activationState {
+    case .inactive, .notActivated:
+      return .unknown
+    case .activated:
+      return session.isReachable ? .reachable : .unreachable
+    @unknown default:
+      return .unknown
     }
+    #else
+    return .unknown
+    #endif
+  }
 
-    /// Queues an aggregate delta for processing once signed in and a handler is available.
-    /// Exposed as internal so test targets can inject envelopes without going through WCSession.
-    func enqueueAggregateDelta(_ envelope: AggregateDeltaEnvelope) {
-        let state = stateQueue.sync { () -> (Bool, Bool, Bool, Bool) in
-            // Check for duplicate using idempotencyKey to prevent double processing
-            // when deltas arrive via both sendMessage and transferUserInfo.
-            let isDuplicate = pendingAggregateDeltas.contains {
-                $0.idempotencyKey == envelope.idempotencyKey
-            }
-            if isDuplicate {
-                AppLog.connectivity.debug("Dropping duplicate aggregate delta idempotencyKey=\(envelope.idempotencyKey.uuidString, privacy: .public)")
-                return (false, false, false, true)
-            }
-            pendingAggregateDeltas.append(envelope)
-            return (signedInFlag, aggregateDeltaHandler != nil, isProcessingAggregateDeltas, false)
-        }
-        let signedIn = state.0
-        let handlerAvailable = state.1
-        let processing = state.2
-        let duplicate = state.3
-
-        if duplicate {
-            return
-        }
-
-        if handlerAvailable && signedIn && processing == false {
-            processPendingAggregateDeltas()
-        } else if handlerAvailable == false || signedIn == false {
-            NotificationCenter.default.post(name: .syncFallbackOccurred, object: nil, userInfo: [
-                "context": "ios.aggregate.delta.queued"
-            ])
-        }
+  /// Returns real-time snapshot queue status for diagnostics and manual status messages.
+  func currentSnapshotQueueStatus() -> (queuedSnapshots: Int, pendingChunks: Int, queuedDeltas: Int) {
+    self.stateQueue.sync {
+      (
+        queuedSnapshots: self.aggregateSnapshots.count,
+        pendingChunks: self.pendingSnapshotChunks,
+        queuedDeltas: self.pendingAggregateDeltas.count)
     }
+  }
 
-    func enqueueAggregateSnapshots(_ snapshots: [AggregateSnapshotPayload]) {
-        #if canImport(WatchConnectivity)
-        guard WCSession.isSupported() else { return }
-        let encoder = AggregateSyncCoding.makeEncoder()
-        var dataPayloads: [Data] = []
-        for snapshot in snapshots {
-            do {
-                let data = try encoder.encode(snapshot)
-                dataPayloads.append(data)
-            } catch {
-                DispatchQueue.main.async {
-                    NotificationCenter.default.post(name: .syncNonrecoverableError, object: nil, userInfo: [
-                        "error": "aggregate encode failed",
-                        "context": "ios.aggregate.encode"
-                    ])
-                }
-                return
-            }
-        }
-
-        stateQueue.sync {
-            aggregateSnapshots = dataPayloads
-            pendingSnapshotChunks = dataPayloads.count
-            lastSnapshotGeneratedAt = snapshots.last?.generatedAt
-        }
-
-        flushAggregateSnapshots()
-        postAggregateStatus()
-        #endif
+  func sendManualSyncStatus(_ status: ManualSyncStatusMessage) {
+    #if canImport(WatchConnectivity)
+    guard WCSession.isSupported() else { return }
+    self.stateQueue.sync { self.lastManualStatus = status }
+    let encoder = AggregateSyncCoding.makeEncoder()
+    guard let data = try? encoder.encode(status) else {
+      DispatchQueue.main.async {
+        NotificationCenter.default.post(name: .syncNonrecoverableError, object: nil, userInfo: [
+          "error": "manual status encode failed",
+          "context": "ios.aggregate.status.encode",
+        ])
+      }
+      return
     }
+    let payload: [String: Any] = [
+      "type": status.type,
+      "payload": data,
+    ]
+    let session = WCSession.default
+    sendWithFallback(payload, context: "ios.aggregate.status.send", session: session)
+    #endif
+  }
 
-    func reachabilityStatus() -> AggregateSnapshotPayload.Settings.ConnectivityStatus {
-        #if canImport(WatchConnectivity)
-        guard WCSession.isSupported() else { return .unknown }
-        let session = WCSession.default
-        switch session.activationState {
-        case .inactive, .notActivated:
-            return .unknown
-        case .activated:
-            return session.isReachable ? .reachable : .unreachable
-        @unknown default:
-            return .unknown
-        }
-        #else
-        return .unknown
-        #endif
+  /// Deactivates the WCSession delegate to avoid dangling references when the app
+  /// transitions to background or the controller is torn down.
+  func deactivate() {
+    #if canImport(WatchConnectivity)
+    guard WCSession.isSupported() else { return }
+    if WCSession.default.delegate === self {
+      WCSession.default.delegate = nil
     }
+    #endif
+  }
 
-    /// Returns real-time snapshot queue status for diagnostics and manual status messages.
-    func currentSnapshotQueueStatus() -> (queuedSnapshots: Int, pendingChunks: Int, queuedDeltas: Int) {
-        stateQueue.sync {
-            (
-                queuedSnapshots: aggregateSnapshots.count,
-                pendingChunks: pendingSnapshotChunks,
-                queuedDeltas: pendingAggregateDeltas.count
-            )
-        }
+  func handleAuthState(_ state: AuthState) {
+    switch state {
+    case .signedOut:
+      let hadPending = self.stateQueue.sync { () -> Bool in
+        let previouslySignedIn = self.signedInFlag
+        self.signedInFlag = false
+        if previouslySignedIn { self.pendingMatches.removeAll() }
+        self.aggregateSnapshots.removeAll()
+        self.pendingSnapshotChunks = 0
+        self.lastSnapshotGeneratedAt = nil
+        self.pendingAggregateDeltas.removeAll()
+        return previouslySignedIn
+      }
+      postAggregateStatus()
+      if hadPending {
+        AppLog.connectivity.notice("Discarded queued watch payloads after sign-out")
+        NotificationCenter.default.post(name: .syncFallbackOccurred, object: nil, userInfo: [
+          "context": "ios.connectivity.discardedOnSignOut",
+        ])
+      } else {
+        AppLog.connectivity.notice("Watch sync paused: signed-out state")
+      }
+    case .signedIn:
+      let queued = self.stateQueue.sync { () -> [CompletedMatch] in
+        self.signedInFlag = true
+        let matches = self.pendingMatches
+        self.pendingMatches.removeAll()
+        return matches
+      }
+      if queued.isEmpty == false {
+        AppLog.connectivity.notice("Flushing \(queued.count) queued watch payload(s) after sign-in")
+        NotificationCenter.default.post(name: .syncFallbackOccurred, object: nil, userInfo: [
+          "context": "ios.connectivity.flushQueued",
+        ])
+        queued.forEach { persist($0) }
+      }
+      processPendingAggregateDeltas()
     }
-
-    func sendManualSyncStatus(_ status: ManualSyncStatusMessage) {
-        #if canImport(WatchConnectivity)
-        guard WCSession.isSupported() else { return }
-        stateQueue.sync { lastManualStatus = status }
-        let encoder = AggregateSyncCoding.makeEncoder()
-        guard let data = try? encoder.encode(status) else {
-            DispatchQueue.main.async {
-                NotificationCenter.default.post(name: .syncNonrecoverableError, object: nil, userInfo: [
-                    "error": "manual status encode failed",
-                    "context": "ios.aggregate.status.encode"
-                ])
-            }
-            return
-        }
-        let payload: [String: Any] = [
-            "type": status.type,
-            "payload": data
-        ]
-        let session = WCSession.default
-        sendWithFallback(payload, context: "ios.aggregate.status.send", session: session)
-        #endif
-    }
-
-    /// Deactivates the WCSession delegate to avoid dangling references when the app
-    /// transitions to background or the controller is torn down.
-    func deactivate() {
-        #if canImport(WatchConnectivity)
-        guard WCSession.isSupported() else { return }
-        if WCSession.default.delegate === self {
-            WCSession.default.delegate = nil
-        }
-        #endif
-    }
-
-    func handleAuthState(_ state: AuthState) {
-        switch state {
-        case .signedOut:
-            let hadPending = stateQueue.sync { () -> Bool in
-                let previouslySignedIn = signedInFlag
-                signedInFlag = false
-                if previouslySignedIn { pendingMatches.removeAll() }
-                aggregateSnapshots.removeAll()
-                pendingSnapshotChunks = 0
-                lastSnapshotGeneratedAt = nil
-                pendingAggregateDeltas.removeAll()
-                return previouslySignedIn
-            }
-            postAggregateStatus()
-            if hadPending {
-                AppLog.connectivity.notice("Discarded queued watch payloads after sign-out")
-                NotificationCenter.default.post(name: .syncFallbackOccurred, object: nil, userInfo: [
-                    "context": "ios.connectivity.discardedOnSignOut"
-                ])
-            } else {
-                AppLog.connectivity.notice("Watch sync paused: signed-out state")
-            }
-        case .signedIn:
-            let queued = stateQueue.sync { () -> [CompletedMatch] in
-                signedInFlag = true
-                let matches = pendingMatches
-                pendingMatches.removeAll()
-                return matches
-            }
-            if queued.isEmpty == false {
-                AppLog.connectivity.notice("Flushing \(queued.count) queued watch payload(s) after sign-in")
-                NotificationCenter.default.post(name: .syncFallbackOccurred, object: nil, userInfo: [
-                    "context": "ios.connectivity.flushQueued"
-                ])
-                queued.forEach { persist($0) }
-            }
-            processPendingAggregateDeltas()
-        }
-    }
+  }
 }
 
-private extension IOSConnectivitySyncClient {
-    var isSignedIn: Bool {
-        stateQueue.sync { signedInFlag }
+extension IOSConnectivitySyncClient {
+  private var isSignedIn: Bool {
+    self.stateQueue.sync { self.signedInFlag }
+  }
+
+  @MainActor
+  private func markScheduleCompleted(_ snapshot: CompletedMatch) {
+    guard let scheduleStore else { return }
+
+    // FIXED: Use scheduledMatchId from the snapshot, not match.id
+    guard let scheduledId = snapshot.match.scheduledMatchId else {
+      // OK - manually created matches have no schedule link
+      #if DEBUG
+      AppLog.connectivity.debug("Completed match has no scheduledMatchId - skipping schedule update")
+      #endif
+      return
     }
 
-    @MainActor
-    private func markScheduleCompleted(_ snapshot: CompletedMatch) {
-        guard let scheduleStore else { return }
+    if let schedule = scheduleStore.loadAll().first(where: { $0.id == scheduledId }) {
+      var updated = schedule
+      updated.status = .completed
+      try? scheduleStore.save(updated)
 
-        // FIXED: Use scheduledMatchId from the snapshot, not match.id
-        guard let scheduledId = snapshot.match.scheduledMatchId else {
-            // OK - manually created matches have no schedule link
-            #if DEBUG
-            AppLog.connectivity.debug("Completed match has no scheduledMatchId - skipping schedule update")
-            #endif
-            return
-        }
-
-        if let schedule = scheduleStore.loadAll().first(where: { $0.id == scheduledId }) {
-            var updated = schedule
-            updated.status = .completed
-            try? scheduleStore.save(updated)
-
-            #if DEBUG
-            AppLog.connectivity.debug("✅ Watch completion: marked schedule \(scheduledId.uuidString, privacy: .public) completed")
-            #endif
-        } else {
-            #if DEBUG
-            NotificationCenter.default.post(name: .syncFallbackOccurred, object: nil, userInfo: [
-                "context": "ios.connectivity.scheduleNotFound",
-                "scheduledId": scheduledId.uuidString
-            ])
-            #endif
-        }
+      #if DEBUG
+      AppLog.connectivity
+        .debug("✅ Watch completion: marked schedule \(scheduledId.uuidString, privacy: .public) completed")
+      #endif
+    } else {
+      #if DEBUG
+      NotificationCenter.default.post(name: .syncFallbackOccurred, object: nil, userInfo: [
+        "context": "ios.connectivity.scheduleNotFound",
+        "scheduledId": scheduledId.uuidString,
+      ])
+      #endif
     }
+  }
 
-    func persist(_ match: CompletedMatch) {
-        Task { @MainActor in
-            let snapshot = match.attachingOwnerIfMissing(using: auth)
-            do {
-                try history.save(snapshot)
-                markScheduleCompleted(snapshot)  // FIXED: Pass snapshot, not ID
-            } catch {
-                AppLog.history.error("Failed to save synced snapshot: \(error.localizedDescription, privacy: .public)")
-                NotificationCenter.default.post(name: .syncNonrecoverableError, object: nil, userInfo: [
-                    "error": "save failed",
-                    "context": "ios.connectivity.saveHistory"
-                ])
-            }
-            NotificationCenter.default.post(name: .matchHistoryDidChange, object: nil)
-        }
-    }
-
-    // MARK: - Schedule status updates from Watch
-    @MainActor
-    func handleScheduleStatusUpdate(_ payload: [String: Any]) {
-        guard let scheduleStore else { return }
-        guard let idString = payload["scheduledId"] as? String, let scheduledId = UUID(uuidString: idString) else {
-            AppLog.connectivity.error("Malformed scheduleStatusUpdate payload")
-            return
-        }
-        guard let status = payload["status"] as? String else { return }
-        let all = scheduleStore.loadAll()
-        guard var schedule = all.first(where: { $0.id == scheduledId }) else { return }
-        switch status.lowercased() {
-        case "in_progress":
-            schedule.status = .inProgress
-        case "completed":
-            schedule.status = .completed
-        case "canceled":
-            schedule.status = .canceled
-        default:
-            schedule.status = .scheduled
-        }
-        try? scheduleStore.save(schedule)
-        AppLog.connectivity.debug("📲 Applied scheduleStatusUpdate id=\(scheduledId.uuidString, privacy: .public) status=\(status, privacy: .public)")
-    }
-
-    func flushAggregateSnapshots() {
-        #if canImport(WatchConnectivity)
-        guard WCSession.isSupported() else { return }
-        let session = WCSession.default
-
-        // Gate on activation state to prevent "session has not been activated" errors.
-        // Snapshots will be retried automatically from activationDidCompleteWith callback.
-        guard session.activationState == .activated else {
-            AppLog.connectivity.info("Deferring aggregate snapshot flush until WCSession activation completes")
-            return
-        }
-
-        let snapshots = stateQueue.sync { aggregateSnapshots }
-        guard snapshots.isEmpty == false else { return }
-
-        // Send each snapshot using sendMessage with fallback to transferUserInfo on error.
-        // This ensures single delivery per snapshot instead of duplicate transmissions.
-        for data in snapshots {
-            let payload: [String: Any] = [
-                "type": "aggregatesSnapshot",
-                "payload": data
-            ]
-            sendWithFallback(payload, context: "ios.aggregate.snapshot.send", session: session)
-        }
-
-        // Update application context with the last chunk for background delivery.
-        // This provides a lightweight snapshot when the watch wakes up.
-        if let last = snapshots.last {
-            do {
-                try session.updateApplicationContext(["aggregatesSnapshot": last])
-            } catch {
-                DispatchQueue.main.async {
-                    NotificationCenter.default.post(name: .syncNonrecoverableError, object: nil, userInfo: [
-                        "error": error.localizedDescription,
-                        "context": "ios.aggregate.updateContext"
-                    ])
-                }
-            }
-        }
-
-        // Clear bookkeeping after handing off to WCSession.
-        // This ensures diagnostics reflect reality instead of permanently showing stale counters.
-        stateQueue.sync {
-            aggregateSnapshots.removeAll()
-            pendingSnapshotChunks = 0
-        }
-        postAggregateStatus()
-        #endif
-    }
-
-    func postAggregateStatus() {
-        let status = stateQueue.sync { () -> (Int, Date?, Bool, Int, Int) in
-            (
-                pendingSnapshotChunks,
-                lastSnapshotGeneratedAt,
-                signedInFlag,
-                aggregateSnapshots.count,
-                pendingAggregateDeltas.count
-            )
-        }
-        let connectivity = reachabilityStatus()
-        DispatchQueue.main.async {
-            NotificationCenter.default.post(name: .syncStatusUpdate, object: nil, userInfo: [
-                "component": "aggregateSync",
-                "pendingPushes": status.0,
-                "pendingDeletions": 0,
-                "signedIn": status.2,
-                "timestamp": Date(),
-                "pendingSnapshotChunks": status.0,
-                "queuedSnapshots": status.3,
-                "queuedDeltas": status.4,
-                "lastSnapshot": status.1 as Any,
-                "connectivityStatus": connectivity.rawValue
-            ])
-        }
-    }
-
-    func handleSendMessageError(_ error: Error, payload: [String: Any], context: String) {
-        AppLog.connectivity.error("sendMessage failed (\(context, privacy: .public)): \(error.localizedDescription, privacy: .public)")
-        NotificationCenter.default.post(name: .syncFallbackOccurred, object: nil, userInfo: [
-            "context": context
+  private func persist(_ match: CompletedMatch) {
+    Task { @MainActor in
+      let snapshot = match.attachingOwnerIfMissing(using: self.auth)
+      do {
+        try self.history.save(snapshot)
+        self.markScheduleCompleted(snapshot) // FIXED: Pass snapshot, not ID
+      } catch {
+        AppLog.history.error("Failed to save synced snapshot: \(error.localizedDescription, privacy: .public)")
+        NotificationCenter.default.post(name: .syncNonrecoverableError, object: nil, userInfo: [
+          "error": "save failed",
+          "context": "ios.connectivity.saveHistory",
         ])
-        #if canImport(WatchConnectivity)
-        if WCSession.isSupported() {
-            WCSession.default.transferUserInfo(payload)
-        }
-        #endif
+      }
+      NotificationCenter.default.post(name: .matchHistoryDidChange, object: nil)
+    }
+  }
+
+  // MARK: - Schedule status updates from Watch
+
+  @MainActor
+  private func handleScheduleStatusUpdate(_ payload: [String: Any]) {
+    guard let scheduleStore else { return }
+    guard let idString = payload["scheduledId"] as? String, let scheduledId = UUID(uuidString: idString) else {
+      AppLog.connectivity.error("Malformed scheduleStatusUpdate payload")
+      return
+    }
+    guard let status = payload["status"] as? String else { return }
+    let all = scheduleStore.loadAll()
+    guard var schedule = all.first(where: { $0.id == scheduledId }) else { return }
+    switch status.lowercased() {
+    case "in_progress":
+      schedule.status = .inProgress
+    case "completed":
+      schedule.status = .completed
+    case "canceled":
+      schedule.status = .canceled
+    default:
+      schedule.status = .scheduled
+    }
+    try? scheduleStore.save(schedule)
+    AppLog.connectivity
+      .debug(
+        "📲 Applied scheduleStatusUpdate id=\(scheduledId.uuidString, privacy: .public) status=\(status, privacy: .public)")
+  }
+
+  private func flushAggregateSnapshots() {
+    #if canImport(WatchConnectivity)
+    guard WCSession.isSupported() else { return }
+    let session = WCSession.default
+
+    // Gate on activation state to prevent "session has not been activated" errors.
+    // Snapshots will be retried automatically from activationDidCompleteWith callback.
+    guard session.activationState == .activated else {
+      AppLog.connectivity.info("Deferring aggregate snapshot flush until WCSession activation completes")
+      return
     }
 
-    /// Sends payload using sendMessage with fallback to transferUserInfo only on error.
-    /// This ensures single delivery instead of duplicate transmissions.
-    func sendWithFallback(
-        _ payload: [String: Any],
-        context: String,
-        session: WCSession
-    ) {
-        if session.isReachable {
-            session.sendMessage(
-                payload,
-                replyHandler: { _ in
-                    // Success - do nothing (no fallback needed)
-                },
-                errorHandler: { [weak self] error in
-                    // Only fallback to durable transfer on ERROR
-                    self?.queue.async { [weak self] in
-                        self?.handleSendMessageError(error, payload: payload, context: context)
-                    }
-                }
-            )
-        } else {
-            // Not reachable - skip sendMessage entirely, use durable transfer
-            NotificationCenter.default.post(name: .syncFallbackOccurred, object: nil, userInfo: [
-                "context": "\(context).unreachable"
-            ])
-            session.transferUserInfo(payload)
-        }
+    let snapshots = self.stateQueue.sync { self.aggregateSnapshots }
+    guard snapshots.isEmpty == false else { return }
+
+    // Send each snapshot using sendMessage with fallback to transferUserInfo on error.
+    // This ensures single delivery per snapshot instead of duplicate transmissions.
+    for data in snapshots {
+      let payload: [String: Any] = [
+        "type": "aggregatesSnapshot",
+        "payload": data,
+      ]
+      self.sendWithFallback(payload, context: "ios.aggregate.snapshot.send", session: session)
     }
 
-    func processPendingAggregateDeltas() {
-        let work = stateQueue.sync { () -> (AggregateDeltaHandling, [AggregateDeltaEnvelope])? in
-            guard signedInFlag, let handler = aggregateDeltaHandler, isProcessingAggregateDeltas == false else {
-                return nil
-            }
-            guard pendingAggregateDeltas.isEmpty == false else { return nil }
-            isProcessingAggregateDeltas = true
-            let envelopes = pendingAggregateDeltas
-            pendingAggregateDeltas.removeAll()
-            return (handler, envelopes)
+    // Update application context with the last chunk for background delivery.
+    // This provides a lightweight snapshot when the watch wakes up.
+    if let last = snapshots.last {
+      do {
+        try session.updateApplicationContext(["aggregatesSnapshot": last])
+      } catch {
+        DispatchQueue.main.async {
+          NotificationCenter.default.post(name: .syncNonrecoverableError, object: nil, userInfo: [
+            "error": error.localizedDescription,
+            "context": "ios.aggregate.updateContext",
+          ])
         }
-
-        guard let (handler, envelopes) = work else { return }
-
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            var failedEnvelope: AggregateDeltaEnvelope?
-            for envelope in envelopes {
-                do {
-                    try await handler.processDelta(envelope)
-                } catch {
-                    failedEnvelope = envelope
-                    break
-                }
-            }
-
-            stateQueue.sync {
-                if let failed = failedEnvelope {
-                    self.pendingAggregateDeltas.insert(failed, at: 0)
-                }
-                self.isProcessingAggregateDeltas = false
-            }
-
-            if failedEnvelope != nil {
-                NotificationCenter.default.post(name: .syncFallbackOccurred, object: nil, userInfo: [
-                    "context": "ios.aggregate.delta.retry"
-                ])
-            }
-
-            processPendingAggregateDeltas()
-        }
+      }
     }
+
+    // Clear bookkeeping after handing off to WCSession.
+    // This ensures diagnostics reflect reality instead of permanently showing stale counters.
+    self.stateQueue.sync {
+      self.aggregateSnapshots.removeAll()
+      self.pendingSnapshotChunks = 0
+    }
+    self.postAggregateStatus()
+    #endif
+  }
+
+  private func postAggregateStatus() {
+    let status = self.stateQueue.sync {
+      AggregateStatusSnapshot(
+        pendingSnapshotChunks: self.pendingSnapshotChunks,
+        lastSnapshotGeneratedAt: self.lastSnapshotGeneratedAt,
+        signedIn: self.signedInFlag,
+        queuedSnapshots: self.aggregateSnapshots.count,
+        queuedDeltas: self.pendingAggregateDeltas.count)
+    }
+    let connectivity = self.reachabilityStatus()
+    DispatchQueue.main.async {
+      NotificationCenter.default.post(name: .syncStatusUpdate, object: nil, userInfo: [
+        "component": "aggregateSync",
+        "pendingPushes": status.pendingSnapshotChunks,
+        "pendingDeletions": 0,
+        "signedIn": status.signedIn,
+        "timestamp": Date(),
+        "pendingSnapshotChunks": status.pendingSnapshotChunks,
+        "queuedSnapshots": status.queuedSnapshots,
+        "queuedDeltas": status.queuedDeltas,
+        "lastSnapshot": status.lastSnapshotGeneratedAt as Any,
+        "connectivityStatus": connectivity.rawValue,
+      ])
+    }
+  }
+
+  private func handleSendMessageError(_ error: Error, payload: [String: Any], context: String) {
+    AppLog.connectivity
+      .error("sendMessage failed (\(context, privacy: .public)): \(error.localizedDescription, privacy: .public)")
+    NotificationCenter.default.post(name: .syncFallbackOccurred, object: nil, userInfo: [
+      "context": context,
+    ])
+    #if canImport(WatchConnectivity)
+    if WCSession.isSupported() {
+      WCSession.default.transferUserInfo(payload)
+    }
+    #endif
+  }
+
+  /// Sends payload using sendMessage with fallback to transferUserInfo only on error.
+  /// This ensures single delivery instead of duplicate transmissions.
+  private func sendWithFallback(
+    _ payload: [String: Any],
+    context: String,
+    session: WCSession)
+  {
+    if session.isReachable {
+      session.sendMessage(
+        payload,
+        replyHandler: { _ in
+          // Success - do nothing (no fallback needed)
+        },
+        errorHandler: { [weak self] error in
+          // Only fallback to durable transfer on ERROR
+          self?.queue.async { [weak self] in
+            self?.handleSendMessageError(error, payload: payload, context: context)
+          }
+        })
+    } else {
+      // Not reachable - skip sendMessage entirely, use durable transfer
+      NotificationCenter.default.post(name: .syncFallbackOccurred, object: nil, userInfo: [
+        "context": "\(context).unreachable",
+      ])
+      session.transferUserInfo(payload)
+    }
+  }
+
+  private func processPendingAggregateDeltas() {
+    let work = self.stateQueue.sync { () -> (AggregateDeltaHandling, [AggregateDeltaEnvelope])? in
+      guard self.signedInFlag, let handler = aggregateDeltaHandler, isProcessingAggregateDeltas == false else {
+        return nil
+      }
+      guard self.pendingAggregateDeltas.isEmpty == false else { return nil }
+      self.isProcessingAggregateDeltas = true
+      let envelopes = self.pendingAggregateDeltas
+      self.pendingAggregateDeltas.removeAll()
+      return (handler, envelopes)
+    }
+
+    guard let (handler, envelopes) = work else { return }
+
+    Task { @MainActor [weak self] in
+      guard let self else { return }
+      var failedEnvelope: AggregateDeltaEnvelope?
+      for envelope in envelopes {
+        do {
+          try await handler.processDelta(envelope)
+        } catch {
+          failedEnvelope = envelope
+          break
+        }
+      }
+
+      self.stateQueue.sync {
+        if let failed = failedEnvelope {
+          self.pendingAggregateDeltas.insert(failed, at: 0)
+        }
+        self.isProcessingAggregateDeltas = false
+      }
+
+      if failedEnvelope != nil {
+        NotificationCenter.default.post(name: .syncFallbackOccurred, object: nil, userInfo: [
+          "context": "ios.aggregate.delta.retry",
+        ])
+      }
+
+      self.processPendingAggregateDeltas()
+    }
+  }
 }
 
 #if canImport(WatchConnectivity)
 extension IOSConnectivitySyncClient: WCSessionDelegate {
-    func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
-        flushAggregateSnapshots()
-        postAggregateStatus()
-    }
+  func session(
+    _ session: WCSession,
+    activationDidCompleteWith activationState: WCSessionActivationState,
+    error: Error?)
+  {
+    self.flushAggregateSnapshots()
+    self.postAggregateStatus()
+  }
 
-    func sessionDidBecomeInactive(_ session: WCSession) { }
-    func sessionDidDeactivate(_ session: WCSession) { }
+  func sessionDidBecomeInactive(_ session: WCSession) {}
+  func sessionDidDeactivate(_ session: WCSession) {}
 
-    /// Handles immediate messages. Decodes off the main thread and merges on main.
-    func session(_ session: WCSession, didReceiveMessage message: [String : Any]) {
-        guard let type = message["type"] as? String else { return }
+  /// Handles immediate messages. Decodes off the main thread and merges on main.
+  func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
+    guard let type = message["type"] as? String else { return }
 
-        switch type {
-        case "scheduleStatusUpdate":
-            handleScheduleStatusUpdate(message)
+    switch type {
+    case "scheduleStatusUpdate":
+      self.handleScheduleStatusUpdate(message)
 
-        case "completedMatch":
-            guard let data = message["data"] as? Data else {
-                DispatchQueue.main.async {
-                    NotificationCenter.default.post(name: .syncNonrecoverableError, object: nil, userInfo: ["error": "missing data", "context": "ios.didReceiveMessage.payload"])
-                }
-                return
-            }
-            queue.async { [weak self] in
-                let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .iso8601
-                guard let match = try? decoder.decode(CompletedMatch.self, from: data) else {
-                    DispatchQueue.main.async {
-                        NotificationCenter.default.post(name: .syncNonrecoverableError, object: nil, userInfo: ["error": "decode failed", "context": "ios.didReceiveMessage.decode"])
-                    }
-                    return
-                }
-                self?.handleCompletedMatch(match)
-            }
-
-        case "mediaCommand":
-            handleMediaCommandPayload(message)
-
-        case "syncRequest":
-            guard let data = message["payload"] as? Data else {
-                DispatchQueue.main.async {
-                    NotificationCenter.default.post(name: .syncNonrecoverableError, object: nil, userInfo: [
-                        "error": "missing payload",
-                        "context": "ios.didReceiveMessage.syncRequest"
-                    ])
-                }
-                return
-            }
-            queue.async { [weak self] in
-                let decoder = AggregateSyncCoding.makeDecoder()
-                guard let request = try? decoder.decode(ManualSyncRequestMessage.self, from: data) else {
-                    DispatchQueue.main.async {
-                        NotificationCenter.default.post(name: .syncNonrecoverableError, object: nil, userInfo: [
-                            "error": "decode failed",
-                            "context": "ios.didReceiveMessage.syncRequest.decode"
-                        ])
-                    }
-                    return
-                }
-                DispatchQueue.main.async {
-                    self?.manualSyncRequestHandler?(request)
-                }
-            }
-
-        case "aggregateDelta":
-            guard let data = message["payload"] as? Data else {
-                DispatchQueue.main.async {
-                    NotificationCenter.default.post(name: .syncNonrecoverableError, object: nil, userInfo: [
-                        "error": "missing payload",
-                        "context": "ios.didReceiveMessage.aggregateDelta.payload"
-                    ])
-                }
-                return
-            }
-            queue.async { [weak self] in
-                let decoder = AggregateSyncCoding.makeDecoder()
-                guard let envelope = try? decoder.decode(AggregateDeltaEnvelope.self, from: data) else {
-                    DispatchQueue.main.async {
-                        NotificationCenter.default.post(name: .syncNonrecoverableError, object: nil, userInfo: [
-                            "error": "decode failed",
-                            "context": "ios.didReceiveMessage.aggregateDelta.decode"
-                        ])
-                    }
-                    return
-                }
-                self?.enqueueAggregateDelta(envelope)
-            }
-
-        default:
-            break
+    case "completedMatch":
+      guard let data = message["data"] as? Data else {
+        DispatchQueue.main.async {
+          NotificationCenter.default.post(
+            name: .syncNonrecoverableError,
+            object: nil,
+            userInfo: ["error": "missing data", "context": "ios.didReceiveMessage.payload"])
         }
-    }
-
-    /// Handles background transfers. Decodes off the main thread and merges on main.
-    func session(_ session: WCSession, didReceiveUserInfo userInfo: [String : Any] = [:]) {
-        guard let type = userInfo["type"] as? String else { return }
-
-        switch type {
-        case "scheduleStatusUpdate":
-            handleScheduleStatusUpdate(userInfo)
-
-        case "completedMatch":
-            guard let data = userInfo["data"] as? Data else {
-                DispatchQueue.main.async {
-                    NotificationCenter.default.post(name: .syncNonrecoverableError, object: nil, userInfo: ["error": "missing data", "context": "ios.didReceiveUserInfo.payload"])
-                }
-                return
-            }
-            queue.async { [weak self] in
-                let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .iso8601
-                guard let match = try? decoder.decode(CompletedMatch.self, from: data) else {
-                    DispatchQueue.main.async {
-                        NotificationCenter.default.post(name: .syncNonrecoverableError, object: nil, userInfo: ["error": "decode failed", "context": "ios.didReceiveUserInfo.decode"])
-                    }
-                    return
-                }
-                self?.handleCompletedMatch(match)
-            }
-
-        case "mediaCommand":
-            handleMediaCommandPayload(userInfo)
-
-        case "aggregateDelta":
-            guard let data = userInfo["payload"] as? Data else {
-                DispatchQueue.main.async {
-                    NotificationCenter.default.post(name: .syncNonrecoverableError, object: nil, userInfo: [
-                        "error": "missing payload",
-                        "context": "ios.didReceiveUserInfo.aggregateDelta.payload"
-                    ])
-                }
-                return
-            }
-            queue.async { [weak self] in
-                let decoder = AggregateSyncCoding.makeDecoder()
-                guard let envelope = try? decoder.decode(AggregateDeltaEnvelope.self, from: data) else {
-                    DispatchQueue.main.async {
-                        NotificationCenter.default.post(name: .syncNonrecoverableError, object: nil, userInfo: [
-                            "error": "decode failed",
-                            "context": "ios.didReceiveUserInfo.aggregateDelta.decode"
-                        ])
-                    }
-                    return
-                }
-                self?.enqueueAggregateDelta(envelope)
-            }
-
-        default:
-            break
+        return
+      }
+      self.queue.async { [weak self] in
+        let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .iso8601
+        guard let match = try? decoder.decode(CompletedMatch.self, from: data) else {
+          DispatchQueue.main.async {
+            NotificationCenter.default.post(
+              name: .syncNonrecoverableError,
+              object: nil,
+              userInfo: ["error": "decode failed", "context": "ios.didReceiveMessage.decode"])
+          }
+          return
         }
-    }
+        self?.handleCompletedMatch(match)
+      }
 
-    func sessionReachabilityDidChange(_ session: WCSession) {
-        flushAggregateSnapshots()
-        postAggregateStatus()
-    }
-    private func handleMediaCommandPayload(_ payload: [String: Any]) {
-        guard let rawValue = payload["command"] as? String, let command = WorkoutMediaCommand(rawValue: rawValue) else {
-            AppLog.connectivity.error("Received malformed media command payload")
-            return
+    case "mediaCommand":
+      self.handleMediaCommandPayload(message)
+
+    case "syncRequest":
+      guard let data = message["payload"] as? Data else {
+        DispatchQueue.main.async {
+          NotificationCenter.default.post(name: .syncNonrecoverableError, object: nil, userInfo: [
+            "error": "missing payload",
+            "context": "ios.didReceiveMessage.syncRequest",
+          ])
         }
-        mediaHandler?.handle(command)
+        return
+      }
+      self.queue.async { [weak self] in
+        let decoder = AggregateSyncCoding.makeDecoder()
+        guard let request = try? decoder.decode(ManualSyncRequestMessage.self, from: data) else {
+          DispatchQueue.main.async {
+            NotificationCenter.default.post(name: .syncNonrecoverableError, object: nil, userInfo: [
+              "error": "decode failed",
+              "context": "ios.didReceiveMessage.syncRequest.decode",
+            ])
+          }
+          return
+        }
+        DispatchQueue.main.async {
+          self?.manualSyncRequestHandler?(request)
+        }
+      }
+
+    case "aggregateDelta":
+      guard let data = message["payload"] as? Data else {
+        DispatchQueue.main.async {
+          NotificationCenter.default.post(name: .syncNonrecoverableError, object: nil, userInfo: [
+            "error": "missing payload",
+            "context": "ios.didReceiveMessage.aggregateDelta.payload",
+          ])
+        }
+        return
+      }
+      self.queue.async { [weak self] in
+        let decoder = AggregateSyncCoding.makeDecoder()
+        guard let envelope = try? decoder.decode(AggregateDeltaEnvelope.self, from: data) else {
+          DispatchQueue.main.async {
+            NotificationCenter.default.post(name: .syncNonrecoverableError, object: nil, userInfo: [
+              "error": "decode failed",
+              "context": "ios.didReceiveMessage.aggregateDelta.decode",
+            ])
+          }
+          return
+        }
+        self?.enqueueAggregateDelta(envelope)
+      }
+
+    default:
+      break
     }
+  }
+
+  /// Handles background transfers. Decodes off the main thread and merges on main.
+  func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any] = [:]) {
+    guard let type = userInfo["type"] as? String else { return }
+
+    switch type {
+    case "scheduleStatusUpdate":
+      self.handleScheduleStatusUpdate(userInfo)
+
+    case "completedMatch":
+      guard let data = userInfo["data"] as? Data else {
+        DispatchQueue.main.async {
+          NotificationCenter.default.post(
+            name: .syncNonrecoverableError,
+            object: nil,
+            userInfo: ["error": "missing data", "context": "ios.didReceiveUserInfo.payload"])
+        }
+        return
+      }
+      self.queue.async { [weak self] in
+        let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .iso8601
+        guard let match = try? decoder.decode(CompletedMatch.self, from: data) else {
+          DispatchQueue.main.async {
+            NotificationCenter.default.post(
+              name: .syncNonrecoverableError,
+              object: nil,
+              userInfo: ["error": "decode failed", "context": "ios.didReceiveUserInfo.decode"])
+          }
+          return
+        }
+        self?.handleCompletedMatch(match)
+      }
+
+    case "mediaCommand":
+      self.handleMediaCommandPayload(userInfo)
+
+    case "aggregateDelta":
+      guard let data = userInfo["payload"] as? Data else {
+        DispatchQueue.main.async {
+          NotificationCenter.default.post(name: .syncNonrecoverableError, object: nil, userInfo: [
+            "error": "missing payload",
+            "context": "ios.didReceiveUserInfo.aggregateDelta.payload",
+          ])
+        }
+        return
+      }
+      self.queue.async { [weak self] in
+        let decoder = AggregateSyncCoding.makeDecoder()
+        guard let envelope = try? decoder.decode(AggregateDeltaEnvelope.self, from: data) else {
+          DispatchQueue.main.async {
+            NotificationCenter.default.post(name: .syncNonrecoverableError, object: nil, userInfo: [
+              "error": "decode failed",
+              "context": "ios.didReceiveUserInfo.aggregateDelta.decode",
+            ])
+          }
+          return
+        }
+        self?.enqueueAggregateDelta(envelope)
+      }
+
+    default:
+      break
+    }
+  }
+
+  func sessionReachabilityDidChange(_ session: WCSession) {
+    self.flushAggregateSnapshots()
+    self.postAggregateStatus()
+  }
+
+  private func handleMediaCommandPayload(_ payload: [String: Any]) {
+    guard let rawValue = payload["command"] as? String, let command = WorkoutMediaCommand(rawValue: rawValue) else {
+      AppLog.connectivity.error("Received malformed media command payload")
+      return
+    }
+    self.mediaHandler?.handle(command)
+  }
 }
 #endif

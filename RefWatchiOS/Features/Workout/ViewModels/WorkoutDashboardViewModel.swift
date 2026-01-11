@@ -1,25 +1,25 @@
+import Combine
 import Foundation
 import RefWorkoutCore
-import Combine
 
 @MainActor
 final class WorkoutDashboardViewModel: ObservableObject {
-  @Published private(set) var authorization: WorkoutAuthorizationStatus = WorkoutAuthorizationStatus(state: .notDetermined)
+  @Published private(set) var authorization: WorkoutAuthorizationStatus =
+    .init(state: .notDetermined)
   @Published private(set) var presets: [WorkoutPreset] = []
   @Published private(set) var recentSessions: [WorkoutSession] = []
   @Published var errorMessage: String?
   @Published var isLoading = false
 
   private let services: WorkoutServices
-  private let fallbackPreset: WorkoutPreset = WorkoutPreset(
+  private let fallbackPreset: WorkoutPreset = .init(
     title: "Tempo Intervals",
     kind: .outdoorRun,
     segments: [
       WorkoutSegment(name: "Warmup", purpose: .warmup, plannedDuration: 600),
       WorkoutSegment(name: "Main Set", purpose: .work, plannedDuration: 1200, plannedDistance: 3000),
-      WorkoutSegment(name: "Cooldown", purpose: .cooldown, plannedDuration: 420)
-    ]
-  )
+      WorkoutSegment(name: "Cooldown", purpose: .cooldown, plannedDuration: 420),
+    ])
 
   init(services: WorkoutServices) {
     self.services = services
@@ -32,14 +32,14 @@ final class WorkoutDashboardViewModel: ObservableObject {
   }
 
   func refresh() async {
-    isLoading = true
+    self.isLoading = true
     await withTaskGroup(of: Void.self) { group in
       group.addTask { await self.loadAuthorization() }
       group.addTask { await self.loadPresets() }
       group.addTask { await self.loadHistory() }
       await group.waitForAll()
     }
-    isLoading = false
+    self.isLoading = false
   }
 
   func requestAuthorization() {
@@ -61,31 +61,31 @@ final class WorkoutDashboardViewModel: ObservableObject {
   }
 
   private func loadAuthorization() async {
-    authorization = await services.authorizationManager.authorizationStatus()
+    self.authorization = await self.services.authorizationManager.authorizationStatus()
   }
 
   private func loadPresets(force: Bool = false) async {
     do {
       let loaded = try await services.presetStore.loadPresets()
-      if loaded.isEmpty && force {
-        try await services.presetStore.savePreset(fallbackPreset)
-        presets = [fallbackPreset]
+      if loaded.isEmpty, force {
+        try await self.services.presetStore.savePreset(self.fallbackPreset)
+        self.presets = [self.fallbackPreset]
       } else if loaded.isEmpty {
-        presets = [fallbackPreset]
+        self.presets = [self.fallbackPreset]
       } else {
-        presets = loaded
+        self.presets = loaded
       }
     } catch {
-      errorMessage = error.localizedDescription
+      self.errorMessage = error.localizedDescription
     }
   }
 
   private func loadHistory(limit: Int = 5) async {
     do {
       let sessions = try await services.historyStore.loadSessions(limit: limit)
-      recentSessions = sessions
+      self.recentSessions = sessions
     } catch {
-      errorMessage = error.localizedDescription
+      self.errorMessage = error.localizedDescription
     }
   }
 }

@@ -1,6 +1,6 @@
-import SwiftUI
 import RefWatchCore
 import RefWorkoutCore
+import SwiftUI
 
 struct WorkoutHomeView: View {
   let items: [WorkoutSelectionItem]
@@ -26,22 +26,21 @@ struct WorkoutHomeView: View {
     GeometryReader { geometry in
       ScrollView(.vertical, showsIndicators: false) {
         VStack(spacing: 0) {
-          ForEach(Array(items.enumerated()), id: \.element.id) { enumerated in
+          ForEach(Array(self.items.enumerated()), id: \.element.id) { enumerated in
             let index = enumerated.offset
             let item = enumerated.element
             WorkoutSelectionTileView(
               item: item,
-              isFocused: scrollPosition == item.id,
-              dwellState: dwellState,
-              dwellConfiguration: dwellConfiguration,
-              isBusy: isBusy,
-              onSelect: { onSelect(item) },
-              onRequestAccess: onRequestAccess,
-              onReloadPresets: onReloadPresets
-            )
-            .id(item.id)
-            .containerRelativeFrame(.vertical)
-            .zIndex(zIndexValue(for: index, isFocused: scrollPosition == item.id))
+              isFocused: self.scrollPosition == item.id,
+              dwellState: self.dwellState,
+              dwellConfiguration: self.dwellConfiguration,
+              isBusy: self.isBusy,
+              onSelect: { self.onSelect(item) },
+              onRequestAccess: self.onRequestAccess,
+              onReloadPresets: self.onReloadPresets)
+              .id(item.id)
+              .containerRelativeFrame(.vertical)
+              .zIndex(self.zIndexValue(for: index, isFocused: self.scrollPosition == item.id))
           }
         }
         .padding(.vertical, geometry.size.height * 0.12)
@@ -49,68 +48,66 @@ struct WorkoutHomeView: View {
           GeometryReader { proxy in
             Color.clear.preference(
               key: ScrollOffsetPreferenceKey.self,
-              value: proxy.frame(in: .named("workoutCarousel")).minY
-            )
-          }
-        )
+              value: proxy.frame(in: .named("workoutCarousel")).minY)
+          })
       }
       .scrollTargetLayout()
       .scrollIndicators(.hidden)
-      .scrollPosition(id: $scrollPosition)
+      .scrollPosition(id: self.$scrollPosition)
       .coordinateSpace(name: "workoutCarousel")
       .onPreferenceChange(ScrollOffsetPreferenceKey.self) { offset in
-        updateVelocity(with: offset)
+        self.updateVelocity(with: offset)
       }
     }
-    .background(theme.colors.backgroundPrimary.ignoresSafeArea())
-    .onChange(of: items) { _, _ in
-      synchroniseInitialScrollPosition()
+    .background(self.theme.colors.backgroundPrimary.ignoresSafeArea())
+    .onChange(of: self.items) { _, _ in
+      self.synchroniseInitialScrollPosition()
     }
-    .onChange(of: focusedSelectionID) { _, newValue in
+    .onChange(of: self.focusedSelectionID) { _, newValue in
       guard let newValue, newValue != scrollPosition else { return }
-      scrollPosition = newValue
+      self.scrollPosition = newValue
     }
-    .onChange(of: scrollPosition) { _, newValue in
-      onFocusChange(newValue, lastReportedVelocity)
+    .onChange(of: self.scrollPosition) { _, newValue in
+      self.onFocusChange(newValue, self.lastReportedVelocity)
     }
-    .onChange(of: dwellState) { _, newValue in
+    .onChange(of: self.dwellState) { _, newValue in
       if case .locked = newValue {
-        haptics.play(.success)
+        self.haptics.play(.success)
       }
     }
     .task {
-      synchroniseInitialScrollPosition()
+      self.synchroniseInitialScrollPosition()
     }
   }
 
   private func updateVelocity(with offset: CGFloat) {
     let now = Date()
-    if lastOffsetTimestamp == .distantPast {
-      lastOffset = offset
-      lastOffsetTimestamp = now
+    if self.lastOffsetTimestamp == .distantPast {
+      self.lastOffset = offset
+      self.lastOffsetTimestamp = now
       return
     }
 
-    let delta = offset - lastOffset
-    let interval = now.timeIntervalSince(lastOffsetTimestamp)
+    let delta = offset - self.lastOffset
+    let interval = now.timeIntervalSince(self.lastOffsetTimestamp)
     guard interval > 0 else { return }
 
     let pointsPerSecond = abs(delta / interval)
     let normalizedVelocity = min(pointsPerSecond / 900, 2)
 
-    lastOffset = offset
-    lastOffsetTimestamp = now
-    lastReportedVelocity = normalizedVelocity
-    onFocusChange(scrollPosition, normalizedVelocity)
+    self.lastOffset = offset
+    self.lastOffsetTimestamp = now
+    self.lastReportedVelocity = normalizedVelocity
+    self.onFocusChange(self.scrollPosition, normalizedVelocity)
   }
 
   private func synchroniseInitialScrollPosition() {
-    guard !hasInitializedScrollPosition else { return }
+    guard !self.hasInitializedScrollPosition else { return }
     guard let target = focusedSelectionID ?? items.first?.id else { return }
-    hasInitializedScrollPosition = true
-    scrollPosition = target
+    self.hasInitializedScrollPosition = true
+    self.scrollPosition = target
     DispatchQueue.main.async {
-      onFocusChange(target, 0)
+      self.onFocusChange(target, 0)
     }
   }
 
@@ -134,40 +131,40 @@ private struct WorkoutSelectionTileView: View {
 
   var body: some View {
     Group {
-      if item.interaction == .preview {
-        Button(action: onSelect) {
-          tileContent
+      if self.item.interaction == .preview {
+        Button(action: self.onSelect) {
+          self.tileContent
         }
         .buttonStyle(.plain)
-        .disabled(isBusy)
+        .disabled(self.isBusy)
       } else {
-        tileContent
+        self.tileContent
       }
     }
   }
 
   @ViewBuilder
   private var tileContent: some View {
-    if case .authorization(let status, let diagnostics) = item.content {
-      tileContainer(contentSpacing: theme.spacing.m, verticalPadding: theme.spacing.m) {
-        authorizationContent(status: status, diagnostics: diagnostics)
+    if case let .authorization(status, diagnostics) = item.content {
+      self.tileContainer(contentSpacing: self.theme.spacing.m, verticalPadding: self.theme.spacing.m) {
+        self.authorizationContent(status: status, diagnostics: diagnostics)
       }
     } else {
-      tileContainer {
-        standardTileContent
+      self.tileContainer {
+        self.standardTileContent
       }
     }
   }
 
   @ViewBuilder
   private var dwellIndicator: some View {
-    if case .pending(let id, let start) = dwellState, id == item.id {
-      DwellProgressIndicator(startedAt: start, configuration: dwellConfiguration)
-    } else if case .locked(let id, _) = dwellState, id == item.id {
+    if case let .pending(id, start) = dwellState, id == item.id {
+      DwellProgressIndicator(startedAt: start, configuration: self.dwellConfiguration)
+    } else if case let .locked(id, _) = dwellState, id == item.id {
       Image(systemName: "checkmark.circle.fill")
         .font(.system(size: 18, weight: .semibold))
-        .foregroundStyle(theme.colors.accentSecondary)
-        .padding(theme.spacing.xs)
+        .foregroundStyle(self.theme.colors.accentSecondary)
+        .padding(self.theme.spacing.xs)
     }
   }
 
@@ -176,8 +173,8 @@ private struct WorkoutSelectionTileView: View {
     if let icon = item.iconSystemName {
       Image(systemName: icon)
         .font(.system(size: 32, weight: .medium))
-        .foregroundStyle(theme.colors.accentSecondary)
-        .opacity(isBusy && item.interaction == .preview ? 0.4 : 1)
+        .foregroundStyle(self.theme.colors.accentSecondary)
+        .opacity(self.isBusy && self.item.interaction == .preview ? 0.4 : 1)
     } else {
       Spacer(minLength: 0)
     }
@@ -186,63 +183,66 @@ private struct WorkoutSelectionTileView: View {
   private func primaryButton(title: String, action: @escaping () -> Void) -> some View {
     Button(action: action) {
       Text(title)
-        .font(theme.typography.button)
-        .foregroundStyle(theme.colors.textInverted)
+        .font(self.theme.typography.button)
+        .foregroundStyle(self.theme.colors.textInverted)
         .frame(maxWidth: .infinity)
-        .padding(.vertical, theme.spacing.s)
+        .padding(.vertical, self.theme.spacing.s)
         .background(
-          RoundedRectangle(cornerRadius: theme.components.controlCornerRadius, style: .continuous)
-            .fill(theme.colors.accentSecondary)
-        )
+          RoundedRectangle(cornerRadius: self.theme.components.controlCornerRadius, style: .continuous)
+            .fill(self.theme.colors.accentSecondary))
     }
     .buttonStyle(.plain)
-    .disabled(isBusy)
+    .disabled(self.isBusy)
   }
 
-  private func tileContainer<Content: View>(contentSpacing: CGFloat? = nil, verticalPadding: CGFloat? = nil, @ViewBuilder content: () -> Content) -> some View {
-    VStack(spacing: contentSpacing ?? theme.spacing.m) {
+  private func tileContainer(
+    contentSpacing: CGFloat? = nil,
+    verticalPadding: CGFloat? = nil,
+    @ViewBuilder content: () -> some View) -> some View
+  {
+    VStack(spacing: contentSpacing ?? self.theme.spacing.m) {
       content()
     }
-    .padding(.vertical, verticalPadding ?? theme.spacing.l)
-    .padding(.horizontal, theme.spacing.s)
+    .padding(.vertical, verticalPadding ?? self.theme.spacing.l)
+    .padding(.horizontal, self.theme.spacing.s)
     .frame(maxWidth: .infinity)
-    .background(theme.colors.backgroundPrimary)
+    .background(self.theme.colors.backgroundPrimary)
     .overlay(alignment: .topTrailing) {
-      dwellIndicator
+      self.dwellIndicator
     }
     .overlay(alignment: .bottom) {
-      if case .locked(let id, _) = dwellState, id == item.id {
+      if case let .locked(id, _) = dwellState, id == item.id {
         Rectangle()
-          .fill(theme.colors.accentSecondary)
+          .fill(self.theme.colors.accentSecondary)
           .frame(height: 2)
       } else {
         Rectangle()
-          .fill(theme.colors.outlineMuted.opacity(0.3))
+          .fill(self.theme.colors.outlineMuted.opacity(0.3))
           .frame(height: 1)
       }
     }
-    .scaleEffect(isFocused ? 1.02 : 0.94)
-    .opacity(isFocused ? 1.0 : 0.6)
-    .animation(.spring(response: 0.28, dampingFraction: 0.86), value: isFocused)
-    .opacity(isBusy && item.interaction == .preview ? 0.5 : 1)
+    .scaleEffect(self.isFocused ? 1.02 : 0.94)
+    .opacity(self.isFocused ? 1.0 : 0.6)
+    .animation(.spring(response: 0.28, dampingFraction: 0.86), value: self.isFocused)
+    .opacity(self.isBusy && self.item.interaction == .preview ? 0.5 : 1)
   }
 
   private var standardTileContent: some View {
-    VStack(spacing: theme.spacing.m) {
-      iconView
+    VStack(spacing: self.theme.spacing.m) {
+      self.iconView
         .frame(height: 42)
 
-      VStack(spacing: theme.spacing.xs) {
-        Text(item.title)
-          .font(theme.typography.cardHeadline)
-          .foregroundStyle(theme.colors.textPrimary)
+      VStack(spacing: self.theme.spacing.xs) {
+        Text(self.item.title)
+          .font(self.theme.typography.cardHeadline)
+          .foregroundStyle(self.theme.colors.textPrimary)
           .multilineTextAlignment(.center)
           .lineLimit(2)
 
         if let subtitle = item.subtitle {
           Text(subtitle)
-            .font(theme.typography.cardMeta)
-            .foregroundStyle(theme.colors.textSecondary)
+            .font(self.theme.typography.cardMeta)
+            .foregroundStyle(self.theme.colors.textSecondary)
             .multilineTextAlignment(.center)
             .lineLimit(2)
             .minimumScaleFactor(0.9)
@@ -251,32 +251,35 @@ private struct WorkoutSelectionTileView: View {
 
       if let diagnostics = item.diagnosticsDescription {
         Text(diagnostics)
-          .font(theme.typography.caption)
-          .foregroundStyle(theme.colors.accentSecondary)
+          .font(self.theme.typography.caption)
+          .foregroundStyle(self.theme.colors.accentSecondary)
           .multilineTextAlignment(.center)
       }
     }
   }
 
-  private func authorizationContent(status: WorkoutAuthorizationStatus, diagnostics: [WorkoutAuthorizationMetric]) -> some View {
-    VStack(spacing: theme.spacing.m) {
-      Image(systemName: item.iconSystemName ?? "heart.text.square")
+  private func authorizationContent(
+    status: WorkoutAuthorizationStatus,
+    diagnostics: [WorkoutAuthorizationMetric]) -> some View
+  {
+    VStack(spacing: self.theme.spacing.m) {
+      Image(systemName: self.item.iconSystemName ?? "heart.text.square")
         .font(.system(size: 28, weight: .medium))
-        .foregroundStyle(theme.colors.accentSecondary)
+        .foregroundStyle(self.theme.colors.accentSecondary)
         .accessibilityHidden(true)
 
-      VStack(spacing: theme.spacing.xs) {
-        Text(item.title)
-          .font(theme.typography.cardHeadline)
-          .foregroundStyle(theme.colors.textPrimary)
+      VStack(spacing: self.theme.spacing.xs) {
+        Text(self.item.title)
+          .font(self.theme.typography.cardHeadline)
+          .foregroundStyle(self.theme.colors.textPrimary)
           .multilineTextAlignment(.center)
           .lineLimit(1)
           .minimumScaleFactor(0.85)
 
         if let subtitle = item.subtitle {
           Text(subtitle)
-            .font(theme.typography.cardMeta)
-            .foregroundStyle(theme.colors.textSecondary)
+            .font(self.theme.typography.cardMeta)
+            .foregroundStyle(self.theme.colors.textSecondary)
             .multilineTextAlignment(.center)
             .lineLimit(2)
             .minimumScaleFactor(0.9)
@@ -285,28 +288,28 @@ private struct WorkoutSelectionTileView: View {
 
       if let summary = WorkoutSelectionItem.authorizationDiagnosticsSummary(for: diagnostics) {
         Label(summary, systemImage: "info.circle")
-          .font(theme.typography.caption)
-          .foregroundStyle(theme.colors.accentSecondary)
+          .font(self.theme.typography.caption)
+          .foregroundStyle(self.theme.colors.accentSecondary)
           .labelStyle(.titleAndIcon)
           .multilineTextAlignment(.center)
           .lineLimit(1)
           .frame(maxWidth: .infinity)
       }
 
-      primaryButton(title: authorizationButtonTitle, action: onRequestAccess)
+      self.primaryButton(title: self.authorizationButtonTitle, action: self.onRequestAccess)
     }
   }
 
   private var authorizationButtonTitle: String {
-    switch item.authorizationStatus?.state {
+    switch self.item.authorizationStatus?.state {
     case .notDetermined:
-      return "Grant on iPhone"
+      "Grant on iPhone"
     case .denied:
-      return "Fix on iPhone"
+      "Fix on iPhone"
     case .limited:
-      return "Update on iPhone"
+      "Update on iPhone"
     default:
-      return "Manage on iPhone"
+      "Manage on iPhone"
     }
   }
 }
@@ -318,7 +321,7 @@ private struct DwellProgressIndicator: View {
   var body: some View {
     TimelineView(.animation) { timeline in
       let duration = max(configuration.dwellDuration, 0.1)
-      let progress = min(max(timeline.date.timeIntervalSince(startedAt) / duration, 0), 1)
+      let progress = min(max(timeline.date.timeIntervalSince(self.startedAt) / duration, 0), 1)
 
       ProgressView(value: progress)
         .progressViewStyle(.circular)
@@ -345,23 +348,23 @@ private struct ScrollOffsetPreferenceKey: PreferenceKey {
     onFocusChange: { _, _ in },
     onSelect: { _ in },
     onRequestAccess: {},
-    onReloadPresets: {}
-  )
-  .theme(DefaultTheme())
-  .hapticsProvider(NoopHaptics())
+    onReloadPresets: {})
+    .theme(DefaultTheme())
+    .hapticsProvider(NoopHaptics())
 }
 
 private enum WorkoutHomePreviewData {
   static let items: [WorkoutSelectionItem] = {
     let status = WorkoutAuthorizationStatus(state: .limited, deniedMetrics: [.vo2Max])
-    let authorization = WorkoutSelectionItem(id: .authorization, content: .authorization(status: status, diagnostics: [.vo2Max]))
+    let authorization = WorkoutSelectionItem(
+      id: .authorization,
+      content: .authorization(status: status, diagnostics: [.vo2Max]))
     let session = WorkoutSession(
       state: .ended,
       kind: .outdoorRun,
       title: "Intervals",
-      startedAt: Date().addingTimeInterval(-2_700),
-      endedAt: Date().addingTimeInterval(-1_200)
-    )
+      startedAt: Date().addingTimeInterval(-2700),
+      endedAt: Date().addingTimeInterval(-1200))
     let last = WorkoutSelectionItem(id: .lastCompleted(session.id), content: .lastCompleted(session: session))
     let quick = WorkoutSelectionItem(id: .quickStart(.outdoorRun), content: .quickStart(kind: .outdoorRun))
     let preset = WorkoutSelectionItem(id: .preset(UUID()), content: .preset(preset: WorkoutModeBootstrap.samplePreset))

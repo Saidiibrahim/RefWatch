@@ -1,6 +1,6 @@
-import SwiftUI
 import RefWatchCore
 import RefWorkoutCore
+import SwiftUI
 
 struct WorkoutRootView: View {
   private let appModeController: AppModeController
@@ -12,164 +12,161 @@ struct WorkoutRootView: View {
 
   init(services: WorkoutServices, appModeController: AppModeController) {
     self.appModeController = appModeController
-    _viewModel = StateObject(wrappedValue: WorkoutModeViewModel(services: services, appModeController: appModeController))
+    _viewModel = StateObject(
+      wrappedValue: WorkoutModeViewModel(
+        services: services,
+        appModeController: appModeController))
   }
 
   var body: some View {
     NavigationStack {
       content
-      .navigationTitle("Workout")
-      .toolbar {
-        ToolbarItem(placement: .cancellationAction) {
-          Button {
-            modeSwitcherPresentation.wrappedValue = true
-          } label: {
-            Label("Back", systemImage: "chevron.backward")
-              .labelStyle(.iconOnly)
-          }
-          .opacity(isModeSwitcherBlocked ? 0.55 : 1)
-          .accessibilityIdentifier("workoutModeSwitcherButton")
-        }
-
-        if case .list = viewModel.presentationState {
-          ToolbarItem(placement: .primaryAction) {
+        .navigationTitle("Workout")
+        .toolbar {
+          ToolbarItem(placement: .cancellationAction) {
             Button {
-              viewModel.reloadContent()
+              self.modeSwitcherPresentation.wrappedValue = true
             } label: {
-              Label("Refresh", systemImage: "arrow.triangle.2.circlepath")
+              Label("Back", systemImage: "chevron.backward")
                 .labelStyle(.iconOnly)
             }
-            .disabled(viewModel.isPerformingAction)
+            .opacity(isModeSwitcherBlocked ? 0.55 : 1)
+            .accessibilityIdentifier("workoutModeSwitcherButton")
+          }
+
+          if case .list = self.viewModel.presentationState {
+            ToolbarItem(placement: .primaryAction) {
+              Button {
+                self.viewModel.reloadContent()
+              } label: {
+                Label("Refresh", systemImage: "arrow.triangle.2.circlepath")
+                  .labelStyle(.iconOnly)
+              }
+              .disabled(self.viewModel.isPerformingAction)
+            }
           }
         }
-      }
     }
-    .background(theme.colors.backgroundPrimary.ignoresSafeArea())
+    .background(self.theme.colors.backgroundPrimary.ignoresSafeArea())
     .task {
-      await viewModel.bootstrap()
+      await self.viewModel.bootstrap()
     }
     .onAppear {
       updateModeSwitcherBlock()
     }
-    .onChange(of: viewModel.errorMessage) { _, message in
-      let isSelectionError: Bool
-      if case .error = viewModel.presentationState {
-        isSelectionError = true
+    .onChange(of: self.viewModel.errorMessage) { _, message in
+      let isSelectionError = if case .error = self.viewModel.presentationState {
+        true
       } else {
-        isSelectionError = false
+        false
       }
-      presentError = message != nil && !isSelectionError
+      self.presentError = message != nil && !isSelectionError
     }
-    .onChange(of: viewModel.presentationState) { _, _ in
+    .onChange(of: self.viewModel.presentationState) { _, _ in
       updateModeSwitcherBlock()
     }
-    .onChange(of: viewModel.isPerformingAction) { _, _ in
+    .onChange(of: self.viewModel.isPerformingAction) { _, _ in
       updateModeSwitcherBlock()
     }
-    .alert("Workout Error", isPresented: $presentError) {
+    .alert("Workout Error", isPresented: self.$presentError) {
       Button("OK", role: .cancel) {
-        presentError = false
-        viewModel.errorMessage = nil
+        self.presentError = false
+        self.viewModel.errorMessage = nil
       }
     } message: {
-      Text(viewModel.errorMessage ?? "An unknown error occurred.")
+      Text(self.viewModel.errorMessage ?? "An unknown error occurred.")
     }
   }
 }
 
-private extension WorkoutPresentationState {
-  var isActiveSession: Bool {
+extension WorkoutPresentationState {
+  fileprivate var isActiveSession: Bool {
     switch self {
     case .session, .starting:
-      return true
+      true
     default:
-      return false
+      false
     }
   }
 }
 
-private extension WorkoutRootView {
+extension WorkoutRootView {
   @ViewBuilder
-  var content: some View {
-    switch viewModel.presentationState {
+  private var content: some View {
+    switch self.viewModel.presentationState {
     case .list:
       WorkoutHomeView(
-        items: viewModel.selectionItems,
-        focusedSelectionID: viewModel.focusedSelectionID,
-        dwellState: viewModel.dwellState,
-        dwellConfiguration: viewModel.selectionDwellConfiguration,
-        isBusy: viewModel.isPerformingAction,
-        onFocusChange: viewModel.updateFocusedSelection,
-        onSelect: viewModel.requestPreview,
-        onRequestAccess: viewModel.requestAuthorization,
-        onReloadPresets: viewModel.reloadPresets
-      )
+        items: self.viewModel.selectionItems,
+        focusedSelectionID: self.viewModel.focusedSelectionID,
+        dwellState: self.viewModel.dwellState,
+        dwellConfiguration: self.viewModel.selectionDwellConfiguration,
+        isBusy: self.viewModel.isPerformingAction,
+        onFocusChange: self.viewModel.updateFocusedSelection,
+        onSelect: self.viewModel.requestPreview,
+        onRequestAccess: self.viewModel.requestAuthorization,
+        onReloadPresets: self.viewModel.reloadPresets)
 
-    case .preview(let item):
+    case let .preview(item):
       WorkoutSessionPreviewView(
         item: item,
         isStarting: false,
         error: nil,
-        onStart: { viewModel.startSelection(for: item) },
-        onRetry: { viewModel.startSelection(for: item) },
-        onReturnToList: viewModel.returnToList
-      )
+        onStart: { self.viewModel.startSelection(for: item) },
+        onRetry: { self.viewModel.startSelection(for: item) },
+        onReturnToList: self.viewModel.returnToList)
 
-    case .starting(let item):
+    case let .starting(item):
       WorkoutSessionPreviewView(
         item: item,
         isStarting: true,
         error: nil,
         onStart: {},
-        onRetry: { viewModel.startSelection(for: item) },
-        onReturnToList: viewModel.returnToList
-      )
+        onRetry: { self.viewModel.startSelection(for: item) },
+        onReturnToList: self.viewModel.returnToList)
 
-    case .error(let item, let error):
+    case let .error(item, error):
       WorkoutSessionPreviewView(
         item: item,
         isStarting: false,
         error: error,
-        onStart: { viewModel.startSelection(for: item) },
-        onRetry: { viewModel.startSelection(for: item) },
-        onReturnToList: viewModel.returnToList
-      )
+        onStart: { self.viewModel.startSelection(for: item) },
+        onRetry: { self.viewModel.startSelection(for: item) },
+        onReturnToList: self.viewModel.returnToList)
 
-    case .session(let session):
+    case let .session(session):
       WorkoutSessionHostView(
-        session: viewModel.activeSession ?? session,
-        liveMetrics: viewModel.liveMetrics,
-        isPaused: viewModel.isActiveSessionPaused,
-        isEnding: viewModel.isPerformingAction,
-        isRecordingSegment: viewModel.isRecordingSegment,
-        lapCount: viewModel.lapCount,
-        onPause: viewModel.pauseActiveSession,
-        onResume: viewModel.resumeActiveSession,
-        onEnd: viewModel.endActiveSession,
-        onMarkSegment: viewModel.markSegment,
-        onRequestNewSession: viewModel.abandonActiveSession
-      )
-      .workoutCrownReturnGesture(onReturn: viewModel.returnToList)
+        session: self.viewModel.activeSession ?? session,
+        liveMetrics: self.viewModel.liveMetrics,
+        isPaused: self.viewModel.isActiveSessionPaused,
+        isEnding: self.viewModel.isPerformingAction,
+        isRecordingSegment: self.viewModel.isRecordingSegment,
+        lapCount: self.viewModel.lapCount,
+        onPause: self.viewModel.pauseActiveSession,
+        onResume: self.viewModel.resumeActiveSession,
+        onEnd: self.viewModel.endActiveSession,
+        onMarkSegment: self.viewModel.markSegment,
+        onRequestNewSession: self.viewModel.abandonActiveSession)
+        .workoutCrownReturnGesture(onReturn: self.viewModel.returnToList)
     }
   }
 
-  var isModeSwitcherBlocked: Bool {
-    viewModel.presentationState.isActiveSession || viewModel.isPerformingAction
+  private var isModeSwitcherBlocked: Bool {
+    self.viewModel.presentationState.isActiveSession || self.viewModel.isPerformingAction
   }
 
-  func updateModeSwitcherBlock() {
-    if isModeSwitcherBlocked {
-      modeSwitcherBlockReason.wrappedValue = .activeWorkout
-      appModeControllerOverrideIfNeeded()
-    } else if modeSwitcherBlockReason.wrappedValue == .activeWorkout {
-      modeSwitcherBlockReason.wrappedValue = nil
+  private func updateModeSwitcherBlock() {
+    if self.isModeSwitcherBlocked {
+      self.modeSwitcherBlockReason.wrappedValue = .activeWorkout
+      self.appModeControllerOverrideIfNeeded()
+    } else if self.modeSwitcherBlockReason.wrappedValue == .activeWorkout {
+      self.modeSwitcherBlockReason.wrappedValue = nil
     }
   }
 
-  func appModeControllerOverrideIfNeeded() {
+  private func appModeControllerOverrideIfNeeded() {
     // Keep mode in sync if the app resumes during an active workout session
-    if case .session = viewModel.presentationState {
-      appModeController.overrideForActiveSession(.workout)
+    if case .session = self.viewModel.presentationState {
+      self.appModeController.overrideForActiveSession(.workout)
     }
   }
 }

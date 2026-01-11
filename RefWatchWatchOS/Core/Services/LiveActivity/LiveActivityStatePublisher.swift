@@ -7,8 +7,8 @@
 //
 
 import Foundation
-import WidgetKit
 import RefWatchCore
+import WidgetKit
 
 // MARK: - LiveActivityStatePublisher
 
@@ -23,18 +23,18 @@ final class LiveActivityStatePublisher: LiveActivityPublishing {
   }
 
   func start(state: LiveActivityState) {
-    store.write(state)
-    reload()
+    self.store.write(state)
+    self.reload()
   }
 
   func update(state: LiveActivityState) {
-    store.write(state)
-    reload()
+    self.store.write(state)
+    self.reload()
   }
 
   func end() {
-    store.clear()
-    reload()
+    self.store.clear()
+    self.reload()
   }
 
   // MARK: - Derivation
@@ -49,7 +49,11 @@ final class LiveActivityStatePublisher: LiveActivityPublishing {
 
     // Expected end while running; use remaining from VM (no recompute)
     let remaining = Self.parseMMSS(model.periodTimeRemaining)
-    let expectedEnd: Date? = (model.isMatchInProgress && !model.isPaused && remaining > 0) ? now.addingTimeInterval(remaining) : nil
+    let expectedEnd: Date? = if model.isMatchInProgress, !model.isPaused, remaining > 0 {
+      now.addingTimeInterval(remaining)
+    } else {
+      nil
+    }
 
     let periodLabel = PeriodLabelFormatter.label(for: model)
     let stoppageAccumulated = Self.parseMMSS(model.formattedStoppageTime)
@@ -73,30 +77,32 @@ final class LiveActivityStatePublisher: LiveActivityPublishing {
       canResume: model.isMatchInProgress && model.isPaused,
       canStartHalfTime: model.waitingForHalfTimeStart,
       canStartSecondHalf: model.waitingForSecondHalfStart,
-      lastUpdated: now
-    )
+      lastUpdated: now)
   }
 
   // MARK: - Helpers
 
   func publish(for model: MatchViewModel) {
     guard let state = deriveState(from: model) else {
-      end()
+      self.end()
       return
     }
 
     if model.isMatchInProgress || model.isHalfTime || model.penaltyShootoutActive {
-      update(state: state)
+      self.update(state: state)
     } else if model.isFullTime || model.matchCompleted {
-      end()
+      self.end()
     } else {
-      end()
+      self.end()
     }
   }
 
   private func reload() {
-    if let kind = reloadKind { WidgetCenter.shared.reloadTimelines(ofKind: kind) }
-    else { WidgetCenter.shared.reloadAllTimelines() }
+    if let kind = reloadKind {
+      WidgetCenter.shared.reloadTimelines(ofKind: kind)
+    } else {
+      WidgetCenter.shared.reloadAllTimelines()
+    }
   }
 
   private static func parseMMSS(_ value: String) -> TimeInterval {

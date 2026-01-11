@@ -35,7 +35,8 @@ final class SupabaseGoogleSignInCoordinator: SupabaseGoogleSignInCoordinating {
       // Try to get client ID from GoogleService-Info.plist first
       if let path = Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist"),
          let plist = NSDictionary(contentsOfFile: path),
-         let plistClientID = plist["CLIENT_ID"] as? String {
+         let plistClientID = plist["CLIENT_ID"] as? String
+      {
         clientID = plistClientID
       } else {
         // Fallback to Info.plist configuration
@@ -53,8 +54,8 @@ final class SupabaseGoogleSignInCoordinator: SupabaseGoogleSignInCoordinating {
       GIDSignIn.sharedInstance.signIn(
         withPresenting: presenter,
         hint: nil,
-        additionalScopes: ["email"]
-      ) { result, error in
+        additionalScopes: ["email"])
+      { result, error in
         if let error {
           if (error as NSError).code == -2 { // GIDSignInErrorCode.canceled.rawValue
             continuation.resume(throwing: SupabaseAuthError.thirdPartyCancelled)
@@ -65,7 +66,9 @@ final class SupabaseGoogleSignInCoordinator: SupabaseGoogleSignInCoordinating {
         }
 
         guard let user = result?.user, let idToken = user.idToken?.tokenString else {
-          continuation.resume(throwing: SupabaseAuthError.unknown(message: "Google sign-in did not return a valid token."))
+          continuation.resume(
+            throwing: SupabaseAuthError.unknown(
+              message: "Google sign-in did not return a valid token."))
           return
         }
 
