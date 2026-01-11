@@ -9,24 +9,26 @@ struct TeamDetailsView: View {
 
   let teamType: TeamType
   let matchViewModel: MatchViewModel
-  let setupViewModel: MatchSetupViewModel
   let onGoalTypeSelected: (GoalDetails.GoalType) -> Void
+  let onCardSelected: (CardDetails.CardType) -> Void
+  let onSubstitutionSelected: () -> Void
 
   init(
     teamType: TeamType,
     matchViewModel: MatchViewModel,
-    setupViewModel: MatchSetupViewModel,
-    onGoalTypeSelected: @escaping (GoalDetails.GoalType) -> Void = { _ in })
+    onGoalTypeSelected: @escaping (GoalDetails.GoalType) -> Void = { _ in },
+    onCardSelected: @escaping (CardDetails.CardType) -> Void = { _ in },
+    onSubstitutionSelected: @escaping () -> Void = {})
   {
     self.teamType = teamType
     self.matchViewModel = matchViewModel
-    self.setupViewModel = setupViewModel
     self.onGoalTypeSelected = onGoalTypeSelected
+    self.onCardSelected = onCardSelected
+    self.onSubstitutionSelected = onSubstitutionSelected
   }
 
   @Environment(\.theme) private var theme
   @Environment(\.watchLayoutScale) private var layout
-  @Environment(SettingsViewModel.self) private var settingsViewModel
 
   var body: some View {
     VStack(spacing: self.theme.spacing.m) {
@@ -64,13 +66,7 @@ struct TeamDetailsView: View {
         label: "Yellow",
         onTap: {
           WKInterfaceDevice.current().play(self.haptic(for: "square.fill"))
-        },
-        destination: {
-          CardEventFlow(
-            cardType: .yellow,
-            team: self.teamType,
-            matchViewModel: self.matchViewModel,
-            setupViewModel: self.setupViewModel)
+          self.onCardSelected(.yellow)
         }),
       AdaptiveEventGridItem(
         id: "red-card",
@@ -79,13 +75,7 @@ struct TeamDetailsView: View {
         label: "Red",
         onTap: {
           WKInterfaceDevice.current().play(self.haptic(for: "square.fill"))
-        },
-        destination: {
-          CardEventFlow(
-            cardType: .red,
-            team: self.teamType,
-            matchViewModel: self.matchViewModel,
-            setupViewModel: self.setupViewModel)
+          self.onCardSelected(.red)
         }),
       AdaptiveEventGridItem(
         id: "substitution",
@@ -94,13 +84,7 @@ struct TeamDetailsView: View {
         label: "Sub",
         onTap: {
           WKInterfaceDevice.current().play(self.haptic(for: "arrow.up.arrow.down"))
-        },
-        destination: {
-          SubstitutionFlow(
-            team: self.teamType,
-            matchViewModel: self.matchViewModel,
-            setupViewModel: self.setupViewModel,
-            initialStep: self.initialSubstitutionStep)
+          self.onSubstitutionSelected()
         }),
       AdaptiveEventGridItem(
         id: "goal",
@@ -119,10 +103,6 @@ struct TeamDetailsView: View {
           }
         }),
     ]
-  }
-
-  private var initialSubstitutionStep: SubstitutionFlow.SubstitutionStep {
-    self.settingsViewModel.settings.substitutionOrderPlayerOffFirst ? .playerOff : .playerOn
   }
 
   private func haptic(for icon: String) -> WKHapticType {
@@ -155,18 +135,16 @@ struct TeamDetailsView: View {
 
 #Preview("Team Details – 41mm") {
   let matchViewModel = MatchViewModel(haptics: WatchHaptics())
-  let setupViewModel = MatchSetupViewModel(matchViewModel: matchViewModel)
 
-  return TeamDetailsView(teamType: .home, matchViewModel: matchViewModel, setupViewModel: setupViewModel)
+  return TeamDetailsView(teamType: .home, matchViewModel: matchViewModel)
     .environment(SettingsViewModel())
     .watchLayoutScale(WatchLayoutScale(category: .compact))
 }
 
 #Preview("Team Details – Ultra") {
   let matchViewModel = MatchViewModel(haptics: WatchHaptics())
-  let setupViewModel = MatchSetupViewModel(matchViewModel: matchViewModel)
 
-  return TeamDetailsView(teamType: .away, matchViewModel: matchViewModel, setupViewModel: setupViewModel)
+  return TeamDetailsView(teamType: .away, matchViewModel: matchViewModel)
     .environment(SettingsViewModel())
     .watchLayoutScale(WatchLayoutScale(category: .expanded))
 }

@@ -7,12 +7,11 @@ import SwiftUI
 struct SubstitutionFlow: View {
   let team: TeamDetailsView.TeamType
   let matchViewModel: MatchViewModel
-  let setupViewModel: MatchSetupViewModel
+  let onComplete: () -> Void
 
   @State private var step: SubstitutionStep
   @State private var playerOffNumber: Int?
   @State private var playerOnNumber: Int?
-  @Environment(\.dismiss) private var dismiss
   @Environment(SettingsViewModel.self) private var settingsViewModel
 
   enum SubstitutionStep {
@@ -25,13 +24,13 @@ struct SubstitutionFlow: View {
   init(
     team: TeamDetailsView.TeamType,
     matchViewModel: MatchViewModel,
-    setupViewModel: MatchSetupViewModel,
-    initialStep: SubstitutionStep = .playerOff)
+    initialStep: SubstitutionStep = .playerOff,
+    onComplete: @escaping () -> Void)
   {
     self.team = team
     self.matchViewModel = matchViewModel
-    self.setupViewModel = setupViewModel
     self._step = State(initialValue: initialStep)
+    self.onComplete = onComplete
   }
 
   var body: some View {
@@ -131,11 +130,8 @@ struct SubstitutionFlow: View {
 
     print("DEBUG: Substitution recorded successfully using new system")
 
-    // Navigate back to middle screen
-    self.setupViewModel.setSelectedTab(1)
-
-    // Dismiss the entire flow
-    self.dismiss()
+    // Notify parent to handle navigation
+    self.onComplete()
   }
 
   private func advanceAfterCapturingPlayerOff() {
@@ -169,7 +165,7 @@ struct SubstitutionFlow: View {
   SubstitutionFlow(
     team: .home,
     matchViewModel: PreviewMatchViewModel(),
-    setupViewModel: PreviewMatchSetupViewModel())
+    onComplete: { print("Preview: onComplete called") })
     .environment(SettingsViewModel())
 }
 

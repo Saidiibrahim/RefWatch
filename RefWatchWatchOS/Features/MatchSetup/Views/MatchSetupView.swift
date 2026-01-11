@@ -11,12 +11,15 @@ struct MatchSetupView: View {
     @State private var viewModel: MatchSetupViewModel
     let lifecycle: MatchLifecycleCoordinator
     @State private var goalInputContext: GoalInputContext?
-    
+    @State private var cardEventContext: CardEventContext?
+    @State private var substitutionContext: SubstitutionContext?
+    @Environment(SettingsViewModel.self) private var settingsViewModel
+
     init(matchViewModel: MatchViewModel, lifecycle: MatchLifecycleCoordinator) {
         _viewModel = State(initialValue: MatchSetupViewModel(matchViewModel: matchViewModel))
         self.lifecycle = lifecycle
     }
-    
+
     var body: some View {
         TabView(selection: .init(
             get: { viewModel.selectedTab },
@@ -26,27 +29,43 @@ struct MatchSetupView: View {
             TeamDetailsView(
                 teamType: .home,
                 matchViewModel: viewModel.matchViewModel,
-                setupViewModel: viewModel,
                 onGoalTypeSelected: { goalType in
                     goalInputContext = GoalInputContext(team: .home, goalType: goalType)
+                },
+                onCardSelected: { cardType in
+                    cardEventContext = CardEventContext(team: .home, cardType: cardType)
+                },
+                onSubstitutionSelected: {
+                    substitutionContext = SubstitutionContext(
+                        team: .home,
+                        initialStep: settingsViewModel.settings.substitutionOrderPlayerOffFirst ? .playerOff : .playerOn
+                    )
                 }
             )
             .tag(0)
-            
+
             // Timer View (Middle)
             TimerView(
                 model: viewModel.matchViewModel,
                 lifecycle: lifecycle
             )
                 .tag(1)
-            
+
             // Away Team Details
             TeamDetailsView(
                 teamType: .away,
                 matchViewModel: viewModel.matchViewModel,
-                setupViewModel: viewModel,
                 onGoalTypeSelected: { goalType in
                     goalInputContext = GoalInputContext(team: .away, goalType: goalType)
+                },
+                onCardSelected: { cardType in
+                    cardEventContext = CardEventContext(team: .away, cardType: cardType)
+                },
+                onSubstitutionSelected: {
+                    substitutionContext = SubstitutionContext(
+                        team: .away,
+                        initialStep: settingsViewModel.settings.substitutionOrderPlayerOffFirst ? .playerOff : .playerOn
+                    )
                 }
             )
             .tag(2)
@@ -61,6 +80,28 @@ struct MatchSetupView: View {
                 onComplete: { number in
                     recordGoal(teamType: context.team, goalType: context.goalType, playerNumber: number)
                     goalInputContext = nil
+                }
+            )
+        }
+        .navigationDestination(item: $cardEventContext) { context in
+            CardEventFlow(
+                cardType: context.cardType,
+                team: context.team,
+                matchViewModel: viewModel.matchViewModel,
+                onComplete: {
+                    cardEventContext = nil
+                    viewModel.setSelectedTab(1)
+                }
+            )
+        }
+        .navigationDestination(item: $substitutionContext) { context in
+            SubstitutionFlow(
+                team: context.team,
+                matchViewModel: viewModel.matchViewModel,
+                initialStep: context.initialStep,
+                onComplete: {
+                    substitutionContext = nil
+                    viewModel.setSelectedTab(1)
                 }
             )
         }
@@ -100,4 +141,16 @@ private struct GoalInputContext: Identifiable, Hashable {
         let teamId = team == .home ? "home" : "away"
         self.id = "\(teamId)-\(goalType.rawValue)"
     }
+}
+
+private struct CardEventContext: Identifiable, Hashable {
+    let id = UUID()
+    let team: TeamDetailsView.TeamType
+    let cardType: CardDetails.CardType
+}
+
+private struct SubstitutionContext: Identifiable, Hashable {
+    let id = UUID()
+    let team: TeamDetailsView.TeamType
+    let initialStep: SubstitutionFlow.SubstitutionStep
 }

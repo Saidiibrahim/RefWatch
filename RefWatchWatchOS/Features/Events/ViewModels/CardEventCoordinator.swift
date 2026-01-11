@@ -3,7 +3,7 @@ import RefWatchCore
 import SwiftUI
 
 // Manages the entire card event flow in one place
-@Observable @MainActor final class CardEventCoordinator: ObservableObject {
+@Observable @MainActor final class CardEventCoordinator {
   enum Step: Equatable {
     case recipient
     case playerNumber(CardRecipientType)
@@ -21,18 +21,15 @@ import SwiftUI
   var selectedReason: String?
 
   private let matchViewModel: MatchViewModel
-  private let setupViewModel: MatchSetupViewModel
 
   init(
     cardType: CardDetails.CardType,
     team: TeamDetailsView.TeamType,
-    matchViewModel: MatchViewModel,
-    setupViewModel: MatchSetupViewModel)
+    matchViewModel: MatchViewModel)
   {
     self.cardType = cardType
     self.selectedTeam = team
     self.matchViewModel = matchViewModel
-    self.setupViewModel = setupViewModel
   }
 
   func handleRecipientSelection(_ recipient: CardRecipientType) {
@@ -93,8 +90,7 @@ import SwiftUI
       officialRole: self.selectedOfficialRole,
       reason: reason)
 
-    self.setupViewModel.setSelectedTab(1)
-    print("DEBUG: Successfully recorded card using new system, navigating to middle screen...")
+    print("DEBUG: Successfully recorded card using new system")
   }
 
   /// Resets the coordinator to its initial state.
