@@ -460,7 +460,11 @@ struct AnyEncodable: Encodable {
       try container.encode(bool)
     } else if let number = resolved as? NSNumber {
       var container = encoder.singleValueContainer()
-      try container.encode(number)
+      if CFNumberIsFloatType(number) {
+        try container.encode(number.doubleValue)
+      } else {
+        try container.encode(number.int64Value)
+      }
     } else if let string = resolved as? String {
       var container = encoder.singleValueContainer()
       try container.encode(string)
