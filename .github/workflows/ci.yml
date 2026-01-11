@@ -238,7 +238,10 @@ jobs:
           xcodebuild build \
             -project RefWatch.xcodeproj \
             -scheme "RefWatch Watch App" \
-            -destination "generic/platform=watchOS"
+            -destination "generic/platform=watchOS" \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
 
   watchos-tests:
     if: github.event_name == 'schedule'
