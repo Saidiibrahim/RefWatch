@@ -127,8 +127,7 @@ final class SwiftDataCompetitionLibraryStore: CompetitionLibraryStoring {
       self.changesSubject.send(all)
     } catch {
       self.log.error(
-        "Failed to load competitions for change notification: " +
-          "\(error.localizedDescription, privacy: .public)")
+        "Failed to load competitions for change notification: \(error.localizedDescription, privacy: .public)")
     }
   }
 

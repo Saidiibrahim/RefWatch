@@ -169,10 +169,7 @@ extension SupabaseVenueLibraryRepository {
     let startingCursor = describe(remoteCursor)
 
     self.log.notice(
-      "Venue initial sync started owner=\(ownerString, privacy: .public) " +
-        "cursor=\(startingCursor, privacy: .public) " +
-        "pendingPush=\(self.pendingPushes.count) " +
-        "pendingDelete=\(self.pendingDeletions.count)")
+      "Venue initial sync started owner=\(ownerString, privacy: .public) cursor=\(startingCursor, privacy: .public) pendingPush=\(self.pendingPushes.count) pendingDelete=\(self.pendingDeletions.count)")
 
     do {
       if !self.pendingDeletions.isEmpty {
@@ -189,15 +186,10 @@ extension SupabaseVenueLibraryRepository {
       try await pullRemoteUpdates(for: ownerUUID)
 
       self.log.notice(
-        "Venue initial sync finished owner=\(ownerString, privacy: .public) " +
-          "cursor=\(self.describe(self.remoteCursor), privacy: .public) " +
-          "pendingPush=\(self.pendingPushes.count) " +
-          "pendingDelete=\(self.pendingDeletions.count)")
+        "Venue initial sync finished owner=\(ownerString, privacy: .public) cursor=\(self.describe(self.remoteCursor), privacy: .public) pendingPush=\(self.pendingPushes.count) pendingDelete=\(self.pendingDeletions.count)")
     } catch {
       self.log.error(
-        "Initial venue sync failed owner=\(ownerString, privacy: .public) " +
-          "cursor=\(startingCursor, privacy: .public) " +
-          "error=\(error.localizedDescription, privacy: .public)")
+        "Initial venue sync failed owner=\(ownerString, privacy: .public) cursor=\(startingCursor, privacy: .public) error=\(error.localizedDescription, privacy: .public)")
     }
   }
 }
@@ -270,8 +262,7 @@ extension SupabaseVenueLibraryRepository {
       self.pendingDeletions.insert(id)
       self.log
         .error(
-          "Supabase venue delete failed id=\(id.uuidString, privacy: .public) " +
-            "error=\(error.localizedDescription, privacy: .public)")
+          "Supabase venue delete failed id=\(id.uuidString, privacy: .public) error=\(error.localizedDescription, privacy: .public)")
       try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second backoff
     }
     publishSyncStatus()
@@ -322,14 +313,12 @@ extension SupabaseVenueLibraryRepository {
       record.ownerSupabaseId = ownerUUID.uuidString
       try self.store.context.save()
       self.log.debug(
-        "Venue push succeeded id=\(id.uuidString, privacy: .public) " +
-          "updatedAt=\(self.describe(result.updatedAt), privacy: .public)")
+        "Venue push succeeded id=\(id.uuidString, privacy: .public) updatedAt=\(self.describe(result.updatedAt), privacy: .public)")
     } catch {
       self.pendingPushes.insert(id)
       self.log
         .error(
-          "Supabase venue push failed id=\(id.uuidString, privacy: .public) " +
-            "error=\(error.localizedDescription, privacy: .public)")
+          "Supabase venue push failed id=\(id.uuidString, privacy: .public) error=\(error.localizedDescription, privacy: .public)")
     }
     publishSyncStatus()
   }
@@ -344,9 +333,7 @@ extension SupabaseVenueLibraryRepository {
     do {
       let remoteVenues = try await api.fetchVenues(ownerId: ownerUUID, updatedAfter: self.remoteCursor)
       self.log.info(
-        "Venue pull received count=\(remoteVenues.count) " +
-          "owner=\(ownerString, privacy: .public) " +
-          "cursor=\(cursorBefore, privacy: .public)")
+        "Venue pull received count=\(remoteVenues.count) owner=\(ownerString, privacy: .public) cursor=\(cursorBefore, privacy: .public)")
 
       guard !remoteVenues.isEmpty else {
         publishSyncStatus()
@@ -413,15 +400,10 @@ extension SupabaseVenueLibraryRepository {
       }
 
       self.log.info(
-        "Venue pull applied updated=\(updatedCount) inserted=\(insertedCount) " +
-          "skippedPendingDeletion=\(skippedPendingDeletion) " +
-          "skippedDirty=\(skippedDirtyConflict) " +
-          "newCursor=\(self.describe(self.remoteCursor), privacy: .public)")
+        "Venue pull applied updated=\(updatedCount) inserted=\(insertedCount) skippedPendingDeletion=\(skippedPendingDeletion) skippedDirty=\(skippedDirtyConflict) newCursor=\(self.describe(self.remoteCursor), privacy: .public)")
     } catch {
       self.log.error(
-        "Venue pull failed owner=\(ownerString, privacy: .public) " +
-          "cursor=\(cursorBefore, privacy: .public) " +
-          "error=\(error.localizedDescription, privacy: .public)")
+        "Venue pull failed owner=\(ownerString, privacy: .public) cursor=\(cursorBefore, privacy: .public) error=\(error.localizedDescription, privacy: .public)")
       throw error
     }
 

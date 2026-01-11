@@ -376,8 +376,7 @@ extension IOSConnectivitySyncClient {
     try? scheduleStore.save(schedule)
     AppLog.connectivity
       .debug(
-        "📲 Applied scheduleStatusUpdate id=\(scheduledId.uuidString, privacy: .public) " +
-          "status=\(status, privacy: .public)")
+        "📲 Applied scheduleStatusUpdate id=\(scheduledId.uuidString, privacy: .public) status=\(status, privacy: .public)")
   }
 
   private func flushAggregateSnapshots() {

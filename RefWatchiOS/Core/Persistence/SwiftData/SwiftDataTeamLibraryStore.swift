@@ -28,8 +28,7 @@ final class SwiftDataTeamLibraryStore: TeamLibraryStoring, TeamLibraryMetadataPe
       initial = try self.context.fetch(FetchDescriptor<TeamRecord>(sortBy: [SortDescriptor(\.name, order: .forward)]))
     } catch {
       self.log.error(
-        "Failed to load initial teams for publisher bootstrap: " +
-          "\(error.localizedDescription, privacy: .public)")
+        "Failed to load initial teams for publisher bootstrap: \(error.localizedDescription, privacy: .public)")
       initial = []
     }
     self.changesSubject = CurrentValueSubject(initial)

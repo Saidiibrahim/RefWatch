@@ -60,9 +60,7 @@ final class WatchAggregateSyncCoordinator {
         else {
           self.log
             .error(
-              "Dropping delta with unknown metadata " +
-                "entity=\(record.entityRaw, privacy: .public) " +
-                "action=\(record.actionRaw, privacy: .public)")
+              "Dropping delta with unknown metadata entity=\(record.entityRaw, privacy: .public) action=\(record.actionRaw, privacy: .public)")
           return nil
         }
         return AggregateDeltaEnvelope(
@@ -249,9 +247,7 @@ extension WatchAggregateSyncCoordinator {
     if payload.generatedAt < lastGenerated {
       self.log
         .notice(
-          "Dropping stale snapshot payload " +
-            "generatedAt=\(payload.generatedAt as NSDate, privacy: .public) " +
-            "lastGenerated=\(lastGenerated as NSDate, privacy: .public)")
+          "Dropping stale snapshot payload generatedAt=\(payload.generatedAt as NSDate, privacy: .public) lastGenerated=\(lastGenerated as NSDate, privacy: .public)")
       return false
     }
     if payload.generatedAt == lastGenerated, status.pendingSnapshotChunks == 0 {

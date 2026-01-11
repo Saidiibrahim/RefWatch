@@ -273,8 +273,7 @@ extension SupabaseScheduleRepository {
     } catch {
       self.pendingDeletions.insert(id)
       self.log.error(
-        "Supabase schedule delete failed id=\(id.uuidString, privacy: .public) " +
-          "error=\(error.localizedDescription, privacy: .public)")
+        "Supabase schedule delete failed id=\(id.uuidString, privacy: .public) error=\(error.localizedDescription, privacy: .public)")
       try? await Task.sleep(nanoseconds: 1_000_000_000)
     }
     publishSyncStatus()
@@ -300,8 +299,7 @@ extension SupabaseScheduleRepository {
     } catch {
       self.pendingPushes.insert(id)
       self.log.error(
-        "Supabase schedule push failed id=\(id.uuidString, privacy: .public) " +
-          "error=\(error.localizedDescription, privacy: .public)")
+        "Supabase schedule push failed id=\(id.uuidString, privacy: .public) error=\(error.localizedDescription, privacy: .public)")
       try? await Task.sleep(nanoseconds: 1_000_000_000)
     }
     publishSyncStatus()

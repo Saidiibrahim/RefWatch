@@ -102,8 +102,7 @@ struct UpcomingMatchEditorView: View {
       try self.scheduleStore.save(item)
       AppLog.schedule
         .info(
-          "Saved scheduled match: \(item.homeTeam) vs \(item.awayTeam) " +
-            "@ \(item.kickoff.timeIntervalSince1970, privacy: .public)")
+          "Saved scheduled match: \(item.homeTeam) vs \(item.awayTeam) @ \(item.kickoff.timeIntervalSince1970, privacy: .public)")
       self.onSaved?()
       self.dismiss()
     } catch {

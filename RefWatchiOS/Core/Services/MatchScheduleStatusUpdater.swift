@@ -28,8 +28,7 @@ final class MatchScheduleStatusUpdater: MatchScheduleStatusUpdating {
     guard var schedule = schedules.first(where: { $0.id == scheduledId }) else {
       #if DEBUG
       AppLog.connectivity.debug(
-        "No schedule found for \(scheduledId.uuidString, privacy: .public) " +
-          "- skipping in-progress update")
+        "No schedule found for \(scheduledId.uuidString, privacy: .public) - skipping in-progress update")
       #endif
       return
     }
@@ -48,8 +47,7 @@ final class MatchScheduleStatusUpdater: MatchScheduleStatusUpdating {
       // were never scheduled through the library system
       #if DEBUG
       AppLog.connectivity.debug(
-        "No schedule found for \(scheduledId.uuidString, privacy: .public) " +
-          "- likely manual match; skipping status update")
+        "No schedule found for \(scheduledId.uuidString, privacy: .public) - likely manual match; skipping status update")
       NotificationCenter.default.post(
         name: .syncFallbackOccurred,
         object: nil,

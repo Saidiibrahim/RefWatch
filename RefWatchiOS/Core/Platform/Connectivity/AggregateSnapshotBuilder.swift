@@ -88,16 +88,14 @@ struct AggregateSnapshotBuilder {
         if fallbackSize > self.maxPayloadBytes {
           self.log
             .error(
-              "Aggregate chunk exceeds payload limit after splitting. " +
-                "entity=\(String(describing: T.self), privacy: .public)")
+              "Aggregate chunk exceeds payload limit after splitting. entity=\(String(describing: T.self), privacy: .public)")
         }
         current = candidate
       } else {
         current = candidate
         self.log
           .error(
-            "Aggregate item exceeds payload limit on its own. " +
-              "entity=\(String(describing: T.self), privacy: .public)")
+            "Aggregate item exceeds payload limit on its own. entity=\(String(describing: T.self), privacy: .public)")
       }
     }
 

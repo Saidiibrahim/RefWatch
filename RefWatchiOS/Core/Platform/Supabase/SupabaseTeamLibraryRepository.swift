@@ -300,8 +300,7 @@ extension SupabaseTeamLibraryRepository {
     } catch {
       self.pendingDeletions.insert(teamId)
       self.log.error(
-        "Supabase team delete failed id=\(teamId.uuidString, privacy: .public) " +
-          "error=\(error.localizedDescription, privacy: .public)")
+        "Supabase team delete failed id=\(teamId.uuidString, privacy: .public) error=\(error.localizedDescription, privacy: .public)")
       reportTeamSyncFailure(error, phase: .delete, teamId: teamId)
       try? await Task.sleep(nanoseconds: 1_000_000_000)
     }
@@ -327,8 +326,7 @@ extension SupabaseTeamLibraryRepository {
     } catch {
       self.pendingPushes.insert(teamId)
       self.log.error(
-        "Supabase team push failed id=\(teamId.uuidString, privacy: .public) " +
-          "error=\(error.localizedDescription, privacy: .public)")
+        "Supabase team push failed id=\(teamId.uuidString, privacy: .public) error=\(error.localizedDescription, privacy: .public)")
       reportTeamSyncFailure(error, phase: .push, teamId: teamId)
       try? await Task.sleep(nanoseconds: 1_000_000_000)
     }

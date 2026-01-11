@@ -169,10 +169,7 @@ extension SupabaseCompetitionLibraryRepository {
     let startingCursor = describe(remoteCursor)
 
     self.log.notice(
-      "Competition initial sync started owner=\(ownerString, privacy: .public) " +
-        "cursor=\(startingCursor, privacy: .public) " +
-        "pendingPush=\(self.pendingPushes.count) " +
-        "pendingDelete=\(self.pendingDeletions.count)")
+      "Competition initial sync started owner=\(ownerString, privacy: .public) cursor=\(startingCursor, privacy: .public) pendingPush=\(self.pendingPushes.count) pendingDelete=\(self.pendingDeletions.count)")
 
     do {
       if !self.pendingDeletions.isEmpty {
@@ -189,15 +186,10 @@ extension SupabaseCompetitionLibraryRepository {
       try await pullRemoteUpdates(for: ownerUUID)
 
       self.log.notice(
-        "Competition initial sync finished owner=\(ownerString, privacy: .public) " +
-          "cursor=\(self.describe(self.remoteCursor), privacy: .public) " +
-          "pendingPush=\(self.pendingPushes.count) " +
-          "pendingDelete=\(self.pendingDeletions.count)")
+        "Competition initial sync finished owner=\(ownerString, privacy: .public) cursor=\(self.describe(self.remoteCursor), privacy: .public) pendingPush=\(self.pendingPushes.count) pendingDelete=\(self.pendingDeletions.count)")
     } catch {
       self.log.error(
-        "Initial competition sync failed owner=\(ownerString, privacy: .public) " +
-          "cursor=\(startingCursor, privacy: .public) " +
-          "error=\(error.localizedDescription, privacy: .public)")
+        "Initial competition sync failed owner=\(ownerString, privacy: .public) cursor=\(startingCursor, privacy: .public) error=\(error.localizedDescription, privacy: .public)")
     }
   }
 }
@@ -270,8 +262,7 @@ extension SupabaseCompetitionLibraryRepository {
       self.pendingDeletions.insert(id)
       self.log
         .error(
-          "Supabase competition delete failed id=\(id.uuidString, privacy: .public) " +
-            "error=\(error.localizedDescription, privacy: .public)")
+          "Supabase competition delete failed id=\(id.uuidString, privacy: .public) error=\(error.localizedDescription, privacy: .public)")
       try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second backoff
     }
     publishSyncStatus()
@@ -319,14 +310,12 @@ extension SupabaseCompetitionLibraryRepository {
       record.ownerSupabaseId = ownerUUID.uuidString
       try self.store.context.save()
       self.log.debug(
-        "Competition push succeeded id=\(id.uuidString, privacy: .public) " +
-          "updatedAt=\(self.describe(result.updatedAt), privacy: .public)")
+        "Competition push succeeded id=\(id.uuidString, privacy: .public) updatedAt=\(self.describe(result.updatedAt), privacy: .public)")
     } catch {
       self.pendingPushes.insert(id)
       self.log
         .error(
-          "Supabase competition push failed id=\(id.uuidString, privacy: .public) " +
-            "error=\(error.localizedDescription, privacy: .public)")
+          "Supabase competition push failed id=\(id.uuidString, privacy: .public) error=\(error.localizedDescription, privacy: .public)")
     }
     publishSyncStatus()
   }
@@ -341,9 +330,7 @@ extension SupabaseCompetitionLibraryRepository {
     do {
       let remoteCompetitions = try await api.fetchCompetitions(ownerId: ownerUUID, updatedAfter: self.remoteCursor)
       self.log.info(
-        "Competition pull received count=\(remoteCompetitions.count) " +
-          "owner=\(ownerString, privacy: .public) " +
-          "cursor=\(cursorBefore, privacy: .public)")
+        "Competition pull received count=\(remoteCompetitions.count) owner=\(ownerString, privacy: .public) cursor=\(cursorBefore, privacy: .public)")
 
       guard !remoteCompetitions.isEmpty else {
         publishSyncStatus()
@@ -404,15 +391,10 @@ extension SupabaseCompetitionLibraryRepository {
       }
 
       self.log.info(
-        "Competition pull applied updated=\(updatedCount) inserted=\(insertedCount) " +
-          "skippedPendingDeletion=\(skippedPendingDeletion) " +
-          "skippedDirty=\(skippedDirtyConflict) " +
-          "newCursor=\(self.describe(self.remoteCursor), privacy: .public)")
+        "Competition pull applied updated=\(updatedCount) inserted=\(insertedCount) skippedPendingDeletion=\(skippedPendingDeletion) skippedDirty=\(skippedDirtyConflict) newCursor=\(self.describe(self.remoteCursor), privacy: .public)")
     } catch {
       self.log.error(
-        "Competition pull failed owner=\(ownerString, privacy: .public) " +
-          "cursor=\(cursorBefore, privacy: .public) " +
-          "error=\(error.localizedDescription, privacy: .public)")
+        "Competition pull failed owner=\(ownerString, privacy: .public) cursor=\(cursorBefore, privacy: .public) error=\(error.localizedDescription, privacy: .public)")
       throw error
     }
 

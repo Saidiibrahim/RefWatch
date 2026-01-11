@@ -289,8 +289,7 @@ extension SupabaseMatchHistoryRepository {
     self.backlog.updatePendingPushMetadata(metadata, for: matchId)
     self.log
       .info(
-        "Supabase match push retry scheduled id=\(matchId.uuidString, privacy: .public) " +
-          "attempt=\(nextRetry) delay=\(backoff, privacy: .public)s")
+        "Supabase match push retry scheduled id=\(matchId.uuidString, privacy: .public) attempt=\(nextRetry) delay=\(backoff, privacy: .public)s")
     self.publishSyncStatus()
   }
 
@@ -333,8 +332,7 @@ extension SupabaseMatchHistoryRepository {
       self.pendingDeletions.insert(id)
       self.log
         .error(
-          "Supabase match delete failed id=\(id.uuidString, privacy: .public) " +
-            "error=\(error.localizedDescription, privacy: .public)")
+          "Supabase match delete failed id=\(id.uuidString, privacy: .public) error=\(error.localizedDescription, privacy: .public)")
       reportMatchSyncFailure(error, context: .delete, matchId: id)
       try? await Task.sleep(nanoseconds: 1_000_000_000)
     }
@@ -406,8 +404,7 @@ extension SupabaseMatchHistoryRepository {
       self.pendingPushes.insert(id)
       self.log
         .error(
-          "Supabase match push failed id=\(id.uuidString, privacy: .public) " +
-            "error=\(error.localizedDescription, privacy: .public)")
+          "Supabase match push failed id=\(id.uuidString, privacy: .public) error=\(error.localizedDescription, privacy: .public)")
       reportMatchSyncFailure(error, context: .push, matchId: id)
     }
   }
@@ -469,8 +466,7 @@ extension SupabaseMatchHistoryRepository {
       #if DEBUG
       self.log
         .debug(
-          "Match history sync complete: \(remoteBundles.count) bundles processed, " +
-            "posting .matchHistoryDidChange notification")
+          "Match history sync complete: \(remoteBundles.count) bundles processed, posting .matchHistoryDidChange notification")
       #endif
     }
 
