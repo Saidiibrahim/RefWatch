@@ -14,14 +14,13 @@ enum WatchAggregateContainerFactory {
     case appGroupContainerNotFound
   }
 
-  private static let appGroupId: String = {
-    Bundle.main.object(forInfoDictionaryKey: "APP_GROUP_ID") as? String ?? "group.refwatch.shared"
-  }()
+  private static let appGroupId: String = Bundle.main
+    .object(forInfoDictionaryKey: "APP_GROUP_ID") as? String ?? "group.refwatch.shared"
 
   private static func storeURL() throws -> URL {
     guard let containerURL = FileManager.default.containerURL(
-      forSecurityApplicationGroupIdentifier: appGroupId
-    ) else {
+      forSecurityApplicationGroupIdentifier: appGroupId)
+    else {
       throw FactoryError.appGroupContainerNotFound
     }
 
@@ -31,8 +30,7 @@ enum WatchAggregateContainerFactory {
 
     try FileManager.default.createDirectory(
       at: applicationSupportURL,
-      withIntermediateDirectories: true
-    )
+      withIntermediateDirectories: true)
 
     return applicationSupportURL.appendingPathComponent("default.store")
   }
@@ -44,8 +42,7 @@ enum WatchAggregateContainerFactory {
     if inMemory {
       let configuration = ModelConfiguration(
         schema: schema,
-        isStoredInMemoryOnly: true
-      )
+        isStoredInMemoryOnly: true)
       return try ModelContainer(for: schema, configurations: [configuration])
     }
 
@@ -54,15 +51,14 @@ enum WatchAggregateContainerFactory {
       schema: schema,
       url: url,
       allowsSave: true,
-      cloudKitDatabase: .none
-    )
+      cloudKitDatabase: .none)
     return try ModelContainer(for: schema, configurations: [configuration])
   }
 
   @MainActor
   static func makeBestEffortContainer() throws -> ModelContainer {
     do {
-      return try makeContainer()
+      return try self.makeContainer()
     } catch {
       if let memory = try? makeContainer(inMemory: true) {
         return memory
