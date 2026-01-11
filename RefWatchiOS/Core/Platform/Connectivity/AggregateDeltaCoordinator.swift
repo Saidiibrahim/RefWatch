@@ -61,7 +61,13 @@ final class AggregateDeltaCoordinator: AggregateDeltaHandling {
       }
     } catch {
       self.log.error(
-        "Failed to process aggregate delta id=\(envelope.id.uuidString, privacy: .public) entity=\(envelope.entity.rawValue, privacy: .public) action=\(envelope.action.rawValue, privacy: .public) error=\(error.localizedDescription, privacy: .public)")
+        """
+        Failed to process aggregate delta \
+        id=\(envelope.id.uuidString, privacy: .public) \
+        entity=\(envelope.entity.rawValue, privacy: .public) \
+        action=\(envelope.action.rawValue, privacy: .public) \
+        error=\(error.localizedDescription, privacy: .public)
+        """)
       NotificationCenter.default.post(
         name: .syncNonrecoverableError,
         object: nil,
