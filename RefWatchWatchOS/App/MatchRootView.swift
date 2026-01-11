@@ -118,15 +118,16 @@ struct MatchRootView: View {
         }
       }
       .toolbar {
-        ToolbarItem(placement: .cancellationAction) {
-          Button {
-            self.modeSwitcherPresentation.wrappedValue = true
-          } label: {
-            Image(systemName: "chevron.backward")
+        if !isModeSwitcherBlocked {
+          ToolbarItem(placement: .cancellationAction) {
+            Button {
+              self.modeSwitcherPresentation.wrappedValue = true
+            } label: {
+              Image(systemName: "chevron.backward")
+            }
+            .labelStyle(.iconOnly)
+            .accessibilityIdentifier("matchModeSwitcherButton")
           }
-          .labelStyle(.iconOnly)
-          .opacity(isModeSwitcherBlocked ? 0.55 : 1)
-          .accessibilityIdentifier("matchModeSwitcherButton")
         }
       }
       .navigationDestination(for: MatchRoute.self) { route in

@@ -23,15 +23,16 @@ struct WorkoutRootView: View {
       content
         .navigationTitle("Workout")
         .toolbar {
-          ToolbarItem(placement: .cancellationAction) {
-            Button {
-              self.modeSwitcherPresentation.wrappedValue = true
-            } label: {
-              Label("Back", systemImage: "chevron.backward")
-                .labelStyle(.iconOnly)
+          if !isModeSwitcherBlocked {
+            ToolbarItem(placement: .cancellationAction) {
+              Button {
+                self.modeSwitcherPresentation.wrappedValue = true
+              } label: {
+                Label("Back", systemImage: "chevron.backward")
+                  .labelStyle(.iconOnly)
+              }
+              .accessibilityIdentifier("workoutModeSwitcherButton")
             }
-            .opacity(isModeSwitcherBlocked ? 0.55 : 1)
-            .accessibilityIdentifier("workoutModeSwitcherButton")
           }
 
           if case .list = self.viewModel.presentationState {
