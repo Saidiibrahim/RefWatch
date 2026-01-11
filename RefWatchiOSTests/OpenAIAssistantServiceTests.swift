@@ -43,9 +43,8 @@ final class OpenAIAssistantServiceTests: XCTestCase {
   }
 
   func testParseStream_whenReceivingDeltaEvents_emitsChunksAndUsage() {
-    let donePayload =
-      #"data: {"type":"response.done","response":{"id":"resp_123","status":"completed","# +
-      #"usage":{"input_tokens":42,"output_tokens":7,"total_tokens":49}}}"#
+    // swiftformat:disable:next lineLength
+    let donePayload = #"data: {"type":"response.done","response":{"id":"resp_123","status":"completed","usage":{"input_tokens":42,"output_tokens":7,"total_tokens":49}}}"#
     let lines = [
       "event: response.content_part.added",
       #"data: {"type":"response.content_part.added","content":{"type":"output_text","text":""}}"#,
