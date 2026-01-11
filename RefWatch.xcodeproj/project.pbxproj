@@ -352,6 +352,7 @@
 				96AFA8242E99CE8A00334F2F /* RefWatch.docc */,
 				96BBA38C2E77C23E000A67FC /* RefWatchWidgetsExtension.entitlements */,
 				96BBA3632E77BAED000A67FC /* RefWatch Watch App.entitlements */,
+				/* TODO: RefWatchWidgets appears twice - 96BBA35E (PBXGroup with explicit file refs for build) and 96BBA36F (PBXFileSystemSynchronizedRootGroup for navigator). To consolidate: remove PBXBuildFile entries 96BBA385-88, their PBXFileReference defs, and this PBXGroup. Then rely solely on the synchronized group. */
 				96BBA35E2E77B887000A67FC /* RefWatchWidgets */,
 				964A4D752D32234A00D08376 /* RefWatchWatchOS */,
 				964A4D862D32234B00D08376 /* RefWatchWatchOSTests */,
