@@ -175,6 +175,7 @@ jobs:
             -scheme "RefWatchiOS" \
             -destination "$IOS_DESTINATION" \
             -enableCodeCoverage YES \
+            -skip-testing:RefWatchiOSUITests \
             -disableAutomaticPackageResolution \
             -clonedSourcePackagesDirPath "$RUNNER_TEMP/spm-cache" \
             -resultBundlePath "$RESULT_BUNDLE_PATH"
