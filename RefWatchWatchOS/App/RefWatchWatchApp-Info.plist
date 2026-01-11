@@ -53,7 +53,7 @@
 		<string>workout-processing</string>
 	</array>
 	<key>WKCompanionAppBundleIdentifier</key>
-	<string>com.IbrahimSaidi.RefWatch</string>
+	<string>$(BUNDLE_ID_PREFIX).RefWatch</string>
 	<key>WKWatchOnly</key>
 	<false/>
 </dict>
