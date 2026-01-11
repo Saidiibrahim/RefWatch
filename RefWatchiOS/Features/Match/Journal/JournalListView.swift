@@ -80,13 +80,13 @@ struct JournalListView: View {
       self.load()
     }
     .sheet(isPresented: self.$showEditor) {
-      self.editorSheet
-    }
-    .alert("Error", isPresented: self.$showError) {
-      Button("OK", role: .cancel) {}
-    } message: {
-      Text(self.errorMessage)
-    }
+        self.editorSheet
+      }
+      .alert("Error", isPresented: self.$showError) {
+        Button("OK", role: .cancel) {}
+      } message: {
+        Text(self.errorMessage)
+      }
   }
 
   private static func format(_ date: Date) -> String {

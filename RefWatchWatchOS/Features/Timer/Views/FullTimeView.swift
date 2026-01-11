@@ -74,11 +74,11 @@ struct FullTimeView: View {
       Text("Are you sure you want to 'End Match'?")
     }
     .onChange(of: self.matchViewModel.matchCompleted) { completed, _ in
-      self.handleMatchCompletedChange(completed)
-    }
-    .onAppear {
-      self.logAppear()
-    }
+        self.handleMatchCompletedChange(completed)
+      }
+      .onAppear {
+        self.logAppear()
+      }
   }
 }
 
