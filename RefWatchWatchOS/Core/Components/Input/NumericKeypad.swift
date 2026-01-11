@@ -107,13 +107,9 @@ private struct KeypadButton: View {
         Button(action: action) {
             Text(key)
                 .font(.system(size: 18, weight: .medium))
-                .foregroundColor(.white)
+                .foregroundColor(.primary)
                 .frame(maxWidth: .infinity)
                 .frame(height: 30)
-                .background(
-                    RoundedRectangle(cornerRadius: 20)
-                        .fill(Color.black)
-                )
         }
         .buttonStyle(.plain)
         .accessibilityLabel(accessibilityLabel)
