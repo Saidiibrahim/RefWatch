@@ -2,34 +2,15 @@ import Foundation
 
 public enum AppMode: String, CaseIterable, Codable, Identifiable, Sendable, Hashable {
   case match
-  case workout
 
   public var id: String { rawValue }
+  public var displayName: String { "Match" }
+  public var systemImageName: String { "sportscourt" }
+  public var tagline: String { "Officiate smarter" }
 
-  public var displayName: String {
-    switch self {
-    case .match:
-      return "Match"
-    case .workout:
-      return "Workout"
-    }
-  }
-
-  public var systemImageName: String {
-    switch self {
-    case .match:
-      return "sportscourt"
-    case .workout:
-      return "figure.run"
-    }
-  }
-
-  public var tagline: String {
-    switch self {
-    case .match:
-      return "Officiate smarter"
-    case .workout:
-      return "Train like match day"
-    }
+  public init(from decoder: Decoder) throws {
+    let container = try decoder.singleValueContainer()
+    let rawValue = (try? container.decode(String.self)) ?? AppMode.match.rawValue
+    self = AppMode(rawValue: rawValue) ?? .match
   }
 }

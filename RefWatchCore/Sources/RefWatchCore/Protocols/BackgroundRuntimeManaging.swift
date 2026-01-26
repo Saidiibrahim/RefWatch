@@ -2,7 +2,6 @@ import Foundation
 
 public enum BackgroundRuntimeActivityKind: String, Sendable, Equatable {
   case match
-  case workout
 }
 
 public enum BackgroundRuntimeEndReason: Sendable, Equatable {

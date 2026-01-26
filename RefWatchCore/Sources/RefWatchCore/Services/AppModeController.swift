@@ -20,6 +20,9 @@ public final class AppModeController: ObservableObject {
     } else {
       currentMode = .match
       hasPersistedSelection = false
+      if defaults.string(forKey: storageKey) != nil {
+        defaults.set(AppMode.match.rawValue, forKey: storageKey)
+      }
     }
   }
 
@@ -36,13 +39,6 @@ public final class AppModeController: ObservableObject {
       defaults.set(mode.rawValue, forKey: storageKey)
       hasPersistedSelection = true
     }
-  }
-
-  @discardableResult
-  public func toggle() -> AppMode {
-    let next: AppMode = currentMode == .match ? .workout : .match
-    select(next)
-    return next
   }
 
   public func overrideForActiveSession(_ mode: AppMode) {
