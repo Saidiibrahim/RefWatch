@@ -5,17 +5,13 @@
 //  Description: The Match mode home with quick actions and lifecycle routing.
 //
 
-import Combine
 import RefWatchCore
 import SwiftData
 import SwiftUI
 
 struct MatchRootView: View {
   @Environment(\.theme) private var theme
-  @EnvironmentObject private var appModeController: AppModeController
   @EnvironmentObject private var aggregateEnvironment: AggregateSyncEnvironment
-  @Environment(\.modeSwitcherPresentation) private var modeSwitcherPresentation
-  @Environment(\.modeSwitcherBlockReason) private var modeSwitcherBlockReason
   @State private var backgroundRuntimeController: BackgroundRuntimeSessionController
   @State private var matchViewModel: MatchViewModel
   @State private var settingsViewModel: SettingsViewModel
@@ -117,19 +113,6 @@ struct MatchRootView: View {
             lifecycle: self.lifecycle)
         }
       }
-      .toolbar {
-        if !isModeSwitcherBlocked {
-          ToolbarItem(placement: .cancellationAction) {
-            Button {
-              self.modeSwitcherPresentation.wrappedValue = true
-            } label: {
-              Image(systemName: "chevron.backward")
-            }
-            .labelStyle(.iconOnly)
-            .accessibilityIdentifier("matchModeSwitcherButton")
-          }
-        }
-      }
       .navigationDestination(for: MatchRoute.self) { route in
         destination(for: route)
       }
@@ -144,9 +127,6 @@ struct MatchRootView: View {
     }
     .task {
       self.matchViewModel.updateLibrary(with: self.aggregateEnvironment.librarySnapshot)
-    }
-    .onAppear {
-      updateModeSwitcherBlock()
     }
     .onReceive(self.aggregateEnvironment.$librarySnapshot) { snapshot in
       self.matchViewModel.updateLibrary(with: snapshot)
@@ -204,11 +184,6 @@ struct MatchRootView: View {
       print("DEBUG: Navigation path after: \(self.navigationPath)")
       #endif
 
-      if newState != .idle {
-        self.appModeController.overrideForActiveSession(.match)
-      }
-
-      updateModeSwitcherBlock()
     }
     .onChange(of: self.matchViewModel.lastPersistenceError) { newValue, _ in
       if newValue != nil { self.showPersistenceError = true }
@@ -234,15 +209,12 @@ struct MatchRootView: View {
 @MainActor
 private struct MatchRootView_PreviewProvider {
   static func makePreview() -> some View {
-    let appModeController = AppModeController()
     let mockTheme = AnyTheme(theme: DefaultTheme())
     let aggregateEnvironment = self.makeAggregateSyncEnvironment()
 
     return MatchRootView()
-      .environmentObject(appModeController)
       .environmentObject(aggregateEnvironment)
       .environment(\.theme, mockTheme)
-      .environment(\.modeSwitcherPresentation, .constant(false))
   }
 
   /// Creates an in-memory AggregateSyncEnvironment for preview
@@ -350,18 +322,6 @@ extension MatchRootView {
 
   private func setNavigationPath(for route: MatchRoute) {
     self.navigationPath = route.canonicalPath
-  }
-
-  private var isModeSwitcherBlocked: Bool {
-    self.lifecycle.state != .idle
-  }
-
-  private func updateModeSwitcherBlock() {
-    if self.isModeSwitcherBlocked {
-      self.modeSwitcherBlockReason.wrappedValue = .activeMatch
-    } else if self.modeSwitcherBlockReason.wrappedValue == .activeMatch {
-      self.modeSwitcherBlockReason.wrappedValue = nil
-    }
   }
 
   @ViewBuilder

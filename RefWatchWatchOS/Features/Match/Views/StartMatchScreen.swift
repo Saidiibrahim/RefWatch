@@ -24,18 +24,6 @@ struct StartMatchScreen: View {
         )
         .background(theme.colors.backgroundPrimary.ignoresSafeArea())
         .navigationTitle("Start Match")
-        .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                if lifecycle.state == .idle {
-                    Button {
-                        dismiss()
-                    } label: {
-                        Image(systemName: "chevron.backward")
-                    }
-                    .accessibilityLabel("Back")
-                }
-            }
-        }
         .onChange(of: lifecycle.state) { _, newValue in
             // When lifecycle moves past idle, close the entire start flow and reset navigation.
             if newValue != .idle {

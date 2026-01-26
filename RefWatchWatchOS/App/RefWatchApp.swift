@@ -6,15 +6,11 @@
 //
 
 import RefWatchCore
-import RefWorkoutCore
 import SwiftData
 import SwiftUI
 
 @main
 struct RefWatch_Watch_AppApp: App {
-  @StateObject private var appModeController = AppModeController()
-  private let workoutServices = WorkoutServicesFactory.makeDefault()
-
   private let aggregateContainer: ModelContainer
   private let aggregateLibraryStore: WatchAggregateLibraryStore
   private let aggregateChunkStore: WatchAggregateSnapshotChunkStore
@@ -77,9 +73,7 @@ struct RefWatch_Watch_AppApp: App {
   var body: some Scene {
     WindowGroup {
       AppRootView()
-        .environmentObject(self.appModeController)
         .environmentObject(self.aggregateEnvironment)
-        .workoutServices(self.workoutServices)
     }
   }
 }

@@ -11,7 +11,7 @@ This module serves as the entry point and root configuration of the RefWatch Wat
 ## Key Components
 
 - `RefWatchApp.swift`: The main app delegate and entry point
-- `AppRootView.swift`: Coordinates mode switching between Match and Workout flows
+- `AppRootView.swift`: Hosts the Match root flow
 - `MatchRootView.swift`: The root view for the Match experience
 
 ## Guidelines
