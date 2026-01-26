@@ -8,7 +8,6 @@
 import Combine
 import OSLog
 import RefWatchCore
-import RefWorkoutCore
 import SwiftData
 import SwiftUI
 import UIKit
@@ -17,7 +16,6 @@ import UIKit
 @MainActor
 struct RefWatchiOSApp: App {
   @StateObject private var router = AppRouter()
-  @StateObject private var appModeController = AppModeController()
   @StateObject private var themeManager = ThemeManager()
   @StateObject private var authController: SupabaseAuthController
   @StateObject private var authCoordinator: AuthenticationCoordinator
@@ -30,8 +28,6 @@ struct RefWatchiOSApp: App {
   private let teamStore: TeamLibraryStoring
   private let competitionStore: CompetitionLibraryStoring
   private let venueStore: VenueLibraryStoring
-  private let workoutServices = IOSWorkoutServicesFactory.makeDefault()
-
   @State private var matchVM: MatchViewModel
   @StateObject private var syncController: ConnectivitySyncController
   @StateObject private var syncDiagnostics = SyncDiagnosticsCenter()
@@ -156,12 +152,10 @@ struct RefWatchiOSApp: App {
       self.rootContent
         .environmentObject(self.router)
         .environmentObject(self.syncDiagnostics)
-        .environmentObject(self.appModeController)
         .environmentObject(self.themeManager)
         .environmentObject(self.authController)
         .environmentObject(self.authCoordinator)
         .environment(\.journalStore, self.journalStore)
-        .workoutServices(self.workoutServices)
         .theme(self.themeManager.theme)
         .task {
           await self.authController.restoreSessionIfAvailable()
