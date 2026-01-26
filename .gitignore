@@ -103,3 +103,6 @@ pyproject.toml
 
 # VS Code
 .vscode/
+
+## Codex
+.codex/config.toml
