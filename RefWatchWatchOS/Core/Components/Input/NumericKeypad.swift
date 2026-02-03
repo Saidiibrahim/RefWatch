@@ -134,6 +134,10 @@ private struct KeypadButton: View {
         let height = style == .action
             ? layout.dimension(theme.components.buttonHeight * 0.8, minimum: 36)
             : baseHeight
+        let outlineColor = style == .action
+            ? theme.colors.outlineMuted.opacity(0.6)
+            : theme.colors.outlineMuted
+        let showBackground = style == .number
         Button(action: action) {
             Text(key)
                 .font(theme.typography.cardHeadline)
@@ -143,12 +147,20 @@ private struct KeypadButton: View {
                 .frame(maxWidth: .infinity)
                 .frame(minHeight: height)
                 .background(
-                    Capsule()
-                        .fill(theme.colors.backgroundElevated)
+                    Group {
+                        if showBackground {
+                            Capsule()
+                                .fill(theme.colors.backgroundElevated)
+                        }
+                    }
                 )
                 .overlay(
-                    Capsule()
-                        .stroke(theme.colors.outlineMuted, lineWidth: 1)
+                    Group {
+                        if showBackground {
+                            Capsule()
+                                .stroke(outlineColor, lineWidth: 1)
+                        }
+                    }
                 )
                 .contentShape(Capsule())
         }
