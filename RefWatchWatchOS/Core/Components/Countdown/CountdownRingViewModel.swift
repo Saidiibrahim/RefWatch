@@ -3,14 +3,14 @@
 //  RefWatchWatchOS
 //
 //  Description: ViewModel managing countdown ring state and progression
-//  through Ready → 3 → 2 → 1 → Complete stages
+//  through Ready → 3 → 2 → 1 → Play stages
 //
 
 import Foundation
 import RefWatchCore
 
 /// ViewModel managing countdown ring progression with one-second intervals
-/// States: ready → 3 → 2 → 1 → complete
+/// States: ready → 3 → 2 → 1 → play
 @Observable
 final class CountdownRingViewModel {
   /// Current countdown phase
@@ -95,8 +95,8 @@ final class CountdownRingViewModel {
     // Ring reduces to 0% when complete
     progress = 0.0
     
-    // Brief delay before invoking completion
-    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+    // Brief delay before invoking completion to show "Play"
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
       self?.onComplete?()
       self?.isActive = false
     }
@@ -125,4 +125,3 @@ final class CountdownRingViewModel {
     onComplete = nil
   }
 }
-

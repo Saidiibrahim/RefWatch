@@ -3,7 +3,7 @@
 //  RefWatchWatchOS
 //
 //  Description: Visual countdown ring component matching Apple Workout style
-//  Displays circular progress ring with countdown numbers (Ready → 3 → 2 → 1)
+//  Displays circular progress ring with countdown numbers (3 → 2 → 1 → Play)
 //
 
 import RefWatchCore
@@ -45,7 +45,7 @@ struct CountdownRingView: View {
           .frame(width: self.ringSize, height: self.ringSize)
           .rotationEffect(.degrees(-90)) // Start from top
 
-        // Center text (Ready, 3, 2, or 1)
+        // Center text (3, 2, 1, or Play)
         Text(self.centerText)
           .font(.system(size: 48, weight: .bold, design: .rounded))
           .foregroundColor(.white)
@@ -101,11 +101,11 @@ struct CountdownRingView: View {
   private var centerText: String {
     switch self.viewModel.currentPhase {
     case .ready:
-      "Ready"
+      ""
     case let .counting(number):
       "\(number)"
     case .complete:
-      "1" // Show 1 briefly before completion
+      "Play"
     }
   }
 
@@ -116,7 +116,7 @@ struct CountdownRingView: View {
   {
     switch newPhase {
     case .ready:
-      // Light haptic when showing "Ready"
+      // Light haptic when entering the ready phase
       self.haptics.play(.tap)
     case .counting:
       // Stronger haptic for each countdown number
