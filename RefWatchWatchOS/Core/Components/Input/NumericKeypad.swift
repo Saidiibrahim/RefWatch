@@ -47,6 +47,7 @@ struct NumericKeypad: View {
     var body: some View {
         let rowSpacing = layout.dimension(theme.spacing.s, minimum: theme.spacing.xs)
         let columnSpacing = layout.dimension(theme.spacing.s, minimum: theme.spacing.xs)
+        let topPadding = layout.dimension(theme.spacing.m, minimum: theme.spacing.s)
 
         VStack(spacing: rowSpacing) {
             // Number display
@@ -72,6 +73,7 @@ struct NumericKeypad: View {
                 }
             }
         }
+        .padding(.top, topPadding)
         .padding(.bottom, layout.safeAreaBottomPadding)
     }
     
