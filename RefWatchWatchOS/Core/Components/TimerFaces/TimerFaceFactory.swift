@@ -11,6 +11,8 @@ public enum TimerFaceFactory {
             StandardTimerFace(model: model)
         case .proStoppage:
             ProStoppageFace(model: model)
+        case .glance:
+            GlanceTimerFace(model: model)
         }
     }
 }

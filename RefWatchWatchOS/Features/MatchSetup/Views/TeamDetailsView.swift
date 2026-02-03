@@ -46,15 +46,16 @@ struct TeamDetailsView: View {
   }
 
   private var header: some View {
-    Text(self.teamDisplayName)
-      .font(self.theme.typography.label.weight(.semibold))
-      .foregroundStyle(self.theme.colors.textSecondary)
-      .textCase(.uppercase)
-      .lineLimit(1)
-      .minimumScaleFactor(0.7)
-      .frame(maxWidth: .infinity, alignment: .leading)
-      .padding(.top, self.theme.spacing.xs)
-      .accessibilityLabel(self.teamDisplayNameAccessibility)
+    TeamNameAbbreviationText(
+      name: self.teamDisplayName,
+      font: self.theme.typography.label.weight(.semibold),
+      color: self.theme.colors.textSecondary,
+      alignment: .leading
+    )
+    .textCase(.uppercase)
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .padding(.top, self.theme.spacing.xs)
+    .accessibilityLabel(self.teamDisplayNameAccessibility)
   }
 
   private var eventGridItems: [AdaptiveEventGridItem] {

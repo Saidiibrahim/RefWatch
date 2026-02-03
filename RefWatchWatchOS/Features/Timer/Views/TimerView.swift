@@ -138,11 +138,22 @@ struct TimerView: View {
 
 extension TimerView {
   private var mainLayout: some View {
-    let verticalSpacing = self.layout.category == .compact ? self.theme.spacing.s : self.theme.spacing.m
+    let baseSpacing = self.layout.category == .compact ? self.theme.spacing.s : self.theme.spacing.m
+    let verticalSpacing = if self.faceStyle == .glance {
+      max(self.theme.spacing.xs, baseSpacing * 0.5)
+    } else if self.faceStyle == .standard {
+      max(self.theme.spacing.xs, baseSpacing * 0.75)
+    } else {
+      baseSpacing
+    }
 
     return VStack(spacing: verticalSpacing) {
-      self.periodIndicator
-      self.scoreDisplay
+      if self.faceStyle.showsPeriodIndicator {
+        self.periodIndicator
+      }
+      if self.faceStyle.showsScoreboard {
+        self.scoreDisplay
+      }
       self.timerFace
     }
     .accessibilityIdentifier("timerArea")
@@ -169,7 +180,8 @@ extension TimerView {
       homeTeam: self.model.homeTeamDisplayName,
       awayTeam: self.model.awayTeamDisplayName,
       homeScore: self.model.currentMatch?.homeScore ?? 0,
-      awayScore: self.model.currentMatch?.awayScore ?? 0)
+      awayScore: self.model.currentMatch?.awayScore ?? 0,
+      compact: self.faceStyle == .standard)
   }
 
   private var timerFace: some View {
