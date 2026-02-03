@@ -34,30 +34,26 @@ struct FullTimeView: View {
             score: self.matchViewModel.currentMatch?.awayScore ?? 0)
         }
 
-        Spacer()
-
-        ThemeCardContainer(
-          role: .positive,
-          minHeight: self.layout.dimension(self.theme.components.buttonHeight, minimum: 44)
-        ) {
-          Button(action: {
-            self.showingEndMatchConfirmation = true
-          }, label: {
-            HStack(spacing: self.theme.spacing.m) {
-              Image(systemName: "checkmark.circle.fill")
-                .font(self.theme.typography.iconAccent)
-                .foregroundStyle(self.theme.colors.textInverted)
-
+        HStack {
+          ThemeCardContainer(
+            role: .positive,
+            minHeight: self.layout.dimension(self.theme.components.buttonHeight, minimum: 44)
+          ) {
+            Button(action: {
+              self.showingEndMatchConfirmation = true
+            }, label: {
               Text("Complete Match")
                 .font(self.theme.typography.cardHeadline)
                 .foregroundStyle(self.theme.colors.textInverted)
-
-              Spacer()
-            }
-          })
-          .buttonStyle(.plain)
+                .frame(maxWidth: .infinity, alignment: .center)
+            })
+            .buttonStyle(.plain)
+          }
+          .frame(maxWidth: self.layout.dimension(150, minimum: 120, maximum: 180))
         }
-        .padding(.bottom, self.layout.safeAreaBottomPadding + self.theme.spacing.l)
+        .frame(maxWidth: .infinity, alignment: .center)
+        .padding(.top, self.theme.spacing.m)
+        .padding(.bottom, self.layout.safeAreaBottomPadding + self.theme.spacing.xl)
       }
       .padding(.horizontal, self.theme.components.cardHorizontalPadding)
       .padding(.top, self.theme.spacing.s)
@@ -86,39 +82,6 @@ struct FullTimeView: View {
       .onAppear {
         self.logAppear()
       }
-  }
-}
-
-// Team score box component
-private struct TeamScoreBox: View {
-  let teamName: String
-  let score: Int
-  @Environment(\.theme) private var theme
-  @Environment(\.watchLayoutScale) private var layout
-
-  var body: some View {
-    VStack(spacing: self.theme.spacing.s) {
-      Text(self.teamName)
-        .font(self.theme.typography.cardHeadline)
-        .foregroundStyle(self.theme.colors.textSecondary)
-        .lineLimit(1)
-        .minimumScaleFactor(0.7)
-
-      Text("\(self.score)")
-        .font(self.theme.typography.timerSecondary)
-        .foregroundStyle(self.theme.colors.textPrimary)
-        .monospacedDigit()
-        .lineLimit(1)
-        .minimumScaleFactor(0.7)
-    }
-    .frame(maxWidth: .infinity)
-    .frame(height: self.layout.teamScoreBoxHeight)
-    .background(
-      RoundedRectangle(cornerRadius: self.theme.components.cardCornerRadius)
-        .fill(self.theme.colors.backgroundElevated))
-    .overlay(
-      RoundedRectangle(cornerRadius: self.theme.components.cardCornerRadius)
-        .stroke(self.theme.colors.outlineMuted.opacity(0.4), lineWidth: 1))
   }
 }
 

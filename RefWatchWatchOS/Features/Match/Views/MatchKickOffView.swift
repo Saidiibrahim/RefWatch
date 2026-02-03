@@ -242,12 +242,15 @@ struct MatchKickOffView: View {
     action: @escaping () -> Void,
     accessibilityIdentifier: String) -> some View
   {
-    CompactTeamBox(
-      teamName: title,
-      score: score,
-      isSelected: isSelected,
-      action: action,
-      accessibilityIdentifier: accessibilityIdentifier)
+    Button(action: action) {
+      TeamScoreBox(
+        teamName: title,
+        score: score,
+        isSelected: isSelected)
+    }
+    .buttonStyle(.plain)
+    .contentShape(RoundedRectangle(cornerRadius: self.theme.components.cardCornerRadius, style: .continuous))
+    .accessibilityIdentifier(accessibilityIdentifier)
   }
 
   // Responsive spacing for confirm button - more space needed on smaller screens
@@ -271,7 +274,8 @@ struct MatchKickOffView: View {
         icon: "checkmark.circle.fill",
         color: self.selectedTeam != nil
           ? self.theme.colors.matchPositive
-          : self.theme.colors.matchPositive.opacity(0.35)) { self.confirmKickOff() }
+          : self.theme.colors.matchPositive.opacity(0.35),
+        size: self.confirmButtonDiameter) { self.confirmKickOff() }
         .disabled(self.selectedTeam == nil)
         .accessibilityIdentifier("kickoffConfirmButton")
         .animation(.easeInOut(duration: 0.2), value: self.selectedTeam != nil)
@@ -288,6 +292,10 @@ struct MatchKickOffView: View {
     if self.isSecondHalf { return false }
     if let phase = etPhase, phase != 1 { return false }
     return true
+  }
+
+  private var confirmButtonDiameter: CGFloat {
+    self.layout.dimension(56, minimum: 44, maximum: 64)
   }
 
   private func confirmKickOff() {
