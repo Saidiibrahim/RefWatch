@@ -12,24 +12,24 @@ struct ScoreDisplayView: View {
     let awayTeam: String
     let homeScore: Int
     let awayScore: Int
-    let compact: Bool
+    let emphasis: Bool
 
     init(
         homeTeam: String,
         awayTeam: String,
         homeScore: Int,
         awayScore: Int,
-        compact: Bool = false
+        emphasis: Bool = false
     ) {
         self.homeTeam = homeTeam
         self.awayTeam = awayTeam
         self.homeScore = homeScore
         self.awayScore = awayScore
-        self.compact = compact
+        self.emphasis = emphasis
     }
 
     var body: some View {
-        HStack(spacing: compact ? theme.spacing.s : theme.spacing.m) {
+        HStack(spacing: emphasis ? theme.spacing.m : theme.spacing.s) {
             teamColumn(title: homeTeam, score: homeScore)
             Divider()
                 .overlay(theme.colors.outlineMuted)
@@ -43,13 +43,15 @@ struct ScoreDisplayView: View {
         VStack(spacing: theme.spacing.xs) {
             TeamNameAbbreviationText(
                 name: title,
-                font: compact ? theme.typography.caption : theme.typography.cardMeta,
+                font: emphasis ? theme.typography.cardHeadline : theme.typography.cardMeta,
                 color: theme.colors.textSecondary,
                 alignment: .center
             )
+            .minimumScaleFactor(0.6)
 
             Text("\(score)")
-                .font(compact ? theme.typography.timerTertiary : theme.typography.timerSecondary)
+                .font(theme.typography.timerSecondary)
+                .scaleEffect(emphasis ? 1.08 : 1.0, anchor: .center)
                 .foregroundStyle(theme.colors.textPrimary)
                 .monospacedDigit()
         }
@@ -59,8 +61,8 @@ struct ScoreDisplayView: View {
 
 private extension ScoreDisplayView {
     var verticalPadding: CGFloat {
-        if compact {
-            return layout.dimension(theme.spacing.xs, minimum: theme.spacing.xs * 0.6)
+        if emphasis {
+            return layout.dimension(theme.spacing.s, minimum: theme.spacing.xs)
         }
         return layout.category == .compact ? theme.spacing.xs : theme.spacing.s
     }

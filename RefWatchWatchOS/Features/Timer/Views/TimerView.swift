@@ -142,7 +142,7 @@ extension TimerView {
     let verticalSpacing = if self.faceStyle == .glance {
       max(self.theme.spacing.xs, baseSpacing * 0.5)
     } else if self.faceStyle == .standard {
-      max(self.theme.spacing.xs, baseSpacing * 0.75)
+      max(self.theme.spacing.xs, baseSpacing * 0.85)
     } else {
       baseSpacing
     }
@@ -181,7 +181,7 @@ extension TimerView {
       awayTeam: self.model.awayTeamDisplayName,
       homeScore: self.model.currentMatch?.homeScore ?? 0,
       awayScore: self.model.currentMatch?.awayScore ?? 0,
-      compact: self.faceStyle == .standard)
+      emphasis: self.faceStyle == .standard)
   }
 
   private var timerFace: some View {
