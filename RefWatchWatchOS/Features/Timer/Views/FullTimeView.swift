@@ -36,21 +36,28 @@ struct FullTimeView: View {
 
         Spacer()
 
-        // Compact Complete Match button with rounded edges
-        Button(action: {
-          self.showingEndMatchConfirmation = true
-        }, label: {
-          Label("Complete Match", systemImage: "checkmark.circle.fill")
-            .font(self.theme.typography.cardMeta)
-            .foregroundStyle(self.theme.colors.textInverted)
-            .padding(.horizontal, self.theme.spacing.m)
-            .padding(.vertical, self.theme.spacing.s)
-            .background(
-              Capsule()
-                .fill(self.theme.colors.matchPositive))
-        })
-        .buttonStyle(.plain)
-        .padding(.bottom, self.layout.safeAreaBottomPadding + self.theme.spacing.m)
+        ThemeCardContainer(
+          role: .positive,
+          minHeight: self.layout.dimension(self.theme.components.buttonHeight, minimum: 44)
+        ) {
+          Button(action: {
+            self.showingEndMatchConfirmation = true
+          }, label: {
+            HStack(spacing: self.theme.spacing.m) {
+              Image(systemName: "checkmark.circle.fill")
+                .font(self.theme.typography.iconAccent)
+                .foregroundStyle(self.theme.colors.textInverted)
+
+              Text("Complete Match")
+                .font(self.theme.typography.cardHeadline)
+                .foregroundStyle(self.theme.colors.textInverted)
+
+              Spacer()
+            }
+          })
+          .buttonStyle(.plain)
+        }
+        .padding(.bottom, self.layout.safeAreaBottomPadding + self.theme.spacing.l)
       }
       .padding(.horizontal, self.theme.components.cardHorizontalPadding)
       .padding(.top, self.theme.spacing.s)

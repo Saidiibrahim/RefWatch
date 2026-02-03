@@ -11,6 +11,7 @@ import RefWatchCore
 /// Grid item component with circular icon and text label for action sheets
 struct ActionGridItem: View {
     @Environment(\.theme) private var theme
+    @Environment(\.watchLayoutScale) private var layout
 
     let title: String
     let icon: String
@@ -36,12 +37,15 @@ struct ActionGridItem: View {
     }
     
     var body: some View {
+        let iconDiameter = layout.dimension(52, minimum: 48)
+        let minHeight = layout.dimension(88, minimum: 76)
+        let verticalPadding = layout.category == .compact ? theme.spacing.s : theme.spacing.m
         Button(action: action) {
             VStack(spacing: theme.spacing.xs) {
                 ZStack {
                     Circle()
                         .fill(color)
-                        .frame(width: 44, height: 44)
+                        .frame(width: iconDiameter, height: iconDiameter)
                     Image(systemName: icon)
                         .font(theme.typography.iconAccent)
                         .foregroundStyle(theme.colors.textInverted)
@@ -54,8 +58,8 @@ struct ActionGridItem: View {
                     .lineLimit(2)
                     .minimumScaleFactor(0.85)
             }
-            .frame(maxWidth: expandHorizontally ? .infinity : nil, minHeight: 72)
-            .padding(.vertical, theme.spacing.s)
+            .frame(maxWidth: expandHorizontally ? .infinity : nil, minHeight: minHeight)
+            .padding(.vertical, verticalPadding)
             .padding(.horizontal, theme.spacing.s)
             .background(
                 RoundedRectangle(cornerRadius: theme.components.cardCornerRadius, style: .continuous)
