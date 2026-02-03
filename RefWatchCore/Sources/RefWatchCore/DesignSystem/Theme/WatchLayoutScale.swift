@@ -58,7 +58,7 @@ public struct WatchLayoutScale {
     }
 
     public var eventButtonSize: CGFloat {
-        dimension(56, minimum: 48)
+        dimension(60, minimum: 52)
     }
 
     public var eventIconSize: CGFloat {

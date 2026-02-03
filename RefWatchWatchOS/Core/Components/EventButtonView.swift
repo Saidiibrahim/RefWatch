@@ -35,12 +35,12 @@ struct EventButtonView: View {
             controlBody
 
             Text(label)
-                .font(theme.typography.caption.weight(.semibold))
+                .font(theme.typography.cardMeta.weight(.semibold))
                 .foregroundStyle(labelColor)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
                 .layoutPriority(1)
-                .frame(maxWidth: layout.dimension(72, minimum: 56))
+                .frame(maxWidth: layout.dimension(80, minimum: 60))
         }
         .accessibilityLabel(Text(label))
     }
