@@ -7,9 +7,12 @@
 //
 
 import SwiftUI
+import RefWatchCore
 
 /// Reusable numeric keypad component for number input scenarios
 struct NumericKeypad: View {
+    @Environment(\.theme) private var theme
+    @Environment(\.watchLayoutScale) private var layout
     @Binding var numberString: String
     let maxDigits: Int
     let onSubmit: (Int) -> Void
@@ -42,22 +45,26 @@ struct NumericKeypad: View {
     }
     
     var body: some View {
-        VStack(spacing: 12) {
+        let rowSpacing = layout.dimension(theme.spacing.s, minimum: theme.spacing.xs)
+        let columnSpacing = layout.dimension(theme.spacing.s, minimum: theme.spacing.xs)
+
+        VStack(spacing: rowSpacing) {
             // Number display
             Text(numberString.isEmpty ? placeholder : numberString)
-                .font(.system(size: 15, weight: .medium))
+                .font(theme.typography.cardMeta)
                 // Use placeholder color when there is no input, otherwise primary
-                .foregroundColor(numberString.isEmpty ? placeholderColor : .primary)
+                .foregroundStyle(numberString.isEmpty ? placeholderColor : theme.colors.textPrimary)
                 .frame(maxWidth: .infinity)
-                .padding(.top, 8)
+                .padding(.top, theme.spacing.xs)
             
             // Keypad grid
-            VStack(spacing: 8) {
+            VStack(spacing: rowSpacing) {
                 ForEach(keypadLayout, id: \.self) { row in
-                    HStack(spacing: 8) {
+                    HStack(spacing: columnSpacing) {
                         ForEach(row, id: \.self) { key in
                             KeypadButton(
                                 key: key,
+                                style: buttonStyle(for: key),
                                 action: { handleKeyPress(key) }
                             )
                         }
@@ -65,6 +72,7 @@ struct NumericKeypad: View {
                 }
             }
         }
+        .padding(.bottom, layout.safeAreaBottomPadding)
     }
     
     // MARK: - Private Methods
@@ -94,22 +102,55 @@ struct NumericKeypad: View {
             onSubmit(number)
         }
     }
+
+    private func buttonStyle(for key: String) -> KeypadButtonStyle {
+        switch key {
+        case "←", "OK":
+            return .action
+        default:
+            return .number
+        }
+    }
 }
 
 // MARK: - Supporting Views
 
 /// Individual keypad button component
+private enum KeypadButtonStyle {
+    case number
+    case action
+}
+
 private struct KeypadButton: View {
+    @Environment(\.theme) private var theme
+    @Environment(\.watchLayoutScale) private var layout
+
     let key: String
+    let style: KeypadButtonStyle
     let action: () -> Void
     
     var body: some View {
+        let baseHeight = layout.dimension(theme.components.buttonHeight, minimum: 44)
+        let height = style == .action
+            ? layout.dimension(theme.components.buttonHeight * 0.8, minimum: 36)
+            : baseHeight
         Button(action: action) {
             Text(key)
-                .font(.system(size: 18, weight: .medium))
-                .foregroundColor(.primary)
+                .font(theme.typography.cardHeadline)
+                .foregroundStyle(theme.colors.textPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
                 .frame(maxWidth: .infinity)
-                .frame(height: 30)
+                .frame(minHeight: height)
+                .background(
+                    Capsule()
+                        .fill(theme.colors.backgroundElevated)
+                )
+                .overlay(
+                    Capsule()
+                        .stroke(theme.colors.outlineMuted, lineWidth: 1)
+                )
+                .contentShape(Capsule())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(accessibilityLabel)
