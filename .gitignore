@@ -91,7 +91,7 @@ DerivedData/
 .home/
 
 # Internal development artifacts (not for public release)
-.agent/
+.agent
 .cursor/
 .claude/
 .codesnapshot.json
