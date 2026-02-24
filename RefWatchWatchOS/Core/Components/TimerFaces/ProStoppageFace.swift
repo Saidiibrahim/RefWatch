@@ -67,33 +67,46 @@ public struct ProStoppageFace: View {
         }
     }
 
-  @ViewBuilder
-  private func runningMatchView(scale: CGFloat, width: CGFloat) -> some View {
-    let rowMaxWidth = min(width * 0.78, 180)
-    VStack(spacing: Constants.verticalSpacingBase * scale) {
-      // Prominent per-period context: time remaining in current period
-      Text(model.periodTimeRemaining)
-        .font(theme.typography.timerPrimary)
-                .foregroundStyle(theme.colors.textPrimary)
-                .scaleEffect(scale, anchor: .center)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-
-            // Elapsed row (total match time)
-            HStack {
-                Text("Elapsed")
-                    .font(theme.typography.caption)
-                    .foregroundStyle(theme.colors.textSecondary)
-                Spacer()
-                Text(model.matchTime)
-                    .font(theme.typography.timerSecondary)
-                    .foregroundStyle(theme.colors.textPrimary)
-                    .scaleEffect(scale * 0.9, anchor: .center)
+    @ViewBuilder
+    private func runningMatchView(scale: CGFloat, width: CGFloat) -> some View {
+        let rowMaxWidth = min(width * 0.78, 180)
+        VStack(spacing: Constants.verticalSpacingBase * scale) {
+            VStack(spacing: Constants.verticalSpacingBase * scale) {
+                // Prominent per-period context: time remaining in current period
+                Text(model.periodTimeRemaining)
+                    .font(theme.typography.timerPrimary)
+                    .foregroundStyle(theme.colors.accentSecondary)
+                    .scaleEffect(max(1.0, scale * 1.04), anchor: .center)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.85)
+                    .minimumScaleFactor(0.8)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("Time remaining")
+                    .accessibilityValue(model.periodTimeRemaining)
+
+                // Elapsed row (total match time)
+                HStack {
+                    Text("Elapsed")
+                        .font(theme.typography.caption)
+                        .foregroundStyle(theme.colors.textSecondary)
+                    Spacer()
+                    Text(model.matchTime)
+                        .font(theme.typography.timerSecondary)
+                        .foregroundStyle(theme.colors.textPrimary)
+                        .scaleEffect(scale * 0.9, anchor: .center)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
+                }
+                .frame(maxWidth: rowMaxWidth)
+                .frame(maxWidth: .infinity)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Match time")
+                .accessibilityValue(model.matchTime)
             }
-            .frame(maxWidth: rowMaxWidth)
-            .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                haptics.play(.tap)
+                if model.isPaused { model.resumeMatch() } else { model.pauseMatch() }
+            }
 
             // Stoppage row (dedicated tap target to toggle stoppage while running)
             HStack {
@@ -120,11 +133,6 @@ public struct ProStoppageFace: View {
         }
         .padding(.vertical, Constants.contentVerticalPaddingBase * scale)
         .padding(.bottom, max(Constants.bottomInsetBase * scale, layout.timerBottomPadding * 0.6))
-        // Main face tap toggles pause/resume like the Standard face
-        .onTapGesture {
-            haptics.play(.tap)
-            if model.isPaused { model.resumeMatch() } else { model.pauseMatch() }
-        }
     }
 }
 

@@ -19,7 +19,7 @@ public struct GlanceTimerFace: View {
                 if model.isHalfTime {
                     halfTimeView(scale: scale)
                 } else {
-                    runningMatchView(scale: scale)
+                    runningMatchView(scale: scale, width: proxy.size.width)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -29,9 +29,9 @@ public struct GlanceTimerFace: View {
 
     // MARK: - Constants
     private enum Constants {
-        static let prominentScale: CGFloat = 1.15
+        static let prominentScale: CGFloat = 1.1
         static let verticalSpacingBase: CGFloat = 4
-        static let contentPaddingBase: CGFloat = 6
+        static let contentPaddingBase: CGFloat = 5
     }
 
     // MARK: - Subviews
@@ -57,30 +57,43 @@ public struct GlanceTimerFace: View {
                     .foregroundStyle(theme.colors.textPrimary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
-                    .scaleEffect(scale * Constants.prominentScale, anchor: .center)
+                    .scaleEffect(max(0.92, scale * Constants.prominentScale), anchor: .center)
                     .padding(.vertical, theme.spacing.m * scale)
             }
         }
     }
 
     @ViewBuilder
-    private func runningMatchView(scale: CGFloat) -> some View {
+    private func runningMatchView(scale: CGFloat, width: CGFloat) -> some View {
+        let widthCap = layout.dimension(196, minimum: 156, maximum: 208)
+        let rowWidth = min(width * 0.88, widthCap)
         VStack(spacing: Constants.verticalSpacingBase * scale) {
             Text(model.matchTime)
                 .font(theme.typography.timerPrimary)
                 .foregroundStyle(theme.colors.textPrimary)
                 .lineLimit(1)
-                .minimumScaleFactor(0.6)
-                .scaleEffect(scale * Constants.prominentScale, anchor: .center)
+                .minimumScaleFactor(0.66)
+                .scaleEffect(max(1.0, scale * Constants.prominentScale), anchor: .center)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Match time")
+                .accessibilityValue(model.matchTime)
 
             Text(model.periodTimeRemaining)
                 .font(theme.typography.timerSecondary)
-                .foregroundStyle(theme.colors.textSecondary)
+                .fontWeight(.semibold)
+                .foregroundStyle(theme.colors.accentSecondary)
                 .lineLimit(1)
-                .minimumScaleFactor(0.6)
-                .scaleEffect(scale, anchor: .center)
+                .minimumScaleFactor(0.7)
+                .scaleEffect(max(0.94, scale * 0.98), anchor: .center)
+                .padding(.vertical, max(1, theme.spacing.xs * 0.25 * scale))
+                .padding(.horizontal, max(8, theme.spacing.s * scale))
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Time remaining")
+                .accessibilityValue(model.periodTimeRemaining)
         }
         .padding(.vertical, Constants.contentPaddingBase * scale)
+        .frame(maxWidth: rowWidth)
+        .contentShape(Rectangle())
         .onTapGesture {
             haptics.play(.tap)
             if model.isPaused { model.resumeMatch() } else { model.pauseMatch() }
