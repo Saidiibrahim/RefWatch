@@ -29,6 +29,39 @@ RefZone is a multi-platform app (watchOS + iOS + Web) designed for football/socc
 
 You have access to the xcodeBuildMCP to build and test the project. Prefer this over manually building the project.
 
+
+Common local workflows from repo docs/scripts:
+```bash
+# One-time local setup (generates RefWatchiOS/Config/Config.xcconfig)
+./scripts/setup.sh
+
+# Install git hooks (pre-commit secrets guard)
+./scripts/install-git-hooks.sh
+
+# Build watchOS app
+xcodebuild -project RefWatch.xcodeproj \
+  -scheme "RefWatch Watch App" \
+  -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)' \
+  build
+
+# Build iOS companion app
+xcodebuild -project RefWatch.xcodeproj \
+  -scheme "RefWatchiOS" \
+  -destination 'platform=iOS Simulator,name=iPhone 15' \
+  build
+
+# Run watchOS tests
+xcodebuild test -project RefWatch.xcodeproj \
+  -scheme "RefWatch Watch App" \
+  -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)'
+
+# iOS coverage run (auto-picks simulator)
+./scripts/test-ios-coverage.sh
+
+# Build docs
+xcodebuild docbuild
+```
+
 ## Coding Style & Naming Conventions
 
 - Swift + SwiftUI, MVVM. Use 2-space indentation and keep files focused.
