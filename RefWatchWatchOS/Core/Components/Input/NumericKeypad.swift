@@ -45,11 +45,9 @@ struct NumericKeypad: View {
     }
     
     var body: some View {
-        let rowSpacing = layout.dimension(theme.spacing.s, minimum: theme.spacing.xs)
-        let columnSpacing = layout.dimension(theme.spacing.s, minimum: theme.spacing.xs)
-        let topPadding = layout.dimension(theme.spacing.m, minimum: theme.spacing.s)
+        let metrics = keypadMetrics
 
-        VStack(spacing: rowSpacing) {
+        VStack(spacing: metrics.rowSpacing) {
             // Number display
             Text(numberString.isEmpty ? placeholder : numberString)
                 .font(theme.typography.cardMeta)
@@ -59,21 +57,28 @@ struct NumericKeypad: View {
                 .padding(.top, theme.spacing.xs)
             
             // Keypad grid
-            VStack(spacing: rowSpacing) {
+            VStack(spacing: metrics.rowSpacing) {
                 ForEach(keypadLayout, id: \.self) { row in
-                    HStack(spacing: columnSpacing) {
+                    HStack(spacing: metrics.columnSpacing) {
                         ForEach(row, id: \.self) { key in
                             KeypadButton(
                                 key: key,
                                 style: buttonStyle(for: key),
+                                numberButtonHeight: metrics.numberButtonHeight,
+                                actionButtonHeight: metrics.actionButtonHeight,
+                                minButtonWidth: metrics.minButtonWidth,
                                 action: { handleKeyPress(key) }
                             )
+                            .frame(maxWidth: .infinity)
                         }
                     }
+                    .frame(maxWidth: .infinity)
                 }
             }
+            .frame(maxWidth: .infinity)
         }
-        .padding(.top, topPadding)
+        .padding(.horizontal, metrics.horizontalPadding)
+        .padding(.top, metrics.topPadding)
         .padding(.bottom, layout.safeAreaBottomPadding)
     }
     
@@ -113,6 +118,41 @@ struct NumericKeypad: View {
             return .number
         }
     }
+
+    private var keypadMetrics: KeypadMetrics {
+        switch layout.category {
+        case .compact:
+            KeypadMetrics(
+                rowSpacing: layout.dimension(theme.spacing.xs, minimum: 3, maximum: 5),
+                columnSpacing: layout.dimension(theme.spacing.xs, minimum: 3, maximum: 5),
+                topPadding: layout.dimension(theme.spacing.s, minimum: 6, maximum: 9),
+                horizontalPadding: layout.dimension(theme.spacing.xs, minimum: 2, maximum: 4),
+                numberButtonHeight: layout.dimension(theme.components.buttonHeight * 0.92, minimum: 42, maximum: 48),
+                actionButtonHeight: layout.dimension(theme.components.buttonHeight * 0.76, minimum: 34, maximum: 40),
+                minButtonWidth: layout.dimension(42, minimum: 40, maximum: 46)
+            )
+        case .standard:
+            KeypadMetrics(
+                rowSpacing: layout.dimension(theme.spacing.s, minimum: theme.spacing.xs, maximum: 10),
+                columnSpacing: layout.dimension(theme.spacing.s, minimum: theme.spacing.xs, maximum: 10),
+                topPadding: layout.dimension(theme.spacing.m, minimum: theme.spacing.s),
+                horizontalPadding: layout.dimension(theme.spacing.xs, minimum: 2, maximum: 6),
+                numberButtonHeight: layout.dimension(theme.components.buttonHeight, minimum: 44, maximum: 54),
+                actionButtonHeight: layout.dimension(theme.components.buttonHeight * 0.8, minimum: 36, maximum: 44),
+                minButtonWidth: layout.dimension(44, minimum: 42, maximum: 50)
+            )
+        case .expanded:
+            KeypadMetrics(
+                rowSpacing: layout.dimension(theme.spacing.s * 1.05, minimum: 8, maximum: 11),
+                columnSpacing: layout.dimension(theme.spacing.s * 1.05, minimum: 8, maximum: 11),
+                topPadding: layout.dimension(theme.spacing.m * 1.1, minimum: 12, maximum: 16),
+                horizontalPadding: layout.dimension(theme.spacing.xs, minimum: 2, maximum: 8),
+                numberButtonHeight: layout.dimension(theme.components.buttonHeight * 1.04, minimum: 48, maximum: 58),
+                actionButtonHeight: layout.dimension(theme.components.buttonHeight * 0.86, minimum: 38, maximum: 46),
+                minButtonWidth: layout.dimension(46, minimum: 44, maximum: 56)
+            )
+        }
+    }
 }
 
 // MARK: - Supporting Views
@@ -125,17 +165,16 @@ private enum KeypadButtonStyle {
 
 private struct KeypadButton: View {
     @Environment(\.theme) private var theme
-    @Environment(\.watchLayoutScale) private var layout
 
     let key: String
     let style: KeypadButtonStyle
+    let numberButtonHeight: CGFloat
+    let actionButtonHeight: CGFloat
+    let minButtonWidth: CGFloat
     let action: () -> Void
     
     var body: some View {
-        let baseHeight = layout.dimension(theme.components.buttonHeight, minimum: 44)
-        let height = style == .action
-            ? layout.dimension(theme.components.buttonHeight * 0.8, minimum: 36)
-            : baseHeight
+        let height = style == .action ? actionButtonHeight : numberButtonHeight
         let outlineColor = style == .action
             ? theme.colors.outlineMuted.opacity(0.6)
             : theme.colors.outlineMuted
@@ -147,7 +186,7 @@ private struct KeypadButton: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
                 .frame(maxWidth: .infinity)
-                .frame(minHeight: height)
+                .frame(minWidth: minButtonWidth, minHeight: height)
                 .background(
                     Group {
                         if showBackground {
@@ -181,6 +220,16 @@ private struct KeypadButton: View {
             return key
         }
     }
+}
+
+private struct KeypadMetrics {
+    let rowSpacing: CGFloat
+    let columnSpacing: CGFloat
+    let topPadding: CGFloat
+    let horizontalPadding: CGFloat
+    let numberButtonHeight: CGFloat
+    let actionButtonHeight: CGFloat
+    let minButtonWidth: CGFloat
 }
 
 // MARK: - Preview

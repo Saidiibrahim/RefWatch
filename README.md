@@ -3,6 +3,11 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-watchOS%20%7C%20iOS-blue.svg)](https://developer.apple.com/watchos/)
 [![Swift](https://img.shields.io/badge/Swift-5.9-orange.svg)](https://swift.org/)
+[![Xcode](https://img.shields.io/badge/Xcode-26.2-147EFB.svg?logo=xcode&logoColor=white)](https://developer.apple.com/xcode/)
+[![Supabase](https://img.shields.io/badge/Supabase-Backend-3ECF8E.svg?logo=supabase&logoColor=white)](https://supabase.com)
+[![Supabase Auth](https://img.shields.io/badge/Supabase-Auth-3ECF8E.svg?logo=supabase&logoColor=white)](https://supabase.com/docs/guides/auth)
+[![OpenAI](https://img.shields.io/badge/OpenAI-Responses_API-412991.svg?logo=openai&logoColor=white)](https://platform.openai.com/docs/api-reference/responses)
+[![Google Sign-In](https://img.shields.io/badge/Google-Sign--In-4285F4.svg?logo=google&logoColor=white)](https://developers.google.com/identity/sign-in/ios)
 
 <table align="center">
   <tr>
