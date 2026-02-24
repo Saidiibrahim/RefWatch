@@ -25,7 +25,7 @@
 - Data/backend sync changes: consult `docs/generated/db-schema.md` and Supabase migrations.
 - UI/UX changes: consult `docs/DESIGN.md`, `docs/FRONTEND.md`, and related product specs.
 
-## Legacy Path Deprecation
-- Legacy knowledge locations (`.agent` and `specs`) are deprecated.
-- Do not add new artifacts under legacy locations.
-- If legacy artifacts are discovered, migrate them into canonical `docs` locations in the same change.
+## Primary Target Devices
+- Physical iOS target: iPhone 15 Pro Max.
+- Physical watchOS target: Apple Watch Series 9 (45mm).
+- When validating UX, performance, and reliability, prioritize these devices before other hardware.

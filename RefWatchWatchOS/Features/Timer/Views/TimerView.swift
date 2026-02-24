@@ -215,12 +215,60 @@ extension View {
   }
 }
 
-#Preview {
-  TimerView(model: MatchViewModel(haptics: WatchHaptics()), lifecycle: MatchLifecycleCoordinator())
+@MainActor
+private func makeRunningTimerPreviewModel() -> MatchViewModel {
+  let model = MatchViewModel(haptics: WatchHaptics())
+  model.newMatch = Match(homeTeam: "ARS", awayTeam: "MCI")
+  model.createMatch()
+
+  for _ in 0..<2 { model.updateScore(isHome: true, increment: true) }
+  for _ in 0..<1 { model.updateScore(isHome: false, increment: true) }
+
+  model.currentPeriod = 1
+  model.waitingForMatchStart = false
+  model.isMatchInProgress = true
+  model.isPaused = false
+  model.matchTime = "37:42"
+  model.periodTime = "37:42"
+  model.periodTimeRemaining = "07:18"
+
+  return model
+}
+
+@MainActor
+private func makePausedTimerPreviewModel() -> MatchViewModel {
+  let model = MatchViewModel(haptics: WatchHaptics())
+  model.newMatch = Match(homeTeam: "RMA", awayTeam: "FCB")
+  model.createMatch()
+
+  for _ in 0..<1 { model.updateScore(isHome: true, increment: true) }
+  for _ in 0..<1 { model.updateScore(isHome: false, increment: true) }
+
+  model.currentPeriod = 2
+  model.waitingForMatchStart = false
+  model.isMatchInProgress = true
+  model.isPaused = true
+  model.matchTime = "68:10"
+  model.periodTime = "23:10"
+  model.periodTimeRemaining = "21:50"
+  model.isInStoppage = true
+  model.formattedStoppageTime = "00:34"
+
+  return model
+}
+
+#Preview("Timer – Running (Compact)") {
+  TimerView(model: makeRunningTimerPreviewModel(), lifecycle: MatchLifecycleCoordinator())
     .watchLayoutScale(WatchLayoutScale(category: .compact))
 }
 
-#Preview("Timer – Ultra") {
-  TimerView(model: MatchViewModel(haptics: WatchHaptics()), lifecycle: MatchLifecycleCoordinator())
+#Preview("Timer – Paused (Compact)") {
+  TimerView(model: makePausedTimerPreviewModel(), lifecycle: MatchLifecycleCoordinator())
+    .watchLayoutScale(WatchLayoutScale(category: .compact))
+}
+
+// "Ultra" here applies expanded layout metrics; Canvas device still comes from Xcode preview target.
+#Preview("Timer – Running (Ultra Layout)") {
+  TimerView(model: makeRunningTimerPreviewModel(), lifecycle: MatchLifecycleCoordinator())
     .watchLayoutScale(WatchLayoutScale(category: .expanded))
 }
