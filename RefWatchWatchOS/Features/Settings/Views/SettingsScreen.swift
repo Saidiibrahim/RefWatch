@@ -410,6 +410,10 @@ struct SettingsToggleRow: View {
             Text(self.title)
               .font(self.theme.typography.cardHeadline)
               .foregroundStyle(self.theme.colors.textPrimary)
+              .lineLimit(1)
+              .minimumScaleFactor(0.72)
+              .allowsTightening(true)
+              .multilineTextAlignment(.leading)
 
             if let subtitle, !subtitle.isEmpty {
               Text(subtitle)
@@ -417,7 +421,10 @@ struct SettingsToggleRow: View {
                 .foregroundStyle(self.theme.colors.textSecondary)
             }
           }
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .layoutPriority(1)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
       }
       .tint(self.theme.colors.matchPositive)
     }

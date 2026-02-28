@@ -33,36 +33,6 @@ struct MatchOptionsView: View {
             self.lifecycle?.resetToStart()
             self.dismiss()
           }
-          // .listRowBackground(Color.clear) // Remove list row background
-
-          // MARK: - Kit Colours Feature (On Hold)
-
-          // The custom kit colours feature is currently on hold and not exposed to users.
-          // This feature will be re-enabled once the beta supports custom kit colour configuration.
-          // Keeping the code commented out for future reference and easy re-enablement.
-          /*
-           ThemeCardContainer(role: .secondary, minHeight: 72) {
-               HStack(alignment: .top, spacing: theme.spacing.m) {
-                   Image(systemName: "paintpalette")
-                       .font(.title2)
-                       .foregroundStyle(theme.colors.accentSecondary)
-
-                   VStack(alignment: .leading, spacing: theme.spacing.xs) {
-                       Text("Kit colours coming soon")
-                           .font(theme.typography.cardHeadline)
-                           .foregroundStyle(theme.colors.textPrimary)
-                           .frame(maxWidth: .infinity, alignment: .leading)
-                           .lineLimit(1)
-
-                       Text("Set custom kit colours once the beta supports them.")
-                           .font(theme.typography.cardMeta)
-                           .foregroundStyle(theme.colors.textSecondary)
-                           .frame(maxWidth: .infinity, alignment: .leading)
-                   }
-               }
-           }
-           //.listRowBackground(Color.clear) // Remove list row background
-           */
 
           // Reset match option
           ActionButton(
@@ -72,7 +42,6 @@ struct MatchOptionsView: View {
           {
             self.showingResetConfirmation = true
           }
-          // .listRowBackground(Color.clear) // Remove list row background
 
           // Abandon match option
           ActionButton(
@@ -82,7 +51,6 @@ struct MatchOptionsView: View {
           {
             self.showingAbandonConfirmation = true
           }
-          // .listRowBackground(Color.clear) // Remove list row background
         }
       }
       .listStyle(.carousel)

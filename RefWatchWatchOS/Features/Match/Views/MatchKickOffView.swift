@@ -143,12 +143,12 @@ struct MatchKickOffView: View {
 
   private var header: some View {
     Text(self.screenTitle)
-      .font(self.headerTitleFont)
-      .foregroundStyle(self.theme.colors.textPrimary)
+      .font(self.headerFont)
+      .foregroundStyle(self.headerForegroundColor)
       .lineLimit(1)
-      .minimumScaleFactor(0.75)
-      .padding(.trailing, self.layout.dimension(2, minimum: 1, maximum: 3))
-      .frame(maxWidth: .infinity, alignment: .trailing)
+      .minimumScaleFactor(self.isRegulationKickoff ? 0.7 : 0.75)
+      .padding(.leading, self.layout.dimension(2, minimum: 1, maximum: 3))
+      .frame(maxWidth: .infinity, alignment: .leading)
   }
 
   private var fullLayout: some View {
@@ -329,6 +329,18 @@ struct MatchKickOffView: View {
       size: self.layout.dimension(19, minimum: 16, maximum: 21),
       weight: .semibold,
       design: .rounded)
+  }
+
+  private var isRegulationKickoff: Bool {
+    !self.isSecondHalf && self.etPhase == nil
+  }
+
+  private var headerFont: Font {
+    self.isRegulationKickoff ? self.theme.typography.cardMeta : self.headerTitleFont
+  }
+
+  private var headerForegroundColor: Color {
+    self.isRegulationKickoff ? self.theme.colors.textSecondary : self.theme.colors.textPrimary
   }
 
   private var confirmButton: some View {
