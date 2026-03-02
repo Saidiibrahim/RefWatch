@@ -134,6 +134,8 @@ public struct CardDetails: Codable, Equatable {
   public let playerName: String?
   public let officialRole: TeamOfficialRole?
   public let reason: String
+  public let reasonCode: String?
+  public let reasonTitle: String?
 
   public init(
     cardType: CardType,
@@ -141,7 +143,9 @@ public struct CardDetails: Codable, Equatable {
     playerNumber: Int?,
     playerName: String?,
     officialRole: TeamOfficialRole?,
-    reason: String)
+    reason: String,
+    reasonCode: String? = nil,
+    reasonTitle: String? = nil)
   {
     self.cardType = cardType
     self.recipientType = recipientType
@@ -149,11 +153,29 @@ public struct CardDetails: Codable, Equatable {
     self.playerName = playerName
     self.officialRole = officialRole
     self.reason = reason
+    self.reasonCode = reasonCode
+    self.reasonTitle = reasonTitle
   }
 
   public enum CardType: String, Codable, Equatable {
     case yellow = "Yellow"
     case red = "Red"
+  }
+
+  public var isSecondCautionDismissal: Bool {
+    guard self.cardType == .red else { return false }
+
+    if let code = self.reasonCode?.uppercased() {
+      if code == "R7" || code == "S7" || code == "2CT" {
+        return true
+      }
+    }
+
+    let upperReason = self.reason.uppercased()
+    return upperReason.contains("R7")
+      || upperReason.contains("SECOND YELLOW")
+      || upperReason.contains("SECOND CAUTION")
+      || upperReason.contains("2CT")
   }
 }
 

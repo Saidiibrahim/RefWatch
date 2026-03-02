@@ -322,8 +322,6 @@ public final class MatchViewModel {
             }
           }
         }
-
-        self.refreshRuntimeSession(with: match)
         self.periodTimeRemaining = self.timerManager.configureInitialPeriodLabel(
           match: match,
           currentPeriod: self.currentPeriod)
@@ -339,6 +337,7 @@ public final class MatchViewModel {
       self.recordMatchEvent(.periodStart(self.currentPeriod))
 
       if let match = currentMatch {
+        let periodAtStart = self.currentPeriod
         self.timerManager.startPeriod(
           match: match,
           currentPeriod: self.currentPeriod,
@@ -351,15 +350,15 @@ public final class MatchViewModel {
             self.isInStoppage = snap.isInStoppage
           },
           onPeriodEnd: { [weak self] in
-            self?.endPeriod()
+            self?.endPeriod(expectedPeriod: periodAtStart)
           })
       }
+      self.syncRuntimeSession(inactiveReason: .cancelled)
     }
   }
 
   public func pauseMatch() {
     self.isPaused = true
-    self.backgroundRuntimeManager?.notifyPause()
     self.timerManager.pause { [weak self] snap in
       guard let self else { return }
       // Ensure the elapsed match time continues to reflect current time while paused
@@ -367,11 +366,11 @@ public final class MatchViewModel {
       self.formattedStoppageTime = snap.formattedStoppageTime
       self.isInStoppage = snap.isInStoppage
     }
+    self.syncRuntimeSession(inactiveReason: .cancelled)
   }
 
   public func resumeMatch() {
     self.isPaused = false
-    self.backgroundRuntimeManager?.notifyResume()
     self.timerManager.resume { [weak self] snap in
       guard let self else { return }
       self.matchTime = snap.matchTime
@@ -380,6 +379,7 @@ public final class MatchViewModel {
       self.formattedStoppageTime = snap.formattedStoppageTime
       self.isInStoppage = snap.isInStoppage
     }
+    self.syncRuntimeSession(inactiveReason: .cancelled)
   }
 
   // MARK: - Stoppage While Running (faces may use these)
@@ -414,10 +414,10 @@ public final class MatchViewModel {
     self.recordMatchEvent(.periodStart(self.currentPeriod))
 
     if let match = currentMatch {
+      let periodAtStart = self.currentPeriod
       self.periodTimeRemaining = self.timerManager.configureInitialPeriodLabel(
         match: match,
         currentPeriod: self.currentPeriod)
-      self.refreshRuntimeSession(with: match)
       self.timerManager.startPeriod(
         match: match,
         currentPeriod: self.currentPeriod,
@@ -430,9 +430,10 @@ public final class MatchViewModel {
           self.isInStoppage = snap.isInStoppage
         },
         onPeriodEnd: { [weak self] in
-          self?.endPeriod()
+          self?.endPeriod(expectedPeriod: periodAtStart)
         })
     }
+    self.syncRuntimeSession(inactiveReason: .cancelled)
   }
 
   public func startHalfTime() {
@@ -441,44 +442,39 @@ public final class MatchViewModel {
     self.timerManager.startHalfTime(match: match) { [weak self] elapsed in
       self?.halfTimeElapsed = elapsed
     }
+    self.syncRuntimeSession(inactiveReason: .cancelled)
   }
 
-  private func endPeriod() {
-    if let last = matchEvents.last {
-      if case let .periodEnd(period) = last.eventType, period == currentPeriod {
-        // already logged
-      } else {
-        self.recordMatchEvent(.periodEnd(self.currentPeriod))
-      }
-    } else {
-      self.recordMatchEvent(.periodEnd(self.currentPeriod))
-    }
+  private func endPeriod(expectedPeriod: Int) {
+    // Timer callbacks are dispatched asynchronously and may arrive after manual
+    // transitions. Ignore stale callbacks once match state has moved on.
+    guard self.isMatchInProgress, !self.isHalfTime, !self.isFullTime else { return }
+    guard self.currentPeriod == expectedPeriod else { return }
+
+    guard self.recordPeriodEndIfNeeded(for: expectedPeriod) else { return }
+    self.haptics.play(.notify)
     self.pauseMatch()
+  }
 
-    guard let match = currentMatch else { return }
+  @discardableResult
+  private func recordPeriodEndIfNeeded(for period: Int) -> Bool {
+    guard self.hasRecordedPeriodEnd(for: period) == false else { return false }
+    self.recordMatchEvent(.periodEnd(period))
+    return true
+  }
 
-    let total = max(1, match.numberOfPeriods)
-    if self.currentPeriod < total {
-      if self.currentPeriod == total / 2 {
-        self.startHalfTime()
+  private func hasRecordedPeriodEnd(for period: Int) -> Bool {
+    for event in self.matchEvents.reversed() {
+      switch event.eventType {
+      case let .periodEnd(recordedPeriod):
+        if recordedPeriod == period { return true }
+      case let .periodStart(startedPeriod):
+        if startedPeriod == period { return false }
+      default:
+        continue
       }
-    } else if match.hasExtraTime, self.currentPeriod == total {
-      self.isMatchInProgress = false
-      self.isPaused = false
-      self.waitingForET1Start = true
-    } else if match.hasExtraTime, self.currentPeriod == total + 1 {
-      self.isMatchInProgress = false
-      self.isPaused = false
-      self.waitingForET2Start = true
-    } else if self.currentPeriod == total + 2 {
-      if match.hasPenalties {
-        self.waitingForPenaltiesStart = true
-      } else {
-        self.endMatch()
-      }
-    } else {
-      self.endMatch()
     }
+    return false
   }
 
   private func endHalfTime() {
@@ -491,8 +487,8 @@ public final class MatchViewModel {
     self.timerManager.stopAll()
     self.timer = nil
     self.stoppageTimer = nil
-    self.backgroundRuntimeManager?.end(reason: .completed)
     self.pendingConfirmation = nil
+    self.syncRuntimeSession(inactiveReason: .completed)
   }
 
   // MARK: - Match Statistics
@@ -729,7 +725,9 @@ extension MatchViewModel {
     playerNumber: Int? = nil,
     playerName: String? = nil,
     officialRole: TeamOfficialRole? = nil,
-    reason: String)
+    reason: String,
+    reasonCode: String? = nil,
+    reasonTitle: String? = nil)
   {
     let cardDetails = CardDetails(
       cardType: cardType,
@@ -737,7 +735,9 @@ extension MatchViewModel {
       playerNumber: playerNumber,
       playerName: playerName,
       officialRole: officialRole,
-      reason: reason)
+      reason: reason,
+      reasonCode: reasonCode,
+      reasonTitle: reasonTitle)
     self.recordEvent(.card(cardDetails), team: team, details: .card(cardDetails))
     self.addCard(isHome: team == .home, isYellow: cardType == .yellow)
   }
@@ -813,7 +813,6 @@ extension MatchViewModel {
     self.stoppageTimer = nil
     if let match = currentMatch {
       self.currentPeriod = max(1, match.numberOfPeriods) + (match.hasExtraTime ? 2 : 0) + 1
-      self.refreshRuntimeSession(with: match)
     } else {
       self.currentPeriod = 5
     }
@@ -821,6 +820,7 @@ extension MatchViewModel {
     if let match = currentMatch { self.penaltyManager.setInitialRounds(match.penaltyInitialRounds) }
     self.wirePenaltyCallbacks()
     self.penaltyManager.begin()
+    self.syncRuntimeSession(inactiveReason: .cancelled)
   }
 
   public func recordPenaltyAttempt(team: TeamSide, result: PenaltyAttemptDetails.Result, playerNumber: Int? = nil) {
@@ -836,8 +836,8 @@ extension MatchViewModel {
     self.timer = nil
     self.stoppageTimer = nil
     self.isFullTime = true
-    self.backgroundRuntimeManager?.end(reason: .completed)
     self.penaltyStartEventLogged = false
+    self.syncRuntimeSession(inactiveReason: .completed)
   }
 
   @discardableResult
@@ -880,7 +880,7 @@ extension MatchViewModel {
   // MARK: - Match Management Actions
 
   public func endCurrentPeriod() {
-    self.recordMatchEvent(.periodEnd(self.currentPeriod))
+    self.recordPeriodEndIfNeeded(for: self.currentPeriod)
 
     guard let match = currentMatch else { return }
 
@@ -911,6 +911,10 @@ extension MatchViewModel {
     } else {
       self.endMatch()
     }
+
+    if !self.isFullTime {
+      self.syncRuntimeSession(inactiveReason: .cancelled)
+    }
   }
 
   public func resetMatch() {
@@ -929,7 +933,7 @@ extension MatchViewModel {
     self.waitingForPenaltiesStart = false
     self.isFullTime = false
     self.matchCompleted = false
-    self.backgroundRuntimeManager?.end(reason: .reset)
+    self.syncRuntimeSession(inactiveReason: .reset)
 
     if let match = currentMatch {
       self.periodTimeRemaining = self.timerManager.configureInitialPeriodLabel(match: match, currentPeriod: 1)
@@ -1004,6 +1008,7 @@ extension MatchViewModel {
     self.matchCompleted = true
     self.currentMatch = nil
     self.pendingConfirmation = nil
+    self.syncRuntimeSession(inactiveReason: .completed)
   }
 
   public func abandonMatch() { self.recordMatchEvent(.matchEnd); self.endMatch() }
@@ -1052,6 +1057,7 @@ extension MatchViewModel {
         self?.halfTimeElapsed = elapsed
       }
     }
+    self.syncRuntimeSession(inactiveReason: .cancelled)
   }
 
   public func startSecondHalfManually() {
@@ -1068,10 +1074,10 @@ extension MatchViewModel {
     self.formattedStoppageTime = "00:00"
     self.recordMatchEvent(.periodStart(self.currentPeriod))
     if let match = currentMatch {
+      let periodAtStart = self.currentPeriod
       self.periodTimeRemaining = self.timerManager.configureInitialPeriodLabel(
         match: match,
         currentPeriod: self.currentPeriod)
-      self.refreshRuntimeSession(with: match)
       self.timerManager.startPeriod(
         match: match,
         currentPeriod: self.currentPeriod,
@@ -1084,9 +1090,10 @@ extension MatchViewModel {
           self.isInStoppage = snap.isInStoppage
         },
         onPeriodEnd: { [weak self] in
-          self?.endPeriod()
+          self?.endPeriod(expectedPeriod: periodAtStart)
         })
     }
+    self.syncRuntimeSession(inactiveReason: .cancelled)
   }
 
   public func startExtraTimeFirstHalfManually() {
@@ -1105,7 +1112,7 @@ extension MatchViewModel {
     self.periodTimeRemaining = self.timerManager.configureInitialPeriodLabel(
       match: match,
       currentPeriod: self.currentPeriod)
-    self.refreshRuntimeSession(with: match)
+    let periodAtStart = self.currentPeriod
     self.timerManager.startPeriod(
       match: match,
       currentPeriod: self.currentPeriod,
@@ -1118,8 +1125,9 @@ extension MatchViewModel {
         self.isInStoppage = snap.isInStoppage
       },
       onPeriodEnd: { [weak self] in
-        self?.endPeriod()
+        self?.endPeriod(expectedPeriod: periodAtStart)
       })
+    self.syncRuntimeSession(inactiveReason: .cancelled)
   }
 
   public func startExtraTimeSecondHalfManually() {
@@ -1138,7 +1146,7 @@ extension MatchViewModel {
     self.periodTimeRemaining = self.timerManager.configureInitialPeriodLabel(
       match: match,
       currentPeriod: self.currentPeriod)
-    self.refreshRuntimeSession(with: match)
+    let periodAtStart = self.currentPeriod
     self.timerManager.startPeriod(
       match: match,
       currentPeriod: self.currentPeriod,
@@ -1151,8 +1159,9 @@ extension MatchViewModel {
         self.isInStoppage = snap.isInStoppage
       },
       onPeriodEnd: { [weak self] in
-        self?.endPeriod()
+        self?.endPeriod(expectedPeriod: periodAtStart)
       })
+    self.syncRuntimeSession(inactiveReason: .cancelled)
   }
 
   public func endHalfTimeManually() {
@@ -1162,15 +1171,66 @@ extension MatchViewModel {
     self.halfTimeRemaining = "00:00"
     self.halfTimeElapsed = "00:00"
     self.waitingForSecondHalfStart = true
+    self.syncRuntimeSession(inactiveReason: .cancelled)
   }
 
   // MARK: - Background Runtime Support
+
+  public func reconcileBackgroundRuntimeSession() {
+    self.syncRuntimeSession(inactiveReason: .cancelled)
+  }
 
   private func refreshRuntimeSession(with match: Match) {
     self.backgroundRuntimeManager?.begin(
       kind: .match,
       title: self.matchDisplayTitle(for: match),
       metadata: self.matchMetadata(for: match))
+  }
+
+  private func syncRuntimeSession(inactiveReason: BackgroundRuntimeEndReason) {
+    guard let runtimeManager = self.backgroundRuntimeManager else { return }
+
+    guard self.runtimeProtectionRequired else {
+      runtimeManager.end(reason: inactiveReason)
+      return
+    }
+
+    guard let match = self.currentMatch else {
+      runtimeManager.end(reason: inactiveReason)
+      return
+    }
+
+    self.refreshRuntimeSession(with: match)
+    if self.isPaused {
+      runtimeManager.notifyPause()
+    } else {
+      runtimeManager.notifyResume()
+    }
+  }
+
+  private var runtimeProtectionRequired: Bool {
+    self.isMatchInProgress ||
+      self.isHalfTime ||
+      self.waitingForHalfTimeStart ||
+      self.waitingForSecondHalfStart ||
+      self.waitingForET1Start ||
+      self.waitingForET2Start ||
+      self.waitingForPenaltiesStart ||
+      self.penaltyShootoutActive
+  }
+
+  private var runtimePhaseLabel: String {
+    if self.penaltyShootoutActive { return "penalties" }
+    if self.waitingForPenaltiesStart { return "waiting-penalties" }
+    if self.isHalfTime { return "halftime" }
+    if self.waitingForHalfTimeStart { return "waiting-halftime" }
+    if self.waitingForSecondHalfStart { return "waiting-second-half" }
+    if self.waitingForET1Start { return "waiting-et1" }
+    if self.waitingForET2Start { return "waiting-et2" }
+    if self.isMatchInProgress { return "in-play" }
+    if self.isFullTime || self.matchCompleted { return "full-time" }
+    if self.waitingForMatchStart { return "waiting-kickoff" }
+    return "idle"
   }
 
   private func matchDisplayTitle(for match: Match) -> String {
@@ -1186,6 +1246,9 @@ extension MatchViewModel {
       "awayTeam": match.awayTeam,
     ]
     data["currentPeriod"] = String(self.currentPeriod)
+    data["phase"] = self.runtimePhaseLabel
+    data["isPaused"] = self.isPaused ? "true" : "false"
+    data["runtimeProtectionRequired"] = self.runtimeProtectionRequired ? "true" : "false"
     data["hasExtraTime"] = match.hasExtraTime ? "true" : "false"
     return data
   }

@@ -20,6 +20,17 @@ Provides referees with precise match, period, and stoppage tracking, optimized f
 - Default face stored with `@AppStorage("timer_face_style")`.
 - Additional faces register via `TimerFaceStyle` enumeration and the factory.
 
+## Runtime Continuity (watchOS Match Mode)
+- Match Mode uses `WKExtendedRuntimeSession` as a best-effort continuity mechanism while a match flow is active.
+- Runtime protection remains enabled during:
+  - in-play periods
+  - halftime
+  - waiting states between periods (second half, ET1, ET2)
+  - penalty transition and active shootout
+- Runtime protection ends when the match is completed/reset/cancelled.
+- Match Mode does not rely on `WKExtension.frontmostTimeoutExtended` (unsupported on modern watchOS) and does not use `HKWorkoutSession`.
+- If watchOS returns to the watch face due to system policy, reopening the app must immediately restore the live match state (including halftime and penalties).
+
 ## Timer Readability Requirements
 - Watch timer faces must clearly separate elapsed match time from remaining period time.
 - Elapsed value is the primary, most prominent timer.
@@ -31,4 +42,5 @@ Provides referees with precise match, period, and stoppage tracking, optimized f
 - Validate period transitions (start → halftime → next period).
 - Ensure pause/resume retains elapsed time correctly.
 - Cover penalty edge cases (stacked penalties, clearing after halftime).
+- Validate runtime continuity across in-play, halftime, ET, and penalties on Apple Watch Series 9 (45mm) physical hardware.
 - Validate elapsed vs remaining readability on Apple Watch Series 9 (45mm) and compact layout.

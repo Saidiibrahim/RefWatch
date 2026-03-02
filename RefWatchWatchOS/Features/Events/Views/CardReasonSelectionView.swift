@@ -4,7 +4,7 @@ import RefWatchCore
 struct CardReasonSelectionView: View {
   let cardType: CardDetails.CardType
   let isTeamOfficial: Bool
-  let onSelect: (String) -> Void
+  let onSelect: (MisconductReason) -> Void
   @Environment(SettingsViewModel.self) private var settingsViewModel
 
   var body: some View {
@@ -16,7 +16,7 @@ struct CardReasonSelectionView: View {
         options: reasons,
         formatter: { $0.displayText },
         onSelect: { reason in
-          onSelect(reason.displayText)
+          onSelect(reason)
         }
       )
     }

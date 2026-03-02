@@ -2,7 +2,7 @@
 //  CardEventFlowView.swift
 //  RefWatchiOS
 //
-//  Minimal card recording flow: recipient, optional player number/official role, and reason.
+//  Records card events using the same misconduct template catalog as watchOS.
 //
 
 import RefWatchCore
@@ -19,15 +19,22 @@ struct CardEventFlowView: View {
   @State private var recipient: CardRecipientType = .player
   @State private var playerNumber: String = ""
   @State private var officialRole: TeamOfficialRole = .coach
-  @State private var reason: String = "Unsporting behaviour"
+  @State private var selectedReasonID: String = ""
+  @State private var customReason: String = ""
 
-  private let reasons: [String] = [
-    "Unsporting behaviour",
-    "Dissent",
-    "Persistent infringement",
-    "Serious foul play",
-    "Violent conduct",
-  ]
+  private var activeTemplate: MisconductTemplate {
+    // iOS currently does not persist a per-user misconduct template selection.
+    // Use the default template so iOS and watch reason catalogs stay consistent.
+    MisconductTemplateCatalog.template(for: MisconductTemplateCatalog.defaultTemplateID)
+  }
+
+  private var reasons: [MisconductReason] {
+    self.activeTemplate.reasons(for: self.cardType, recipient: self.recipient)
+  }
+
+  private var selectedReason: MisconductReason? {
+    self.reasons.first(where: { $0.id == self.selectedReasonID })
+  }
 
   var body: some View {
     NavigationStack {
@@ -58,7 +65,6 @@ struct CardEventFlowView: View {
               .keyboardType(.numberPad)
           } else {
             Picker("Official", selection: self.$officialRole) {
-              // Use roles defined in RefWatchCore TeamOfficialRole
               Text("Manager").tag(TeamOfficialRole.manager)
               Text("Assistant Manager").tag(TeamOfficialRole.assistantManager)
               Text("Coach").tag(TeamOfficialRole.coach)
@@ -69,22 +75,35 @@ struct CardEventFlowView: View {
         }
 
         Section("Reason") {
-          Picker("Preset", selection: self.$reason) {
-            ForEach(self.reasons, id: \.self) { Text($0).tag($0) }
+          if self.reasons.isEmpty {
+            Text("No reasons available for this card/recipient combination.")
+              .foregroundStyle(.secondary)
+          } else {
+            Picker("Preset", selection: self.$selectedReasonID) {
+              ForEach(self.reasons, id: \.id) { reason in
+                Text(reason.displayText).tag(reason.id)
+              }
+            }
           }
-          TextField("Custom reason", text: self.$reason)
+
+          TextField("Custom reason (optional)", text: self.$customReason)
         }
 
         Section {
           Button {
-            let num = Int(playerNumber)
+            let trimmedCustom = self.customReason.trimmingCharacters(in: .whitespacesAndNewlines)
+            let resolvedReason = self.resolvedReason(customReason: trimmedCustom)
+
             self.matchViewModel.recordCard(
               team: self.team,
               cardType: self.cardType,
               recipientType: self.recipient,
-              playerNumber: num,
+              playerNumber: Int(self.playerNumber),
               officialRole: self.officialRole,
-              reason: self.reason)
+              reason: resolvedReason.reason,
+              reasonCode: resolvedReason.code,
+              reasonTitle: resolvedReason.title)
+
             self.onSaved?()
             self.dismiss()
           } label: {
@@ -94,6 +113,40 @@ struct CardEventFlowView: View {
       }
       .navigationTitle("Card")
       .navigationBarTitleDisplayMode(.inline)
+      .onAppear {
+        self.ensureReasonSelectionIsValid()
+      }
+      .onChange(of: self.cardType) { _, _ in
+        self.ensureReasonSelectionIsValid()
+      }
+      .onChange(of: self.recipient) { _, _ in
+        self.ensureReasonSelectionIsValid()
+      }
     }
+  }
+}
+
+private extension CardEventFlowView {
+  func ensureReasonSelectionIsValid() {
+    if self.reasons.contains(where: { $0.id == self.selectedReasonID }) {
+      return
+    }
+    self.selectedReasonID = self.reasons.first?.id ?? ""
+  }
+
+  func resolvedReason(customReason: String) -> (reason: String, code: String?, title: String?) {
+    if customReason.isEmpty == false {
+      return (reason: customReason, code: nil, title: customReason)
+    }
+
+    if let selectedReason {
+      return (
+        reason: selectedReason.displayText,
+        code: selectedReason.code,
+        title: selectedReason.title
+      )
+    }
+
+    return (reason: "No reason supplied", code: nil, title: nil)
   }
 }

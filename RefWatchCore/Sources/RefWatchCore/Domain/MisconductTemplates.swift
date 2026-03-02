@@ -13,19 +13,25 @@ public struct MisconductReason: Identifiable, Hashable {
   public let title: String
   public let cardType: CardDetails.CardType
   public let recipientType: CardRecipientType
+  public let minimumSuspensionMatches: Int?
+  public let regulationReference: String?
 
   public init(
     id: String,
     code: String,
     title: String,
     cardType: CardDetails.CardType,
-    recipientType: CardRecipientType)
+    recipientType: CardRecipientType,
+    minimumSuspensionMatches: Int? = nil,
+    regulationReference: String? = nil)
   {
     self.id = id
     self.code = code
     self.title = title
     self.cardType = cardType
     self.recipientType = recipientType
+    self.minimumSuspensionMatches = minimumSuspensionMatches
+    self.regulationReference = regulationReference
   }
 
   public var displayText: String {
@@ -111,90 +117,169 @@ extension MisconductTemplateCatalog {
           code: "Y1",
           title: "Unsporting Behaviour",
           cardType: .yellow,
-          recipientType: .player),
-        MisconductReason(id: "sa_y2", code: "Y2", title: "Dissent", cardType: .yellow, recipientType: .player),
+          recipientType: .player,
+          regulationReference: "Table 1"),
+        MisconductReason(
+          id: "sa_y2",
+          code: "Y2",
+          title: "Dissent",
+          cardType: .yellow,
+          recipientType: .player,
+          regulationReference: "Table 1"),
         MisconductReason(
           id: "sa_y3",
           code: "Y3",
           title: "Persistent Infringement",
           cardType: .yellow,
-          recipientType: .player),
-        MisconductReason(id: "sa_y4", code: "Y4", title: "Delaying Restart", cardType: .yellow, recipientType: .player),
+          recipientType: .player,
+          regulationReference: "Table 1"),
+        MisconductReason(
+          id: "sa_y4",
+          code: "Y4",
+          title: "Delaying Restart",
+          cardType: .yellow,
+          recipientType: .player,
+          regulationReference: "Table 1"),
         MisconductReason(
           id: "sa_y5",
           code: "Y5",
           title: "Failure to Respect Distance",
           cardType: .yellow,
-          recipientType: .player),
+          recipientType: .player,
+          regulationReference: "Table 1"),
         MisconductReason(
           id: "sa_y6",
           code: "Y6",
           title: "Entering Without Permission",
           cardType: .yellow,
-          recipientType: .player),
+          recipientType: .player,
+          regulationReference: "Table 1"),
+        MisconductReason(
+          id: "sa_y7",
+          code: "Y7",
+          title: "Deliberately Leaving Field Without Permission",
+          cardType: .yellow,
+          recipientType: .player,
+          regulationReference: "Table 1"),
 
-        MisconductReason(id: "sa_r1", code: "R1", title: "Serious Foul Play", cardType: .red, recipientType: .player),
-        MisconductReason(id: "sa_r2", code: "R2", title: "Violent Conduct", cardType: .red, recipientType: .player),
-        MisconductReason(id: "sa_r3", code: "R3", title: "Spitting or Biting", cardType: .red, recipientType: .player),
-        MisconductReason(id: "sa_r4", code: "R4", title: "DOGSO – Handball", cardType: .red, recipientType: .player),
-        MisconductReason(id: "sa_r5", code: "R5", title: "DOGSO – Foul", cardType: .red, recipientType: .player),
+        MisconductReason(
+          id: "sa_r1",
+          code: "R1",
+          title: "Serious Foul Play",
+          cardType: .red,
+          recipientType: .player,
+          minimumSuspensionMatches: 1,
+          regulationReference: "Table 2"),
+        MisconductReason(
+          id: "sa_r2",
+          code: "R2",
+          title: "Violent Conduct",
+          cardType: .red,
+          recipientType: .player,
+          minimumSuspensionMatches: 2,
+          regulationReference: "Table 2"),
+        MisconductReason(
+          id: "sa_r3",
+          code: "R3",
+          title: "Spitting or Biting",
+          cardType: .red,
+          recipientType: .player,
+          minimumSuspensionMatches: 6,
+          regulationReference: "Table 2"),
+        MisconductReason(
+          id: "sa_r4",
+          code: "R4",
+          title: "DOGSO – Handball",
+          cardType: .red,
+          recipientType: .player,
+          minimumSuspensionMatches: 1,
+          regulationReference: "Table 2"),
+        MisconductReason(
+          id: "sa_r5",
+          code: "R5",
+          title: "DOGSO – Foul",
+          cardType: .red,
+          recipientType: .player,
+          minimumSuspensionMatches: 1,
+          regulationReference: "Table 2"),
         MisconductReason(
           id: "sa_r6",
           code: "R6",
           title: "Offensive, Insulting or Abusive Language",
           cardType: .red,
-          recipientType: .player),
-        MisconductReason(id: "sa_r7", code: "R7", title: "Second Yellow", cardType: .red, recipientType: .player),
+          recipientType: .player,
+          minimumSuspensionMatches: 2,
+          regulationReference: "Table 2"),
+        MisconductReason(
+          id: "sa_r7",
+          code: "R7",
+          title: "Second Yellow",
+          cardType: .red,
+          recipientType: .player,
+          minimumSuspensionMatches: 1,
+          regulationReference: "Table 2"),
 
         MisconductReason(
           id: "sa_yt1",
           code: "YT1",
           title: "Persistent Protests",
           cardType: .yellow,
-          recipientType: .teamOfficial),
+          recipientType: .teamOfficial,
+          regulationReference: "Table 3"),
         MisconductReason(
           id: "sa_yt2",
           code: "YT2",
           title: "Delaying Restart",
           cardType: .yellow,
-          recipientType: .teamOfficial),
+          recipientType: .teamOfficial,
+          regulationReference: "Table 3"),
         MisconductReason(
           id: "sa_yt3",
           code: "YT3",
           title: "Entering Field of Play",
           cardType: .yellow,
-          recipientType: .teamOfficial),
+          recipientType: .teamOfficial,
+          regulationReference: "Table 3"),
         MisconductReason(
           id: "sa_yt4",
           code: "YT4",
           title: "Leaving Technical Area",
           cardType: .yellow,
-          recipientType: .teamOfficial),
+          recipientType: .teamOfficial,
+          regulationReference: "Table 3"),
 
         MisconductReason(
           id: "sa_rt1",
           code: "RT1",
           title: "Violent Conduct",
           cardType: .red,
-          recipientType: .teamOfficial),
+          recipientType: .teamOfficial,
+          minimumSuspensionMatches: 1,
+          regulationReference: "Table 3"),
         MisconductReason(
           id: "sa_rt2",
           code: "RT2",
           title: "Throwing Objects",
           cardType: .red,
-          recipientType: .teamOfficial),
+          recipientType: .teamOfficial,
+          minimumSuspensionMatches: 1,
+          regulationReference: "Table 3"),
         MisconductReason(
           id: "sa_rt3",
           code: "RT3",
           title: "Offensive, Insulting or Abusive Language",
           cardType: .red,
-          recipientType: .teamOfficial),
+          recipientType: .teamOfficial,
+          minimumSuspensionMatches: 1,
+          regulationReference: "Table 3"),
         MisconductReason(
           id: "sa_rt4",
           code: "RT4",
           title: "Entering Field Aggressively",
           cardType: .red,
-          recipientType: .teamOfficial),
+          recipientType: .teamOfficial,
+          minimumSuspensionMatches: 1,
+          regulationReference: "Table 3"),
       ])
   }
 

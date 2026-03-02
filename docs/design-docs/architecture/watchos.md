@@ -9,6 +9,10 @@
 - `TimerManager` controls match and period clocks and publishes state.
 - `MatchHistoryService` stores recent matches and supports restoration.
 - `PenaltyManager` encapsulates foul tracking and notifications.
+- `BackgroundRuntimeSessionController` manages `WKExtendedRuntimeSession` for best-effort quick-return continuity while match flow is active.
+  - Scope includes in-play, halftime, between-period waiting states, and penalties.
+  - Runtime restart policy is reason-aware and simulator-safe; startup-failure loops are bounded.
+  - Foreground reconciliation is triggered from `MatchRootView` scene-phase activation.
 
 ## Timer Faces
 - ``TimerFaceModel`` (protocol) defines read-only timer state and actions.

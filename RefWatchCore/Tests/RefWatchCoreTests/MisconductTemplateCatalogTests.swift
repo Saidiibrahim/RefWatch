@@ -17,11 +17,16 @@ final class MisconductTemplateCatalogTests: XCTestCase {
         let yellowReasons = template.reasons(for: .yellow, recipient: .player)
         let redReasons = template.reasons(for: .red, recipient: .player)
 
-        XCTAssertEqual(yellowReasons.count, 6)
+        XCTAssertEqual(yellowReasons.count, 7)
         XCTAssertEqual(redReasons.count, 7)
 
         XCTAssertTrue(yellowReasons.contains(where: { $0.code == "Y1" }))
+        XCTAssertTrue(yellowReasons.contains(where: { $0.code == "Y7" }))
         XCTAssertTrue(redReasons.contains(where: { $0.code == "R7" }))
+
+        let r7 = redReasons.first(where: { $0.code == "R7" })
+        XCTAssertEqual(r7?.minimumSuspensionMatches, 1)
+        XCTAssertEqual(r7?.regulationReference, "Table 2")
     }
 
     func testFootballSouthAustraliaTeamOfficialReasonsMatchExpectedCounts() {

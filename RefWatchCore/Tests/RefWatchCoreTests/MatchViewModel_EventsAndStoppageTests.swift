@@ -119,14 +119,55 @@ final class MatchViewModel_EventsAndStoppageTests: XCTestCase {
 
         vm.endCurrentPeriod()
 
-        guard let last = vm.matchEvents.last else { return XCTFail("Expected a final event") }
-        if case .periodEnd(let period) = last.eventType {
-            XCTAssertEqual(period, 1)
-        } else {
-            XCTFail("Expected periodEnd event")
-        }
+        XCTAssertEqual(periodEndCount(in: vm, period: 1), 1)
         XCTAssertGreaterThan(vm.matchEvents.count, initialCount)
         XCTAssertTrue(vm.isHalfTime)
+    }
+
+    func test_natural_period_expiry_notifies_once_and_requires_manual_end() async throws {
+        let haptics = HapticsSpy()
+        let vm = MatchViewModel(haptics: haptics)
+        vm.currentMatch = Match(
+            duration: 2,
+            numberOfPeriods: 2,
+            halfTimeLength: 1,
+            hasExtraTime: false,
+            hasPenalties: false
+        )
+
+        vm.startMatch()
+
+        let reachedBoundary = await waitUntil(timeoutSeconds: 3) {
+            vm.isPaused
+        }
+        XCTAssertTrue(reachedBoundary, "Expected boundary callback to pause for manual period end")
+        XCTAssertTrue(vm.isMatchInProgress)
+        XCTAssertFalse(vm.isHalfTime)
+        XCTAssertFalse(vm.waitingForHalfTimeStart)
+        XCTAssertEqual(periodEndCount(in: vm, period: 1), 1)
+        XCTAssertEqual(haptics.notifyCount, 1)
+
+        let boundaryMatchTime = parseMMSS(vm.matchTime)
+        try await Task.sleep(nanoseconds: 1_100_000_000)
+        let laterMatchTime = parseMMSS(vm.matchTime)
+        XCTAssertGreaterThan(laterMatchTime, boundaryMatchTime, "Match timer should continue after boundary signal")
+
+        vm.endCurrentPeriod()
+        XCTAssertEqual(periodEndCount(in: vm, period: 1), 1, "Manual end should not duplicate periodEnd")
+        XCTAssertTrue(vm.isHalfTime)
+    }
+
+    func test_end_current_period_does_not_duplicate_period_end_when_later_events_exist() {
+        let vm = MatchViewModel()
+        vm.configureMatch(duration: 10, periods: 2, halfTimeLength: 1, hasExtraTime: false, hasPenalties: false)
+        vm.startMatch()
+
+        vm.recordMatchEvent(.periodEnd(1))
+        vm.recordGoal(team: .home, goalType: .regular, playerNumber: 9)
+
+        vm.endCurrentPeriod()
+
+        XCTAssertEqual(periodEndCount(in: vm, period: 1), 1)
     }
 
     func test_createMatch_resets_events_after_finalize() {
@@ -148,5 +189,39 @@ final class MatchViewModel_EventsAndStoppageTests: XCTestCase {
         XCTAssertEqual(vm.currentPeriod, 1)
         XCTAssertFalse(vm.isMatchInProgress)
         XCTAssertNil(vm.pendingConfirmation)
+    }
+}
+
+private extension MatchViewModel_EventsAndStoppageTests {
+    func periodEndCount(in vm: MatchViewModel, period: Int) -> Int {
+        vm.matchEvents.reduce(into: 0) { count, event in
+            if case .periodEnd(let endedPeriod) = event.eventType, endedPeriod == period {
+                count += 1
+            }
+        }
+    }
+
+    func waitUntil(timeoutSeconds: TimeInterval, condition: @escaping () -> Bool) async -> Bool {
+        let timeoutNanos = UInt64(timeoutSeconds * 1_000_000_000)
+        let stepNanos: UInt64 = 100_000_000
+        var elapsedNanos: UInt64 = 0
+
+        while elapsedNanos < timeoutNanos {
+            if condition() { return true }
+            try? await Task.sleep(nanoseconds: stepNanos)
+            elapsedNanos += stepNanos
+        }
+
+        return condition()
+    }
+}
+
+private final class HapticsSpy: HapticsProviding {
+    private(set) var notifyCount: Int = 0
+
+    func play(_ event: HapticEvent) {
+        if case .notify = event {
+            notifyCount += 1
+        }
     }
 }

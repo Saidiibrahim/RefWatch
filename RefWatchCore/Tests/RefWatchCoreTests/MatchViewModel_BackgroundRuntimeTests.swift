@@ -15,7 +15,7 @@ final class MatchViewModel_BackgroundRuntimeTests: XCTestCase {
     XCTAssertEqual(runtimeSpy.beginCalls.count, 1)
     XCTAssertEqual(runtimeSpy.beginCalls.first?.kind, .match)
     XCTAssertEqual(runtimeSpy.pauseCount, 0)
-    XCTAssertEqual(runtimeSpy.resumeCount, 0)
+    XCTAssertEqual(runtimeSpy.resumeCount, 1)
   }
 
   @MainActor
@@ -31,7 +31,7 @@ final class MatchViewModel_BackgroundRuntimeTests: XCTestCase {
     viewModel.resumeMatch()
 
     XCTAssertEqual(runtimeSpy.pauseCount, 1)
-    XCTAssertEqual(runtimeSpy.resumeCount, 1)
+    XCTAssertEqual(runtimeSpy.resumeCount, 2)
   }
 
   @MainActor
@@ -60,6 +60,76 @@ final class MatchViewModel_BackgroundRuntimeTests: XCTestCase {
     viewModel.resetMatch()
 
     XCTAssertEqual(runtimeSpy.endReasons.last, .reset)
+  }
+
+  @MainActor
+  func test_runtimeStaysActiveAcrossHalfTimeAndSecondHalfWaitingState() {
+    let runtimeSpy = BackgroundRuntimeManagerSpy()
+    let viewModel = MatchViewModel(backgroundRuntime: runtimeSpy)
+    viewModel.configureMatch(duration: 90, periods: 2, halfTimeLength: 15, hasExtraTime: false, hasPenalties: false)
+    viewModel.startMatch()
+
+    viewModel.endCurrentPeriod()
+    XCTAssertTrue(viewModel.isHalfTime)
+    XCTAssertTrue(runtimeSpy.endReasons.isEmpty)
+
+    viewModel.endHalfTimeManually()
+    XCTAssertTrue(viewModel.waitingForSecondHalfStart)
+    XCTAssertTrue(runtimeSpy.endReasons.isEmpty)
+    XCTAssertEqual(runtimeSpy.beginCalls.last?.metadata["phase"], "waiting-second-half")
+  }
+
+  @MainActor
+  func test_runtimeStaysActiveAcrossExtraTimeAndPenaltiesTransitions() {
+    let runtimeSpy = BackgroundRuntimeManagerSpy()
+    let viewModel = MatchViewModel(backgroundRuntime: runtimeSpy)
+    viewModel.configureMatch(duration: 90, periods: 2, halfTimeLength: 15, hasExtraTime: true, hasPenalties: true)
+    viewModel.startMatch()
+
+    viewModel.endCurrentPeriod()
+    viewModel.endHalfTimeManually()
+    viewModel.startSecondHalfManually()
+    viewModel.endCurrentPeriod()
+    XCTAssertTrue(viewModel.waitingForET1Start)
+    XCTAssertTrue(runtimeSpy.endReasons.isEmpty)
+
+    viewModel.startExtraTimeFirstHalfManually()
+    viewModel.endCurrentPeriod()
+    XCTAssertTrue(viewModel.waitingForET2Start)
+    XCTAssertTrue(runtimeSpy.endReasons.isEmpty)
+
+    viewModel.startExtraTimeSecondHalfManually()
+    viewModel.endCurrentPeriod()
+    XCTAssertTrue(viewModel.waitingForPenaltiesStart)
+    XCTAssertTrue(runtimeSpy.endReasons.isEmpty)
+
+    viewModel.beginPenaltiesIfNeeded()
+    XCTAssertTrue(viewModel.penaltyShootoutActive)
+    XCTAssertTrue(runtimeSpy.endReasons.isEmpty)
+    XCTAssertEqual(runtimeSpy.beginCalls.last?.metadata["phase"], "penalties")
+  }
+
+  @MainActor
+  func test_reconcileEndsRuntimeWhenNoProtectedStateIsActive() {
+    let runtimeSpy = BackgroundRuntimeManagerSpy()
+    let viewModel = MatchViewModel(backgroundRuntime: runtimeSpy)
+    viewModel.newMatch.homeTeam = "Home"
+    viewModel.newMatch.awayTeam = "Away"
+    viewModel.createMatch()
+    viewModel.startMatch()
+
+    viewModel.isMatchInProgress = false
+    viewModel.isPaused = false
+    viewModel.isHalfTime = false
+    viewModel.waitingForHalfTimeStart = false
+    viewModel.waitingForSecondHalfStart = false
+    viewModel.waitingForET1Start = false
+    viewModel.waitingForET2Start = false
+    viewModel.waitingForPenaltiesStart = false
+
+    viewModel.reconcileBackgroundRuntimeSession()
+
+    XCTAssertEqual(runtimeSpy.endReasons.last, .cancelled)
   }
 }
 

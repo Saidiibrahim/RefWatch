@@ -97,11 +97,7 @@ struct MatchActionsSheet: View {
           return
         }
 
-        let isFirstHalf = self.matchViewModel.currentPeriod == 1
         self.matchViewModel.endCurrentPeriod()
-        if isFirstHalf {
-          self.matchViewModel.isHalfTime = true
-        }
         self.dismiss()
       }
       Button("No", role: .cancel) {}
@@ -414,11 +410,7 @@ extension MatchActionsSheet {
       }
       self.dismiss()
     } else {
-      let isFirstHalf = self.matchViewModel.currentPeriod == 1
       self.matchViewModel.endCurrentPeriod()
-      if isFirstHalf {
-        self.matchViewModel.isHalfTime = true
-      }
       self.dismiss()
     }
   }

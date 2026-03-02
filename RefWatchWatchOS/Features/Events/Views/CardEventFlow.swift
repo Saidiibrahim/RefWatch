@@ -55,7 +55,7 @@ struct CardEventFlow: View {
                     cardType: coordinator.cardType,
                     isTeamOfficial: isTeamOfficial
                 ) { reason in
-                    print("DEBUG: Selected reason in CardReasonSelectionView: \(reason)")
+                    print("DEBUG: Selected reason in CardReasonSelectionView: \(reason.displayText)")
                     coordinator.handleReason(reason)
                 }
 

@@ -11,6 +11,7 @@ import SwiftUI
 
 struct MatchRootView: View {
   @Environment(\.theme) private var theme
+  @Environment(\.scenePhase) private var scenePhase
   @EnvironmentObject private var aggregateEnvironment: AggregateSyncEnvironment
   @State private var backgroundRuntimeController: BackgroundRuntimeSessionController
   @State private var matchViewModel: MatchViewModel
@@ -130,6 +131,10 @@ struct MatchRootView: View {
     }
     .onReceive(self.aggregateEnvironment.$librarySnapshot) { snapshot in
       self.matchViewModel.updateLibrary(with: snapshot)
+    }
+    .onChange(of: self.scenePhase) { _, newPhase in
+      guard newPhase == .active else { return }
+      self.matchViewModel.reconcileBackgroundRuntimeSession()
     }
     .onOpenURL { url in
       // Deep link from Smart Stack widget

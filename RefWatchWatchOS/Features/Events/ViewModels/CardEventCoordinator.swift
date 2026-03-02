@@ -18,7 +18,7 @@ import SwiftUI
   var selectedRecipient: CardRecipientType?
   var selectedPlayerNumber: Int?
   var selectedOfficialRole: TeamOfficialRole?
-  var selectedReason: String?
+  var selectedReason: MisconductReason?
 
   private let matchViewModel: MatchViewModel
 
@@ -58,8 +58,8 @@ import SwiftUI
     self.currentStep = .reason(isTeamOfficial: true)
   }
 
-  func handleReason(_ reason: String) {
-    print("DEBUG: Selected reason: \(reason)")
+  func handleReason(_ reason: MisconductReason) {
+    print("DEBUG: Selected reason: \(reason.displayText)")
     self.selectedReason = reason
     self.recordCard()
     print("DEBUG: Moving to complete state")
@@ -73,7 +73,7 @@ import SwiftUI
     }
 
     print(
-      "DEBUG: Recording card - Type: \(self.cardType), Reason: \(reason), " +
+      "DEBUG: Recording card - Type: \(self.cardType), Reason: \(reason.displayText), " +
         "Player: \(String(describing: self.selectedPlayerNumber)), " +
         "Official: \(String(describing: self.selectedOfficialRole))")
 
@@ -88,7 +88,9 @@ import SwiftUI
       recipientType: recipientType,
       playerNumber: self.selectedPlayerNumber,
       officialRole: self.selectedOfficialRole,
-      reason: reason)
+      reason: reason.displayText,
+      reasonCode: reason.code,
+      reasonTitle: reason.title)
 
     print("DEBUG: Successfully recorded card using new system")
   }

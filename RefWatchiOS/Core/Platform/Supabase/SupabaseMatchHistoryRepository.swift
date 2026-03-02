@@ -982,7 +982,8 @@ extension SupabaseMatchHistoryRepository {
     case let .card(details):
       switch details.cardType {
       case .yellow: "card_yellow"
-      case .red: "card_red"
+      case .red:
+        details.isSecondCautionDismissal ? "card_second_yellow" : "card_red"
       }
     case .substitution:
       "substitution"
@@ -1040,7 +1041,9 @@ extension SupabaseMatchHistoryRepository {
         playerNumber: nil,
         playerName: nil,
         officialRole: nil,
-        reason: ""))
+        reason: supabaseType == "card_second_yellow" ? "R7 – Second Yellow" : "",
+        reasonCode: supabaseType == "card_second_yellow" ? "R7" : nil,
+        reasonTitle: supabaseType == "card_second_yellow" ? "Second Yellow" : nil))
     case "substitution":
       .substitution(SubstitutionDetails(playerOut: nil, playerIn: nil, playerOutName: nil, playerInName: nil))
     default:

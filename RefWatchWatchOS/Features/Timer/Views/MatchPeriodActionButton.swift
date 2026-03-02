@@ -252,13 +252,7 @@ struct MatchPeriodActionButton: View {
     /// Executes end half action after confirmation
     private func executeEndHalf() {
         guard matchViewModel.currentMatch != nil else { return }
-
-        let isFirstHalf = matchViewModel.currentPeriod == 1
         matchViewModel.endCurrentPeriod()
-        
-        if isFirstHalf {
-            matchViewModel.isHalfTime = true
-        }
     }
     
     /// Executes end match action after confirmation
