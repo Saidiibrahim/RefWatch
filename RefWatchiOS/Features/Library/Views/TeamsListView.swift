@@ -78,9 +78,11 @@ struct TeamsListView: View {
     // No nested NavigationStack here; LibraryTabView owns the NavigationStack.
     .onAppear { self.refresh() }
     .alert("Unable to Update Teams", isPresented: self.alertBinding) {
-      Button("OK", role: .cancel) { self.errorMessage = nil }
+      Button("OK", role: .cancel) {
+        self.errorMessage = nil
+      }
     } message: {
-      Text(self.errorMessage ?? "Sign in on your phone to manage teams.")
+      Text(self.errorMessage ?? "We couldn't update your teams.")
     }
   }
 
@@ -99,7 +101,9 @@ struct TeamsListView: View {
     Binding(
       get: { self.errorMessage != nil },
       set: { newValue in
-        if newValue == false { self.errorMessage = nil }
+        if newValue == false {
+          self.errorMessage = nil
+        }
       })
   }
 

@@ -16,10 +16,19 @@ protocol SupabaseTeamLibraryServing {
     updatedAfter: Date?) async throws -> [SupabaseTeamLibraryAPI.RemoteTeam]
   func syncTeamBundle(
     _ request: SupabaseTeamLibraryAPI.TeamBundleRequest) async throws -> SupabaseTeamLibraryAPI.SyncResult
+  func importReferenceTeamsForCurrentUser(
+    seasonYear: Int,
+    competitionCodes: [String]?) async throws -> SupabaseTeamLibraryAPI.ReferenceTeamImportResult
   func deleteTeam(teamId: UUID) async throws
 }
 
 struct SupabaseTeamLibraryAPI: SupabaseTeamLibraryServing {
+  struct ReferenceTeamImportResult: Equatable {
+    let importedCount: Int
+    let updatedCount: Int
+    let skippedCount: Int
+  }
+
   struct RemoteTeam: Equatable {
     struct Team: Equatable {
       let id: UUID
@@ -29,6 +38,7 @@ struct SupabaseTeamLibraryAPI: SupabaseTeamLibraryServing {
       let division: String?
       let primaryColorHex: String?
       let secondaryColorHex: String?
+      let referenceKey: String?
       let createdAt: Date
       let updatedAt: Date
     }
@@ -73,6 +83,7 @@ struct SupabaseTeamLibraryAPI: SupabaseTeamLibraryServing {
     let division: String?
     let primaryColorHex: String?
     let secondaryColorHex: String?
+    let referenceKey: String?
   }
 
   struct MemberInput: Equatable {
@@ -143,7 +154,7 @@ struct SupabaseTeamLibraryAPI: SupabaseTeamLibraryServing {
     let teamRows: [TeamRowDTO] = try await supabaseClient.fetchRows(
       SupabaseFetchRequest(
         table: "teams",
-        columns: "id, owner_id, name, short_name, division, color_primary, color_secondary, created_at, updated_at",
+        columns: "id, owner_id, name, short_name, division, color_primary, color_secondary, reference_key, created_at, updated_at",
         filters: filters,
         orderBy: "updated_at",
         ascending: true,
@@ -173,6 +184,7 @@ struct SupabaseTeamLibraryAPI: SupabaseTeamLibraryServing {
         division: row.division,
         primaryColorHex: row.colorPrimary,
         secondaryColorHex: row.colorSecondary,
+        referenceKey: row.referenceKey,
         createdAt: row.createdAt,
         updatedAt: row.updatedAt)
       return RemoteTeam(
@@ -196,7 +208,8 @@ struct SupabaseTeamLibraryAPI: SupabaseTeamLibraryServing {
       shortName: request.team.shortName,
       division: request.team.division,
       colorPrimary: request.team.primaryColorHex,
-      colorSecondary: request.team.secondaryColorHex)
+      colorSecondary: request.team.secondaryColorHex,
+      referenceKey: request.team.referenceKey)
 
     let teamResponse = try await supabaseClient
       .from("teams")
@@ -213,6 +226,32 @@ struct SupabaseTeamLibraryAPI: SupabaseTeamLibraryServing {
     try await replaceTags(client: supabaseClient, teamId: request.team.id, tags: request.tags)
 
     return SyncResult(updatedAt: updatedTeam.updatedAt)
+  }
+
+  func importReferenceTeamsForCurrentUser(
+    seasonYear: Int,
+    competitionCodes: [String]?) async throws -> ReferenceTeamImportResult
+  {
+    let client = try await clientProvider.authorizedClient()
+
+    let params = ReferenceTeamImportParams(
+      seasonYear: seasonYear,
+      competitionCodes: competitionCodes)
+
+    let rows: [ReferenceTeamImportRowDTO] = try await client.callRPC(
+      "import_reference_teams_for_current_user",
+      params: params,
+      encoder: JSONEncoder(),
+      decoder: self.decoder)
+
+    guard let row = rows.first else {
+      throw APIError.invalidResponse
+    }
+
+    return ReferenceTeamImportResult(
+      importedCount: row.importedCount,
+      updatedCount: row.updatedCount,
+      skippedCount: row.skippedCount)
   }
 
   func deleteTeam(teamId: UUID) async throws {
@@ -239,6 +278,7 @@ private struct TeamRowDTO: Decodable, Sendable {
   let division: String?
   let colorPrimary: String?
   let colorSecondary: String?
+  let referenceKey: String?
   let createdAt: Date
   let updatedAt: Date
 
@@ -250,6 +290,7 @@ private struct TeamRowDTO: Decodable, Sendable {
     case division
     case colorPrimary = "color_primary"
     case colorSecondary = "color_secondary"
+    case referenceKey = "reference_key"
     case createdAt = "created_at"
     case updatedAt = "updated_at"
   }
@@ -315,6 +356,7 @@ private struct TeamUpsertDTO: Sendable {
   let division: String?
   let colorPrimary: String?
   let colorSecondary: String?
+  let referenceKey: String?
 
   enum CodingKeys: String, CodingKey {
     case id
@@ -324,6 +366,29 @@ private struct TeamUpsertDTO: Sendable {
     case division
     case colorPrimary = "color_primary"
     case colorSecondary = "color_secondary"
+    case referenceKey = "reference_key"
+  }
+}
+
+private struct ReferenceTeamImportParams: Encodable, Sendable {
+  let seasonYear: Int
+  let competitionCodes: [String]?
+
+  enum CodingKeys: String, CodingKey {
+    case seasonYear = "p_season_year"
+    case competitionCodes = "p_competition_codes"
+  }
+}
+
+private struct ReferenceTeamImportRowDTO: Decodable, Sendable {
+  let importedCount: Int
+  let updatedCount: Int
+  let skippedCount: Int
+
+  enum CodingKeys: String, CodingKey {
+    case importedCount = "imported_count"
+    case updatedCount = "updated_count"
+    case skippedCount = "skipped_count"
   }
 }
 
@@ -391,6 +456,7 @@ nonisolated extension TeamUpsertDTO: Encodable {
     try container.encodeIfPresent(self.division, forKey: .division)
     try container.encodeIfPresent(self.colorPrimary, forKey: .colorPrimary)
     try container.encodeIfPresent(self.colorSecondary, forKey: .colorSecondary)
+    try container.encodeIfPresent(self.referenceKey, forKey: .referenceKey)
   }
 }
 

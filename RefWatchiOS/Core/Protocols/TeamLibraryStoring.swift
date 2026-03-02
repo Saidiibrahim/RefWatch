@@ -8,6 +8,12 @@
 import Foundation
 import Combine
 
+struct TeamLibraryReferenceImportResult: Equatable {
+    let importedCount: Int
+    let updatedCount: Int
+    let skippedCount: Int
+}
+
 @MainActor
 protocol TeamLibraryStoring {
     var changesPublisher: AnyPublisher<[TeamRecord], Never> { get }
@@ -35,4 +41,12 @@ protocol TeamLibraryStoring {
 @MainActor
 protocol TeamLibraryMetadataPersisting {
     func persistMetadataChanges(for team: TeamRecord) throws
+}
+
+@MainActor
+protocol TeamLibraryReferenceImporting {
+    func importReferenceTeamsForCurrentUser(
+        seasonYear: Int,
+        competitionCodes: [String]?
+    ) async throws -> TeamLibraryReferenceImportResult
 }

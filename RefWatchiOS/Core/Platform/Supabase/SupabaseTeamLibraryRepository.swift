@@ -14,7 +14,7 @@ import RefWatchCore
 import SwiftData
 
 @MainActor
-final class SupabaseTeamLibraryRepository: TeamLibraryStoring {
+final class SupabaseTeamLibraryRepository: TeamLibraryStoring, TeamLibraryReferenceImporting {
   private let store: SwiftDataTeamLibraryStore
   private let api: SupabaseTeamLibraryServing
   private let authStateProvider: SupabaseAuthStateProviding
@@ -159,6 +159,21 @@ final class SupabaseTeamLibraryRepository: TeamLibraryStoring {
       self.log.error("Team library refresh failed: \(error.localizedDescription, privacy: .public)")
       throw error
     }
+  }
+
+  func importReferenceTeamsForCurrentUser(
+    seasonYear: Int,
+    competitionCodes: [String]?) async throws -> TeamLibraryReferenceImportResult
+  {
+    _ = try requireOwnerUUIDForAggregate(operation: "import reference teams")
+    let result = try await self.api.importReferenceTeamsForCurrentUser(
+      seasonYear: seasonYear,
+      competitionCodes: competitionCodes)
+    try await self.refreshFromRemote()
+    return TeamLibraryReferenceImportResult(
+      importedCount: result.importedCount,
+      updatedCount: result.updatedCount,
+      skippedCount: result.skippedCount)
   }
 }
 
@@ -405,6 +420,7 @@ extension SupabaseTeamLibraryRepository {
       division: remote.team.division,
       primaryColorHex: remote.team.primaryColorHex,
       secondaryColorHex: remote.team.secondaryColorHex,
+      referenceKey: remote.team.referenceKey,
       ownerSupabaseId: remote.team.ownerId.uuidString,
       lastModifiedAt: remote.team.updatedAt,
       remoteUpdatedAt: remote.team.updatedAt,
@@ -443,6 +459,7 @@ extension SupabaseTeamLibraryRepository {
     team.division = remote.team.division
     team.primaryColorHex = remote.team.primaryColorHex
     team.secondaryColorHex = remote.team.secondaryColorHex
+    team.referenceKey = remote.team.referenceKey
     team.ownerSupabaseId = remote.team.ownerId.uuidString
 
     let existingPlayers = Dictionary(uniqueKeysWithValues: team.players.map { ($0.id, $0) })
@@ -538,7 +555,8 @@ extension SupabaseTeamLibraryRepository {
       shortName: team.shortName,
       division: team.division,
       primaryColorHex: team.primaryColorHex,
-      secondaryColorHex: team.secondaryColorHex)
+      secondaryColorHex: team.secondaryColorHex,
+      referenceKey: team.referenceKey)
 
     let memberInputs: [SupabaseTeamLibraryAPI.MemberInput] = team.players.map { player in
       SupabaseTeamLibraryAPI.MemberInput(

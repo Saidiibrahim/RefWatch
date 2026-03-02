@@ -16,6 +16,8 @@ final class TeamRecord {
   var division: String?
   var primaryColorHex: String?
   var secondaryColorHex: String?
+  /// Stable key for teams imported from federation reference catalogs.
+  var referenceKey: String?
 
   /// Supabase user id that owns this record once identity sync succeeds.
   var ownerSupabaseId: String?
@@ -42,6 +44,7 @@ final class TeamRecord {
     division: String? = nil,
     primaryColorHex: String? = nil,
     secondaryColorHex: String? = nil,
+    referenceKey: String? = nil,
     ownerSupabaseId: String? = nil,
     lastModifiedAt: Date = Date(),
     remoteUpdatedAt: Date? = nil,
@@ -53,6 +56,7 @@ final class TeamRecord {
     self.division = division
     self.primaryColorHex = primaryColorHex
     self.secondaryColorHex = secondaryColorHex
+    self.referenceKey = referenceKey
     self.ownerSupabaseId = ownerSupabaseId
     self.lastModifiedAt = lastModifiedAt
     self.remoteUpdatedAt = remoteUpdatedAt

@@ -2,7 +2,7 @@
 //  CompetitionPickerSheet.swift
 //  RefWatchiOS
 //
-//  Sheet interface for selecting a saved competition from the library.
+//  Sheet interface for selecting saved or canonical reference competitions.
 //
 
 import SwiftUI
@@ -13,18 +13,31 @@ struct CompetitionPickerSheet: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var competitions: [CompetitionRecord] = []
+    @State private var referenceCompetitions: [ReferenceCompetitionOption] = []
     @State private var searchText: String = ""
     @State private var isLoading = false
     @State private var loadError: String?
+    private let seasonYear = 2026
 
-    private var filteredCompetitions: [CompetitionRecord] {
+    private var filteredOptions: [CompetitionPickerOption] {
+        let options = self.materializedOptions
         let trimmed = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed.isEmpty == false else { return competitions }
+        guard trimmed.isEmpty == false else { return options }
         let lowercased = trimmed.lowercased()
-        return competitions.filter { competition in
-            competition.name.lowercased().contains(lowercased) ||
-            (competition.level?.lowercased().contains(lowercased) ?? false)
+        return options.filter { option in
+            option.searchIndex.contains(lowercased)
         }
+    }
+
+    private var materializedOptions: [CompetitionPickerOption] {
+        let local = self.competitions.map { CompetitionPickerOption.local($0) }
+        let references = self.referenceCompetitions
+            .filter { self.isReferenceCompetitionMaterialized($0, in: self.competitions) == false }
+            .map { CompetitionPickerOption.reference($0) }
+        return (local + references)
+            .sorted { lhs, rhs in
+                lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+            }
     }
 
     var body: some View {
@@ -38,11 +51,11 @@ struct CompetitionPickerSheet: View {
                         systemImage: "exclamationmark.triangle",
                         description: Text(error)
                     )
-                } else if competitions.isEmpty {
+                } else if materializedOptions.isEmpty {
                     ContentUnavailableView(
-                        "No Competitions Yet",
+                        "No Competitions Available",
                         systemImage: "trophy",
-                        description: Text("Create competitions in Settings → Library → Competitions")
+                        description: Text("No saved or reference competitions were found for your account.")
                     )
                 } else {
                     competitionList
@@ -62,7 +75,7 @@ struct CompetitionPickerSheet: View {
 
     private var competitionList: some View {
         List {
-            let results = filteredCompetitions
+            let results = filteredOptions
             if results.isEmpty {
                 ContentUnavailableView(
                     "No Competitions Found",
@@ -70,16 +83,15 @@ struct CompetitionPickerSheet: View {
                     description: Text("Try a different search term")
                 )
             } else {
-                ForEach(results, id: \.id) { competition in
+                ForEach(results) { option in
                     Button {
-                        onSelect(competition)
-                        dismiss()
+                        self.handleSelection(option)
                     } label: {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(competition.name)
+                            Text(option.name)
                                 .font(.headline)
-                            if let level = competition.level, level.isEmpty == false {
-                                Text(level)
+                            if let subtitle = option.subtitle, subtitle.isEmpty == false {
+                                Text(subtitle)
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
@@ -99,22 +111,186 @@ struct CompetitionPickerSheet: View {
         loadError = nil
 
         Task {
+            var loadedCompetitions: [CompetitionRecord] = []
+            var loadedReferences: [ReferenceCompetitionOption] = []
+            var resolvedError: Error?
+
             do {
-                try await competitionStore.refreshFromRemote()
+                try await self.competitionStore.refreshFromRemote()
             } catch {
-                print("Competition refresh failed: \(error.localizedDescription)")
+                // Continue with local + reference fallback.
+            }
+
+            do {
+                loadedCompetitions = try self.competitionStore.loadAll()
+            } catch {
+                resolvedError = error
+            }
+
+            do {
+                loadedReferences = try await self.fetchReferenceCompetitions()
+            } catch {
+                if loadedCompetitions.isEmpty {
+                    resolvedError = resolvedError ?? error
+                }
             }
 
             await MainActor.run {
-                do {
-                    competitions = try competitionStore.loadAll()
-                } catch {
-                    loadError = error.localizedDescription
-                    competitions = []
-                }
-                isLoading = false
+                self.competitions = loadedCompetitions
+                self.referenceCompetitions = loadedReferences
+                self.loadError = resolvedError?.localizedDescription
+                self.isLoading = false
             }
         }
+    }
+
+    private func handleSelection(_ option: CompetitionPickerOption) {
+        do {
+            let competition: CompetitionRecord
+            switch option {
+            case let .local(local):
+                competition = local
+            case let .reference(reference):
+                competition = try self.materializeReferenceCompetition(reference)
+            }
+            self.onSelect(competition)
+            self.dismiss()
+        } catch {
+            self.loadError = error.localizedDescription
+        }
+    }
+
+    private func materializeReferenceCompetition(_ reference: ReferenceCompetitionOption) throws -> CompetitionRecord {
+        let existingCompetitions = try self.competitionStore.loadAll()
+        if let existing = self.findExistingCompetition(for: reference, in: existingCompetitions) {
+            return existing
+        }
+
+        let created = try self.competitionStore.create(
+            name: reference.name,
+            level: reference.code.uppercased()
+        )
+        self.competitions = try self.competitionStore.loadAll()
+        return created
+    }
+
+    private func findExistingCompetition(
+        for reference: ReferenceCompetitionOption,
+        in competitions: [CompetitionRecord]
+    ) -> CompetitionRecord? {
+        competitions.first { competition in
+            self.normalized(competition.name) == self.normalized(reference.name)
+                && self.normalized(competition.level) == self.normalized(reference.code.uppercased())
+        }
+    }
+
+    private func isReferenceCompetitionMaterialized(
+        _ reference: ReferenceCompetitionOption,
+        in competitions: [CompetitionRecord]
+    ) -> Bool {
+        self.findExistingCompetition(for: reference, in: competitions) != nil
+    }
+
+    private func normalized(_ value: String?) -> String {
+        (value ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+    }
+
+    private func fetchReferenceCompetitions() async throws -> [ReferenceCompetitionOption] {
+        let client = try await SupabaseClientProvider.shared.authorizedClient()
+        let decoder = SupabaseJSONDecoderFactory.makeDecoder()
+
+        let rows: [ReferenceCompetitionDTO] = try await client.fetchRows(
+            SupabaseFetchRequest(
+                table: "reference_competitions",
+                columns: "id, code, name, season_year",
+                filters: [.equals("season_year", value: String(self.seasonYear))],
+                orderBy: "name",
+                ascending: true,
+                limit: 0,
+                decoder: decoder
+            )
+        )
+
+        return rows.map { row in
+            ReferenceCompetitionOption(
+                id: row.id,
+                code: row.code,
+                name: row.name
+            )
+        }
+    }
+}
+
+private enum CompetitionPickerOption: Identifiable {
+    case local(CompetitionRecord)
+    case reference(ReferenceCompetitionOption)
+
+    var id: String {
+        switch self {
+        case let .local(competition):
+            return competition.id.uuidString
+        case let .reference(reference):
+            return "reference-\(reference.id.uuidString)"
+        }
+    }
+
+    var name: String {
+        switch self {
+        case let .local(competition):
+            return competition.name
+        case let .reference(reference):
+            return reference.name
+        }
+    }
+
+    var subtitle: String? {
+        switch self {
+        case let .local(competition):
+            return competition.level
+        case let .reference(reference):
+            return reference.code.uppercased()
+        }
+    }
+
+    var searchIndex: String {
+        switch self {
+        case let .local(competition):
+            return [
+                competition.name,
+                competition.level ?? "",
+            ]
+            .joined(separator: " ")
+            .lowercased()
+        case let .reference(reference):
+            return [
+                reference.name,
+                reference.code,
+            ]
+            .joined(separator: " ")
+            .lowercased()
+        }
+    }
+}
+
+private struct ReferenceCompetitionOption: Identifiable {
+    let id: UUID
+    let code: String
+    let name: String
+}
+
+private struct ReferenceCompetitionDTO: Decodable {
+    let id: UUID
+    let code: String
+    let name: String
+    let seasonYear: Int
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case code
+        case name
+        case seasonYear = "season_year"
     }
 }
 
