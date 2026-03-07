@@ -110,6 +110,25 @@ final class MatchViewModel_BackgroundRuntimeTests: XCTestCase {
   }
 
   @MainActor
+  func test_reconcileCalledOnInactiveScenePhaseKeepsSessionAlive() {
+    // Verifies that reconcile during .inactive refreshes runtime protection
+    // without ending the session when a match is in progress.
+    let runtimeSpy = BackgroundRuntimeManagerSpy()
+    let viewModel = MatchViewModel(backgroundRuntime: runtimeSpy)
+    viewModel.newMatch.homeTeam = "Home"
+    viewModel.newMatch.awayTeam = "Away"
+    viewModel.createMatch()
+    viewModel.startMatch()
+    runtimeSpy.resetHistory()
+
+    // Simulate what .inactive scene phase handler does
+    viewModel.reconcileBackgroundRuntimeSession()
+
+    XCTAssertEqual(runtimeSpy.beginCalls.count, 1)
+    XCTAssertTrue(runtimeSpy.endReasons.isEmpty)
+  }
+
+  @MainActor
   func test_reconcileEndsRuntimeWhenNoProtectedStateIsActive() {
     let runtimeSpy = BackgroundRuntimeManagerSpy()
     let viewModel = MatchViewModel(backgroundRuntime: runtimeSpy)
@@ -160,5 +179,12 @@ private final class BackgroundRuntimeManagerSpy: BackgroundRuntimeManaging, @unc
 
   func end(reason: BackgroundRuntimeEndReason) {
     endReasons.append(reason)
+  }
+
+  func resetHistory() {
+    beginCalls.removeAll()
+    pauseCount = 0
+    resumeCount = 0
+    endReasons.removeAll()
   }
 }

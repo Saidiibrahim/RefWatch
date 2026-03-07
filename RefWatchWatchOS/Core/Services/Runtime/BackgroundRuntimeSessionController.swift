@@ -80,6 +80,23 @@ extension WatchKitExtendedRuntimeSession: WKExtendedRuntimeSessionDelegate {
 final class BackgroundRuntimeSessionController: NSObject {
   typealias SessionFactory = @MainActor () -> any ExtendedRuntimeSession
 
+  private enum StartTrigger {
+    case begin
+    case proactiveRenewal
+    case invalidation(WKExtendedRuntimeSessionInvalidationReason)
+
+    var logName: String {
+      switch self {
+      case .begin:
+        return "begin"
+      case .proactiveRenewal:
+        return "proactive-renewal"
+      case let .invalidation(reason):
+        return "invalidation-\(reason.rawValue)"
+      }
+    }
+  }
+
   enum Status {
     case idle
     case starting
@@ -102,6 +119,12 @@ final class BackgroundRuntimeSessionController: NSObject {
   private var currentMetadata: [String: String] = [:]
   private static var didValidateBackgroundModes = false
   private var consecutiveStartFailures = 0
+  private var renewalTimer: Timer?
+
+  /// Self-care sessions grant ~10 minutes; renew proactively before expiry.
+  private static let selfCareSessionDurationSeconds: TimeInterval = 600
+  private static let renewalLeadTimeSeconds: TimeInterval = 30
+  private static let minimumRenewalIntervalSeconds: TimeInterval = 60
 
   init(
     sessionFactory: @escaping SessionFactory = { WatchKitExtendedRuntimeSession() },
@@ -128,7 +151,7 @@ final class BackgroundRuntimeSessionController: NSObject {
       self.log("begin() ignored because session already running")
       return
     }
-    self.startExtendedRuntimeSession(trigger: "begin")
+    self.startExtendedRuntimeSession(trigger: .begin)
   }
 
   func notifyPause() {
@@ -153,10 +176,10 @@ final class BackgroundRuntimeSessionController: NSObject {
 
   // MARK: - Private helpers
 
-  private func startExtendedRuntimeSession(trigger: String) {
+  private func startExtendedRuntimeSession(trigger: StartTrigger) {
     guard self.currentKind != nil else { return }
-    guard self.canStartRuntimeSession else {
-      self.log("deferred runtime start (\(trigger)) because app is not active")
+    guard self.canStartRuntimeSession(for: trigger) else {
+      self.log("deferred runtime start (\(trigger.logName)) because app is not active")
       return
     }
 
@@ -165,8 +188,8 @@ final class BackgroundRuntimeSessionController: NSObject {
     if !Self.didValidateBackgroundModes {
       Self.didValidateBackgroundModes = true
       let modes = Bundle.main.object(forInfoDictionaryKey: "WKBackgroundModes") as? [String] ?? []
-      if modes.contains("workout-processing") == false {
-        assertionFailure("WKBackgroundModes must include workout-processing for extended runtime quick return.")
+      if modes.contains("self-care") == false {
+        assertionFailure("WKBackgroundModes must include self-care for extended runtime session chaining.")
       }
     }
     #endif
@@ -174,11 +197,12 @@ final class BackgroundRuntimeSessionController: NSObject {
     newSession.delegate = self
     self.session = newSession
     self.status = .starting
-    self.log("starting runtime session (trigger: \(trigger))")
+    self.log("starting runtime session (trigger: \(trigger.logName))")
     newSession.start()
   }
 
   private func cleanupExistingSession() {
+    self.cancelRenewalTimer()
     if let session = self.session {
       session.delegate = nil
       session.invalidate()
@@ -186,8 +210,48 @@ final class BackgroundRuntimeSessionController: NSObject {
     self.session = nil
   }
 
-  private var canStartRuntimeSession: Bool {
-    self.isAppActiveProvider()
+  private func cancelRenewalTimer() {
+    self.renewalTimer?.invalidate()
+    self.renewalTimer = nil
+  }
+
+  var hasScheduledRenewalTimerForTesting: Bool {
+    self.renewalTimer != nil
+  }
+
+  private func scheduleRenewalTimer() {
+    self.cancelRenewalTimer()
+    let interval = max(
+      Self.selfCareSessionDurationSeconds - Self.renewalLeadTimeSeconds,
+      Self.minimumRenewalIntervalSeconds)
+    self.renewalTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: false) { [weak self] _ in
+      Task { @MainActor [weak self] in
+        self?.performProactiveRenewal()
+      }
+    }
+  }
+
+  private func performProactiveRenewal() {
+    guard self.currentKind != nil else { return }
+    guard self.canStartRuntimeSession(for: .proactiveRenewal) else {
+      self.log("proactive renewal skipped -- app not active")
+      return
+    }
+    self.log("proactive renewal triggered")
+    self.startExtendedRuntimeSession(trigger: .proactiveRenewal)
+  }
+
+  private func canStartRuntimeSession(for trigger: StartTrigger) -> Bool {
+    if self.isAppActiveProvider() {
+      return true
+    }
+
+    switch trigger {
+    case .proactiveRenewal:
+      return self.session?.state == .running
+    case .begin, .invalidation:
+      return false
+    }
   }
 
   private func isCurrentSession(_ candidate: any ExtendedRuntimeSession) -> Bool {
@@ -251,13 +315,15 @@ extension BackgroundRuntimeSessionController: ExtendedRuntimeSessionDelegate {
     self.lastError = nil
     self.lastInvalidationReason = nil
     self.consecutiveStartFailures = 0
+    self.scheduleRenewalTimer()
     self.log("runtime session started")
   }
 
   func extendedRuntimeSessionWillExpire(_ extendedRuntimeSession: any ExtendedRuntimeSession) {
     guard self.isCurrentSession(extendedRuntimeSession) else { return }
     self.status = .expiring(Date())
-    self.log("runtime session will expire soon")
+    self.log("runtime session will expire soon -- triggering fallback renewal")
+    self.performProactiveRenewal()
   }
 
   func extendedRuntimeSession(
@@ -288,7 +354,7 @@ extension BackgroundRuntimeSessionController: ExtendedRuntimeSessionDelegate {
       return
     }
 
-    guard self.canStartRuntimeSession else {
+    guard self.canStartRuntimeSession(for: .invalidation(reason)) else {
       self.log("runtime restart deferred until app becomes active")
       return
     }
@@ -302,7 +368,7 @@ extension BackgroundRuntimeSessionController: ExtendedRuntimeSessionDelegate {
     guard self.shouldRestartSession(reason: reason, wasStarting: wasStarting) else {
       return
     }
-    self.startExtendedRuntimeSession(trigger: "invalidation-\(reason.rawValue)")
+    self.startExtendedRuntimeSession(trigger: .invalidation(reason))
   }
 }
 #endif

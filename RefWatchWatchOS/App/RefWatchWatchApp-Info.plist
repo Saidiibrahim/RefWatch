@@ -50,7 +50,7 @@
 	<true/>
 	<key>WKBackgroundModes</key>
 	<array>
-		<string>workout-processing</string>
+		<string>self-care</string>
 	</array>
 	<key>WKCompanionAppBundleIdentifier</key>
 	<string>$(BUNDLE_ID_PREFIX).RefWatch</string>

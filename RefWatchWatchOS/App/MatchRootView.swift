@@ -133,8 +133,16 @@ struct MatchRootView: View {
       self.matchViewModel.updateLibrary(with: snapshot)
     }
     .onChange(of: self.scenePhase) { _, newPhase in
-      guard newPhase == .active else { return }
-      self.matchViewModel.reconcileBackgroundRuntimeSession()
+      switch newPhase {
+      case .active, .inactive:
+        self.matchViewModel.reconcileBackgroundRuntimeSession()
+      case .background:
+        #if DEBUG
+        print("[MatchRootView] scene phase → background (cannot start sessions)")
+        #endif
+      @unknown default:
+        break
+      }
     }
     .onOpenURL { url in
       // Deep link from Smart Stack widget
