@@ -8,6 +8,7 @@ public struct ProStoppageFace: View {
     @Environment(\.haptics) private var haptics
     @Environment(\.theme) private var theme
     @Environment(\.watchLayoutScale) private var layout
+    @Environment(\.isLuminanceReduced) private var isLuminanceReduced
     let model: TimerFaceModel
 
     public init(model: TimerFaceModel) { self.model = model }
@@ -17,7 +18,13 @@ public struct ProStoppageFace: View {
             let scale = FaceSizer.scale(forHeight: proxy.size.height)
             let width = proxy.size.width
             Group {
-                if model.isHalfTime { halfTimeView(scale: scale) } else { runningMatchView(scale: scale, width: width) }
+                if isLuminanceReduced {
+                    AlwaysOnTimerView(model: model, scale: scale)
+                } else if model.isHalfTime {
+                    halfTimeView(scale: scale)
+                } else {
+                    runningMatchView(scale: scale, width: width)
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
