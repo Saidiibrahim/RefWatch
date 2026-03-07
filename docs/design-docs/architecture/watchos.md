@@ -12,7 +12,8 @@
 - `BackgroundRuntimeSessionController` manages `WKExtendedRuntimeSession` for best-effort quick-return continuity while match flow is active.
   - Scope includes in-play, halftime, between-period waiting states, and penalties.
   - Runtime restart policy is reason-aware and simulator-safe; startup-failure loops are bounded.
-  - Foreground reconciliation is triggered from `MatchRootView` scene-phase activation.
+  - Proactive self-care renewal can chain while inactive only when an existing runtime session is already running, to preserve wrist-down continuity without broadening inactive cold starts.
+  - Reconciliation is triggered from `MatchRootView` on `.inactive` and `.active` scene-phase changes.
 
 ## Timer Faces
 - ``TimerFaceModel`` (protocol) defines read-only timer state and actions.

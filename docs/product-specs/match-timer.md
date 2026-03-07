@@ -37,6 +37,7 @@ Provides referees with precise match, period, and stoppage tracking, optimized f
 - Remaining value is visually distinct via secondary sizing and accent styling.
 - The two values must remain legible on compact and standard watch sizes, with adaptive scaling.
 - Accessibility output (VoiceOver) should announce elapsed and remaining values with distinct labels.
+- On Always-On Display during halftime, the primary value must be halftime elapsed, not frozen match elapsed.
 
 ## Testing Focus
 - Validate period transitions (start → halftime → next period).

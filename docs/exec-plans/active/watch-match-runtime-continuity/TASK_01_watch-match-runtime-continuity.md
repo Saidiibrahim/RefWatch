@@ -11,7 +11,7 @@ phase: Implementation
 - [x] Add simulator-explicit restart suppression logic for known runtime-session failure behavior.
 - [x] Centralize runtime eligibility in `MatchViewModel` across in-play, halftime, ET waiting states, and penalties.
 - [x] Add `MatchViewModel` reconciliation entrypoint for root scene-phase reactivation.
-- [x] Add root-level scene-phase hook in `MatchRootView` to re-evaluate runtime protection on `.active`.
+- [x] Add root-level scene-phase hook in `MatchRootView` to re-evaluate runtime protection on `.inactive` and `.active`.
 - [x] Extend core runtime tests for halftime/ET/penalty continuity and inactive-state cancellation.
-- [x] Add watch runtime-controller tests for restart behavior and idempotent end.
+- [x] Add watch runtime-controller tests for restart behavior, proactive renewal, and idempotent end.
 - [x] Update product spec, watch architecture doc, and App Review response guidance.

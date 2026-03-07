@@ -24,6 +24,7 @@ Harden watchOS Match mode runtime continuity so active match flows (including ha
 ## Progress
 - [x] TASK_01_watch-match-runtime-continuity.md
 - 2026-02-28: Implemented runtime controller policy hardening, centralized MatchViewModel runtime sync, root scene-phase reconciliation, watch runtime-controller tests, and docs updates.
+- 2026-03-07: Follow-up review fixes landed for physical-device readiness: halftime AOD now binds to `halfTimeElapsed`, proactive self-care renewal can chain while inactive from an already-running session, and the watch/core regression tests were corrected and expanded for renewal-race coverage.
 
 ## Surprises & Discoveries
 - `WKExtension.frontmostTimeoutExtended` is deprecated as "No longer supported" on modern watchOS SDKs, so continuity must rely on `WKExtendedRuntimeSession` plus robust resume behavior.
@@ -35,6 +36,9 @@ Harden watchOS Match mode runtime continuity so active match flows (including ha
 - Decision: Use reason-aware restart behavior with bounded startup-failure retries instead of a fixed restart-attempt count.
 - Rationale: Reduces restart thrash while improving resilience across valid invalidation scenarios.
 - Date/Author: 2026-02-28 / Codex
+- Decision: Allow proactive self-care session chaining during expiry even when `applicationState != .active`, but only when an existing runtime session is already running.
+- Rationale: Avoids dropping coverage during wrist-down/AOD renewal windows without broadening inactive starts from scratch.
+- Date/Author: 2026-03-07 / Codex
 
 ## Testing Approach
 - Core unit tests:
@@ -51,6 +55,9 @@ Harden watchOS Match mode runtime continuity so active match flows (including ha
 - Automated pass:
   - `swift test --package-path RefWatchCore --filter MatchViewModel_BackgroundRuntimeTests`
   - `xcodebuild -project RefWatch.xcodeproj -scheme "RefWatch Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)' -only-testing:"RefWatch Watch AppTests/BackgroundRuntimeSessionControllerTests" test`
+- Automated pass (2026-03-07 follow-up):
+  - `swift test --package-path RefWatchCore --filter MatchViewModel_BackgroundRuntimeTests`
+  - `xcodebuild -project RefWatch.xcodeproj -scheme "RefWatch Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)' -only-testing:"RefWatch Watch AppTests/BackgroundRuntimeSessionControllerTests" -only-testing:"RefWatch Watch AppTests/AlwaysOnTimerViewTests" test`
 - Existing unrelated suite failures remain in broader test runs and are outside this runtime-continuity scope.
 - Physical-device validation on Apple Watch Series 9 (45mm) remains required for final reliability sign-off.
 
