@@ -17,7 +17,10 @@ struct TeamPickerSheet: View {
     @State private var searchText: String = ""
     @State private var isLoading = false
     @State private var loadError: String?
-    private let seasonYear = 2026
+
+    private var isSearching: Bool {
+        !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
 
     private var filteredOptions: [TeamPickerOption] {
         let options = self.materializedOptions
@@ -29,15 +32,33 @@ struct TeamPickerSheet: View {
         }
     }
 
+    private var unmaterializedReferences: [ReferenceTeamOption] {
+        self.referenceTeams
+            .filter { ReferenceCatalogService.isReferenceTeamMaterialized($0, in: self.teams) == false }
+    }
+
+    private var hasAnyOptions: Bool {
+        !self.teams.isEmpty || !self.unmaterializedReferences.isEmpty
+    }
+
     private var materializedOptions: [TeamPickerOption] {
         let local = self.teams.map { TeamPickerOption.local($0) }
-        let references = self.referenceTeams
-            .filter { self.isReferenceTeamMaterialized($0, in: self.teams) == false }
-            .map { TeamPickerOption.reference($0) }
+        let references = self.unmaterializedReferences.map { TeamPickerOption.reference($0) }
         return (local + references)
             .sorted { lhs, rhs in
                 lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
             }
+    }
+
+    private var localTeamsSorted: [TeamRecord] {
+        self.teams.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
+    private var groupedReferenceTeams: [(String, [ReferenceTeamOption])] {
+        let grouped = Dictionary(grouping: self.unmaterializedReferences, by: \.competitionName)
+        return grouped
+            .sorted { $0.key.localizedCaseInsensitiveCompare($1.key) == .orderedAscending }
+            .map { ($0.key, $0.value.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }) }
     }
 
     var body: some View {
@@ -51,7 +72,7 @@ struct TeamPickerSheet: View {
                         systemImage: "exclamationmark.triangle",
                         description: Text(error)
                     )
-                } else if materializedOptions.isEmpty {
+                } else if !hasAnyOptions {
                     ContentUnavailableView(
                         "No Teams Available",
                         systemImage: "person.3",
@@ -65,7 +86,7 @@ struct TeamPickerSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    SheetDismissButton { dismiss() }
                 }
             }
             .searchable(text: $searchText, prompt: "Search teams")
@@ -75,35 +96,56 @@ struct TeamPickerSheet: View {
 
     private var teamList: some View {
         List {
-            let results = filteredOptions
-            if results.isEmpty {
-                ContentUnavailableView(
-                    "No Teams Found",
-                    systemImage: "magnifyingglass",
-                    description: Text("Try a different search term")
-                )
-            } else {
-                ForEach(results) { option in
-                    Button {
-                        self.handleSelection(option)
-                    } label: {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(option.name)
-                                .font(.headline)
-                            if let subtitle = option.subtitle, subtitle.isEmpty == false {
-                                Text(subtitle)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .contentShape(Rectangle())
+            if isSearching {
+                let results = filteredOptions
+                if results.isEmpty {
+                    ContentUnavailableView(
+                        "No Teams Found",
+                        systemImage: "magnifyingglass",
+                        description: Text("Try a different search term")
+                    )
+                } else {
+                    ForEach(results) { option in
+                        teamOptionRow(option)
                     }
-                    .buttonStyle(.plain)
+                }
+            } else {
+                if !localTeamsSorted.isEmpty {
+                    Section("Your Teams") {
+                        ForEach(localTeamsSorted, id: \.id) { team in
+                            teamOptionRow(.local(team))
+                        }
+                    }
+                }
+                ForEach(groupedReferenceTeams, id: \.0) { competitionName, refs in
+                    Section(competitionName) {
+                        ForEach(refs) { ref in
+                            teamOptionRow(.reference(ref))
+                        }
+                    }
                 }
             }
         }
         .listStyle(.insetGrouped)
+    }
+
+    private func teamOptionRow(_ option: TeamPickerOption) -> some View {
+        Button {
+            self.handleSelection(option)
+        } label: {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(option.name)
+                    .font(.headline)
+                if let subtitle = option.subtitle, subtitle.isEmpty == false {
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     private func loadTeams() {
@@ -128,7 +170,7 @@ struct TeamPickerSheet: View {
             }
 
             do {
-                loadedReferenceTeams = try await self.fetchReferenceTeams()
+                loadedReferenceTeams = try await ReferenceCatalogService.fetchReferenceTeams()
             } catch {
                 if loadedTeams.isEmpty {
                     resolvedError = resolvedError ?? error
@@ -149,102 +191,13 @@ struct TeamPickerSheet: View {
             case let .local(local):
                 team = local
             case let .reference(reference):
-                team = try self.materializeReferenceTeam(reference)
+                team = try ReferenceCatalogService.materializeReferenceTeam(reference, into: self.teamStore)
+                self.teams = try self.teamStore.loadAllTeams()
             }
             self.onSelect(team)
             self.dismiss()
         } catch {
             self.loadError = error.localizedDescription
-        }
-    }
-
-    private func materializeReferenceTeam(_ reference: ReferenceTeamOption) throws -> TeamRecord {
-        let existingTeams = try self.teamStore.loadAllTeams()
-        if let existing = self.findExistingTeam(for: reference, in: existingTeams) {
-            return existing
-        }
-
-        let created = try self.teamStore.createTeam(
-            name: reference.name,
-            shortName: reference.shortName,
-            division: reference.competitionName
-        )
-        created.referenceKey = reference.referenceKey
-        try self.teamStore.updateTeam(created)
-        self.teams = try self.teamStore.loadAllTeams()
-        return created
-    }
-
-    private func findExistingTeam(for reference: ReferenceTeamOption, in teams: [TeamRecord]) -> TeamRecord? {
-        if let keyedMatch = teams.first(where: { $0.referenceKey == reference.referenceKey }) {
-            return keyedMatch
-        }
-        return teams.first { team in
-            self.normalized(team.name) == self.normalized(reference.name)
-                && self.normalized(team.division) == self.normalized(reference.competitionName)
-        }
-    }
-
-    private func isReferenceTeamMaterialized(_ reference: ReferenceTeamOption, in teams: [TeamRecord]) -> Bool {
-        self.findExistingTeam(for: reference, in: teams) != nil
-    }
-
-    private func normalized(_ value: String?) -> String {
-        (value ?? "")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .lowercased()
-    }
-
-    private func fetchReferenceTeams() async throws -> [ReferenceTeamOption] {
-        let client = try await SupabaseClientProvider.shared.authorizedClient()
-        let decoder = SupabaseJSONDecoderFactory.makeDecoder()
-
-        let competitions: [ReferenceCompetitionRowDTO] = try await client.fetchRows(
-            SupabaseFetchRequest(
-                table: "reference_competitions",
-                columns: "id, code, name, season_year",
-                filters: [.equals("season_year", value: String(self.seasonYear))],
-                orderBy: "name",
-                ascending: true,
-                limit: 0,
-                decoder: decoder
-            )
-        )
-
-        guard competitions.isEmpty == false else {
-            return []
-        }
-
-        let competitionsById = Dictionary(uniqueKeysWithValues: competitions.map { ($0.id, $0) })
-        let competitionIds = competitions.map { $0.id.uuidString }
-
-        let teamRows: [ReferenceTeamRowDTO] = try await client.fetchRows(
-            SupabaseFetchRequest(
-                table: "reference_teams",
-                columns: "id, competition_id, name, short_name, reference_key, season_year",
-                filters: [
-                    .equals("season_year", value: String(self.seasonYear)),
-                    .in("competition_id", values: competitionIds),
-                ],
-                orderBy: "name",
-                ascending: true,
-                limit: 0,
-                decoder: decoder
-            )
-        )
-
-        return teamRows.compactMap { row in
-            guard let competition = competitionsById[row.competitionId] else {
-                return nil
-            }
-            return ReferenceTeamOption(
-                id: row.id,
-                referenceKey: row.referenceKey,
-                name: row.name,
-                shortName: row.shortName,
-                competitionCode: competition.code,
-                competitionName: competition.name
-            )
         }
     }
 }
@@ -300,47 +253,6 @@ private enum TeamPickerOption: Identifiable {
             .joined(separator: " ")
             .lowercased()
         }
-    }
-}
-
-private struct ReferenceTeamOption: Identifiable {
-    let id: UUID
-    let referenceKey: String
-    let name: String
-    let shortName: String?
-    let competitionCode: String
-    let competitionName: String
-}
-
-private struct ReferenceCompetitionRowDTO: Decodable {
-    let id: UUID
-    let code: String
-    let name: String
-    let seasonYear: Int
-
-    enum CodingKeys: String, CodingKey {
-        case id
-        case code
-        case name
-        case seasonYear = "season_year"
-    }
-}
-
-private struct ReferenceTeamRowDTO: Decodable {
-    let id: UUID
-    let competitionId: UUID
-    let name: String
-    let shortName: String?
-    let referenceKey: String
-    let seasonYear: Int
-
-    enum CodingKeys: String, CodingKey {
-        case id
-        case competitionId = "competition_id"
-        case name
-        case shortName = "short_name"
-        case referenceKey = "reference_key"
-        case seasonYear = "season_year"
     }
 }
 

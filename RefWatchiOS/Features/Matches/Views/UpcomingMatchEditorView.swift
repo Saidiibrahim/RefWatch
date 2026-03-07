@@ -35,7 +35,9 @@ struct UpcomingMatchEditorView: View {
       }
       .navigationTitle("Upcoming Match")
       .toolbar {
-        ToolbarItem(placement: .cancellationAction) { Button("Cancel") { self.dismiss() } }
+        ToolbarItem(placement: .cancellationAction) {
+          SheetDismissButton { self.dismiss() }
+        }
       }
     }
   }
@@ -66,10 +68,10 @@ struct UpcomingMatchEditorView: View {
       }
     }
     .sheet(isPresented: self.$showingHomePicker) {
-      NavigationStack { TeamsPickerView(teamStore: self.teamStore) { team in self.homeName = team.name } }
+      TeamPickerSheet(teamStore: self.teamStore) { team in self.homeName = team.name }
     }
     .sheet(isPresented: self.$showingAwayPicker) {
-      NavigationStack { TeamsPickerView(teamStore: self.teamStore) { team in self.awayName = team.name } }
+      TeamPickerSheet(teamStore: self.teamStore) { team in self.awayName = team.name }
     }
     .alert("Unable to Save", isPresented: self.alertBinding) {
       Button("OK", role: .cancel) { self.errorMessage = nil }
@@ -126,4 +128,5 @@ struct UpcomingMatchEditorView: View {
 
 #Preview {
   UpcomingMatchEditorView(scheduleStore: InMemoryScheduleStore(), teamStore: InMemoryTeamLibraryStore())
+    .environmentObject(SupabaseAuthController(clientProvider: SupabaseClientProvider.shared))
 }

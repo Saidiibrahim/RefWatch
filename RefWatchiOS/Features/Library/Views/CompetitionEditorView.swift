@@ -59,9 +59,7 @@ struct CompetitionEditorView: View {
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {
         ToolbarItem(placement: .cancellationAction) {
-          Button("Cancel") {
-            self.dismiss()
-          }
+          SheetDismissButton { self.dismiss() }
         }
         ToolbarItem(placement: .confirmationAction) {
           Button("Save") {

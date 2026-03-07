@@ -3,6 +3,7 @@
 //  RefWatchiOS
 //
 //  Lists teams with search and create; navigates to TeamEditorView.
+//  Shows reference catalog teams from Supabase for authenticated users.
 //
 
 import OSLog
@@ -11,43 +12,107 @@ import SwiftUI
 struct TeamsListView: View {
   let teamStore: TeamLibraryStoring
 
+  init(teamStore: TeamLibraryStoring, previewReferenceTeams: [ReferenceTeamOption] = []) {
+    self.teamStore = teamStore
+    self._referenceTeams = State(initialValue: previewReferenceTeams)
+    self._hasLoadedReferences = State(initialValue: !previewReferenceTeams.isEmpty)
+  }
+
   @State private var teams: [TeamRecord] = []
+  @State private var referenceTeams: [ReferenceTeamOption] = []
   @State private var search: String = ""
   @State private var showingNewTeam = false
   @State private var newName: String = ""
   @State private var newShort: String = ""
   @State private var newDivision: String = ""
   @State private var errorMessage: String?
+  @State private var isLoadingReferences = false
+  @State private var hasLoadedReferences = false
+
+  private var unmaterializedReferences: [ReferenceTeamOption] {
+    let query = self.search.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    let filtered = self.referenceTeams
+      .filter { ReferenceCatalogService.isReferenceTeamMaterialized($0, in: self.teams) == false }
+    guard !query.isEmpty else { return filtered }
+    return filtered.filter { ref in
+      ref.name.lowercased().contains(query)
+        || (ref.shortName?.lowercased().contains(query) ?? false)
+        || ref.competitionName.lowercased().contains(query)
+    }
+  }
+
+  private var groupedUnmaterializedReferences: [(String, [ReferenceTeamOption])] {
+    let grouped = Dictionary(grouping: self.unmaterializedReferences, by: \.competitionName)
+    return grouped
+      .sorted { $0.key.localizedCaseInsensitiveCompare($1.key) == .orderedAscending }
+      .map { ($0.key, $0.value.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }) }
+  }
 
   var body: some View {
     List {
-      if self.teams.isEmpty {
+      if self.teams.isEmpty && self.groupedUnmaterializedReferences.isEmpty && !self.isLoadingReferences {
         ContentUnavailableView(
           "No Teams",
           systemImage: "person.3",
           description: Text("Add teams you frequently officiate."))
       } else {
-        ForEach(self.teams, id: \.id) { team in
-          NavigationLink(destination: TeamEditorView(teamStore: self.teamStore, team: team)) {
-            VStack(alignment: .leading, spacing: 4) {
-              Text(team.name).font(.headline)
-              HStack(spacing: 8) {
-                if let short = team.shortName, !short.isEmpty { Text(short) }
-                if let div = team.division, !div.isEmpty {
-                  Text(div).foregroundStyle(.secondary)
+        if !self.teams.isEmpty {
+          Section("Your Teams") {
+            ForEach(self.teams, id: \.id) { team in
+              NavigationLink(destination: TeamEditorView(teamStore: self.teamStore, team: team)) {
+                VStack(alignment: .leading, spacing: 4) {
+                  Text(team.name).font(.headline)
+                  HStack(spacing: 8) {
+                    if let short = team.shortName, !short.isEmpty { Text(short) }
+                    if let div = team.division, !div.isEmpty {
+                      Text(div).foregroundStyle(.secondary)
+                    }
+                  }.font(.caption)
                 }
-              }.font(.caption)
+              }
+              .swipeActions(edge: .trailing) {
+                Button(role: .destructive) { self.delete(team) } label: { Label("Delete", systemImage: "trash") }
+              }
             }
           }
-          .swipeActions(edge: .trailing) {
-            Button(role: .destructive) { self.delete(team) } label: { Label("Delete", systemImage: "trash") }
+        }
+
+        ForEach(self.groupedUnmaterializedReferences, id: \.0) { competitionName, refs in
+          Section(competitionName) {
+            ForEach(refs) { ref in
+              Button {
+                self.materializeReference(ref)
+              } label: {
+                HStack {
+                  VStack(alignment: .leading, spacing: 4) {
+                    Text(ref.name).font(.headline)
+                    if let short = ref.shortName, !short.isEmpty {
+                      Text(short).font(.caption)
+                    }
+                  }
+                  Spacer()
+                  Image(systemName: "icloud.and.arrow.down")
+                    .foregroundStyle(.secondary)
+                    .imageScale(.small)
+                }
+              }
+              .buttonStyle(.plain)
+            }
+          }
+        }
+
+        if self.isLoadingReferences && self.referenceTeams.isEmpty {
+          Section("Reference Catalog") {
+            ProgressView("Loading reference teams…")
+              .frame(maxWidth: .infinity, alignment: .center)
+              .listRowBackground(Color.clear)
           }
         }
       }
     }
     .navigationTitle("Teams")
     .searchable(text: self.$search)
-    .onChange(of: self.search) { _, _ in self.refresh() }
+    .onChange(of: self.search) { _, _ in self.refreshLocal() }
     .toolbar {
       ToolbarItem(placement: .topBarTrailing) {
         Button { self.showingNewTeam = true } label: { Label("New Team", systemImage: "plus") }
@@ -65,7 +130,7 @@ struct TeamsListView: View {
         .navigationTitle("New Team")
         .toolbar {
           ToolbarItem(placement: .cancellationAction) {
-            Button("Cancel") { self.showingNewTeam = false }
+            SheetDismissButton { self.showingNewTeam = false }
           }
           ToolbarItem(placement: .confirmationAction) {
             Button("Create") { self.createTeam() }
@@ -76,7 +141,10 @@ struct TeamsListView: View {
       .presentationDetents([.medium, .large])
     }
     // No nested NavigationStack here; LibraryTabView owns the NavigationStack.
-    .onAppear { self.refresh() }
+    .onAppear {
+      self.refreshLocal()
+      self.loadReferenceCatalog()
+    }
     .alert("Unable to Update Teams", isPresented: self.alertBinding) {
       Button("OK", role: .cancel) {
         self.errorMessage = nil
@@ -86,7 +154,7 @@ struct TeamsListView: View {
     }
   }
 
-  private func refresh() {
+  private func refreshLocal() {
     do {
       self.teams = try self.search.isEmpty ? self.teamStore.loadAllTeams() : self.teamStore
         .searchTeams(query: self.search)
@@ -94,6 +162,30 @@ struct TeamsListView: View {
       AppLog.library.error("Failed to load teams: \(error.localizedDescription, privacy: .public)")
       self.teams = []
       self.errorMessage = self.errorDisplayMessage(for: error, fallback: "We couldn't load your teams.")
+    }
+  }
+
+  private func loadReferenceCatalog() {
+    guard !self.hasLoadedReferences else { return }
+    self.isLoadingReferences = true
+    Task { @MainActor in
+      do {
+        self.referenceTeams = try await ReferenceCatalogService.fetchReferenceTeams()
+      } catch {
+        AppLog.library.error("Failed to load reference teams: \(error.localizedDescription, privacy: .public)")
+      }
+      self.isLoadingReferences = false
+      self.hasLoadedReferences = true
+    }
+  }
+
+  private func materializeReference(_ reference: ReferenceTeamOption) {
+    do {
+      _ = try ReferenceCatalogService.materializeReferenceTeam(reference, into: self.teamStore)
+      self.refreshLocal()
+    } catch {
+      AppLog.library.error("Failed to materialize reference team: \(error.localizedDescription, privacy: .public)")
+      self.errorMessage = self.errorDisplayMessage(for: error, fallback: "Unable to add the reference team.")
     }
   }
 
@@ -117,7 +209,7 @@ struct TeamsListView: View {
       self.newShort = ""
       self.newDivision = ""
       self.showingNewTeam = false
-      self.refresh()
+      self.refreshLocal()
     } catch {
       AppLog.library.error("Failed to create team: \(error.localizedDescription, privacy: .public)")
       self.errorMessage = self.errorDisplayMessage(for: error, fallback: "Sign in to create teams on iPhone.")
@@ -127,7 +219,7 @@ struct TeamsListView: View {
   private func delete(_ team: TeamRecord) {
     do {
       try self.teamStore.deleteTeam(team)
-      self.refresh()
+      self.refreshLocal()
     } catch {
       AppLog.library.error("Failed to delete team: \(error.localizedDescription, privacy: .public)")
       self.errorMessage = self.errorDisplayMessage(for: error, fallback: "Sign in to delete teams from your library.")
@@ -145,4 +237,21 @@ struct TeamsListView: View {
   }
 }
 
-#Preview { NavigationStack { TeamsListView(teamStore: InMemoryTeamLibraryStore()) } }
+#Preview("Empty Library") {
+  NavigationStack { TeamsListView(teamStore: InMemoryTeamLibraryStore()) }
+}
+
+#Preview("With Reference Catalog") {
+  NavigationStack {
+    TeamsListView(
+      teamStore: InMemoryTeamLibraryStore(),
+      previewReferenceTeams: [
+        ReferenceTeamOption(id: UUID(), referenceKey: "sa-kaizer-chiefs", name: "Kaizer Chiefs", shortName: "CHI", competitionCode: "PSL", competitionName: "Premier Soccer League"),
+        ReferenceTeamOption(id: UUID(), referenceKey: "sa-orlando-pirates", name: "Orlando Pirates", shortName: "PIR", competitionCode: "PSL", competitionName: "Premier Soccer League"),
+        ReferenceTeamOption(id: UUID(), referenceKey: "sa-mamelodi-sundowns", name: "Mamelodi Sundowns", shortName: "SUN", competitionCode: "PSL", competitionName: "Premier Soccer League"),
+        ReferenceTeamOption(id: UUID(), referenceKey: "sa-ts-galaxy", name: "TS Galaxy", shortName: "GAL", competitionCode: "NFD", competitionName: "National First Division"),
+        ReferenceTeamOption(id: UUID(), referenceKey: "sa-mbombela-united", name: "Mbombela United", shortName: "MBU", competitionCode: "NFD", competitionName: "National First Division"),
+      ]
+    )
+  }
+}

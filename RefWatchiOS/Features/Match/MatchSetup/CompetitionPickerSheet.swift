@@ -17,7 +17,6 @@ struct CompetitionPickerSheet: View {
     @State private var searchText: String = ""
     @State private var isLoading = false
     @State private var loadError: String?
-    private let seasonYear = 2026
 
     private var filteredOptions: [CompetitionPickerOption] {
         let options = self.materializedOptions
@@ -32,7 +31,7 @@ struct CompetitionPickerSheet: View {
     private var materializedOptions: [CompetitionPickerOption] {
         let local = self.competitions.map { CompetitionPickerOption.local($0) }
         let references = self.referenceCompetitions
-            .filter { self.isReferenceCompetitionMaterialized($0, in: self.competitions) == false }
+            .filter { ReferenceCatalogService.isReferenceCompetitionMaterialized($0, in: self.competitions) == false }
             .map { CompetitionPickerOption.reference($0) }
         return (local + references)
             .sorted { lhs, rhs in
@@ -65,7 +64,7 @@ struct CompetitionPickerSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    SheetDismissButton { dismiss() }
                 }
             }
             .searchable(text: $searchText, prompt: "Search competitions")
@@ -110,7 +109,7 @@ struct CompetitionPickerSheet: View {
         isLoading = true
         loadError = nil
 
-        Task {
+        Task { @MainActor in
             var loadedCompetitions: [CompetitionRecord] = []
             var loadedReferences: [ReferenceCompetitionOption] = []
             var resolvedError: Error?
@@ -128,19 +127,17 @@ struct CompetitionPickerSheet: View {
             }
 
             do {
-                loadedReferences = try await self.fetchReferenceCompetitions()
+                loadedReferences = try await ReferenceCatalogService.fetchReferenceCompetitions()
             } catch {
                 if loadedCompetitions.isEmpty {
                     resolvedError = resolvedError ?? error
                 }
             }
 
-            await MainActor.run {
-                self.competitions = loadedCompetitions
-                self.referenceCompetitions = loadedReferences
-                self.loadError = resolvedError?.localizedDescription
-                self.isLoading = false
-            }
+            self.competitions = loadedCompetitions
+            self.referenceCompetitions = loadedReferences
+            self.loadError = resolvedError?.localizedDescription
+            self.isLoading = false
         }
     }
 
@@ -151,74 +148,13 @@ struct CompetitionPickerSheet: View {
             case let .local(local):
                 competition = local
             case let .reference(reference):
-                competition = try self.materializeReferenceCompetition(reference)
+                competition = try ReferenceCatalogService.materializeReferenceCompetition(reference, into: self.competitionStore)
+                self.competitions = try self.competitionStore.loadAll()
             }
             self.onSelect(competition)
             self.dismiss()
         } catch {
             self.loadError = error.localizedDescription
-        }
-    }
-
-    private func materializeReferenceCompetition(_ reference: ReferenceCompetitionOption) throws -> CompetitionRecord {
-        let existingCompetitions = try self.competitionStore.loadAll()
-        if let existing = self.findExistingCompetition(for: reference, in: existingCompetitions) {
-            return existing
-        }
-
-        let created = try self.competitionStore.create(
-            name: reference.name,
-            level: reference.code.uppercased()
-        )
-        self.competitions = try self.competitionStore.loadAll()
-        return created
-    }
-
-    private func findExistingCompetition(
-        for reference: ReferenceCompetitionOption,
-        in competitions: [CompetitionRecord]
-    ) -> CompetitionRecord? {
-        competitions.first { competition in
-            self.normalized(competition.name) == self.normalized(reference.name)
-                && self.normalized(competition.level) == self.normalized(reference.code.uppercased())
-        }
-    }
-
-    private func isReferenceCompetitionMaterialized(
-        _ reference: ReferenceCompetitionOption,
-        in competitions: [CompetitionRecord]
-    ) -> Bool {
-        self.findExistingCompetition(for: reference, in: competitions) != nil
-    }
-
-    private func normalized(_ value: String?) -> String {
-        (value ?? "")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .lowercased()
-    }
-
-    private func fetchReferenceCompetitions() async throws -> [ReferenceCompetitionOption] {
-        let client = try await SupabaseClientProvider.shared.authorizedClient()
-        let decoder = SupabaseJSONDecoderFactory.makeDecoder()
-
-        let rows: [ReferenceCompetitionDTO] = try await client.fetchRows(
-            SupabaseFetchRequest(
-                table: "reference_competitions",
-                columns: "id, code, name, season_year",
-                filters: [.equals("season_year", value: String(self.seasonYear))],
-                orderBy: "name",
-                ascending: true,
-                limit: 0,
-                decoder: decoder
-            )
-        )
-
-        return rows.map { row in
-            ReferenceCompetitionOption(
-                id: row.id,
-                code: row.code,
-                name: row.name
-            )
         }
     }
 }
@@ -271,26 +207,6 @@ private enum CompetitionPickerOption: Identifiable {
             .joined(separator: " ")
             .lowercased()
         }
-    }
-}
-
-private struct ReferenceCompetitionOption: Identifiable {
-    let id: UUID
-    let code: String
-    let name: String
-}
-
-private struct ReferenceCompetitionDTO: Decodable {
-    let id: UUID
-    let code: String
-    let name: String
-    let seasonYear: Int
-
-    enum CodingKeys: String, CodingKey {
-        case id
-        case code
-        case name
-        case seasonYear = "season_year"
     }
 }
 
