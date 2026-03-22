@@ -2,8 +2,8 @@
 //  MatchViewModel.swift
 //  RefWatchCore
 //
-//  ViewModel controlling match timing, periods, statistics, and events.
-//  UI-agnostic and shared across platforms via adapters.
+//  Description: Shared match lifecycle view model covering timer state,
+//  runtime-protection gating, and unfinished-match snapshot restore.
 //
 
 import Foundation
@@ -11,6 +11,11 @@ import Observation
 
 // MARK: - TimerManager Integration
 
+/// Shared source of truth for live match state across watchOS and iOS.
+///
+/// For Match Mode continuity on watchOS, the view model is also responsible for
+/// deciding when workout-backed runtime protection should stay active and for
+/// restoring unfinished-match snapshots after relaunch.
 @Observable
 @MainActor
 public final class MatchViewModel {
@@ -1205,6 +1210,10 @@ extension MatchViewModel {
     self.syncRuntimeSession(inactiveReason: .cancelled)
   }
 
+  /// Restores the last persisted unfinished match snapshot if one is available.
+  ///
+  /// - Returns: `true` when an unfinished snapshot was restored and the caller
+  ///   should reroute the UI to the resumed match surface.
   @discardableResult
   public func restorePersistedActiveMatchSessionIfAvailable() -> Bool {
     guard let activeMatchSessionStore else { return false }
@@ -1217,6 +1226,10 @@ extension MatchViewModel {
     return true
   }
 
+  /// Applies a persisted unfinished-match snapshot and rehydrates the view model
+  /// into the exact lifecycle state that was active before interruption.
+  ///
+  /// - Parameter snapshot: The unfinished-match snapshot to restore.
   public func restore(from snapshot: ActiveMatchSessionSnapshot) {
     guard snapshot.isUnfinished else {
       self.clearPersistedActiveMatchSession()
@@ -1270,6 +1283,12 @@ extension MatchViewModel {
 
   // MARK: - Background Runtime Support
 
+  /// Reconciles workout-backed runtime protection with the current lifecycle
+  /// state.
+  ///
+  /// Watch surfaces call this during scene-phase changes so the runtime
+  /// controller can recover, update, or stop the active workout session without
+  /// each view starting or ending sessions directly.
   public func reconcileBackgroundRuntimeSession() {
     self.syncRuntimeSession(inactiveReason: .cancelled)
   }
@@ -1306,6 +1325,13 @@ extension MatchViewModel {
     }
   }
 
+  /// Returns whether the current match lifecycle still requires workout-backed
+  /// Match Mode protection.
+  ///
+  /// This scope intentionally includes more than active clock time. It covers
+  /// kickoff waiting, paused play, halftime transitions, extra-time transitions,
+  /// penalties, and the full-time screen until the referee explicitly completes,
+  /// resets, or cancels the unfinished match.
   private var runtimeProtectionRequired: Bool {
     (self.waitingForMatchStart && self.currentMatch != nil) ||
       self.isMatchInProgress ||
@@ -1319,6 +1345,8 @@ extension MatchViewModel {
       (self.isFullTime && self.matchCompleted == false && self.currentMatch != nil)
   }
 
+  /// Labels the current unfinished-match phase for runtime-session metadata and
+  /// recovery diagnostics.
   private var runtimePhaseLabel: String {
     if self.penaltyShootoutActive { return "penalties" }
     if self.waitingForPenaltiesStart { return "waiting-penalties" }

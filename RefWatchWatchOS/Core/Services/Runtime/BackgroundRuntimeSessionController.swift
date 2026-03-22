@@ -1,3 +1,11 @@
+//
+//  BackgroundRuntimeSessionController.swift
+//  RefWatchWatchOS
+//
+//  Description: Workout-backed Match Mode runtime protection for unfinished
+//  matches, including active-session recovery after relaunch.
+//
+
 #if os(watchOS)
 import Foundation
 import HealthKit
@@ -5,6 +13,9 @@ import Observation
 import WatchKit
 @preconcurrency import RefWatchCore
 
+/// Temporarily holds a recovered `HKWorkoutSession` handed off from the watch
+/// application delegate so the main runtime controller can attach to it during
+/// the next reconciliation pass.
 @MainActor
 final class MatchWorkoutRecoveryBroker {
   static let shared = MatchWorkoutRecoveryBroker()
@@ -23,6 +34,8 @@ final class MatchWorkoutRecoveryBroker {
   }
 }
 
+/// Errors surfaced while authorizing, starting, or recovering the workout-backed
+/// runtime session used for Match Mode continuity.
 enum MatchRuntimeSessionError: Error, Equatable {
   case healthDataUnavailable
   case authorizationDenied
@@ -31,6 +44,8 @@ enum MatchRuntimeSessionError: Error, Equatable {
   case sessionRecoveryFailed
 }
 
+/// Abstracts the runtime-session implementation that keeps Match Mode active
+/// while an unfinished match is still being officiated.
 @MainActor
 protocol MatchRuntimeSessionProviding: AnyObject {
   var hasActiveSession: Bool { get }
@@ -42,6 +57,8 @@ protocol MatchRuntimeSessionProviding: AnyObject {
   func stop(reason: BackgroundRuntimeEndReason) async throws
 }
 
+/// Test-only provider that simulates an active workout-backed runtime without
+/// talking to HealthKit.
 @MainActor
 private final class UITestMatchRuntimeSessionProvider: MatchRuntimeSessionProviding {
   private(set) var hasActiveSession = false
@@ -68,6 +85,8 @@ private final class UITestMatchRuntimeSessionProvider: MatchRuntimeSessionProvid
   }
 }
 
+/// HealthKit-backed provider that starts, updates, stops, and recovers the
+/// `HKWorkoutSession` used for best-effort Match Mode continuity on watchOS.
 @MainActor
 private final class HealthKitMatchRuntimeSessionProvider: NSObject, MatchRuntimeSessionProviding {
   private let healthStore: HKHealthStore
@@ -271,10 +290,17 @@ extension HealthKitMatchRuntimeSessionProvider: HKLiveWorkoutBuilderDelegate {
 
 /// Keeps Match mode alive with a workout-backed runtime session while an unfinished
 /// match is active. The controller reconciles toward a desired state instead of
-/// blindly starting/stopping sessions on every lifecycle callback.
+/// blindly starting or stopping sessions on every lifecycle callback.
+///
+/// Match Mode still operates within watchOS platform limits. The controller
+/// targets the documented workout-session path for wrist-raise return and
+/// relaunch recovery, but it does not guarantee absolute frontmost residency if
+/// the user leaves the app, HealthKit authorization is denied, or watchOS
+/// terminates the process.
 @MainActor
 @Observable
 final class BackgroundRuntimeSessionController: NSObject {
+  /// High-level reconciliation state for the workout-backed runtime controller.
   enum Status: Equatable {
     case idle
     case recovering
@@ -301,6 +327,11 @@ final class BackgroundRuntimeSessionController: NSObject {
   private var needsReconcile = false
   private var didAttemptRecoveryForCurrentDesiredState = false
 
+  /// Returns the runtime controller appropriate for the current process.
+  ///
+  /// UI tests and explicitly disabled environments receive a no-op provider so
+  /// test runs can exercise lifecycle logic without creating real workout
+  /// sessions.
   static func makeForCurrentEnvironment() -> BackgroundRuntimeSessionController {
     if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
       || ProcessInfo.processInfo.environment["REFWATCH_DISABLE_MATCH_RUNTIME"] == "1"
@@ -315,6 +346,8 @@ final class BackgroundRuntimeSessionController: NSObject {
     super.init()
   }
 
+  /// Reconciles toward an active Match Mode runtime session for the supplied
+  /// unfinished match metadata.
   func begin(kind: BackgroundRuntimeActivityKind, title: String?, metadata: [String: String]) {
     self.pendingStopReason = .cancelled
     self.desiredRuntime = DesiredRuntime(kind: kind, title: title, metadata: metadata)
@@ -335,6 +368,8 @@ final class BackgroundRuntimeSessionController: NSObject {
     self.provider.update(title: desiredRuntime.title, metadata: desiredRuntime.metadata)
   }
 
+  /// Reconciles toward no active runtime session and records how the workout
+  /// should be finished or discarded when shutdown completes.
   func end(reason: BackgroundRuntimeEndReason) {
     self.desiredRuntime = nil
     self.pendingStopReason = reason

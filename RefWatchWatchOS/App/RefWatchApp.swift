@@ -2,7 +2,8 @@
 //  RefWatchApp.swift
 //  RefWatchWatchOS
 //
-//  Created by Ibrahim Saidi on 11/1/2025.
+//  Description: Watch app entry point, including active-workout recovery
+//  handoff for unfinished Match Mode sessions.
 //
 
 import RefWatchCore
@@ -11,9 +12,13 @@ import SwiftData
 import SwiftUI
 import WatchKit
 
+/// Handles watchOS delegate callbacks that arrive before the SwiftUI scene has
+/// recreated its Match Mode runtime controller.
 final class RefWatchExtensionDelegate: NSObject, WKApplicationDelegate {
   private let healthStore = HKHealthStore()
 
+  /// Captures any recovered active workout session so Match Mode can reattach
+  /// when the app relaunches into an unfinished match.
   func handleActiveWorkoutRecovery() {
     self.healthStore.recoverActiveWorkoutSession { session, error in
       Task { @MainActor in
@@ -25,6 +30,7 @@ final class RefWatchExtensionDelegate: NSObject, WKApplicationDelegate {
 }
 
 @main
+/// Root watchOS app scene for RefWatch.
 struct RefWatch_Watch_AppApp: App {
   @WKApplicationDelegateAdaptor(RefWatchExtensionDelegate.self) private var extensionDelegate
   private let aggregateContainer: ModelContainer

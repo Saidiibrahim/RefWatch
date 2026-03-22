@@ -2,14 +2,16 @@
 //  MatchLifecycleCoordinator.swift
 //  RefWatchWatchOS
 //
-//  Description: Central coordinator controlling the high-level match lifecycle
-//  (start → setup → running → halftime → second-half kickoff → finished).
+//  Description: Central lifecycle router for Match Mode, including resume
+//  routing after unfinished-match restore.
 //
 
 import Foundation
 import Observation
 import RefWatchCore
 
+/// Minimal lifecycle state required to route back into the correct Match Mode
+/// screen after restoring an unfinished match.
 @MainActor
 protocol MatchLifecycleRoutingState {
   var hasCurrentMatch: Bool { get }
@@ -33,6 +35,8 @@ extension MatchViewModel: MatchLifecycleRoutingState {
   }
 }
 
+/// Routes Match Mode between setup, kickoff, running, penalties, and finished
+/// screens, including resume mapping after relaunch.
 @Observable
 final class MatchLifecycleCoordinator {
   enum State: Equatable {
@@ -173,6 +177,10 @@ final class MatchLifecycleCoordinator {
   }
 
   @MainActor
+  /// Applies the canonical resume route for a restored unfinished match.
+  ///
+  /// - Parameter state: Lifecycle state restored from the shared match view
+  ///   model.
   func routeToResumedState(using state: MatchLifecycleRoutingState) {
     let resumedState = self.resumedState(using: state)
     guard self.state != resumedState else { return }
@@ -180,6 +188,8 @@ final class MatchLifecycleCoordinator {
   }
 
   @MainActor
+  /// Computes the screen that should reopen for the supplied unfinished-match
+  /// lifecycle flags.
   func resumedState(using state: MatchLifecycleRoutingState) -> State {
     if state.isFullTime && state.matchCompleted == false {
       return .finished

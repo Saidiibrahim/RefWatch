@@ -1,6 +1,16 @@
+//
+//  PersistedActiveMatchSessionStore.swift
+//  RefWatchWatchOS
+//
+//  Description: App Group-backed persistence for unfinished-match snapshots
+//  used during watch relaunch and workout recovery flows.
+//
+
 import Foundation
 import RefWatchCore
 
+/// Stores the current unfinished-match snapshot in the watch App Group so Match
+/// Mode can restore directly into the interrupted lifecycle state on relaunch.
 final class PersistedActiveMatchSessionStore: ActiveMatchSessionStoring {
   private static let storeKey = "active_match_session_snapshot_v1"
   private static let uiTestSnapshotEnvKey = "REFWATCH_ACTIVE_MATCH_SNAPSHOT_BASE64"

@@ -1,5 +1,15 @@
+//
+//  ActiveMatchSessionSnapshot.swift
+//  RefWatchCore
+//
+//  Description: Codable unfinished-match snapshot types used to reopen Match
+//  Mode on the correct screen after interruption or relaunch.
+//
+
 import Foundation
 
+/// Display strings captured alongside an unfinished match so the watch can
+/// restore the last visible timer state before live timers resume.
 public struct ActiveMatchDisplayState: Codable, Equatable {
   public var matchTime: String
   public var periodTime: String
@@ -25,6 +35,11 @@ public struct ActiveMatchDisplayState: Codable, Equatable {
   }
 }
 
+/// Complete persistence payload for an unfinished match session.
+///
+/// The snapshot records every lifecycle flag needed to reopen Match Mode on the
+/// correct screen after watchOS interruption, relaunch, or active workout
+/// recovery.
 public struct ActiveMatchSessionSnapshot: Codable {
   public static let schemaVersion = 1
 
@@ -102,11 +117,14 @@ public struct ActiveMatchSessionSnapshot: Codable {
     self.savedAt = savedAt
   }
 
+  /// Indicates whether the snapshot still represents a match that should be
+  /// restorable into Match Mode.
   public var isUnfinished: Bool {
     self.matchCompleted == false
   }
 }
 
+/// Persistence boundary for storing and loading unfinished-match snapshots.
 @MainActor
 public protocol ActiveMatchSessionStoring: AnyObject {
   func load() throws -> ActiveMatchSessionSnapshot?
@@ -114,6 +132,8 @@ public protocol ActiveMatchSessionStoring: AnyObject {
   func clear() throws
 }
 
+/// Store implementation used when the host surface does not support unfinished
+/// match persistence.
 @MainActor
 public final class NoopActiveMatchSessionStore: ActiveMatchSessionStoring {
   public init() {}

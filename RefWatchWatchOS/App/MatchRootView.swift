@@ -2,13 +2,16 @@
 //  MatchRootView.swift
 //  RefereeAssistant
 //
-//  Description: The Match mode home with quick actions and lifecycle routing.
+//  Description: Match Mode root surface that restores unfinished sessions,
+//  reconciles runtime protection, and routes back to the correct screen.
 //
 
 import RefWatchCore
 import SwiftData
 import SwiftUI
 
+/// Root watch Match Mode view that owns runtime reconciliation and relaunch
+/// routing for unfinished matches.
 struct MatchRootView: View {
   @Environment(\.theme) private var theme
   @Environment(\.scenePhase) private var scenePhase
@@ -342,6 +345,8 @@ extension MatchRootView {
     self.matchViewModel.currentMatch != nil && self.matchViewModel.matchCompleted == false
   }
 
+  /// Routes the UI back to the correct Match Mode screen after restoring an
+  /// unfinished match snapshot or recovering an active workout session.
   private func resumeUnfinishedMatchIfNeeded() {
     guard self.hasUnfinishedMatch else { return }
     self.lifecycle.routeToResumedState(using: self.matchViewModel)
