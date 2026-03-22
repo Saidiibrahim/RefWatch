@@ -35,12 +35,10 @@
 	<string>$(WATCHOS_DEPLOYMENT_TARGET)</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
-	<key>NSAppleMusicUsageDescription</key>
-	<string>RefWatch needs Apple Music access to control playback during your workout.</string>
 	<key>NSHealthShareUsageDescription</key>
-	<string>RefWatch needs access to read your health data to provide accurate workout tracking and analysis.</string>
+	<string>RefWatch reads workout state so unfinished referee match sessions can recover correctly on Apple Watch.</string>
 	<key>NSHealthUpdateUsageDescription</key>
-	<string>RefWatch needs access to write workout data including distance, heart rate, and energy information.</string>
+	<string>RefWatch writes a referee activity workout while a match is unfinished so the watch app can remain resident during officiating.</string>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
@@ -50,7 +48,7 @@
 	<true/>
 	<key>WKBackgroundModes</key>
 	<array>
-		<string>self-care</string>
+		<string>workout-processing</string>
 	</array>
 	<key>WKCompanionAppBundleIdentifier</key>
 	<string>$(BUNDLE_ID_PREFIX).RefWatch</string>

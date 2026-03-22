@@ -3,8 +3,9 @@
 <plist version="1.0">
 <dict>
 	<!-- Do NOT include com.apple.developer.watchkit.background-mode here.
-	     watchOS uses Info.plist WKBackgroundModes=["self-care"].
-	     Adding this entitlement causes a provisioning profile mismatch. -->
+	     The watch target declares WKBackgroundModes = [workout-processing]
+	     in Info.plist for Match Mode continuity. Adding the entitlement
+	     here causes a provisioning profile mismatch. -->
 	<key>com.apple.developer.healthkit</key>
 	<true/>
 	<key>com.apple.developer.healthkit.background-delivery</key>
