@@ -26,6 +26,7 @@ Use this checklist for both watchOS and iOS releases. Keep the working tree clea
 
 ## Build & Archive
 - [ ] Archive iOS (with watchOS companion) in Xcode Organizer.
+- [ ] Inspect the archived watch bundle `Info.plist` and confirm `WKBackgroundModes` contains only `workout-processing`; confirm no watch Apple Music/audio usage strings remain unless a separately approved feature requires them.
 - [ ] Validate archive for App Store distribution.
 - [ ] Export TestFlight build and run a quick device install check.
 

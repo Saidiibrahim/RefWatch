@@ -13,7 +13,7 @@ Provides referees with precise match, period, and stoppage tracking, optimized f
 1. Ref selects match parameters in Match Setup.
 2. On start, `TimerManager` initializes match and period clocks.
 3. `TimerFaceFactory` produces the configured watch face.
-4. User interacts via actions sheet (pause, halftime, penalties).
+4. User interacts via actions sheet (pause, explicit halftime start, period transitions, penalties).
 5. On completion, results sync to `MatchHistoryService`.
 
 ## Configuration
@@ -21,15 +21,32 @@ Provides referees with precise match, period, and stoppage tracking, optimized f
 - Additional faces register via `TimerFaceStyle` enumeration and the factory.
 
 ## Runtime Continuity (watchOS Match Mode)
-- Match Mode uses `WKExtendedRuntimeSession` as a best-effort continuity mechanism while a match flow is active.
+- Match Mode uses an `HKWorkoutSession`-backed runtime while a match is unfinished.
+- Shippable watch metadata is `WKBackgroundModes = [workout-processing]` only. Match Mode does not rely on background audio, Apple Music, or media playback.
 - Runtime protection remains enabled during:
+  - waiting to start the first half
   - in-play periods
+  - paused states
+  - waiting for halftime to start
   - halftime
   - waiting states between periods (second half, ET1, ET2)
   - penalty transition and active shootout
-- Runtime protection ends when the match is completed/reset/cancelled.
-- Match Mode does not rely on `WKExtension.frontmostTimeoutExtended` (unsupported on modern watchOS) and does not use `HKWorkoutSession`.
-- If watchOS returns to the watch face due to system policy, reopening the app must immediately restore the live match state (including halftime and penalties).
+  - the full-time screen until the user finalizes completion, resets, or cancels
+- Runtime protection ends when the match is completed, reset, or cancelled.
+- Match Mode persists unfinished state and must rehydrate on relaunch, including:
+  - timer anchors and pause state
+  - halftime waiting
+  - second-half / ET kickoff waiting
+  - `waitingForPenaltiesStart`
+  - active penalty shootout state
+- Deep links and relaunch recovery are designed to route directly back to the correct unfinished surface instead of restarting at idle.
+- Platform boundary:
+  - watchOS documents active workout sessions as the supported continuity path while the session remains active
+  - Match Mode is designed to reopen the last unfinished surface on relaunch when an active workout session can be recovered
+  - Match Mode cannot guarantee absolute frontmost residency if the user explicitly presses the Digital Crown, opens another app, denies HealthKit authorization, or watchOS terminates the process
+  - when those interruptions happen, RefWatch should recover the active workout session if available and restore the unfinished match snapshot on relaunch
+- Match Mode does not rely on `WKExtension.frontmostTimeoutExtended`, which is unsupported on modern watchOS.
+- Physical-watch validation and App Store/archive validation remain required before treating this continuity path as release-safe.
 
 ## Timer Readability Requirements
 - Watch timer faces must clearly separate elapsed match time from remaining period time.
@@ -43,5 +60,6 @@ Provides referees with precise match, period, and stoppage tracking, optimized f
 - Validate period transitions (start → halftime → next period).
 - Ensure pause/resume retains elapsed time correctly.
 - Cover penalty edge cases (stacked penalties, clearing after halftime).
-- Validate runtime continuity across in-play, halftime, ET, and penalties on Apple Watch Series 9 (45mm) physical hardware.
+- Validate unfinished-match persistence and rehydration across relaunch, including `waitingForHalfTimeStart` and `waitingForPenaltiesStart`.
+- Validate runtime continuity across kickoff waiting, in-play, halftime, ET, penalties, and full-time-pending-completion on Apple Watch Series 9 (45mm) physical hardware.
 - Validate elapsed vs remaining readability on Apple Watch Series 9 (45mm) and compact layout.
