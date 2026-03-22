@@ -19,6 +19,7 @@ struct MatchRootView: View {
   @State private var lifecycle: MatchLifecycleCoordinator
   @State private var showPersistenceError = false
   @State private var latestSummary: CompletedMatchSummary?
+  @State private var hasRestoredPersistedSession = false
   @State private var navigationPath: [MatchRoute] = []
   // Resets the NavigationStack identity when we return to idle to avoid
   // stale column state causing SwiftUI AnyNavigationPath comparison crashes
@@ -29,15 +30,19 @@ struct MatchRootView: View {
 
   @MainActor
   init(matchViewModel: MatchViewModel? = nil, connectivity: ConnectivitySyncProviding? = nil) {
-    let runtimeController = BackgroundRuntimeSessionController()
+    let activeMatchSessionStore = PersistedActiveMatchSessionStore()
+    let runtimeController = BackgroundRuntimeSessionController.makeForCurrentEnvironment()
     _backgroundRuntimeController = State(initialValue: runtimeController)
     if let matchViewModel {
       _matchViewModel = State(initialValue: matchViewModel)
     } else {
       _matchViewModel = State(initialValue: MatchViewModel(
+        history: MatchHistoryService(),
+        penaltyManager: PenaltyManager(),
         haptics: WatchHaptics(),
-        backgroundRuntime: runtimeController,
-        connectivity: connectivity))
+        connectivity: connectivity,
+        backgroundRuntimeManager: runtimeController,
+        activeMatchSessionStore: activeMatchSessionStore))
     }
     _settingsViewModel = State(initialValue: SettingsViewModel())
     _lifecycle = State(initialValue: MatchLifecycleCoordinator())
@@ -124,6 +129,13 @@ struct MatchRootView: View {
     .environment(self.settingsViewModel)
     .background(self.theme.colors.backgroundPrimary.ignoresSafeArea())
     .task {
+      guard self.hasRestoredPersistedSession == false else { return }
+      self.hasRestoredPersistedSession = true
+      if self.matchViewModel.restorePersistedActiveMatchSessionIfAvailable() {
+        self.resumeUnfinishedMatchIfNeeded()
+      }
+    }
+    .task {
       self.latestSummary = self.matchViewModel.latestCompletedMatchSummary()
     }
     .task {
@@ -136,6 +148,9 @@ struct MatchRootView: View {
       switch newPhase {
       case .active, .inactive:
         self.matchViewModel.reconcileBackgroundRuntimeSession()
+        if newPhase == .active {
+          self.resumeUnfinishedMatchIfNeeded()
+        }
       case .background:
         #if DEBUG
         print("[MatchRootView] scene phase → background (cannot start sessions)")
@@ -146,20 +161,10 @@ struct MatchRootView: View {
     }
     .onOpenURL { url in
       // Deep link from Smart Stack widget
-      guard url.scheme == "refzone" else { return }
+      guard url.scheme == "refwatch" else { return }
       if url.host == "timer" {
-        // Route into the Timer surface when a match is active; otherwise land on start
-        if self.matchViewModel.isMatchInProgress ||
-          self.matchViewModel.isHalfTime ||
-          self.matchViewModel.penaltyShootoutActive
-        {
-          self.lifecycle.goToSetup() // MatchSetupView hosts TimerView in the middle tab
-        } else if self.matchViewModel.waitingForSecondHalfStart {
-          self.lifecycle.goToKickoffSecond()
-        } else if self.matchViewModel.waitingForET1Start {
-          self.lifecycle.goToKickoffETFirst()
-        } else if self.matchViewModel.waitingForET2Start {
-          self.lifecycle.goToKickoffETSecond()
+        if self.hasUnfinishedMatch {
+          self.resumeUnfinishedMatchIfNeeded()
         } else {
           setNavigationPath(for: .startFlow)
         }
@@ -331,6 +336,15 @@ extension MatchRootView {
     let vertical = self.theme.components.listRowVerticalInset
     let horizontal = self.theme.components.cardHorizontalPadding
     return EdgeInsets(top: vertical, leading: horizontal, bottom: vertical, trailing: horizontal)
+  }
+
+  private var hasUnfinishedMatch: Bool {
+    self.matchViewModel.currentMatch != nil && self.matchViewModel.matchCompleted == false
+  }
+
+  private func resumeUnfinishedMatchIfNeeded() {
+    guard self.hasUnfinishedMatch else { return }
+    self.lifecycle.routeToResumedState(using: self.matchViewModel)
   }
 
   private func setNavigationPath(for route: MatchRoute) {

@@ -8,6 +8,30 @@
 
 import Foundation
 import Observation
+import RefWatchCore
+
+@MainActor
+protocol MatchLifecycleRoutingState {
+  var hasCurrentMatch: Bool { get }
+  var isMatchInProgress: Bool { get }
+  var isPaused: Bool { get }
+  var isHalfTime: Bool { get }
+  var waitingForMatchStart: Bool { get }
+  var waitingForHalfTimeStart: Bool { get }
+  var waitingForSecondHalfStart: Bool { get }
+  var waitingForET1Start: Bool { get }
+  var waitingForET2Start: Bool { get }
+  var waitingForPenaltiesStart: Bool { get }
+  var penaltyShootoutActive: Bool { get }
+  var isFullTime: Bool { get }
+  var matchCompleted: Bool { get }
+}
+
+extension MatchViewModel: MatchLifecycleRoutingState {
+  var hasCurrentMatch: Bool {
+    self.currentMatch != nil
+  }
+}
 
 @Observable
 final class MatchLifecycleCoordinator {
@@ -146,5 +170,41 @@ final class MatchLifecycleCoordinator {
       #endif
     }
     self.shouldPresentStartMatchScreen = true
+  }
+
+  @MainActor
+  func routeToResumedState(using state: MatchLifecycleRoutingState) {
+    let resumedState = self.resumedState(using: state)
+    guard self.state != resumedState else { return }
+    self.state = resumedState
+  }
+
+  @MainActor
+  func resumedState(using state: MatchLifecycleRoutingState) -> State {
+    if state.isFullTime && state.matchCompleted == false {
+      return .finished
+    }
+    if state.penaltyShootoutActive {
+      return .penalties
+    }
+    if state.waitingForPenaltiesStart {
+      return .choosePenaltyFirstKicker
+    }
+    if state.waitingForET2Start {
+      return .kickoffExtraTimeSecondHalf
+    }
+    if state.waitingForET1Start {
+      return .kickoffExtraTimeFirstHalf
+    }
+    if state.waitingForSecondHalfStart {
+      return .kickoffSecondHalf
+    }
+    if state.isMatchInProgress || state.isPaused || state.isHalfTime || state.waitingForHalfTimeStart {
+      return .setup
+    }
+    if state.waitingForMatchStart || state.hasCurrentMatch {
+      return .kickoffFirstHalf
+    }
+    return .idle
   }
 }

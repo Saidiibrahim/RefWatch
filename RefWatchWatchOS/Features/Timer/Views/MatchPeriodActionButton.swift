@@ -34,6 +34,7 @@ struct MatchPeriodActionButton: View {
                             .fill(theme.colors.matchPositive)
                     )
             }
+            .accessibilityIdentifier(buttonAccessibilityIdentifier)
             .buttonStyle(.plain)
             .padding(.horizontal, theme.components.cardHorizontalPadding)
             .padding(.top, theme.spacing.s)
@@ -150,6 +151,28 @@ struct MatchPeriodActionButton: View {
         }
         
         return "End Half"
+    }
+
+    private var buttonAccessibilityIdentifier: String {
+        if matchViewModel.isFullTime {
+            return "completeMatchButton"
+        }
+        if matchViewModel.waitingForHalfTimeStart {
+            return "startHalfTimeButton"
+        }
+        if matchViewModel.isHalfTime || matchViewModel.waitingForSecondHalfStart {
+            return "startSecondHalfButton"
+        }
+        if matchViewModel.waitingForET1Start {
+            return "startExtraTimeFirstHalfButton"
+        }
+        if matchViewModel.waitingForET2Start {
+            return "startExtraTimeSecondHalfButton"
+        }
+        if matchViewModel.isMatchInProgress {
+            return "endPeriodButton"
+        }
+        return "matchPeriodActionButton"
     }
     
     /// Returns the appropriate icon based on current state

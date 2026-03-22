@@ -19,7 +19,7 @@ public struct StandardTimerFace: View {
             Group {
                 if isLuminanceReduced {
                     AlwaysOnTimerView(model: model, scale: scale)
-                } else if model.isHalfTime {
+                } else if model.isHalfTime || model.waitingForHalfTimeStart {
                     halfTimeView(scale: scale)
                 } else {
                     runningMatchView(scale: scale, width: proxy.size.width)

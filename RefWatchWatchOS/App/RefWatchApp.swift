@@ -6,11 +6,27 @@
 //
 
 import RefWatchCore
+import HealthKit
 import SwiftData
 import SwiftUI
+import WatchKit
+
+final class RefWatchExtensionDelegate: NSObject, WKApplicationDelegate {
+  private let healthStore = HKHealthStore()
+
+  func handleActiveWorkoutRecovery() {
+    self.healthStore.recoverActiveWorkoutSession { session, error in
+      Task { @MainActor in
+        guard error == nil, let session else { return }
+        MatchWorkoutRecoveryBroker.shared.storeRecoveredSession(session)
+      }
+    }
+  }
+}
 
 @main
 struct RefWatch_Watch_AppApp: App {
+  @WKApplicationDelegateAdaptor(RefWatchExtensionDelegate.self) private var extensionDelegate
   private let aggregateContainer: ModelContainer
   private let aggregateLibraryStore: WatchAggregateLibraryStore
   private let aggregateChunkStore: WatchAggregateSnapshotChunkStore
