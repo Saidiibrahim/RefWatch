@@ -161,6 +161,44 @@ public final class PenaltyManager: PenaltyManaging {
     self.isActive = false
   }
 
+  public func snapshotState() -> PenaltyShootoutSnapshot {
+    PenaltyShootoutSnapshot(
+      initialRounds: self.initialRounds,
+      isActive: self.isActive,
+      isDecided: self.isDecided,
+      winner: self.winner,
+      firstKicker: self.firstKicker,
+      hasChosenFirstKicker: self.hasChosenFirstKicker,
+      homeTaken: self.homeTaken,
+      homeScored: self.homeScored,
+      homeResults: self.homeResults,
+      homeAttempts: self.homeAttempts,
+      awayTaken: self.awayTaken,
+      awayScored: self.awayScored,
+      awayResults: self.awayResults,
+      awayAttempts: self.awayAttempts,
+      attemptStack: self.attemptStack)
+  }
+
+  public func restore(from snapshot: PenaltyShootoutSnapshot) {
+    self.initialRounds = max(1, snapshot.initialRounds)
+    self.isActive = snapshot.isActive
+    self.isDecided = snapshot.isDecided
+    self.winner = snapshot.winner
+    self.firstKicker = snapshot.firstKicker
+    self.hasChosenFirstKicker = snapshot.hasChosenFirstKicker
+    self.homeTaken = snapshot.homeTaken
+    self.homeScored = snapshot.homeScored
+    self.homeResults = snapshot.homeResults
+    self.homeAttempts = snapshot.homeAttempts
+    self.awayTaken = snapshot.awayTaken
+    self.awayScored = snapshot.awayScored
+    self.awayResults = snapshot.awayResults
+    self.awayAttempts = snapshot.awayAttempts
+    self.attemptStack = snapshot.attemptStack
+    self.didPlayDecisionHaptic = snapshot.isDecided
+  }
+
   // MARK: - Internal
 
   private var didPlayDecisionHaptic: Bool = false

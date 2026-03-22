@@ -18,6 +18,58 @@ public struct PenaltyUndoResult {
     }
 }
 
+public struct PenaltyShootoutSnapshot: Codable, Equatable {
+    public var initialRounds: Int
+    public var isActive: Bool
+    public var isDecided: Bool
+    public var winner: TeamSide?
+    public var firstKicker: TeamSide
+    public var hasChosenFirstKicker: Bool
+    public var homeTaken: Int
+    public var homeScored: Int
+    public var homeResults: [PenaltyAttemptDetails.Result]
+    public var homeAttempts: [PenaltyAttemptDetails]
+    public var awayTaken: Int
+    public var awayScored: Int
+    public var awayResults: [PenaltyAttemptDetails.Result]
+    public var awayAttempts: [PenaltyAttemptDetails]
+    public var attemptStack: [TeamSide]
+
+    public init(
+        initialRounds: Int = 5,
+        isActive: Bool = false,
+        isDecided: Bool = false,
+        winner: TeamSide? = nil,
+        firstKicker: TeamSide = .home,
+        hasChosenFirstKicker: Bool = false,
+        homeTaken: Int = 0,
+        homeScored: Int = 0,
+        homeResults: [PenaltyAttemptDetails.Result] = [],
+        homeAttempts: [PenaltyAttemptDetails] = [],
+        awayTaken: Int = 0,
+        awayScored: Int = 0,
+        awayResults: [PenaltyAttemptDetails.Result] = [],
+        awayAttempts: [PenaltyAttemptDetails] = [],
+        attemptStack: [TeamSide] = []
+    ) {
+        self.initialRounds = initialRounds
+        self.isActive = isActive
+        self.isDecided = isDecided
+        self.winner = winner
+        self.firstKicker = firstKicker
+        self.hasChosenFirstKicker = hasChosenFirstKicker
+        self.homeTaken = homeTaken
+        self.homeScored = homeScored
+        self.homeResults = homeResults
+        self.homeAttempts = homeAttempts
+        self.awayTaken = awayTaken
+        self.awayScored = awayScored
+        self.awayResults = awayResults
+        self.awayAttempts = awayAttempts
+        self.attemptStack = attemptStack
+    }
+}
+
 public protocol PenaltyManaging: AnyObject {
     // Observables / State
     var isActive: Bool { get }
@@ -47,6 +99,8 @@ public protocol PenaltyManaging: AnyObject {
     func undoLastAttempt() -> PenaltyUndoResult?
     func swapKickingOrder()
     func end()
+    func snapshotState() -> PenaltyShootoutSnapshot
+    func restore(from snapshot: PenaltyShootoutSnapshot)
 
     // Event callbacks
     var onStart: (() -> Void)? { get set }

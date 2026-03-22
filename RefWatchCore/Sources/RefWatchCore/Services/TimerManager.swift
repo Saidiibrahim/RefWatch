@@ -32,6 +32,28 @@ public final class TimerManager: @unchecked Sendable { // @Observable in app; ob
         }
     }
 
+    public struct PersistenceState: Codable, Equatable {
+        public var periodStartTime: Date?
+        public var halfTimeStartTime: Date?
+        public var stoppageStartTime: Date?
+        public var stoppageAccumulated: TimeInterval
+        public var isInStoppage: Bool
+
+        public init(
+            periodStartTime: Date? = nil,
+            halfTimeStartTime: Date? = nil,
+            stoppageStartTime: Date? = nil,
+            stoppageAccumulated: TimeInterval = 0,
+            isInStoppage: Bool = false
+        ) {
+            self.periodStartTime = periodStartTime
+            self.halfTimeStartTime = halfTimeStartTime
+            self.stoppageStartTime = stoppageStartTime
+            self.stoppageAccumulated = stoppageAccumulated
+            self.isInStoppage = isInStoppage
+        }
+    }
+
     // MARK: - Internal State
     private var periodTimer: Timer?
     private var stoppageTimer: Timer?
@@ -188,6 +210,81 @@ public final class TimerManager: @unchecked Sendable { // @Observable in app; ob
         if let t = halftimeTimer { RunLoop.current.add(t, forMode: .common) }
     }
 
+    public func restorePeriod(
+        match: Match,
+        currentPeriod: Int,
+        persistenceState: PersistenceState,
+        isPaused: Bool,
+        onTick: @escaping (Snapshot) -> Void,
+        onPeriodEnd: @escaping () -> Void
+    ) {
+        self.activeMatch = match
+        self.activePeriod = currentPeriod
+        self.onTick = onTick
+        self.onPeriodEnd = onPeriodEnd
+
+        stopPeriodTimer()
+        stopStoppageTimer()
+        stopHalftimeTimer()
+
+        self.periodStartTime = persistenceState.periodStartTime ?? Date()
+        self.halfTimeStartTime = persistenceState.halfTimeStartTime
+        self.stoppageStartTime = persistenceState.stoppageStartTime
+        self.stoppageAccumulated = persistenceState.stoppageAccumulated
+        self.lastSnapshot = self.snapshot(at: Date(), isInStoppage: persistenceState.isInStoppage)
+
+        if isPaused == false {
+            startPeriodTimer()
+        }
+        if persistenceState.isInStoppage {
+            startStoppageTimer()
+        }
+
+        DispatchQueue.main.async {
+            onTick(self.lastSnapshot)
+        }
+    }
+
+    public func restoreHalfTime(
+        match: Match,
+        persistenceState: PersistenceState,
+        onTick: @escaping (String) -> Void
+    ) {
+        stopHalftimeTimer()
+        self.halfTimeStartTime = persistenceState.halfTimeStartTime ?? Date()
+        self.didFireHalftimeHaptic = false
+
+        let elapsed = Date().timeIntervalSince(self.halfTimeStartTime ?? Date())
+        DispatchQueue.main.async {
+            onTick(self.formatMMSS(elapsed))
+        }
+
+        halftimeTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            guard let self, let start = self.halfTimeStartTime else { return }
+            let currentElapsed = Date().timeIntervalSince(start)
+            let label = self.formatMMSS(currentElapsed)
+            DispatchQueue.main.async {
+                onTick(label)
+            }
+            if currentElapsed >= match.halfTimeLength && !self.didFireHalftimeHaptic {
+                #if os(watchOS)
+                WKInterfaceDevice.current().play(.notification)
+                #endif
+                self.didFireHalftimeHaptic = true
+            }
+        }
+        if let t = halftimeTimer { RunLoop.current.add(t, forMode: .common) }
+    }
+
+    public func persistenceState() -> PersistenceState {
+        PersistenceState(
+            periodStartTime: self.periodStartTime,
+            halfTimeStartTime: self.halfTimeStartTime,
+            stoppageStartTime: self.stoppageStartTime,
+            stoppageAccumulated: self.stoppageAccumulated,
+            isInStoppage: self.lastSnapshot.isInStoppage)
+    }
+
     /// Stops half-time updates.
     public func stopHalfTime() {
         stopHalftimeTimer()
@@ -222,40 +319,19 @@ public final class TimerManager: @unchecked Sendable { // @Observable in app; ob
     }
 
     private func handlePeriodTick() {
-        guard let match = activeMatch, let start = periodStartTime else { return }
+        guard self.activeMatch != nil, self.periodStartTime != nil else { return }
 
-        let now = Date()
-        let periodElapsed = now.timeIntervalSince(start)
-        let perDuration = perPeriodDurationSeconds(for: match, currentPeriod: activePeriod)
-
-        let remaining = max(0, perDuration - periodElapsed)
-        // Sum durations of all prior periods to get the correct accumulated match time
-        var priorDurations: TimeInterval = 0
-        if activePeriod > 1 {
-            for i in 1..<(activePeriod) {
-                priorDurations += perPeriodDurationSeconds(for: match, currentPeriod: i)
-            }
-        }
-        let totalMatchElapsed = priorDurations + periodElapsed
-
-        var snapshot = lastSnapshot
-        snapshot.periodTime = formatMMSS(periodElapsed)
-        snapshot.periodTimeRemaining = formatMMSS(remaining)
-        snapshot.matchTime = formatMMSS(totalMatchElapsed)
-
-        // If currently in stoppage, update the displayed value
-        if snapshot.isInStoppage, let stopStart = stoppageStartTime {
-            let currentStoppage = stoppageAccumulated + now.timeIntervalSince(stopStart)
-            snapshot.formattedStoppageTime = formatMMSS(currentStoppage)
-        }
-
-        lastSnapshot = snapshot
+        let snapshot = self.snapshot(at: Date(), isInStoppage: self.lastSnapshot.isInStoppage)
+        self.lastSnapshot = snapshot
         if let onTick = onTick {
             DispatchQueue.main.async { onTick(snapshot) }
         }
 
         // End of period
-        if periodElapsed >= perDuration {
+        if let match = self.activeMatch,
+           let start = self.periodStartTime,
+           Date().timeIntervalSince(start) >= self.perPeriodDurationSeconds(for: match, currentPeriod: self.activePeriod)
+        {
             stopPeriodTimer()
             if let onPeriodEnd = onPeriodEnd {
                 DispatchQueue.main.async { onPeriodEnd() }
@@ -322,6 +398,37 @@ public final class TimerManager: @unchecked Sendable { // @Observable in app; ob
 
         // Fallback: treat as zero-duration (e.g., penalties don't use period timer)
         return 0
+    }
+
+    private func snapshot(at now: Date, isInStoppage: Bool) -> Snapshot {
+        guard let match = self.activeMatch, let periodStartTime = self.periodStartTime else {
+            return self.lastSnapshot
+        }
+
+        let periodElapsed = now.timeIntervalSince(periodStartTime)
+        let perDuration = self.perPeriodDurationSeconds(for: match, currentPeriod: self.activePeriod)
+        let remaining = max(0, perDuration - periodElapsed)
+
+        var priorDurations: TimeInterval = 0
+        if self.activePeriod > 1 {
+            for period in 1..<self.activePeriod {
+                priorDurations += self.perPeriodDurationSeconds(for: match, currentPeriod: period)
+            }
+        }
+        let totalMatchElapsed = priorDurations + periodElapsed
+
+        var snapshot = self.lastSnapshot
+        snapshot.periodTime = self.formatMMSS(periodElapsed)
+        snapshot.periodTimeRemaining = self.formatMMSS(remaining)
+        snapshot.matchTime = self.formatMMSS(totalMatchElapsed)
+        snapshot.isInStoppage = isInStoppage
+        if isInStoppage, let stopStart = self.stoppageStartTime {
+            let currentStoppage = self.stoppageAccumulated + now.timeIntervalSince(stopStart)
+            snapshot.formattedStoppageTime = self.formatMMSS(currentStoppage)
+        } else {
+            snapshot.formattedStoppageTime = self.formatMMSS(self.stoppageAccumulated)
+        }
+        return snapshot
     }
 
     private func formatMMSS(_ interval: TimeInterval) -> String {

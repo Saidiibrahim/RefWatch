@@ -24,6 +24,7 @@ public final class MatchViewModel {
   public private(set) var librarySchedules: [MatchLibrarySchedule]
   private let history: MatchHistoryStoring
   private let backgroundRuntimeManager: BackgroundRuntimeManaging?
+  private let activeMatchSessionStore: ActiveMatchSessionStoring?
   private var librarySavedMatches: [Match]
   private var localSavedMatches: [Match]
   private enum LibraryScheduleStatus {
@@ -139,6 +140,7 @@ public final class MatchViewModel {
     haptics: HapticsProviding = NoopHaptics(),
     connectivity: ConnectivitySyncProviding? = nil,
     backgroundRuntimeManager: BackgroundRuntimeManaging? = nil,
+    activeMatchSessionStore: ActiveMatchSessionStoring? = nil,
     scheduleStatusUpdater: MatchScheduleStatusUpdating? = nil)
   {
     self.history = history
@@ -146,6 +148,7 @@ public final class MatchViewModel {
     self.haptics = haptics
     self.connectivity = connectivity
     self.backgroundRuntimeManager = backgroundRuntimeManager
+    self.activeMatchSessionStore = activeMatchSessionStore
     self.scheduleStatusUpdater = scheduleStatusUpdater
     self.savedMatches = []
     self.libraryTeams = []
@@ -169,7 +172,8 @@ public final class MatchViewModel {
       penaltyManager: PenaltyManager(),
       haptics: haptics,
       connectivity: connectivity,
-      backgroundRuntimeManager: backgroundRuntime)
+      backgroundRuntimeManager: backgroundRuntime,
+      activeMatchSessionStore: nil)
   }
 
   // MARK: - Match Management
@@ -185,10 +189,12 @@ public final class MatchViewModel {
     self.refreshSavedMatches()
     self.newMatch = Match()
     self.applyDefaultTeamsIfNeeded()
+    self.syncRuntimeSession(inactiveReason: .cancelled)
   }
 
   public func selectMatch(_ match: Match) {
     self.currentMatch = match
+    self.syncRuntimeSession(inactiveReason: .cancelled)
   }
 
   // MARK: - Library Integration
@@ -483,6 +489,7 @@ public final class MatchViewModel {
 
   private func endMatch() {
     self.isMatchInProgress = false
+    self.isPaused = false
     self.isFullTime = true
     self.timerManager.stopAll()
     self.timer = nil
@@ -501,6 +508,7 @@ public final class MatchViewModel {
       match.awayScore += increment ? 1 : -1
     }
     self.currentMatch = match
+    self.persistActiveMatchSessionIfNeeded()
   }
 
   public func addCard(isHome: Bool, isYellow: Bool) {
@@ -511,12 +519,14 @@ public final class MatchViewModel {
       if isYellow { match.awayYellowCards += 1 } else { match.awayRedCards += 1 }
     }
     self.currentMatch = match
+    self.persistActiveMatchSessionIfNeeded()
   }
 
   public func addSubstitution(isHome: Bool) {
     guard var match = currentMatch else { return }
     if isHome { match.homeSubs += 1 } else { match.awaySubs += 1 }
     self.currentMatch = match
+    self.persistActiveMatchSessionIfNeeded()
   }
 
   private func revertGoal(for team: TeamSide) {
@@ -527,6 +537,7 @@ public final class MatchViewModel {
       match.awayScore = max(0, match.awayScore - 1)
     }
     self.currentMatch = match
+    self.persistActiveMatchSessionIfNeeded()
   }
 
   private func revertCard(for team: TeamSide, cardType: CardDetails.CardType) {
@@ -542,6 +553,7 @@ public final class MatchViewModel {
       match.awayRedCards = max(0, match.awayRedCards - 1)
     }
     self.currentMatch = match
+    self.persistActiveMatchSessionIfNeeded()
   }
 
   private func revertSubstitution(for team: TeamSide) {
@@ -552,6 +564,7 @@ public final class MatchViewModel {
       match.awaySubs = max(0, match.awaySubs - 1)
     }
     self.currentMatch = match
+    self.persistActiveMatchSessionIfNeeded()
   }
 
   private func setPendingConfirmationIfNeeded(for event: MatchEventRecord) {
@@ -635,6 +648,7 @@ public final class MatchViewModel {
       penaltyInitialRounds: self.penaltyInitialRounds)
     self.currentMatch = self.newMatch
     self.waitingForMatchStart = false
+    self.persistActiveMatchSessionIfNeeded()
   }
 
   /// Applies the current settings to the in-progress match without rebuilding it.
@@ -665,11 +679,18 @@ public final class MatchViewModel {
         match: match,
         currentPeriod: self.currentPeriod)
     }
+    self.persistActiveMatchSessionIfNeeded()
   }
 
-  public func setKickingTeam(_ isHome: Bool) { self.homeTeamKickingOff = isHome }
+  public func setKickingTeam(_ isHome: Bool) {
+    self.homeTeamKickingOff = isHome
+    self.persistActiveMatchSessionIfNeeded()
+  }
   public func getSecondHalfKickingTeam() -> TeamSide { self.homeTeamKickingOff ? .away : .home }
-  public func setKickingTeamET1(_ isHome: Bool) { self.homeTeamKickingOffET1 = isHome }
+  public func setKickingTeamET1(_ isHome: Bool) {
+    self.homeTeamKickingOffET1 = isHome
+    self.persistActiveMatchSessionIfNeeded()
+  }
   public func getETSecondHalfKickingTeam() -> TeamSide {
     if let et1 = homeTeamKickingOffET1 { return et1 ? .away : .home }
     return self.getSecondHalfKickingTeam()
@@ -701,6 +722,7 @@ extension MatchViewModel {
       details: details)
     self.matchEvents.append(event)
     self.setPendingConfirmationIfNeeded(for: event)
+    self.persistActiveMatchSessionIfNeeded()
     return event
   }
 
@@ -798,6 +820,7 @@ extension MatchViewModel {
     }
 
     self.haptics.play(.success)
+    self.persistActiveMatchSessionIfNeeded()
     return true
   }
 
@@ -825,6 +848,7 @@ extension MatchViewModel {
 
   public func recordPenaltyAttempt(team: TeamSide, result: PenaltyAttemptDetails.Result, playerNumber: Int? = nil) {
     self.penaltyManager.recordAttempt(team: team, result: result, playerNumber: playerNumber)
+    self.persistActiveMatchSessionIfNeeded()
   }
 
   public func endPenaltiesAndProceed() {
@@ -857,16 +881,19 @@ extension MatchViewModel {
       self.haptics.play(.tap)
     }
 
+    self.persistActiveMatchSessionIfNeeded()
     return true
   }
 
   public func swapPenaltyOrder() {
     self.penaltyManager.swapKickingOrder()
     self.haptics.play(.tap)
+    self.persistActiveMatchSessionIfNeeded()
   }
 
   public func setPenaltyFirstKicker(_ team: TeamSide) {
     self.penaltyManager.setFirstKicker(team)
+    self.persistActiveMatchSessionIfNeeded()
   }
 
   @discardableResult
@@ -874,6 +901,7 @@ extension MatchViewModel {
     self.beginPenaltiesIfNeeded()
     guard self.penaltyManager.isActive else { return false }
     self.penaltyManager.setFirstKicker(team)
+    self.persistActiveMatchSessionIfNeeded()
     return true
   }
 
@@ -892,8 +920,6 @@ extension MatchViewModel {
       self.isMatchInProgress = false
       self.isPaused = false
       self.waitingForHalfTimeStart = true
-      // Auto-start half-time immediately after ending first half
-      self.startHalfTimeManually()
     } else if self.currentPeriod < match.numberOfPeriods {
       self.isMatchInProgress = false
       self.isPaused = false
@@ -963,6 +989,7 @@ extension MatchViewModel {
     self.penaltyStartEventLogged = false
     self.pendingConfirmation = nil
     self.applyDefaultTeamsIfNeeded()
+    self.clearPersistedActiveMatchSession()
   }
 
   @MainActor
@@ -1012,7 +1039,11 @@ extension MatchViewModel {
   }
 
   public func abandonMatch() { self.recordMatchEvent(.matchEnd); self.endMatch() }
-  public func navigateHome() { self.resetMatch(); self.currentMatch = nil }
+  public func navigateHome() {
+    self.resetMatch()
+    self.currentMatch = nil
+    self.clearPersistedActiveMatchSession()
+  }
 
   // MARK: - History Bridges
 
@@ -1174,6 +1205,69 @@ extension MatchViewModel {
     self.syncRuntimeSession(inactiveReason: .cancelled)
   }
 
+  @discardableResult
+  public func restorePersistedActiveMatchSessionIfAvailable() -> Bool {
+    guard let activeMatchSessionStore else { return false }
+    guard let snapshot = try? activeMatchSessionStore.load() else { return false }
+    guard snapshot.isUnfinished else {
+      self.clearPersistedActiveMatchSession()
+      return false
+    }
+    self.restore(from: snapshot)
+    return true
+  }
+
+  public func restore(from snapshot: ActiveMatchSessionSnapshot) {
+    guard snapshot.isUnfinished else {
+      self.clearPersistedActiveMatchSession()
+      return
+    }
+
+    self.timerManager.stopAll()
+    self.timer = nil
+    self.stoppageTimer = nil
+    self.pendingConfirmation = nil
+    self.lastPersistenceError = nil
+
+    self.currentMatch = snapshot.match
+    self.currentPeriod = snapshot.currentPeriod
+    self.isMatchInProgress = snapshot.isMatchInProgress
+    self.isHalfTime = snapshot.isHalfTime
+    self.isPaused = snapshot.isPaused
+    self.waitingForMatchStart = snapshot.waitingForMatchStart
+    self.waitingForHalfTimeStart = snapshot.waitingForHalfTimeStart
+    self.waitingForSecondHalfStart = snapshot.waitingForSecondHalfStart
+    self.waitingForET1Start = snapshot.waitingForET1Start
+    self.waitingForET2Start = snapshot.waitingForET2Start
+    self.waitingForPenaltiesStart = snapshot.waitingForPenaltiesStart
+    self.isFullTime = snapshot.isFullTime
+    self.matchCompleted = snapshot.matchCompleted
+    self.matchTime = snapshot.displayState.matchTime
+    self.periodTime = snapshot.displayState.periodTime
+    self.periodTimeRemaining = snapshot.displayState.periodTimeRemaining
+    self.halfTimeRemaining = snapshot.displayState.halfTimeRemaining
+    self.halfTimeElapsed = snapshot.displayState.halfTimeElapsed
+    self.formattedStoppageTime = snapshot.displayState.formattedStoppageTime
+    self.isInStoppage = snapshot.isInStoppage
+    self.homeTeamKickingOff = snapshot.homeTeamKickingOff
+    self.homeTeamKickingOffET1 = snapshot.homeTeamKickingOffET1
+    self.matchEvents = snapshot.matchEvents
+    self.penaltyStartEventLogged = snapshot.penaltyStartEventLogged
+    self.penaltyManager.restore(from: snapshot.penaltyState)
+    self.wirePenaltyCallbacks()
+
+    if let match = self.currentMatch,
+       self.localSavedMatches.contains(where: { $0.id == match.id }) == false,
+       self.librarySavedMatches.contains(where: { $0.id == match.id }) == false
+    {
+      self.localSavedMatches.append(match)
+      self.refreshSavedMatches()
+    }
+
+    self.restoreTimerState(from: snapshot)
+    self.syncRuntimeSession(inactiveReason: .cancelled)
+  }
+
   // MARK: - Background Runtime Support
 
   public func reconcileBackgroundRuntimeSession() {
@@ -1188,6 +1282,10 @@ extension MatchViewModel {
   }
 
   private func syncRuntimeSession(inactiveReason: BackgroundRuntimeEndReason) {
+    defer {
+      self.persistActiveMatchSessionIfNeeded()
+    }
+
     guard let runtimeManager = self.backgroundRuntimeManager else { return }
 
     guard self.runtimeProtectionRequired else {
@@ -1209,19 +1307,22 @@ extension MatchViewModel {
   }
 
   private var runtimeProtectionRequired: Bool {
-    self.isMatchInProgress ||
+    (self.waitingForMatchStart && self.currentMatch != nil) ||
+      self.isMatchInProgress ||
       self.isHalfTime ||
       self.waitingForHalfTimeStart ||
       self.waitingForSecondHalfStart ||
       self.waitingForET1Start ||
       self.waitingForET2Start ||
       self.waitingForPenaltiesStart ||
-      self.penaltyShootoutActive
+      self.penaltyShootoutActive ||
+      (self.isFullTime && self.matchCompleted == false && self.currentMatch != nil)
   }
 
   private var runtimePhaseLabel: String {
     if self.penaltyShootoutActive { return "penalties" }
     if self.waitingForPenaltiesStart { return "waiting-penalties" }
+    if self.isFullTime && self.matchCompleted == false { return "full-time-pending-completion" }
     if self.isHalfTime { return "halftime" }
     if self.waitingForHalfTimeStart { return "waiting-halftime" }
     if self.waitingForSecondHalfStart { return "waiting-second-half" }
@@ -1251,5 +1352,84 @@ extension MatchViewModel {
     data["runtimeProtectionRequired"] = self.runtimeProtectionRequired ? "true" : "false"
     data["hasExtraTime"] = match.hasExtraTime ? "true" : "false"
     return data
+  }
+
+  private func restoreTimerState(from snapshot: ActiveMatchSessionSnapshot) {
+    guard let match = self.currentMatch else { return }
+
+    if self.isHalfTime {
+      self.timerManager.restoreHalfTime(match: match, persistenceState: snapshot.timerState) { [weak self] elapsed in
+        self?.halfTimeElapsed = elapsed
+      }
+      return
+    }
+
+    if self.isMatchInProgress || self.isPaused {
+      let restoredPeriod = self.currentPeriod
+      self.timerManager.restorePeriod(
+        match: match,
+        currentPeriod: restoredPeriod,
+        persistenceState: snapshot.timerState,
+        isPaused: self.isPaused,
+        onTick: { [weak self] restoredSnapshot in
+          guard let self else { return }
+          self.matchTime = restoredSnapshot.matchTime
+          self.periodTime = restoredSnapshot.periodTime
+          self.periodTimeRemaining = restoredSnapshot.periodTimeRemaining
+          self.formattedStoppageTime = restoredSnapshot.formattedStoppageTime
+          self.isInStoppage = restoredSnapshot.isInStoppage
+        },
+        onPeriodEnd: { [weak self] in
+          self?.endPeriod(expectedPeriod: restoredPeriod)
+        })
+    }
+  }
+
+  private func persistActiveMatchSessionIfNeeded() {
+    guard let activeMatchSessionStore else { return }
+
+    guard let snapshot = self.makeActiveMatchSessionSnapshot(), snapshot.isUnfinished else {
+      try? activeMatchSessionStore.clear()
+      return
+    }
+
+    try? activeMatchSessionStore.save(snapshot)
+  }
+
+  private func clearPersistedActiveMatchSession() {
+    try? self.activeMatchSessionStore?.clear()
+  }
+
+  private func makeActiveMatchSessionSnapshot() -> ActiveMatchSessionSnapshot? {
+    guard let currentMatch else { return nil }
+
+    return ActiveMatchSessionSnapshot(
+      match: currentMatch,
+      currentPeriod: self.currentPeriod,
+      isMatchInProgress: self.isMatchInProgress,
+      isHalfTime: self.isHalfTime,
+      isPaused: self.isPaused,
+      waitingForMatchStart: self.waitingForMatchStart,
+      waitingForHalfTimeStart: self.waitingForHalfTimeStart,
+      waitingForSecondHalfStart: self.waitingForSecondHalfStart,
+      waitingForET1Start: self.waitingForET1Start,
+      waitingForET2Start: self.waitingForET2Start,
+      waitingForPenaltiesStart: self.waitingForPenaltiesStart,
+      isFullTime: self.isFullTime,
+      matchCompleted: self.matchCompleted,
+      displayState: ActiveMatchDisplayState(
+        matchTime: self.matchTime,
+        periodTime: self.periodTime,
+        periodTimeRemaining: self.periodTimeRemaining,
+        halfTimeRemaining: self.halfTimeRemaining,
+        halfTimeElapsed: self.halfTimeElapsed,
+        formattedStoppageTime: self.formattedStoppageTime),
+      isInStoppage: self.isInStoppage,
+      homeTeamKickingOff: self.homeTeamKickingOff,
+      homeTeamKickingOffET1: self.homeTeamKickingOffET1,
+      matchEvents: self.matchEvents,
+      penaltyState: self.penaltyManager.snapshotState(),
+      timerState: self.timerManager.persistenceState(),
+      penaltyStartEventLogged: self.penaltyStartEventLogged)
   }
 }
