@@ -3,17 +3,35 @@ import XCTest
 
 final class MatchViewModel_BackgroundRuntimeTests: XCTestCase {
   @MainActor
+  func test_createMatchBeginsRuntimeSessionWhileWaitingForKickoff() {
+    let runtimeSpy = BackgroundRuntimeManagerSpy()
+    let viewModel = MatchViewModel(backgroundRuntime: runtimeSpy)
+    viewModel.newMatch.homeTeam = "Home"
+    viewModel.newMatch.awayTeam = "Away"
+
+    viewModel.createMatch()
+
+    XCTAssertEqual(runtimeSpy.beginCalls.count, 1)
+    XCTAssertEqual(runtimeSpy.beginCalls.first?.kind, .match)
+    XCTAssertEqual(runtimeSpy.beginCalls.first?.metadata["phase"], "waiting-kickoff")
+    XCTAssertEqual(runtimeSpy.pauseCount, 0)
+    XCTAssertEqual(runtimeSpy.resumeCount, 1)
+  }
+
+  @MainActor
   func test_startMatchBeginsRuntimeSession() {
     let runtimeSpy = BackgroundRuntimeManagerSpy()
     let viewModel = MatchViewModel(backgroundRuntime: runtimeSpy)
     viewModel.newMatch.homeTeam = "Home"
     viewModel.newMatch.awayTeam = "Away"
     viewModel.createMatch()
+    runtimeSpy.resetHistory()
 
     viewModel.startMatch()
 
     XCTAssertEqual(runtimeSpy.beginCalls.count, 1)
     XCTAssertEqual(runtimeSpy.beginCalls.first?.kind, .match)
+    XCTAssertEqual(runtimeSpy.beginCalls.first?.metadata["phase"], "in-play")
     XCTAssertEqual(runtimeSpy.pauseCount, 0)
     XCTAssertEqual(runtimeSpy.resumeCount, 1)
   }
@@ -25,6 +43,7 @@ final class MatchViewModel_BackgroundRuntimeTests: XCTestCase {
     viewModel.newMatch.homeTeam = "Home"
     viewModel.newMatch.awayTeam = "Away"
     viewModel.createMatch()
+    runtimeSpy.resetHistory()
     viewModel.startMatch()
 
     viewModel.pauseMatch()
@@ -35,15 +54,20 @@ final class MatchViewModel_BackgroundRuntimeTests: XCTestCase {
   }
 
   @MainActor
-  func test_finishingMatchEndsRuntimeSession() {
+  func test_runtimeStaysActiveUntilFinalCompletion() {
     let runtimeSpy = BackgroundRuntimeManagerSpy()
     let viewModel = MatchViewModel(backgroundRuntime: runtimeSpy)
     viewModel.newMatch.homeTeam = "Home"
     viewModel.newMatch.awayTeam = "Away"
     viewModel.createMatch()
     viewModel.startMatch()
+    runtimeSpy.resetHistory()
 
     viewModel.endPenaltiesAndProceed()
+    XCTAssertTrue(viewModel.isFullTime)
+    XCTAssertTrue(runtimeSpy.endReasons.isEmpty)
+
+    viewModel.finalizeMatch()
 
     XCTAssertEqual(runtimeSpy.endReasons.last, .completed)
   }
@@ -70,9 +94,12 @@ final class MatchViewModel_BackgroundRuntimeTests: XCTestCase {
     viewModel.startMatch()
 
     viewModel.endCurrentPeriod()
-    XCTAssertTrue(viewModel.isHalfTime)
+    XCTAssertTrue(viewModel.waitingForHalfTimeStart)
+    XCTAssertFalse(viewModel.isHalfTime)
     XCTAssertTrue(runtimeSpy.endReasons.isEmpty)
+    XCTAssertEqual(runtimeSpy.beginCalls.last?.metadata["phase"], "waiting-halftime")
 
+    viewModel.startHalfTimeManually()
     viewModel.endHalfTimeManually()
     XCTAssertTrue(viewModel.waitingForSecondHalfStart)
     XCTAssertTrue(runtimeSpy.endReasons.isEmpty)
@@ -87,6 +114,7 @@ final class MatchViewModel_BackgroundRuntimeTests: XCTestCase {
     viewModel.startMatch()
 
     viewModel.endCurrentPeriod()
+    viewModel.startHalfTimeManually()
     viewModel.endHalfTimeManually()
     viewModel.startSecondHalfManually()
     viewModel.endCurrentPeriod()
@@ -145,10 +173,28 @@ final class MatchViewModel_BackgroundRuntimeTests: XCTestCase {
     viewModel.waitingForET1Start = false
     viewModel.waitingForET2Start = false
     viewModel.waitingForPenaltiesStart = false
+    viewModel.isFullTime = false
 
     viewModel.reconcileBackgroundRuntimeSession()
 
     XCTAssertEqual(runtimeSpy.endReasons.last, .cancelled)
+  }
+
+  @MainActor
+  func test_fullTimeBeforeFinalizeRemainsRuntimeProtected() {
+    let runtimeSpy = BackgroundRuntimeManagerSpy()
+    let viewModel = MatchViewModel(backgroundRuntime: runtimeSpy)
+    viewModel.newMatch.homeTeam = "Home"
+    viewModel.newMatch.awayTeam = "Away"
+    viewModel.createMatch()
+    viewModel.startMatch()
+    runtimeSpy.resetHistory()
+
+    viewModel.endPenaltiesAndProceed()
+
+    XCTAssertTrue(viewModel.isFullTime)
+    XCTAssertTrue(runtimeSpy.endReasons.isEmpty)
+    XCTAssertEqual(runtimeSpy.beginCalls.last?.metadata["phase"], "full-time-pending-completion")
   }
 }
 

@@ -220,6 +220,326 @@ extension RefWatch_Watch_AppUITests {
   }
 }
 
+// MARK: - Restore routing UI tests
+
+extension RefWatch_Watch_AppUITests {
+  @MainActor
+  func testLaunchWithWaitingPenaltiesSnapshotOpensFirstKickerScreen() throws {
+    let app = XCUIApplication()
+    app.launchEnvironment["REFWATCH_ACTIVE_MATCH_SNAPSHOT_BASE64"] = encodedSnapshot(
+      currentPeriod: 4,
+      waitingForPenaltiesStart: true)
+
+    app.launch()
+
+    XCTAssertTrue(app.buttons["firstKickerHomeBtn"].waitForExistence(timeout: 20))
+  }
+
+  @MainActor
+  func testLaunchWithWaitingHalfTimeSnapshotOpensTimerSurface() throws {
+    let app = XCUIApplication()
+    app.launchEnvironment["REFWATCH_ACTIVE_MATCH_SNAPSHOT_BASE64"] = encodedSnapshot(
+      currentPeriod: 1,
+      waitingForHalfTimeStart: true,
+      matchTime: "45:00")
+
+    app.launch()
+
+    XCTAssertTrue(app.staticTexts["Half Time"].waitForExistence(timeout: 20))
+  }
+}
+
+private func encodedSnapshot(
+  currentPeriod: Int,
+  waitingForHalfTimeStart: Bool = false,
+  waitingForPenaltiesStart: Bool = false,
+  matchTime: String = "00:00"
+) -> String {
+  let snapshot = EncodedActiveMatchSessionSnapshot(
+    match: EncodedMatch(homeTeam: "Home", awayTeam: "Away", hasExtraTime: true, hasPenalties: true),
+    currentPeriod: currentPeriod,
+    isMatchInProgress: false,
+    isHalfTime: false,
+    isPaused: false,
+    waitingForMatchStart: false,
+    waitingForHalfTimeStart: waitingForHalfTimeStart,
+    waitingForSecondHalfStart: false,
+    waitingForET1Start: false,
+    waitingForET2Start: false,
+    waitingForPenaltiesStart: waitingForPenaltiesStart,
+    isFullTime: false,
+    matchCompleted: false,
+    displayState: EncodedActiveMatchDisplayState(
+      matchTime: matchTime,
+      periodTime: "00:00",
+      periodTimeRemaining: "00:00",
+      halfTimeRemaining: "00:00",
+      halfTimeElapsed: "00:00",
+      formattedStoppageTime: "00:00"),
+    isInStoppage: false,
+    homeTeamKickingOff: true,
+    homeTeamKickingOffET1: nil,
+    matchEvents: [],
+    penaltyState: EncodedPenaltyShootoutSnapshot(),
+    timerState: EncodedTimerPersistenceState(),
+    penaltyStartEventLogged: false)
+
+  let data = try! JSONEncoder().encode(snapshot)
+  return data.base64EncodedString()
+}
+
+private struct EncodedActiveMatchSessionSnapshot: Codable {
+  let schemaVersion: Int
+  let match: EncodedMatch
+  let currentPeriod: Int
+  let isMatchInProgress: Bool
+  let isHalfTime: Bool
+  let isPaused: Bool
+  let waitingForMatchStart: Bool
+  let waitingForHalfTimeStart: Bool
+  let waitingForSecondHalfStart: Bool
+  let waitingForET1Start: Bool
+  let waitingForET2Start: Bool
+  let waitingForPenaltiesStart: Bool
+  let isFullTime: Bool
+  let matchCompleted: Bool
+  let displayState: EncodedActiveMatchDisplayState
+  let isInStoppage: Bool
+  let homeTeamKickingOff: Bool
+  let homeTeamKickingOffET1: Bool?
+  let matchEvents: [EncodedMatchEventRecord]
+  let penaltyState: EncodedPenaltyShootoutSnapshot
+  let timerState: EncodedTimerPersistenceState
+  let penaltyStartEventLogged: Bool
+  let savedAt: Date
+
+  init(
+    schemaVersion: Int = 1,
+    match: EncodedMatch,
+    currentPeriod: Int,
+    isMatchInProgress: Bool,
+    isHalfTime: Bool,
+    isPaused: Bool,
+    waitingForMatchStart: Bool,
+    waitingForHalfTimeStart: Bool,
+    waitingForSecondHalfStart: Bool = false,
+    waitingForET1Start: Bool = false,
+    waitingForET2Start: Bool = false,
+    waitingForPenaltiesStart: Bool,
+    isFullTime: Bool,
+    matchCompleted: Bool,
+    displayState: EncodedActiveMatchDisplayState,
+    isInStoppage: Bool,
+    homeTeamKickingOff: Bool,
+    homeTeamKickingOffET1: Bool?,
+    matchEvents: [EncodedMatchEventRecord],
+    penaltyState: EncodedPenaltyShootoutSnapshot,
+    timerState: EncodedTimerPersistenceState,
+    penaltyStartEventLogged: Bool,
+    savedAt: Date = Date())
+  {
+    self.schemaVersion = schemaVersion
+    self.match = match
+    self.currentPeriod = currentPeriod
+    self.isMatchInProgress = isMatchInProgress
+    self.isHalfTime = isHalfTime
+    self.isPaused = isPaused
+    self.waitingForMatchStart = waitingForMatchStart
+    self.waitingForHalfTimeStart = waitingForHalfTimeStart
+    self.waitingForSecondHalfStart = waitingForSecondHalfStart
+    self.waitingForET1Start = waitingForET1Start
+    self.waitingForET2Start = waitingForET2Start
+    self.waitingForPenaltiesStart = waitingForPenaltiesStart
+    self.isFullTime = isFullTime
+    self.matchCompleted = matchCompleted
+    self.displayState = displayState
+    self.isInStoppage = isInStoppage
+    self.homeTeamKickingOff = homeTeamKickingOff
+    self.homeTeamKickingOffET1 = homeTeamKickingOffET1
+    self.matchEvents = matchEvents
+    self.penaltyState = penaltyState
+    self.timerState = timerState
+    self.penaltyStartEventLogged = penaltyStartEventLogged
+    self.savedAt = savedAt
+  }
+}
+
+private struct EncodedActiveMatchDisplayState: Codable {
+  let matchTime: String
+  let periodTime: String
+  let periodTimeRemaining: String
+  let halfTimeRemaining: String
+  let halfTimeElapsed: String
+  let formattedStoppageTime: String
+}
+
+private struct EncodedMatch: Codable {
+  let id: UUID
+  let scheduledMatchId: UUID?
+  let homeTeam: String
+  let awayTeam: String
+  let homeTeamId: UUID?
+  let awayTeamId: UUID?
+  let competitionId: UUID?
+  let competitionName: String?
+  let venueId: UUID?
+  let venueName: String?
+  let startTime: Date?
+  let duration: TimeInterval
+  let numberOfPeriods: Int
+  let halfTimeLength: TimeInterval
+  let extraTimeHalfLength: TimeInterval
+  let hasExtraTime: Bool
+  let hasPenalties: Bool
+  let penaltyInitialRounds: Int
+  let homeScore: Int
+  let awayScore: Int
+  let homeYellowCards: Int
+  let awayYellowCards: Int
+  let homeRedCards: Int
+  let awayRedCards: Int
+  let homeSubs: Int
+  let awaySubs: Int
+
+  init(
+    id: UUID = UUID(),
+    scheduledMatchId: UUID? = nil,
+    homeTeam: String,
+    awayTeam: String,
+    homeTeamId: UUID? = nil,
+    awayTeamId: UUID? = nil,
+    competitionId: UUID? = nil,
+    competitionName: String? = nil,
+    venueId: UUID? = nil,
+    venueName: String? = nil,
+    startTime: Date? = nil,
+    duration: TimeInterval = 90 * 60,
+    numberOfPeriods: Int = 2,
+    halfTimeLength: TimeInterval = 15 * 60,
+    extraTimeHalfLength: TimeInterval = 15 * 60,
+    hasExtraTime: Bool,
+    hasPenalties: Bool,
+    penaltyInitialRounds: Int = 5,
+    homeScore: Int = 0,
+    awayScore: Int = 0,
+    homeYellowCards: Int = 0,
+    awayYellowCards: Int = 0,
+    homeRedCards: Int = 0,
+    awayRedCards: Int = 0,
+    homeSubs: Int = 0,
+    awaySubs: Int = 0)
+  {
+    self.id = id
+    self.scheduledMatchId = scheduledMatchId
+    self.homeTeam = homeTeam
+    self.awayTeam = awayTeam
+    self.homeTeamId = homeTeamId
+    self.awayTeamId = awayTeamId
+    self.competitionId = competitionId
+    self.competitionName = competitionName
+    self.venueId = venueId
+    self.venueName = venueName
+    self.startTime = startTime
+    self.duration = duration
+    self.numberOfPeriods = numberOfPeriods
+    self.halfTimeLength = halfTimeLength
+    self.extraTimeHalfLength = extraTimeHalfLength
+    self.hasExtraTime = hasExtraTime
+    self.hasPenalties = hasPenalties
+    self.penaltyInitialRounds = penaltyInitialRounds
+    self.homeScore = homeScore
+    self.awayScore = awayScore
+    self.homeYellowCards = homeYellowCards
+    self.awayYellowCards = awayYellowCards
+    self.homeRedCards = homeRedCards
+    self.awayRedCards = awayRedCards
+    self.homeSubs = homeSubs
+    self.awaySubs = awaySubs
+  }
+}
+
+private struct EncodedPenaltyShootoutSnapshot: Codable {
+  let initialRounds: Int
+  let isActive: Bool
+  let isDecided: Bool
+  let winner: String?
+  let firstKicker: String
+  let hasChosenFirstKicker: Bool
+  let homeTaken: Int
+  let homeScored: Int
+  let homeResults: [String]
+  let homeAttempts: [EncodedPenaltyAttemptDetails]
+  let awayTaken: Int
+  let awayScored: Int
+  let awayResults: [String]
+  let awayAttempts: [EncodedPenaltyAttemptDetails]
+  let attemptStack: [String]
+
+  init(
+    initialRounds: Int = 5,
+    isActive: Bool = false,
+    isDecided: Bool = false,
+    winner: String? = nil,
+    firstKicker: String = "Home",
+    hasChosenFirstKicker: Bool = false,
+    homeTaken: Int = 0,
+    homeScored: Int = 0,
+    homeResults: [String] = [],
+    homeAttempts: [EncodedPenaltyAttemptDetails] = [],
+    awayTaken: Int = 0,
+    awayScored: Int = 0,
+    awayResults: [String] = [],
+    awayAttempts: [EncodedPenaltyAttemptDetails] = [],
+    attemptStack: [String] = [])
+  {
+    self.initialRounds = initialRounds
+    self.isActive = isActive
+    self.isDecided = isDecided
+    self.winner = winner
+    self.firstKicker = firstKicker
+    self.hasChosenFirstKicker = hasChosenFirstKicker
+    self.homeTaken = homeTaken
+    self.homeScored = homeScored
+    self.homeResults = homeResults
+    self.homeAttempts = homeAttempts
+    self.awayTaken = awayTaken
+    self.awayScored = awayScored
+    self.awayResults = awayResults
+    self.awayAttempts = awayAttempts
+    self.attemptStack = attemptStack
+  }
+}
+
+private struct EncodedPenaltyAttemptDetails: Codable {
+  let result: String
+  let playerNumber: Int?
+  let round: Int
+}
+
+private struct EncodedTimerPersistenceState: Codable {
+  let periodStartTime: Date?
+  let halfTimeStartTime: Date?
+  let stoppageStartTime: Date?
+  let stoppageAccumulated: TimeInterval
+  let isInStoppage: Bool
+
+  init(
+    periodStartTime: Date? = nil,
+    halfTimeStartTime: Date? = nil,
+    stoppageStartTime: Date? = nil,
+    stoppageAccumulated: TimeInterval = 0,
+    isInStoppage: Bool = false)
+  {
+    self.periodStartTime = periodStartTime
+    self.halfTimeStartTime = halfTimeStartTime
+    self.stoppageStartTime = stoppageStartTime
+    self.stoppageAccumulated = stoppageAccumulated
+    self.isInStoppage = isInStoppage
+  }
+}
+
+private struct EncodedMatchEventRecord: Codable {}
+
 // MARK: - Penalties Edge Cases
 
 extension RefWatch_Watch_AppUITests {

@@ -36,6 +36,8 @@ final class FakePenaltyManagerNeverBegins: PenaltyManaging {
   func undoLastAttempt() -> PenaltyUndoResult? { nil }
   func swapKickingOrder() {}
   func end() { self.isActive = false }
+  func snapshotState() -> PenaltyShootoutSnapshot { PenaltyShootoutSnapshot() }
+  func restore(from snapshot: PenaltyShootoutSnapshot) {}
 
   var onStart: (() -> Void)?
   var onAttempt: ((TeamSide, PenaltyAttemptDetails) -> Void)?

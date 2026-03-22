@@ -1,193 +1,81 @@
 import Testing
-import WatchKit
 import RefWatchCore
 @testable import RefWatch_Watch_App
 
 @MainActor
 struct BackgroundRuntimeSessionControllerTests {
   @Test
-  func restartOnExpiredInvalidationWhileActivityIsActive() {
-    let factory = FakeRuntimeSessionFactory()
-    let controller = BackgroundRuntimeSessionController(
-      sessionFactory: { factory.make() },
-      isAppActiveProvider: { true },
-      maxConsecutiveStartFailures: 3)
+  func beginAuthorizesAndStartsSingleWorkoutRuntimeSession() async {
+    let provider = FakeMatchRuntimeSessionProvider()
+    let controller = BackgroundRuntimeSessionController(provider: provider)
 
-    controller.begin(kind: .match, title: "Match", metadata: [:])
-    #expect(factory.created.count == 1)
+    controller.begin(kind: .match, title: "Match", metadata: ["phase": "in-play"])
+    await settleController()
 
-    let firstSession = tryRequire(factory.created.first)
-    firstSession.emitDidStart()
-    firstSession.emitInvalidation(reason: .expired)
-
-    #expect(factory.created.count == 2)
+    #expect(provider.authorizationRequestCount == 1)
+    #expect(provider.startCount == 1)
+    #expect(provider.lastStartedTitle == "Match")
+    #expect(provider.lastStartedMetadata["phase"] == "in-play")
+    #expect(provider.hasActiveSession)
+    #expect(controller.status == .running(startedAt: provider.startedAt ?? Date.distantPast))
   }
 
   @Test
-  func startupFailureRetriesAreCapped() {
-    let factory = FakeRuntimeSessionFactory()
-    let controller = BackgroundRuntimeSessionController(
-      sessionFactory: { factory.make() },
-      isAppActiveProvider: { true },
-      maxConsecutiveStartFailures: 2)
+  func beginUsesRecoveredSessionBeforeStartingNewOne() async {
+    let provider = FakeMatchRuntimeSessionProvider()
+    provider.recoverResult = true
+    let controller = BackgroundRuntimeSessionController(provider: provider)
 
-    controller.begin(kind: .match, title: "Match", metadata: [:])
-    #expect(factory.created.count == 1)
+    controller.begin(kind: .match, title: "Recovered", metadata: ["phase": "halftime"])
+    await settleController()
 
-    let firstSession = tryRequire(factory.created.first)
-    firstSession.emitInvalidation(reason: .sessionInProgress)
-
-    #expect(factory.created.count == 2)
-
-    let secondSession = tryRequire(factory.created.last)
-    secondSession.emitInvalidation(reason: .sessionInProgress)
-
-    // Second startup failure should exhaust retry budget when max is 2.
-    #expect(factory.created.count == 2)
+    #expect(provider.recoverCount == 1)
+    #expect(provider.startCount == 0)
+    #expect(provider.updateCount == 1)
+    #expect(controller.status == .running(startedAt: provider.startedAt ?? Date.distantPast))
   }
 
   @Test
-  func willExpireTriggersFallbackRenewal() {
-    let factory = FakeRuntimeSessionFactory()
-    let controller = BackgroundRuntimeSessionController(
-      sessionFactory: { factory.make() },
-      isAppActiveProvider: { true },
-      maxConsecutiveStartFailures: 3)
+  func endStopsActiveWorkoutSessionOnce() async {
+    let provider = FakeMatchRuntimeSessionProvider()
+    let controller = BackgroundRuntimeSessionController(provider: provider)
 
     controller.begin(kind: .match, title: "Match", metadata: [:])
-    #expect(factory.created.count == 1)
+    await settleController()
+    controller.end(reason: .completed)
+    await settleController()
 
-    let firstSession = tryRequire(factory.created.first)
-    firstSession.emitDidStart()
-
-    // Simulate willExpire — should trigger proactive renewal creating a new session
-    firstSession.emitWillExpire()
-
-    #expect(factory.created.count == 2)
+    #expect(provider.stopReasons == [.completed])
+    #expect(provider.hasActiveSession == false)
+    #expect(controller.status == .idle)
   }
 
   @Test
-  func proactiveRenewalChainsWhileInactiveWhenCurrentSessionIsRunning() {
-    let factory = FakeRuntimeSessionFactory()
-    var isAppActive = true
-    let controller = BackgroundRuntimeSessionController(
-      sessionFactory: { factory.make() },
-      isAppActiveProvider: { isAppActive },
-      maxConsecutiveStartFailures: 3)
+  func deniedAuthorizationFailsWithoutStartingSession() async {
+    let provider = FakeMatchRuntimeSessionProvider()
+    provider.authorizationResult = false
+    let controller = BackgroundRuntimeSessionController(provider: provider)
 
     controller.begin(kind: .match, title: "Match", metadata: [:])
-    let firstSession = tryRequire(factory.created.first)
-    firstSession.emitDidStart()
+    await settleController()
 
-    isAppActive = false
-    firstSession.emitWillExpire()
-
-    #expect(factory.created.count == 2)
+    #expect(provider.startCount == 0)
+    #expect(controller.status == .failed)
   }
 
   @Test
-  func oldSessionInvalidationAfterProactiveRenewalIsIgnored() {
-    let factory = FakeRuntimeSessionFactory()
-    let controller = BackgroundRuntimeSessionController(
-      sessionFactory: { factory.make() },
-      isAppActiveProvider: { true },
-      maxConsecutiveStartFailures: 3)
+  func pauseAndResumeOnlyUpdateRuntimeMetadata() async {
+    let provider = FakeMatchRuntimeSessionProvider()
+    let controller = BackgroundRuntimeSessionController(provider: provider)
 
-    controller.begin(kind: .match, title: "Match", metadata: [:])
-    let firstSession = tryRequire(factory.created.first)
-    firstSession.emitDidStart()
-    firstSession.emitWillExpire()
+    controller.begin(kind: .match, title: "Match", metadata: ["phase": "in-play", "isPaused": "false"])
+    await settleController()
 
-    #expect(factory.created.count == 2)
+    controller.notifyPause()
+    controller.notifyResume()
 
-    controller.extendedRuntimeSession(firstSession, didInvalidateWith: .expired, error: nil)
-
-    #expect(factory.created.count == 2)
-  }
-
-  @Test
-  func endPreventsFallbackRenewalAfterCleanup() {
-    let factory = FakeRuntimeSessionFactory()
-    let controller = BackgroundRuntimeSessionController(
-      sessionFactory: { factory.make() },
-      isAppActiveProvider: { true },
-      maxConsecutiveStartFailures: 3)
-
-    controller.begin(kind: .match, title: "Match", metadata: [:])
-    let firstSession = tryRequire(factory.created.first)
-    firstSession.emitDidStart()
-    #expect(controller.hasScheduledRenewalTimerForTesting)
-
-    // end() should clean up; a subsequent willExpire should NOT create a new session
-    controller.end(reason: .cancelled)
-    #expect(controller.hasScheduledRenewalTimerForTesting == false)
-    firstSession.emitWillExpire()
-
-    // After end, cleanup removes the old delegate and currentKind is nil.
-    #expect(factory.created.count == 1)
-  }
-
-  @Test
-  func beginDefersWhileInactiveUntilAppBecomesActive() {
-    let factory = FakeRuntimeSessionFactory()
-    var isAppActive = false
-    let controller = BackgroundRuntimeSessionController(
-      sessionFactory: { factory.make() },
-      isAppActiveProvider: { isAppActive },
-      maxConsecutiveStartFailures: 3)
-
-    controller.begin(kind: .match, title: "Match", metadata: [:])
-    #expect(factory.created.isEmpty)
-
-    isAppActive = true
-    controller.begin(kind: .match, title: "Match", metadata: [:])
-
-    #expect(factory.created.count == 1)
-  }
-
-  @Test
-  func proactiveRenewalCreatesNewSessionWhenActive() {
-    let factory = FakeRuntimeSessionFactory()
-    let controller = BackgroundRuntimeSessionController(
-      sessionFactory: { factory.make() },
-      isAppActiveProvider: { true },
-      maxConsecutiveStartFailures: 3)
-
-    controller.begin(kind: .match, title: "Match", metadata: [:])
-    let firstSession = tryRequire(factory.created.first)
-    firstSession.emitDidStart()
-
-    // Simulate willExpire (which calls performProactiveRenewal)
-    firstSession.emitWillExpire()
-
-    #expect(factory.created.count == 2)
-
-    // The new session should be started
-    let secondSession = tryRequire(factory.created.last)
-    #expect(secondSession.startCallCount == 1)
-  }
-
-  @Test
-  func endIsIdempotentAndInvalidatesOnlyOnce() {
-    let factory = FakeRuntimeSessionFactory()
-    let controller = BackgroundRuntimeSessionController(
-      sessionFactory: { factory.make() },
-      isAppActiveProvider: { true },
-      maxConsecutiveStartFailures: 3)
-
-    controller.begin(kind: .match, title: "Match", metadata: [:])
-    let session = tryRequire(factory.created.first)
-
-    controller.end(reason: .cancelled)
-    controller.end(reason: .reset)
-
-    #expect(session.invalidateCallCount == 1)
-
-    if case .idle = controller.status {
-      #expect(true)
-    } else {
-      #expect(Bool(false), "Expected controller status to be idle after end")
-    }
+    #expect(provider.updateCount == 2)
+    #expect(provider.lastUpdatedMetadata["isPaused"] == "false")
   }
 
   @Test
@@ -222,52 +110,58 @@ struct BackgroundRuntimeSessionControllerTests {
 }
 
 @MainActor
-private final class FakeRuntimeSessionFactory {
-  private(set) var created: [FakeRuntimeSession] = []
+private final class FakeMatchRuntimeSessionProvider: MatchRuntimeSessionProviding {
+  var hasActiveSession = false
+  var startedAt: Date?
+  var authorizationResult = true
+  var recoverResult = false
+  private(set) var recoverCount = 0
+  private(set) var authorizationRequestCount = 0
+  private(set) var startCount = 0
+  private(set) var updateCount = 0
+  private(set) var lastStartedTitle: String?
+  private(set) var lastStartedMetadata: [String: String] = [:]
+  private(set) var lastUpdatedMetadata: [String: String] = [:]
+  private(set) var stopReasons: [BackgroundRuntimeEndReason] = []
 
-  func make() -> any ExtendedRuntimeSession {
-    let session = FakeRuntimeSession()
-    self.created.append(session)
-    return session
+  func recoverActiveSessionIfPossible() async throws -> Bool {
+    self.recoverCount += 1
+    if self.recoverResult {
+      self.hasActiveSession = true
+      self.startedAt = Date(timeIntervalSince1970: 1234)
+    }
+    return self.recoverResult
+  }
+
+  func requestAuthorizationIfNeeded() async throws -> Bool {
+    self.authorizationRequestCount += 1
+    return self.authorizationResult
+  }
+
+  func start(title: String?, metadata: [String : String]) async throws {
+    self.startCount += 1
+    self.hasActiveSession = true
+    self.startedAt = Date(timeIntervalSince1970: 5678)
+    self.lastStartedTitle = title
+    self.lastStartedMetadata = metadata
+  }
+
+  func update(title: String?, metadata: [String : String]) {
+    self.updateCount += 1
+    self.lastStartedTitle = title
+    self.lastUpdatedMetadata = metadata
+  }
+
+  func stop(reason: BackgroundRuntimeEndReason) async throws {
+    self.stopReasons.append(reason)
+    self.hasActiveSession = false
+    self.startedAt = nil
   }
 }
 
 @MainActor
-private final class FakeRuntimeSession: ExtendedRuntimeSession {
-  var delegate: (any ExtendedRuntimeSessionDelegate)?
-  private(set) var startCallCount = 0
-  private(set) var invalidateCallCount = 0
-  var state: WKExtendedRuntimeSessionState = .notStarted
-
-  func start() {
-    self.startCallCount += 1
+private func settleController() async {
+  for _ in 0..<5 {
+    await Task.yield()
   }
-
-  func invalidate() {
-    self.invalidateCallCount += 1
-    self.state = .invalid
-  }
-
-  func emitDidStart() {
-    self.state = .running
-    self.delegate?.extendedRuntimeSessionDidStart(self)
-  }
-
-  func emitWillExpire() {
-    self.delegate?.extendedRuntimeSessionWillExpire(self)
-  }
-
-  func emitInvalidation(reason: WKExtendedRuntimeSessionInvalidationReason, error: Error? = nil) {
-    self.state = .invalid
-    self.delegate?.extendedRuntimeSession(self, didInvalidateWith: reason, error: error)
-  }
-}
-
-@discardableResult
-private func tryRequire<T>(_ value: T?, _ message: String = "Expected value to exist") -> T {
-  guard let value else {
-    Issue.record("\(message)")
-    fatalError(message)
-  }
-  return value
 }
