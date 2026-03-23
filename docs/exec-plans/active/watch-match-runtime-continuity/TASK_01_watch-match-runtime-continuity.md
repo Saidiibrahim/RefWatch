@@ -14,4 +14,4 @@ phase: Implementation
 - [x] Add root-level scene-phase hook in `MatchRootView` to re-evaluate runtime protection on `.inactive` and `.active`.
 - [x] Extend core runtime tests for halftime/ET/penalty continuity and inactive-state cancellation.
 - [x] Add watch runtime-controller tests for restart behavior, proactive renewal, and idempotent end.
-- [x] Update product spec, watch architecture doc, and App Review response guidance.
+- [x] Update product spec, watch architecture doc, and release verification guidance.

@@ -22,18 +22,16 @@ Use this checklist for both watchOS and iOS releases. Keep the working tree clea
 ## Assets & Localization
 - [ ] Check watch/iOS asset changes are included and sized correctly.
 - [ ] Confirm any localized strings have fallbacks.
-- [ ] Verify screenshots and app previews match current UI.
+- [ ] Verify screenshots and shared release visuals match current UI.
 
-## Build & Archive
-- [ ] Archive iOS (with watchOS companion) in Xcode Organizer.
-- [ ] Inspect the archived watch bundle `Info.plist` and confirm `WKBackgroundModes` contains only `workout-processing`; confirm no watch Apple Music/audio usage strings remain unless a separately approved feature requires them.
-- [ ] Validate archive for App Store distribution.
-- [ ] Export TestFlight build and run a quick device install check.
+## Build Verification
+- [ ] Produce a release-candidate iOS build with the watchOS companion app.
+- [ ] Inspect the built watch bundle `Info.plist` and confirm `WKBackgroundModes` contains only `workout-processing`; confirm no watch audio/media usage strings remain unless a separately approved feature requires them.
+- [ ] Install the release-candidate build on target hardware and run a quick sanity check.
 
 ## Release & Tagging
 - [ ] Tag the release commit following semantic versioning (`vX.Y.Z`).
 - [ ] Push the tag and create release notes from the changelog.
-- [ ] Upload to TestFlight / App Store and confirm processing status.
 
 ## Post-Release
 - [ ] Announce release notes in team channels.

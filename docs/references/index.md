@@ -11,7 +11,6 @@ Operational runbooks, onboarding material, and supporting references live here.
 - `process/code-style.md`
 - `process/release-checklist.md`
 - `process/diagnostics.md`
-- `process/app-review-response.md`
 
 ## Technical References
 - `testing/strategy.md`

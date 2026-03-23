@@ -11,27 +11,27 @@ Replace the prior best-effort extended-runtime model with a supported watchOS co
 - Watch root lifecycle hooks: `RefWatchWatchOS/App/MatchRootView.swift`
 - Resume routing: `RefWatchWatchOS/Core/Services/MatchLifecycle/MatchLifecycleCoordinator.swift`
 - Product/architecture docs: `docs/product-specs/match-timer.md`, `docs/design-docs/architecture/watchos.md`
-- App Review language: `docs/references/process/app-review-response.md`
+- Release verification guidance: `docs/references/process/release-checklist.md`
 
 ## Plan of Work
 1. Replace `WKExtendedRuntimeSession`-based Match Mode continuity with an `HKWorkoutSession`-backed runtime controller.
 2. Persist every unfinished match state needed for relaunch recovery, including timer anchors, halftime waiting, and penalties.
 3. Rehydrate persisted state on launch and centralize resume routing for every unfinished screen.
 4. Fix halftime lifecycle so `waitingForHalfTimeStart` is a stable state instead of a transient hop.
-5. Update docs/spec/App Review language so they match the implemented runtime and the remaining platform limits.
+5. Update docs/spec/release guidance so they match the implemented runtime and the remaining platform limits.
 
 ## Concrete Steps
 - (TASK_01_watch-match-runtime-continuity.md) Implement workout-backed runtime, recovery, unfinished-match persistence, routing fixes, tests, and doc updates.
 
 ## Progress
 - [x] TASK_01_watch-match-runtime-continuity.md
-- 2026-03-12: Implemented an `HKWorkoutSession`-backed continuity controller, unfinished-match persistence/rehydration, centralized resume routing, and halftime waiting fixes; simulator validation landed, while physical-watch proof and release metadata validation remained pending.
-- 2026-03-22: Updated current source so fresh archives resolve to `WKBackgroundModes = [workout-processing]` only, removed watch Apple Music usage text, and narrowed the spec/architecture/App Review language to the corrected build configuration and current evidence limits.
+- 2026-03-12: Implemented an `HKWorkoutSession`-backed continuity controller, unfinished-match persistence/rehydration, centralized resume routing, and halftime waiting fixes; simulator validation landed, while physical-watch proof and release metadata verification remained pending.
+- 2026-03-22: Updated current source so fresh build artifacts resolve to `WKBackgroundModes = [workout-processing]` only, removed watch Apple Music usage text, and narrowed the spec/architecture/release guidance to the corrected build configuration and current evidence limits.
 
 ## Surprises & Discoveries
 - Apple’s current watchOS docs do not support an absolute “stay frontmost until completion” guarantee. They do document workout sessions as the supported way to keep an app onscreen while the session is active and to recover the active session on relaunch.
 - `WKExtension.frontmostTimeoutExtended` is not a viable strategy on modern watchOS.
-- App Store archive validation rejects watch bundles whose `WKBackgroundModes` value set goes beyond `workout-processing`.
+- Watch bundle validation fails when `WKBackgroundModes` goes beyond `workout-processing`.
 - The exact product requirement therefore has to be interpreted as “supported continuity under workout-session semantics,” not as an unconditional foreground lock against explicit user action.
 
 ## Decision Log
@@ -85,12 +85,12 @@ Replace the prior best-effort extended-runtime model with a supported watchOS co
 ## Outcomes & Retrospective
 - The runtime architecture now targets Apple’s documented long-running-session model instead of relying on best-effort extended runtime behavior.
 - The repository contract is stricter: any future continuity claim must distinguish supported workout-session continuity from impossible absolute frontmost guarantees.
-- Release-safe closure still depends on App Store validation of the corrected watch bundle metadata and physical-watch continuity proof.
+- Release-safe closure still depends on corrected watch bundle metadata verification and physical-watch continuity proof.
 
 ## Evidence Trail (Sub-Agents)
 - Code-risk review (planning phase):
   - Finding: continuity would be incomplete without workout recovery, persisted timer/penalty state, deep-link routing fixes, and a stable halftime waiting state.
   - Applied: added workout recovery, unfinished-match snapshots, centralized resume routing, URL scheme correction, and halftime lifecycle stabilization.
 - Docs/evidence review (planning phase):
-  - Finding: product/spec/App Review docs were stale once Match Mode moved onto `HKWorkoutSession`.
-  - Applied: updated architecture, product spec, and App Review language to state the workout-backed runtime and the remaining watchOS limits explicitly.
+  - Finding: product/spec/release docs were stale once Match Mode moved onto `HKWorkoutSession`.
+  - Applied: updated architecture, product spec, and release guidance to state the workout-backed runtime and the remaining watchOS limits explicitly.
