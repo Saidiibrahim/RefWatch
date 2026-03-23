@@ -8,9 +8,6 @@
 
 import Foundation
 import Observation
-#if os(watchOS)
-import WatchKit
-#endif
 
 public final class TimerManager: @unchecked Sendable { // @Observable in app; observation not needed for package
     // MARK: - Snapshot
@@ -38,19 +35,42 @@ public final class TimerManager: @unchecked Sendable { // @Observable in app; ob
         public var stoppageStartTime: Date?
         public var stoppageAccumulated: TimeInterval
         public var isInStoppage: Bool
+        public var didRequestHalftimeDurationCue: Bool
 
         public init(
             periodStartTime: Date? = nil,
             halfTimeStartTime: Date? = nil,
             stoppageStartTime: Date? = nil,
             stoppageAccumulated: TimeInterval = 0,
-            isInStoppage: Bool = false
+            isInStoppage: Bool = false,
+            didRequestHalftimeDurationCue: Bool = false
         ) {
             self.periodStartTime = periodStartTime
             self.halfTimeStartTime = halfTimeStartTime
             self.stoppageStartTime = stoppageStartTime
             self.stoppageAccumulated = stoppageAccumulated
             self.isInStoppage = isInStoppage
+            self.didRequestHalftimeDurationCue = didRequestHalftimeDurationCue
+        }
+
+        private enum CodingKeys: String, CodingKey {
+            case periodStartTime
+            case halfTimeStartTime
+            case stoppageStartTime
+            case stoppageAccumulated
+            case isInStoppage
+            case didRequestHalftimeDurationCue
+        }
+
+        public init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            self.periodStartTime = try container.decodeIfPresent(Date.self, forKey: .periodStartTime)
+            self.halfTimeStartTime = try container.decodeIfPresent(Date.self, forKey: .halfTimeStartTime)
+            self.stoppageStartTime = try container.decodeIfPresent(Date.self, forKey: .stoppageStartTime)
+            self.stoppageAccumulated = try container.decodeIfPresent(TimeInterval.self, forKey: .stoppageAccumulated) ?? 0
+            self.isInStoppage = try container.decodeIfPresent(Bool.self, forKey: .isInStoppage) ?? false
+            self.didRequestHalftimeDurationCue =
+                try container.decodeIfPresent(Bool.self, forKey: .didRequestHalftimeDurationCue) ?? false
         }
     }
 
@@ -65,7 +85,8 @@ public final class TimerManager: @unchecked Sendable { // @Observable in app; ob
 
     private var stoppageAccumulated: TimeInterval = 0
     private var lastSnapshot: Snapshot = .zero()
-    private var didFireHalftimeHaptic: Bool = false
+    private var didRequestHalftimeDurationCue: Bool = false
+    private let lifecycleHaptics: MatchLifecycleHapticsProviding
 
     // Persist current context so pause/resume can compute correctly
     private var activeMatch: Match?
@@ -75,7 +96,9 @@ public final class TimerManager: @unchecked Sendable { // @Observable in app; ob
     private var onTick: ((Snapshot) -> Void)?
     private var onPeriodEnd: (() -> Void)?
 
-    public init() {}
+    public init(lifecycleHaptics: MatchLifecycleHapticsProviding = NoopMatchLifecycleHaptics()) {
+        self.lifecycleHaptics = lifecycleHaptics
+    }
 
     // MARK: - Public API
 
@@ -191,7 +214,7 @@ public final class TimerManager: @unchecked Sendable { // @Observable in app; ob
     public func startHalfTime(match: Match, onTick: @escaping (String) -> Void) {
         stopHalftimeTimer()
         self.halfTimeStartTime = Date()
-        self.didFireHalftimeHaptic = false
+        self.didRequestHalftimeDurationCue = false
 
         halftimeTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             guard let self = self, let start = self.halfTimeStartTime else { return }
@@ -200,12 +223,7 @@ public final class TimerManager: @unchecked Sendable { // @Observable in app; ob
             DispatchQueue.main.async {
                 onTick(label)
             }
-            if elapsed >= match.halfTimeLength && !self.didFireHalftimeHaptic {
-                #if os(watchOS)
-                WKInterfaceDevice.current().play(.notification)
-                #endif
-                self.didFireHalftimeHaptic = true
-            }
+            self.requestHalftimeDurationCueIfNeeded(elapsed: elapsed, threshold: match.halfTimeLength)
         }
         if let t = halftimeTimer { RunLoop.current.add(t, forMode: .common) }
     }
@@ -252,12 +270,13 @@ public final class TimerManager: @unchecked Sendable { // @Observable in app; ob
     ) {
         stopHalftimeTimer()
         self.halfTimeStartTime = persistenceState.halfTimeStartTime ?? Date()
-        self.didFireHalftimeHaptic = false
+        self.didRequestHalftimeDurationCue = persistenceState.didRequestHalftimeDurationCue
 
         let elapsed = Date().timeIntervalSince(self.halfTimeStartTime ?? Date())
         DispatchQueue.main.async {
             onTick(self.formatMMSS(elapsed))
         }
+        self.requestHalftimeDurationCueIfNeeded(elapsed: elapsed, threshold: match.halfTimeLength)
 
         halftimeTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             guard let self, let start = self.halfTimeStartTime else { return }
@@ -266,12 +285,7 @@ public final class TimerManager: @unchecked Sendable { // @Observable in app; ob
             DispatchQueue.main.async {
                 onTick(label)
             }
-            if currentElapsed >= match.halfTimeLength && !self.didFireHalftimeHaptic {
-                #if os(watchOS)
-                WKInterfaceDevice.current().play(.notification)
-                #endif
-                self.didFireHalftimeHaptic = true
-            }
+            self.requestHalftimeDurationCueIfNeeded(elapsed: currentElapsed, threshold: match.halfTimeLength)
         }
         if let t = halftimeTimer { RunLoop.current.add(t, forMode: .common) }
     }
@@ -282,14 +296,16 @@ public final class TimerManager: @unchecked Sendable { // @Observable in app; ob
             halfTimeStartTime: self.halfTimeStartTime,
             stoppageStartTime: self.stoppageStartTime,
             stoppageAccumulated: self.stoppageAccumulated,
-            isInStoppage: self.lastSnapshot.isInStoppage)
+            isInStoppage: self.lastSnapshot.isInStoppage,
+            didRequestHalftimeDurationCue: self.didRequestHalftimeDurationCue)
     }
 
     /// Stops half-time updates.
     public func stopHalfTime() {
         stopHalftimeTimer()
         halfTimeStartTime = nil
-        didFireHalftimeHaptic = false
+        didRequestHalftimeDurationCue = false
+        lifecycleHaptics.cancelPendingPlayback()
     }
 
     /// Stops all timers and clears callbacks. Safe to call multiple times.
@@ -297,10 +313,11 @@ public final class TimerManager: @unchecked Sendable { // @Observable in app; ob
         stopPeriodTimer()
         stopStoppageTimer()
         stopHalftimeTimer()
-        didFireHalftimeHaptic = false
+        didRequestHalftimeDurationCue = false
         onTick = nil
         onPeriodEnd = nil
         activeMatch = nil
+        lifecycleHaptics.cancelPendingPlayback()
     }
 
     deinit {
@@ -380,6 +397,12 @@ public final class TimerManager: @unchecked Sendable { // @Observable in app; ob
     private func stopHalftimeTimer() {
         halftimeTimer?.invalidate()
         halftimeTimer = nil
+    }
+
+    private func requestHalftimeDurationCueIfNeeded(elapsed: TimeInterval, threshold: TimeInterval) {
+        guard elapsed >= threshold, !self.didRequestHalftimeDurationCue else { return }
+        self.didRequestHalftimeDurationCue = true
+        self.lifecycleHaptics.play(.halftimeDurationReached)
     }
 
     private func perPeriodDurationSeconds(for match: Match, currentPeriod: Int) -> TimeInterval {

@@ -56,7 +56,7 @@ public final class MatchViewModel {
   public var matchCompleted: Bool = false
 
   // Timer properties (delegated)
-  private let timerManager = TimerManager()
+  private let timerManager: TimerManager
   private var timer: Timer? // legacy retained for compatibility
   private var stoppageTimer: Timer? // legacy retained for compatibility
   private var elapsedTime: TimeInterval = 0 // maintained for formattedElapsedTime
@@ -106,6 +106,7 @@ public final class MatchViewModel {
   // Penalties managed by PenaltyManager (SRP); injected for testing
   private let penaltyManager: PenaltyManaging
   private let haptics: HapticsProviding
+  private let lifecycleHaptics: MatchLifecycleHapticsProviding
   private let connectivity: ConnectivitySyncProviding?
   private let scheduleStatusUpdater: MatchScheduleStatusUpdating?
   private var penaltyStartEventLogged = false
@@ -143,6 +144,7 @@ public final class MatchViewModel {
     history: MatchHistoryStoring,
     penaltyManager: PenaltyManaging = PenaltyManager(),
     haptics: HapticsProviding = NoopHaptics(),
+    lifecycleHaptics: MatchLifecycleHapticsProviding = NoopMatchLifecycleHaptics(),
     connectivity: ConnectivitySyncProviding? = nil,
     backgroundRuntimeManager: BackgroundRuntimeManaging? = nil,
     activeMatchSessionStore: ActiveMatchSessionStoring? = nil,
@@ -151,6 +153,8 @@ public final class MatchViewModel {
     self.history = history
     self.penaltyManager = penaltyManager
     self.haptics = haptics
+    self.lifecycleHaptics = lifecycleHaptics
+    self.timerManager = TimerManager(lifecycleHaptics: lifecycleHaptics)
     self.connectivity = connectivity
     self.backgroundRuntimeManager = backgroundRuntimeManager
     self.activeMatchSessionStore = activeMatchSessionStore
@@ -169,6 +173,7 @@ public final class MatchViewModel {
   @MainActor
   public convenience init(
     haptics: HapticsProviding = NoopHaptics(),
+    lifecycleHaptics: MatchLifecycleHapticsProviding = NoopMatchLifecycleHaptics(),
     backgroundRuntime: BackgroundRuntimeManaging? = nil,
     connectivity: ConnectivitySyncProviding? = nil)
   {
@@ -176,6 +181,7 @@ public final class MatchViewModel {
       history: MatchHistoryService(),
       penaltyManager: PenaltyManager(),
       haptics: haptics,
+      lifecycleHaptics: lifecycleHaptics,
       connectivity: connectivity,
       backgroundRuntimeManager: backgroundRuntime,
       activeMatchSessionStore: nil)
@@ -311,6 +317,7 @@ public final class MatchViewModel {
     guard self.currentMatch != nil else { return }
 
     if !self.isMatchInProgress {
+      self.lifecycleHaptics.cancelPendingPlayback()
       self.isMatchInProgress = true
       self.isPaused = false
       self.waitingForMatchStart = false
@@ -413,6 +420,7 @@ public final class MatchViewModel {
   }
 
   public func startNextPeriod() {
+    self.lifecycleHaptics.cancelPendingPlayback()
     self.currentPeriod += 1
     self.isHalfTime = false
 
@@ -449,6 +457,7 @@ public final class MatchViewModel {
 
   public func startHalfTime() {
     guard let match = currentMatch else { return }
+    self.lifecycleHaptics.cancelPendingPlayback()
     self.isHalfTime = true
     self.timerManager.startHalfTime(match: match) { [weak self] elapsed in
       self?.halfTimeElapsed = elapsed
@@ -463,7 +472,7 @@ public final class MatchViewModel {
     guard self.currentPeriod == expectedPeriod else { return }
 
     guard self.recordPeriodEndIfNeeded(for: expectedPeriod) else { return }
-    self.haptics.play(.notify)
+    self.lifecycleHaptics.play(.periodBoundaryReached)
     self.pauseMatch()
   }
 
@@ -1085,6 +1094,7 @@ extension MatchViewModel {
 
   public func startHalfTimeManually() {
     guard self.waitingForHalfTimeStart else { return }
+    self.lifecycleHaptics.cancelPendingPlayback()
     self.waitingForHalfTimeStart = false
     self.isHalfTime = true
     self.recordMatchEvent(.halfTime)
@@ -1098,6 +1108,7 @@ extension MatchViewModel {
 
   public func startSecondHalfManually() {
     guard self.waitingForSecondHalfStart else { return }
+    self.lifecycleHaptics.cancelPendingPlayback()
     self.waitingForSecondHalfStart = false
     self.isHalfTime = false
     self.currentPeriod = 2
@@ -1134,6 +1145,7 @@ extension MatchViewModel {
 
   public func startExtraTimeFirstHalfManually() {
     guard self.waitingForET1Start, let match = currentMatch else { return }
+    self.lifecycleHaptics.cancelPendingPlayback()
     self.waitingForET1Start = false
     self.isHalfTime = false
     self.currentPeriod = max(1, match.numberOfPeriods) + 1 // ET1
@@ -1168,6 +1180,7 @@ extension MatchViewModel {
 
   public func startExtraTimeSecondHalfManually() {
     guard self.waitingForET2Start, let match = currentMatch else { return }
+    self.lifecycleHaptics.cancelPendingPlayback()
     self.waitingForET2Start = false
     self.isHalfTime = false
     self.currentPeriod = max(1, match.numberOfPeriods) + 2 // ET2

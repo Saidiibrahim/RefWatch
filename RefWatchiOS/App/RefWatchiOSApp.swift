@@ -125,6 +125,7 @@ struct RefWatchiOSApp: App {
     let vm = MatchViewModel(
       history: historyRepo,
       haptics: IOSHaptics(),
+      lifecycleHaptics: IOSMatchLifecycleHaptics(),
       scheduleStatusUpdater: scheduleUpdater)
     let controller = ConnectivitySyncController(
       history: historyRepo,
@@ -271,6 +272,7 @@ extension RefWatchiOSApp {
     self.matchVM = MatchViewModel(
       history: self.historyStore,
       haptics: IOSHaptics(),
+      lifecycleHaptics: IOSMatchLifecycleHaptics(),
       scheduleStatusUpdater: scheduleUpdater)
     Task { @MainActor in
       do {
