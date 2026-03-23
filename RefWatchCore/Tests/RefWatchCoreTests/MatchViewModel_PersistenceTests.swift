@@ -15,11 +15,13 @@ final class MatchViewModel_PersistenceTests: XCTestCase {
 
     func test_finalizeMatch_persists_snapshot_and_clears_state() async throws {
         let mock = MockMatchHistoryService()
-        let vm = MatchViewModel(history: mock)
+        let lifecycleHaptics = MatchLifecycleHapticsSpy()
+        let vm = MatchViewModel(history: mock, lifecycleHaptics: lifecycleHaptics)
 
         vm.configureMatch(duration: 90, periods: 2, halfTimeLength: 15, hasExtraTime: false, hasPenalties: false)
         vm.createMatch()
         vm.recordGoal(team: .home, goalType: .regular, playerNumber: 9)
+        let cancelCountBeforeFinalize = lifecycleHaptics.cancelCount
         vm.finalizeMatch()
 
         XCTAssertEqual(mock.saved.count, 1)
@@ -29,6 +31,7 @@ final class MatchViewModel_PersistenceTests: XCTestCase {
             XCTAssertEqual(snap.events.last?.eventType.displayName, "Match End")
         }
         XCTAssertNil(vm.currentMatch)
+        XCTAssertEqual(lifecycleHaptics.cancelCount, cancelCountBeforeFinalize + 1)
     }
 
     @MainActor
@@ -40,13 +43,26 @@ final class MatchViewModel_PersistenceTests: XCTestCase {
     }
 
     func test_finalizeMatch_surfaces_error_on_save_failure() async throws {
-        let vm = MatchViewModel(history: FailingMatchHistoryService())
+        let lifecycleHaptics = MatchLifecycleHapticsSpy()
+        let vm = MatchViewModel(history: FailingMatchHistoryService(), lifecycleHaptics: lifecycleHaptics)
 
         vm.configureMatch(duration: 90, periods: 2, halfTimeLength: 15, hasExtraTime: false, hasPenalties: false)
         vm.createMatch()
+        let cancelCountBeforeFinalize = lifecycleHaptics.cancelCount
         vm.finalizeMatch()
 
         XCTAssertNotNil(vm.lastPersistenceError)
         XCTAssertNil(vm.currentMatch)
+        XCTAssertEqual(lifecycleHaptics.cancelCount, cancelCountBeforeFinalize + 1)
+    }
+}
+
+private final class MatchLifecycleHapticsSpy: MatchLifecycleHapticsProviding {
+    private(set) var cancelCount: Int = 0
+
+    func play(_ cue: MatchLifecycleHapticCue) {}
+
+    func cancelPendingPlayback() {
+        self.cancelCount += 1
     }
 }

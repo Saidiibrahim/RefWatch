@@ -121,12 +121,13 @@ final class MatchViewModel_EventsAndStoppageTests: XCTestCase {
 
         XCTAssertEqual(periodEndCount(in: vm, period: 1), 1)
         XCTAssertGreaterThan(vm.matchEvents.count, initialCount)
-        XCTAssertTrue(vm.isHalfTime)
+        XCTAssertFalse(vm.isHalfTime)
+        XCTAssertTrue(vm.waitingForHalfTimeStart)
     }
 
     func test_natural_period_expiry_notifies_once_and_requires_manual_end() async throws {
-        let haptics = HapticsSpy()
-        let vm = MatchViewModel(haptics: haptics)
+        let lifecycleHaptics = MatchLifecycleHapticsSpy()
+        let vm = MatchViewModel(lifecycleHaptics: lifecycleHaptics)
         vm.currentMatch = Match(
             duration: 2,
             numberOfPeriods: 2,
@@ -145,16 +146,20 @@ final class MatchViewModel_EventsAndStoppageTests: XCTestCase {
         XCTAssertFalse(vm.isHalfTime)
         XCTAssertFalse(vm.waitingForHalfTimeStart)
         XCTAssertEqual(periodEndCount(in: vm, period: 1), 1)
-        XCTAssertEqual(haptics.notifyCount, 1)
+        XCTAssertEqual(lifecycleHaptics.playedCues, [.periodBoundaryReached])
 
         let boundaryMatchTime = parseMMSS(vm.matchTime)
         try await Task.sleep(nanoseconds: 1_100_000_000)
         let laterMatchTime = parseMMSS(vm.matchTime)
         XCTAssertGreaterThan(laterMatchTime, boundaryMatchTime, "Match timer should continue after boundary signal")
 
+        let cancelCountBeforeManualEnd = lifecycleHaptics.cancelCount
         vm.endCurrentPeriod()
         XCTAssertEqual(periodEndCount(in: vm, period: 1), 1, "Manual end should not duplicate periodEnd")
-        XCTAssertTrue(vm.isHalfTime)
+        XCTAssertEqual(lifecycleHaptics.playedCues, [.periodBoundaryReached])
+        XCTAssertEqual(lifecycleHaptics.cancelCount, cancelCountBeforeManualEnd + 1)
+        XCTAssertFalse(vm.isHalfTime)
+        XCTAssertTrue(vm.waitingForHalfTimeStart)
     }
 
     func test_end_current_period_does_not_duplicate_period_end_when_later_events_exist() {
@@ -190,6 +195,74 @@ final class MatchViewModel_EventsAndStoppageTests: XCTestCase {
         XCTAssertFalse(vm.isMatchInProgress)
         XCTAssertNil(vm.pendingConfirmation)
     }
+
+    func test_startHalfTimeManually_cancelsPendingLifecyclePlayback() {
+        let lifecycleHaptics = MatchLifecycleHapticsSpy()
+        let vm = MatchViewModel(lifecycleHaptics: lifecycleHaptics)
+        vm.currentMatch = Match(duration: 90, numberOfPeriods: 2, halfTimeLength: 15)
+        vm.waitingForHalfTimeStart = true
+
+        vm.startHalfTimeManually()
+
+        XCTAssertEqual(lifecycleHaptics.cancelCount, 1)
+        XCTAssertTrue(vm.isHalfTime)
+    }
+
+    func test_resetMatch_cancelsPendingLifecyclePlayback() {
+        let lifecycleHaptics = MatchLifecycleHapticsSpy()
+        let vm = MatchViewModel(lifecycleHaptics: lifecycleHaptics)
+        vm.configureMatch(duration: 45, periods: 2, halfTimeLength: 15, hasExtraTime: false, hasPenalties: false)
+        vm.createMatch()
+        vm.startMatch()
+
+        let cancelCountBeforeReset = lifecycleHaptics.cancelCount
+        vm.resetMatch()
+
+        XCTAssertEqual(lifecycleHaptics.cancelCount, cancelCountBeforeReset + 1)
+    }
+
+    func test_beginPenaltiesIfNeeded_cancelsPendingLifecyclePlayback() {
+        let lifecycleHaptics = MatchLifecycleHapticsSpy()
+        let vm = MatchViewModel(lifecycleHaptics: lifecycleHaptics)
+        vm.currentMatch = Match(duration: 90, numberOfPeriods: 2, halfTimeLength: 15, hasExtraTime: false, hasPenalties: true)
+        vm.waitingForPenaltiesStart = true
+        vm.isMatchInProgress = true
+
+        vm.beginPenaltiesIfNeeded()
+
+        XCTAssertEqual(lifecycleHaptics.cancelCount, 1)
+        XCTAssertTrue(vm.penaltyShootoutActive)
+        XCTAssertFalse(vm.waitingForPenaltiesStart)
+    }
+
+    func test_endPenaltiesAndProceed_cancelsPendingLifecyclePlayback() {
+        let lifecycleHaptics = MatchLifecycleHapticsSpy()
+        let vm = MatchViewModel(lifecycleHaptics: lifecycleHaptics)
+        vm.currentMatch = Match(duration: 90, numberOfPeriods: 2, halfTimeLength: 15, hasExtraTime: false, hasPenalties: true)
+        XCTAssertTrue(vm.startPenalties(withFirstKicker: .home))
+
+        let cancelCountBeforeEndingPenalties = lifecycleHaptics.cancelCount
+        vm.endPenaltiesAndProceed()
+
+        XCTAssertEqual(lifecycleHaptics.cancelCount, cancelCountBeforeEndingPenalties + 1)
+        XCTAssertFalse(vm.penaltyShootoutActive)
+        XCTAssertTrue(vm.isFullTime)
+    }
+
+    func test_abandonMatch_cancelsPendingLifecyclePlayback() {
+        let lifecycleHaptics = MatchLifecycleHapticsSpy()
+        let vm = MatchViewModel(lifecycleHaptics: lifecycleHaptics)
+        vm.configureMatch(duration: 45, periods: 2, halfTimeLength: 15, hasExtraTime: false, hasPenalties: false)
+        vm.createMatch()
+        vm.startMatch()
+
+        let cancelCountBeforeAbandon = lifecycleHaptics.cancelCount
+        vm.abandonMatch()
+
+        XCTAssertEqual(lifecycleHaptics.cancelCount, cancelCountBeforeAbandon + 1)
+        XCTAssertTrue(vm.isFullTime)
+        XCTAssertFalse(vm.isMatchInProgress)
+    }
 }
 
 private extension MatchViewModel_EventsAndStoppageTests {
@@ -216,12 +289,15 @@ private extension MatchViewModel_EventsAndStoppageTests {
     }
 }
 
-private final class HapticsSpy: HapticsProviding {
-    private(set) var notifyCount: Int = 0
+private final class MatchLifecycleHapticsSpy: MatchLifecycleHapticsProviding {
+    private(set) var playedCues: [MatchLifecycleHapticCue] = []
+    private(set) var cancelCount: Int = 0
 
-    func play(_ event: HapticEvent) {
-        if case .notify = event {
-            notifyCount += 1
-        }
+    func play(_ cue: MatchLifecycleHapticCue) {
+        self.playedCues.append(cue)
+    }
+
+    func cancelPendingPlayback() {
+        self.cancelCount += 1
     }
 }
