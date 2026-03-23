@@ -11,6 +11,7 @@ RefWatch is split into a primary watchOS experience with an optional iOS compani
 ## Cross-Target Sharing
 - Watch target owns domain models and services; iOS reuses them via target membership.
 - Platform adapters implement protocols (e.g., `HapticsProviding`) to avoid conditional imports in shared code.
+- Shared timer/lifecycle code must stay free of direct WatchKit/UIKit haptic playback; shared layers emit semantic cues and platform adapters own playback policy.
 
 ## Key Workflows
 - Match timer flow orchestrates period transitions, penalties, and haptics.

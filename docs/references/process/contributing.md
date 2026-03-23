@@ -15,13 +15,14 @@
 1. Sync `main`.
 2. Implement changes, keeping MVVM and folder boundaries intact.
 3. Update or add tests when behavior changes.
-4. Update DocC comments or `docs/` guides if features/components shift.
+4. For timer or haptics changes, update DocC comments and the matching `docs/` product/architecture/process guides in the same batch.
 5. Run the relevant `xcodebuild` commands (build + tests).
 6. Submit PR referencing related issues; include validation steps.
 
 ## Code Review Checklist
 - Architectural alignment with watch/iOS split.
 - Services remain protocol-driven; no platform-specific imports in shared code.
+- Lifecycle haptic sequencing remains adapter-owned; shared timer/view-model code only emits semantic cues.
 - Tests cover new or changed logic.
 - Documentation updated (DocC + `docs/`).
 - Schemes remain shared for CI.

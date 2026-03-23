@@ -37,9 +37,10 @@
 
 ### Haptic Feedback
 - [ ] Event confirmation haptics trigger correctly
-- [ ] Timer milestone haptics (halftime, end of period, added time)
+- [ ] Natural period-boundary lifecycle haptics use the intended repeated watch sequence
+- [ ] Halftime-expiry lifecycle haptics use the intended repeated watch sequence
 - [ ] Critical alert haptics functional
-- [ ] Haptic intensity is configurable in settings
+- [ ] Manual transition, abandonment, reset, and finalize paths cancel queued lifecycle pulses cleanly
 - [ ] Haptics don't fire excessively (no fatigue)
 
 ### iOS Companion - Matches Tab

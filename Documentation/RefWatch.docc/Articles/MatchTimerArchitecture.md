@@ -13,9 +13,10 @@ The watch timer centers around ``TimerManager``, which coordinates clock updates
 
 ## Data Flow
 1. Match configuration originates in ``MatchSetupViewModel``.
-2. ``TimerManager`` receives configuration and starts the match timer.
-3. Faces observe state via combine publishers and update UI in ``TimerView``.
-4. Completed matches persist through ``MatchHistoryService`` for later reference.
+2. ``MatchViewModel`` and ``TimerManager`` coordinate live match state and emit semantic lifecycle cues (for example, natural period boundary and halftime expiry).
+3. Platform adapters own lifecycle haptic playback policy, including repeated watch notification sequencing and cancellation.
+4. Faces observe state via combine publishers and update UI in ``TimerView``.
+5. Completed matches persist through ``MatchHistoryService`` for later reference.
 
 ## Extending Timer Faces
 - Add a new case to ``TimerFaceStyle`` and implement the drawing logic in a new view.

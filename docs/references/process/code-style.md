@@ -4,7 +4,8 @@
 - Swift + SwiftUI with 2-space indentation.
 - Match filename to the primary type (`TimerView.swift`, `MatchSetupViewModel.swift`).
 - Organize with `// MARK:` sections when files contain multiple logical areas.
-- Prefer protocols for platform abstractions (e.g., `HapticsProviding`).
+- Prefer protocols for platform abstractions (e.g., `HapticsProviding`, `MatchLifecycleHapticsProviding`).
+- Shared timer/lifecycle services must not call `WKInterfaceDevice`, `UINotificationFeedbackGenerator`, or other platform haptic APIs directly; emit semantic cues through platform adapters. Existing exceptions outside that flow, such as `PenaltyManager`, should be treated as explicit follow-up work rather than precedent for new code.
 
 ## Naming
 - Types: `PascalCase`.

@@ -7,6 +7,7 @@ Use this checklist for both watchOS and iOS releases. Keep the working tree clea
 - [ ] Verify watchOS and iOS builds succeed on the target Xcode version.
 - [ ] Run unit and UI tests for iOS and watchOS (simulator or device).
 - [ ] Smoke test core flows: match start/pause/halftime/resume/end.
+- [ ] Smoke test lifecycle haptics: natural period boundary cue, halftime-expiry cue, repeating alert until acknowledgment, and no duplicate/late pulses after manual transition, abandonment, reset, finalize, interruption, or backgrounding.
 - [ ] Smoke test account/assistant flows (login, sync, mirror, post-match review).
 
 ## Versioning & Changelog
@@ -28,6 +29,8 @@ Use this checklist for both watchOS and iOS releases. Keep the working tree clea
 - [ ] Produce a release-candidate iOS build with the watchOS companion app.
 - [ ] Inspect the built watch bundle `Info.plist` and confirm `WKBackgroundModes` contains only `workout-processing`; confirm no watch audio/media usage strings remain unless a separately approved feature requires them.
 - [ ] Install the release-candidate build on target hardware and run a quick sanity check.
+- [ ] Validate lifecycle haptic feel on Apple Watch Series 9 (45mm); simulator/build evidence alone is not sufficient for tactile sign-off.
+- [ ] Confirm repeating lifecycle alerts stop and stay dismissed when RefWatch becomes inactive, backgrounds, or relaunches.
 
 ## Release & Tagging
 - [ ] Tag the release commit following semantic versioning (`vX.Y.Z`).
