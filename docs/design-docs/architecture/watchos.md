@@ -10,7 +10,7 @@
 - `MatchHistoryService` stores recent matches and supports restoration.
 - `PenaltyManager` encapsulates foul tracking and notifications.
 - `BackgroundRuntimeSessionController` manages an `HKWorkoutSession`-backed Match Mode runtime while a match is unfinished.
-  - Shippable watch metadata is `WKBackgroundModes = [workout-processing]` only. Match Mode does not depend on background audio, Apple Music, or media playback.
+  - Required watch bundle metadata is `WKBackgroundModes = [workout-processing]` only. Match Mode does not depend on background audio, Apple Music, or media playback.
   - Scope includes kickoff waiting, in-play, paused, halftime waiting, halftime, second-half waiting, ET waiting, penalty waiting, active penalties, and the full-time screen before final completion/reset.
   - `MatchViewModel` persists a full `ActiveMatchSessionSnapshot` so unfinished matches can rehydrate timer anchors, penalty state, and lifecycle flags after process death or relaunch.
   - `PersistedActiveMatchSessionStore` writes the snapshot into the watch App Group so `MatchRootView` can restore it on launch before routing.
@@ -37,7 +37,7 @@
 ## Testing Notes
 - Focus on ViewModel logic, persisted unfinished-match snapshots, and penalty/timer rehydration.
 - Use watchOS simulator tests for routing/runtime-controller behavior and launch restoration.
-- Release proof also requires archive/App Store validation of the watch bundle metadata, including `WKBackgroundModes = [workout-processing]` only.
+- Release proof also requires verifying built watch bundle metadata, including `WKBackgroundModes = [workout-processing]` only.
 - Treat simulator and physical-watch evidence separately:
   - simulator validates state restoration, routing, and compile-time HealthKit/workout integration
   - physical Apple Watch validation is still required for wrist-down return behavior, workout recovery timing, and frontmost continuity under real watchOS power policy

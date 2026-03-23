@@ -22,7 +22,7 @@ Provides referees with precise match, period, and stoppage tracking, optimized f
 
 ## Runtime Continuity (watchOS Match Mode)
 - Match Mode uses an `HKWorkoutSession`-backed runtime while a match is unfinished.
-- Shippable watch metadata is `WKBackgroundModes = [workout-processing]` only. Match Mode does not rely on background audio, Apple Music, or media playback.
+- Required watch bundle metadata is `WKBackgroundModes = [workout-processing]` only. Match Mode does not rely on background audio, Apple Music, or media playback.
 - Runtime protection remains enabled during:
   - waiting to start the first half
   - in-play periods
@@ -46,7 +46,7 @@ Provides referees with precise match, period, and stoppage tracking, optimized f
   - Match Mode cannot guarantee absolute frontmost residency if the user explicitly presses the Digital Crown, opens another app, denies HealthKit authorization, or watchOS terminates the process
   - when those interruptions happen, RefWatch should recover the active workout session if available and restore the unfinished match snapshot on relaunch
 - Match Mode does not rely on `WKExtension.frontmostTimeoutExtended`, which is unsupported on modern watchOS.
-- Physical-watch validation and App Store/archive validation remain required before treating this continuity path as release-safe.
+- Physical-watch validation and built-artifact metadata verification remain required before treating this continuity path as release-safe.
 
 ## Timer Readability Requirements
 - Watch timer faces must clearly separate elapsed match time from remaining period time.
