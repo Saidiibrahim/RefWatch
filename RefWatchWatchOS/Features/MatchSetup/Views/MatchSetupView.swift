@@ -10,14 +10,20 @@ import RefWatchCore
 struct MatchSetupView: View {
     @State private var viewModel: MatchSetupViewModel
     let lifecycle: MatchLifecycleCoordinator
+    let isLifecycleAlertPresented: Bool
     @State private var goalInputContext: GoalInputContext?
     @State private var cardEventContext: CardEventContext?
     @State private var substitutionContext: SubstitutionContext?
     @Environment(SettingsViewModel.self) private var settingsViewModel
 
-    init(matchViewModel: MatchViewModel, lifecycle: MatchLifecycleCoordinator) {
+    init(
+        matchViewModel: MatchViewModel,
+        lifecycle: MatchLifecycleCoordinator,
+        isLifecycleAlertPresented: Bool = false
+    ) {
         _viewModel = State(initialValue: MatchSetupViewModel(matchViewModel: matchViewModel))
         self.lifecycle = lifecycle
+        self.isLifecycleAlertPresented = isLifecycleAlertPresented
     }
 
     var body: some View {
@@ -47,7 +53,8 @@ struct MatchSetupView: View {
             // Timer View (Middle)
             TimerView(
                 model: viewModel.matchViewModel,
-                lifecycle: lifecycle
+                lifecycle: lifecycle,
+                isLifecycleAlertPresented: self.isLifecycleAlertPresented
             )
                 .tag(1)
 
@@ -104,6 +111,11 @@ struct MatchSetupView: View {
                     viewModel.setSelectedTab(1)
                 }
             )
+        }
+        .onChange(of: self.isLifecycleAlertPresented) { _, isPresented in
+            if isPresented {
+                self.viewModel.setSelectedTab(1)
+            }
         }
     }
 

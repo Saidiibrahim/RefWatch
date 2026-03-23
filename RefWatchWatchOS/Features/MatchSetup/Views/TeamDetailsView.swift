@@ -1,6 +1,5 @@
 import RefWatchCore
 import SwiftUI
-import WatchKit
 
 struct TeamDetailsView: View {
   enum TeamType: Hashable {
@@ -66,7 +65,6 @@ struct TeamDetailsView: View {
         color: .yellow,
         label: "Yellow",
         onTap: {
-          WKInterfaceDevice.current().play(self.haptic(for: "square.fill"))
           self.onCardSelected(.yellow)
         }),
       AdaptiveEventGridItem(
@@ -75,7 +73,6 @@ struct TeamDetailsView: View {
         color: .red,
         label: "Red",
         onTap: {
-          WKInterfaceDevice.current().play(self.haptic(for: "square.fill"))
           self.onCardSelected(.red)
         }),
       AdaptiveEventGridItem(
@@ -84,7 +81,6 @@ struct TeamDetailsView: View {
         color: .blue,
         label: "Sub",
         onTap: {
-          WKInterfaceDevice.current().play(self.haptic(for: "arrow.up.arrow.down"))
           self.onSubstitutionSelected()
         }),
       AdaptiveEventGridItem(
@@ -92,9 +88,7 @@ struct TeamDetailsView: View {
         icon: "soccerball",
         color: .green,
         label: "Goal",
-        onTap: {
-          WKInterfaceDevice.current().play(self.haptic(for: "soccerball"))
-        },
+        onTap: {},
         destination: {
           GoalTypeSelectionView(
             team: self.teamType,
@@ -104,19 +98,6 @@ struct TeamDetailsView: View {
           }
         }),
     ]
-  }
-
-  private func haptic(for icon: String) -> WKHapticType {
-    switch icon {
-    case "square.fill":
-      .notification
-    case "arrow.up.arrow.down":
-      .click
-    case "soccerball":
-      .click
-    default:
-      .notification
-    }
   }
 
   private var teamDisplayName: String {

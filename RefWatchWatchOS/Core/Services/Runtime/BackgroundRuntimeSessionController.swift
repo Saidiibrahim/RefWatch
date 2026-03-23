@@ -25,10 +25,14 @@ final class MatchWorkoutRecoveryBroker {
   private init() {}
 
   func storeRecoveredSession(_ session: HKWorkoutSession) {
+    MatchAlertInvestigationLogger.timestamped(
+      "runtimeRecoveryBroker.storeRecoveredSession startDate=\(session.startDate?.timeIntervalSince1970 ?? -1)")
     self.recoveredSession = session
   }
 
   func consumeRecoveredSession() -> HKWorkoutSession? {
+    MatchAlertInvestigationLogger.timestamped(
+      "runtimeRecoveryBroker.consumeRecoveredSession hasSession=\(self.recoveredSession != nil)")
     defer { self.recoveredSession = nil }
     return self.recoveredSession
   }
@@ -105,10 +109,12 @@ private final class HealthKitMatchRuntimeSessionProvider: NSObject, MatchRuntime
 
   func recoverActiveSessionIfPossible() async throws -> Bool {
     if let recoveredSession = MatchWorkoutRecoveryBroker.shared.consumeRecoveredSession() {
+      MatchAlertInvestigationLogger.timestamped("runtimeProvider.recoverActiveSessionIfPossible usingBrokeredSession")
       try self.attachRecoveredSession(recoveredSession)
       return true
     }
 
+    MatchAlertInvestigationLogger.timestamped("runtimeProvider.recoverActiveSessionIfPossible queryingHealthStore")
     return try await withCheckedThrowingContinuation { continuation in
       self.healthStore.recoverActiveWorkoutSession { [weak self] recoveredSession, error in
         Task { @MainActor in
@@ -117,22 +123,30 @@ private final class HealthKitMatchRuntimeSessionProvider: NSObject, MatchRuntime
             if nsError.domain == HKError.errorDomain,
                nsError.code == HKError.Code.errorNoData.rawValue
             {
+              MatchAlertInvestigationLogger.timestamped("runtimeProvider.recoverActiveSessionIfPossible noActiveSession")
               continuation.resume(returning: false)
               return
             }
+            MatchAlertInvestigationLogger.timestamped(
+              "runtimeProvider.recoverActiveSessionIfPossible failed error=\(String(describing: error))")
             continuation.resume(throwing: error)
             return
           }
 
           guard let self, let recoveredSession else {
+            MatchAlertInvestigationLogger.timestamped("runtimeProvider.recoverActiveSessionIfPossible recoveredSession=nil")
             continuation.resume(returning: false)
             return
           }
 
           do {
             try self.attachRecoveredSession(recoveredSession)
+            MatchAlertInvestigationLogger.timestamped(
+              "runtimeProvider.recoverActiveSessionIfPossible attachedRecoveredSession startDate=\(recoveredSession.startDate?.timeIntervalSince1970 ?? -1)")
             continuation.resume(returning: true)
           } catch {
+            MatchAlertInvestigationLogger.timestamped(
+              "runtimeProvider.recoverActiveSessionIfPossible attachFailed error=\(String(describing: error))")
             continuation.resume(throwing: error)
           }
         }
@@ -148,26 +162,36 @@ private final class HealthKitMatchRuntimeSessionProvider: NSObject, MatchRuntime
     let workoutType = HKObjectType.workoutType()
     switch self.healthStore.authorizationStatus(for: workoutType) {
     case .sharingAuthorized:
+      MatchAlertInvestigationLogger.timestamped("runtimeProvider.requestAuthorizationIfNeeded authorized")
       return true
     case .sharingDenied:
+      MatchAlertInvestigationLogger.timestamped("runtimeProvider.requestAuthorizationIfNeeded denied")
       return false
     case .notDetermined:
+      MatchAlertInvestigationLogger.timestamped("runtimeProvider.requestAuthorizationIfNeeded requesting")
       return try await withCheckedThrowingContinuation { continuation in
         self.healthStore.requestAuthorization(toShare: Set([workoutType]), read: Set([workoutType])) { success, error in
           if let error {
+            MatchAlertInvestigationLogger.timestamped(
+              "runtimeProvider.requestAuthorizationIfNeeded failed error=\(String(describing: error))")
             continuation.resume(throwing: error)
             return
           }
+          MatchAlertInvestigationLogger.timestamped(
+            "runtimeProvider.requestAuthorizationIfNeeded completed success=\(success)")
           continuation.resume(returning: success)
         }
       }
     @unknown default:
+      MatchAlertInvestigationLogger.timestamped("runtimeProvider.requestAuthorizationIfNeeded unknownDefault")
       return false
     }
   }
 
   func start(title: String?, metadata: [String: String]) async throws {
     guard self.session == nil else { return }
+    MatchAlertInvestigationLogger.timestamped(
+      "runtimeProvider.start title=\(title ?? "nil") metadata=\(metadata)")
 
     let configuration = HKWorkoutConfiguration()
     configuration.activityType = .other
@@ -196,10 +220,14 @@ private final class HealthKitMatchRuntimeSessionProvider: NSObject, MatchRuntime
     self.builder = builder
     self.startedAt = startDate
     self.update(title: title, metadata: metadata)
+    MatchAlertInvestigationLogger.timestamped(
+      "runtimeProvider.start completed startedAt=\(startDate.timeIntervalSince1970)")
   }
 
   func update(title: String?, metadata: [String: String]) {
     guard let builder else { return }
+    MatchAlertInvestigationLogger.timestamped(
+      "runtimeProvider.update title=\(title ?? "nil") metadata=\(metadata)")
     var updatedMetadata = metadata
     if let title {
       updatedMetadata[HKMetadataKeyWorkoutBrandName] = title
@@ -209,6 +237,8 @@ private final class HealthKitMatchRuntimeSessionProvider: NSObject, MatchRuntime
 
   func stop(reason: BackgroundRuntimeEndReason) async throws {
     guard let session, let builder else { return }
+    MatchAlertInvestigationLogger.timestamped(
+      "runtimeProvider.stop reason=\(String(describing: reason)) startedAt=\(self.startedAt?.timeIntervalSince1970 ?? -1)")
 
     self.session = nil
     self.builder = nil
@@ -255,6 +285,8 @@ private final class HealthKitMatchRuntimeSessionProvider: NSObject, MatchRuntime
     self.session = recoveredSession
     self.builder = builder
     self.startedAt = recoveredSession.startDate
+    MatchAlertInvestigationLogger.timestamped(
+      "runtimeProvider.attachRecoveredSession startDate=\(recoveredSession.startDate?.timeIntervalSince1970 ?? -1)")
   }
 }
 
@@ -267,6 +299,8 @@ extension HealthKitMatchRuntimeSessionProvider: HKWorkoutSessionDelegate {
   {
     Task { @MainActor in
       guard self.session === workoutSession else { return }
+      MatchAlertInvestigationLogger.timestamped(
+        "runtimeProvider.workoutSession.didChange from=\(fromState.rawValue) to=\(toState.rawValue) date=\(date.timeIntervalSince1970)")
       if toState == .running, self.startedAt == nil {
         self.startedAt = date
       }
@@ -276,6 +310,8 @@ extension HealthKitMatchRuntimeSessionProvider: HKWorkoutSessionDelegate {
   nonisolated func workoutSession(_ workoutSession: HKWorkoutSession, didFailWithError error: Error) {
     Task { @MainActor in
       guard self.session === workoutSession else { return }
+      MatchAlertInvestigationLogger.timestamped(
+        "runtimeProvider.workoutSession.didFail error=\(String(describing: error))")
       self.session = nil
       self.builder = nil
       self.startedAt = nil
@@ -349,6 +385,8 @@ final class BackgroundRuntimeSessionController: NSObject {
   /// Reconciles toward an active Match Mode runtime session for the supplied
   /// unfinished match metadata.
   func begin(kind: BackgroundRuntimeActivityKind, title: String?, metadata: [String: String]) {
+    MatchAlertInvestigationLogger.timestamped(
+      "runtimeController.begin kind=\(String(describing: kind)) title=\(title ?? "nil") metadata=\(metadata) status=\(String(describing: self.status))")
     self.pendingStopReason = .cancelled
     self.desiredRuntime = DesiredRuntime(kind: kind, title: title, metadata: metadata)
     self.requestReconcile()
@@ -356,6 +394,7 @@ final class BackgroundRuntimeSessionController: NSObject {
 
   func notifyPause() {
     guard var desiredRuntime else { return }
+    MatchAlertInvestigationLogger.timestamped("runtimeController.notifyPause")
     desiredRuntime.metadata["isPaused"] = "true"
     self.desiredRuntime = desiredRuntime
     self.provider.update(title: desiredRuntime.title, metadata: desiredRuntime.metadata)
@@ -363,6 +402,7 @@ final class BackgroundRuntimeSessionController: NSObject {
 
   func notifyResume() {
     guard var desiredRuntime else { return }
+    MatchAlertInvestigationLogger.timestamped("runtimeController.notifyResume")
     desiredRuntime.metadata["isPaused"] = "false"
     self.desiredRuntime = desiredRuntime
     self.provider.update(title: desiredRuntime.title, metadata: desiredRuntime.metadata)
@@ -371,12 +411,16 @@ final class BackgroundRuntimeSessionController: NSObject {
   /// Reconciles toward no active runtime session and records how the workout
   /// should be finished or discarded when shutdown completes.
   func end(reason: BackgroundRuntimeEndReason) {
+    MatchAlertInvestigationLogger.timestamped(
+      "runtimeController.end reason=\(String(describing: reason)) status=\(String(describing: self.status)) hasActiveSession=\(self.provider.hasActiveSession)")
     self.desiredRuntime = nil
     self.pendingStopReason = reason
     self.requestReconcile()
   }
 
   private func requestReconcile() {
+    MatchAlertInvestigationLogger.timestamped(
+      "runtimeController.requestReconcile status=\(String(describing: self.status)) hasDesiredRuntime=\(self.desiredRuntime != nil) hasActiveSession=\(self.provider.hasActiveSession) taskActive=\(self.reconcileTask != nil)")
     self.needsReconcile = true
     guard self.reconcileTask == nil else { return }
 
@@ -391,11 +435,14 @@ final class BackgroundRuntimeSessionController: NSObject {
   }
 
   private func reconcileNow() async {
+    MatchAlertInvestigationLogger.timestamped(
+      "runtimeController.reconcileNow.begin status=\(String(describing: self.status)) hasDesiredRuntime=\(self.desiredRuntime != nil) hasActiveSession=\(self.provider.hasActiveSession)")
     do {
       if let desiredRuntime = self.desiredRuntime {
         if self.provider.hasActiveSession {
           self.provider.update(title: desiredRuntime.title, metadata: desiredRuntime.metadata)
           self.status = .running(startedAt: self.provider.startedAt ?? Date())
+          MatchAlertInvestigationLogger.timestamped("runtimeController.reconcileNow.activeSessionAlreadyRunning")
           return
         }
 
@@ -405,6 +452,7 @@ final class BackgroundRuntimeSessionController: NSObject {
           if try await self.provider.recoverActiveSessionIfPossible() {
             self.provider.update(title: desiredRuntime.title, metadata: desiredRuntime.metadata)
             self.status = .running(startedAt: self.provider.startedAt ?? Date())
+            MatchAlertInvestigationLogger.timestamped("runtimeController.reconcileNow.recoveredExistingSession")
             return
           }
         }
@@ -414,6 +462,7 @@ final class BackgroundRuntimeSessionController: NSObject {
         guard authorized else {
           self.status = .failed
           self.lastError = MatchRuntimeSessionError.authorizationDenied
+          MatchAlertInvestigationLogger.timestamped("runtimeController.reconcileNow.authorizationDenied")
           return
         }
         guard let desiredRuntime = self.desiredRuntime else { return }
@@ -422,6 +471,7 @@ final class BackgroundRuntimeSessionController: NSObject {
         try await self.provider.start(title: desiredRuntime.title, metadata: desiredRuntime.metadata)
         self.status = .running(startedAt: self.provider.startedAt ?? Date())
         self.lastError = nil
+        MatchAlertInvestigationLogger.timestamped("runtimeController.reconcileNow.startedFreshSession")
         return
       }
 
@@ -429,6 +479,7 @@ final class BackgroundRuntimeSessionController: NSObject {
       guard self.provider.hasActiveSession else {
         self.status = .idle
         self.lastError = nil
+        MatchAlertInvestigationLogger.timestamped("runtimeController.reconcileNow.noActiveSessionGoingIdle")
         return
       }
 
@@ -438,9 +489,13 @@ final class BackgroundRuntimeSessionController: NSObject {
       try await self.provider.stop(reason: stopReason)
       self.status = .idle
       self.lastError = nil
+      MatchAlertInvestigationLogger.timestamped(
+        "runtimeController.reconcileNow.stoppedSession reason=\(String(describing: stopReason))")
     } catch {
       self.status = .failed
       self.lastError = error
+      MatchAlertInvestigationLogger.timestamped(
+        "runtimeController.reconcileNow.failed error=\(String(describing: error))")
     }
   }
 }

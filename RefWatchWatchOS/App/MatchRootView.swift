@@ -17,6 +17,7 @@ struct MatchRootView: View {
   @Environment(\.scenePhase) private var scenePhase
   @EnvironmentObject private var aggregateEnvironment: AggregateSyncEnvironment
   @State private var backgroundRuntimeController: BackgroundRuntimeSessionController
+  @State private var lifecycleHaptics: WatchMatchLifecycleHaptics
   @State private var matchViewModel: MatchViewModel
   @State private var settingsViewModel: SettingsViewModel
   @State private var lifecycle: MatchLifecycleCoordinator
@@ -32,103 +33,115 @@ struct MatchRootView: View {
   private let navigationReducer = MatchNavigationReducer()
 
   @MainActor
-  init(matchViewModel: MatchViewModel? = nil, connectivity: ConnectivitySyncProviding? = nil) {
+  init(connectivity: ConnectivitySyncProviding? = nil) {
     let activeMatchSessionStore = PersistedActiveMatchSessionStore()
     let runtimeController = BackgroundRuntimeSessionController.makeForCurrentEnvironment()
+    let lifecycleHaptics = WatchMatchLifecycleHaptics()
     _backgroundRuntimeController = State(initialValue: runtimeController)
-    if let matchViewModel {
-      _matchViewModel = State(initialValue: matchViewModel)
-    } else {
-      _matchViewModel = State(initialValue: MatchViewModel(
-        history: MatchHistoryService(),
-        penaltyManager: PenaltyManager(),
-        haptics: WatchHaptics(),
-        connectivity: connectivity,
-        backgroundRuntimeManager: runtimeController,
-        activeMatchSessionStore: activeMatchSessionStore))
-    }
+    _lifecycleHaptics = State(initialValue: lifecycleHaptics)
+    _matchViewModel = State(initialValue: MatchViewModel(
+      history: MatchHistoryService(),
+      penaltyManager: PenaltyManager(),
+      haptics: WatchHaptics(),
+      lifecycleHaptics: lifecycleHaptics,
+      connectivity: connectivity,
+      backgroundRuntimeManager: runtimeController,
+      activeMatchSessionStore: activeMatchSessionStore))
     _settingsViewModel = State(initialValue: SettingsViewModel())
     _lifecycle = State(initialValue: MatchLifecycleCoordinator())
   }
 
   var body: some View {
-    NavigationStack(path: self.$navigationPath) {
-      Group {
-        switch self.lifecycle.state {
-        case .idle:
-          List {
-            heroSection
-            quickActionsSection
-          }
-          .listStyle(.carousel)
-          .scrollContentBackground(.hidden)
-          .scrollIndicators(.hidden)
-          .scenePadding(.horizontal)
-          .padding(.vertical, self.theme.components.listVerticalSpacing)
-          .background(self.theme.colors.backgroundPrimary)
-        case .kickoffFirstHalf:
-          MatchKickOffView(
-            matchViewModel: self.matchViewModel,
-            lifecycle: self.lifecycle)
-        case .setup:
-          MatchSetupView(
-            matchViewModel: self.matchViewModel,
-            lifecycle: self.lifecycle)
-        case .kickoffSecondHalf:
-          MatchKickOffView(
-            matchViewModel: self.matchViewModel,
-            isSecondHalf: true,
-            defaultSelectedTeam: (self.matchViewModel.getSecondHalfKickingTeam() == .home) ? .home : .away,
-            lifecycle: self.lifecycle)
-        case .kickoffExtraTimeFirstHalf:
-          MatchKickOffView(
-            matchViewModel: self.matchViewModel,
-            extraTimePhase: 1,
-            lifecycle: self.lifecycle)
-        case .kickoffExtraTimeSecondHalf:
-          MatchKickOffView(
-            matchViewModel: self.matchViewModel,
-            extraTimePhase: 2,
-            defaultSelectedTeam: (self.matchViewModel.getETSecondHalfKickingTeam() == .home) ? .home : .away,
-            lifecycle: self.lifecycle)
-        case .countdown:
-          // Show countdown view with context from lifecycle coordinator
-          if let kickoffType = lifecycle.pendingKickoffType,
-             let kickingTeam = lifecycle.pendingKickingTeam
-          {
-            CountdownView(
+    ZStack {
+      NavigationStack(path: self.$navigationPath) {
+        Group {
+          switch self.lifecycle.state {
+          case .idle:
+            List {
+              heroSection
+              quickActionsSection
+            }
+            .listStyle(.carousel)
+            .scrollContentBackground(.hidden)
+            .scrollIndicators(.hidden)
+            .scenePadding(.horizontal)
+            .padding(.vertical, self.theme.components.listVerticalSpacing)
+            .background(self.theme.colors.backgroundPrimary)
+          case .kickoffFirstHalf:
+            MatchKickOffView(
+              matchViewModel: self.matchViewModel,
+              lifecycle: self.lifecycle)
+          case .setup:
+            MatchSetupView(
               matchViewModel: self.matchViewModel,
               lifecycle: self.lifecycle,
-              kickoffType: kickoffType,
-              kickingTeam: kickingTeam)
-          } else {
-            // Fallback: if context is missing, go back to idle
-            Text("Error: Missing countdown context")
-              .onAppear {
-                self.lifecycle.resetToStart()
-              }
+              isLifecycleAlertPresented: self.lifecycleHaptics.activeAlert != nil)
+          case .kickoffSecondHalf:
+            MatchKickOffView(
+              matchViewModel: self.matchViewModel,
+              isSecondHalf: true,
+              defaultSelectedTeam: (self.matchViewModel.getSecondHalfKickingTeam() == .home) ? .home : .away,
+              lifecycle: self.lifecycle)
+          case .kickoffExtraTimeFirstHalf:
+            MatchKickOffView(
+              matchViewModel: self.matchViewModel,
+              extraTimePhase: 1,
+              lifecycle: self.lifecycle)
+          case .kickoffExtraTimeSecondHalf:
+            MatchKickOffView(
+              matchViewModel: self.matchViewModel,
+              extraTimePhase: 2,
+              defaultSelectedTeam: (self.matchViewModel.getETSecondHalfKickingTeam() == .home) ? .home : .away,
+              lifecycle: self.lifecycle)
+          case .countdown:
+            // Show countdown view with context from lifecycle coordinator
+            if let kickoffType = lifecycle.pendingKickoffType,
+               let kickingTeam = lifecycle.pendingKickingTeam
+            {
+              CountdownView(
+                matchViewModel: self.matchViewModel,
+                lifecycle: self.lifecycle,
+                kickoffType: kickoffType,
+                kickingTeam: kickingTeam)
+            } else {
+              // Fallback: if context is missing, go back to idle
+              Text("Error: Missing countdown context")
+                .onAppear {
+                  self.lifecycle.resetToStart()
+                }
+            }
+          case .choosePenaltyFirstKicker:
+            PenaltyFirstKickerView(
+              matchViewModel: self.matchViewModel,
+              lifecycle: self.lifecycle)
+          case .penalties:
+            PenaltyShootoutView(
+              matchViewModel: self.matchViewModel,
+              lifecycle: self.lifecycle)
+          case .finished:
+            FullTimeView(
+              matchViewModel: self.matchViewModel,
+              lifecycle: self.lifecycle)
           }
-        case .choosePenaltyFirstKicker:
-          PenaltyFirstKickerView(
-            matchViewModel: self.matchViewModel,
-            lifecycle: self.lifecycle)
-        case .penalties:
-          PenaltyShootoutView(
-            matchViewModel: self.matchViewModel,
-            lifecycle: self.lifecycle)
-        case .finished:
-          FullTimeView(
-            matchViewModel: self.matchViewModel,
-            lifecycle: self.lifecycle)
+        }
+        .navigationDestination(for: MatchRoute.self) { route in
+          destination(for: route)
         }
       }
-      .navigationDestination(for: MatchRoute.self) { route in
-        destination(for: route)
+      .allowsHitTesting(self.lifecycleHaptics.activeAlert == nil)
+      .accessibilityHidden(self.lifecycleHaptics.activeAlert != nil)
+
+      if let alert = self.lifecycleHaptics.activeAlert {
+        LifecycleAlertOverlayView(alert: alert) {
+          self.lifecycleHaptics.acknowledgeCurrentAlert()
+        }
+        .transition(.opacity)
       }
     }
     // Recreate the stack whenever we reset to idle to clear any lingering
     // navigation column state from the previous match session.
     .id(self.navigationStackID)
+    .animation(.easeInOut(duration: 0.2), value: self.lifecycleHaptics.activeAlert?.id)
     .environment(self.settingsViewModel)
     .background(self.theme.colors.backgroundPrimary.ignoresSafeArea())
     .task {
@@ -148,19 +161,31 @@ struct MatchRootView: View {
       self.matchViewModel.updateLibrary(with: snapshot)
     }
     .onChange(of: self.scenePhase) { _, newPhase in
+      MatchAlertInvestigationLogger.timestamped(
+        "matchRoot.scenePhase newPhase=\(self.debugScenePhaseName(newPhase)) lifecycleState=\(String(describing: self.lifecycle.state)) runtimeStatus=\(self.debugRuntimeStatusName(self.backgroundRuntimeController.status)) hasActiveAlert=\(self.lifecycleHaptics.activeAlert != nil) waitingForHalfTimeStart=\(self.matchViewModel.waitingForHalfTimeStart) isPaused=\(self.matchViewModel.isPaused) isMatchInProgress=\(self.matchViewModel.isMatchInProgress)")
       switch newPhase {
-      case .active, .inactive:
+      case .active:
         self.matchViewModel.reconcileBackgroundRuntimeSession()
-        if newPhase == .active {
-          self.resumeUnfinishedMatchIfNeeded()
-        }
+        self.resumeUnfinishedMatchIfNeeded()
+      case .inactive:
+        self.lifecycleHaptics.cancelPendingPlayback()
+        self.matchViewModel.reconcileBackgroundRuntimeSession()
       case .background:
+        self.lifecycleHaptics.cancelPendingPlayback()
         #if DEBUG
         print("[MatchRootView] scene phase → background (cannot start sessions)")
         #endif
       @unknown default:
         break
       }
+    }
+    .onChange(of: self.lifecycleHaptics.activeAlert?.id) { oldValue, newValue in
+      MatchAlertInvestigationLogger.timestamped(
+        "matchRoot.activeAlert old=\(oldValue?.uuidString ?? "none") new=\(newValue?.uuidString ?? "none") cue=\(self.lifecycleHaptics.activeAlert?.cue.debugName ?? "none") scenePhase=\(self.debugScenePhaseName(self.scenePhase)) lifecycleState=\(String(describing: self.lifecycle.state)) runtimeStatus=\(self.debugRuntimeStatusName(self.backgroundRuntimeController.status))")
+    }
+    .onChange(of: self.backgroundRuntimeController.status) { oldValue, newValue in
+      MatchAlertInvestigationLogger.timestamped(
+        "matchRoot.runtimeStatus old=\(self.debugRuntimeStatusName(oldValue)) new=\(self.debugRuntimeStatusName(newValue)) scenePhase=\(self.debugScenePhaseName(self.scenePhase)) hasActiveAlert=\(self.lifecycleHaptics.activeAlert != nil)")
     }
     .onOpenURL { url in
       // Deep link from Smart Stack widget
@@ -213,6 +238,40 @@ struct MatchRootView: View {
       Button("OK") { self.matchViewModel.lastPersistenceError = nil }
     } message: {
       Text(self.matchViewModel.lastPersistenceError ?? "An unknown error occurred while saving.")
+    }
+  }
+}
+
+private extension MatchRootView {
+  func debugScenePhaseName(_ phase: ScenePhase) -> String {
+    switch phase {
+    case .active:
+      "active"
+    case .inactive:
+      "inactive"
+    case .background:
+      "background"
+    @unknown default:
+      "unknown"
+    }
+  }
+
+  func debugRuntimeStatusName(_ status: BackgroundRuntimeSessionController.Status) -> String {
+    switch status {
+    case .idle:
+      "idle"
+    case .recovering:
+      "recovering"
+    case .authorizing:
+      "authorizing"
+    case .starting:
+      "starting"
+    case let .running(startedAt):
+      "running(startedAt:\(startedAt.timeIntervalSince1970))"
+    case .stopping:
+      "stopping"
+    case .failed:
+      "failed"
     }
   }
 }
