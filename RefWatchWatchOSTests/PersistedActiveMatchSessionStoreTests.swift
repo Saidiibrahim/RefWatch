@@ -26,6 +26,7 @@ struct PersistedActiveMatchSessionStoreTests {
       waitingForET1Start: false,
       waitingForET2Start: false,
       waitingForPenaltiesStart: false,
+      pendingPeriodBoundaryDecision: nil,
       isFullTime: false,
       matchCompleted: false,
       displayState: ActiveMatchDisplayState(

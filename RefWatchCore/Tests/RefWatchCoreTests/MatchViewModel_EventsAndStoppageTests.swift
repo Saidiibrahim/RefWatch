@@ -125,7 +125,7 @@ final class MatchViewModel_EventsAndStoppageTests: XCTestCase {
         XCTAssertTrue(vm.waitingForHalfTimeStart)
     }
 
-    func test_natural_period_expiry_notifies_once_and_requires_manual_end() async throws {
+    func test_natural_period_expiry_enters_pending_boundary_state_and_requires_manual_end() async throws {
         let lifecycleHaptics = MatchLifecycleHapticsSpy()
         let vm = MatchViewModel(lifecycleHaptics: lifecycleHaptics)
         vm.currentMatch = Match(
@@ -139,13 +139,15 @@ final class MatchViewModel_EventsAndStoppageTests: XCTestCase {
         vm.startMatch()
 
         let reachedBoundary = await waitUntil(timeoutSeconds: 3) {
-            vm.isPaused
+            vm.pendingPeriodBoundaryDecision == .firstHalf
         }
-        XCTAssertTrue(reachedBoundary, "Expected boundary callback to pause for manual period end")
-        XCTAssertTrue(vm.isMatchInProgress)
+        XCTAssertTrue(reachedBoundary, "Expected boundary callback to enter the pending boundary-decision state")
+        XCTAssertFalse(vm.isMatchInProgress)
+        XCTAssertFalse(vm.isPaused)
         XCTAssertFalse(vm.isHalfTime)
         XCTAssertFalse(vm.waitingForHalfTimeStart)
-        XCTAssertEqual(periodEndCount(in: vm, period: 1), 1)
+        XCTAssertEqual(vm.pendingPeriodBoundaryDecision, .firstHalf)
+        XCTAssertEqual(periodEndCount(in: vm, period: 1), 0)
         XCTAssertEqual(lifecycleHaptics.playedCues, [.periodBoundaryReached])
 
         let boundaryMatchTime = parseMMSS(vm.matchTime)
@@ -158,6 +160,7 @@ final class MatchViewModel_EventsAndStoppageTests: XCTestCase {
         XCTAssertEqual(periodEndCount(in: vm, period: 1), 1, "Manual end should not duplicate periodEnd")
         XCTAssertEqual(lifecycleHaptics.playedCues, [.periodBoundaryReached])
         XCTAssertEqual(lifecycleHaptics.cancelCount, cancelCountBeforeManualEnd + 1)
+        XCTAssertNil(vm.pendingPeriodBoundaryDecision)
         XCTAssertFalse(vm.isHalfTime)
         XCTAssertTrue(vm.waitingForHalfTimeStart)
     }

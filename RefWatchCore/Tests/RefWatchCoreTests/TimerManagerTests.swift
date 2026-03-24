@@ -85,6 +85,67 @@ final class TimerManagerTests: XCTestCase {
         XCTAssertTrue(lifecycleHaptics.playedCues.isEmpty)
     }
 
+    @MainActor
+    func test_enterPeriodBoundaryOverrun_keepsMatchAndStoppageTimeAdvancing() async throws {
+        let tm = TimerManager()
+        let match = Match(duration: 4, numberOfPeriods: 2, halfTimeLength: 1)
+        var snapshots: [TimerManager.Snapshot] = []
+
+        tm.startPeriod(
+            match: match,
+            currentPeriod: 1,
+            onTick: { snapshot in
+                snapshots.append(snapshot)
+            },
+            onPeriodEnd: {}
+        )
+
+        try await Task.sleep(nanoseconds: 1_100_000_000)
+        tm.enterPeriodBoundaryOverrun { snapshot in
+            snapshots.append(snapshot)
+        }
+        try await Task.sleep(nanoseconds: 1_100_000_000)
+
+        guard let lastSnapshot = snapshots.last else {
+            return XCTFail("Expected snapshots while in period boundary overrun")
+        }
+
+        XCTAssertTrue(lastSnapshot.isInStoppage)
+        XCTAssertGreaterThanOrEqual(parseMMSS(lastSnapshot.matchTime), 2)
+        XCTAssertGreaterThanOrEqual(parseMMSS(lastSnapshot.formattedStoppageTime), 1)
+    }
+
+    @MainActor
+    func test_restorePeriodBoundaryOverrun_restoresLiveOverrunTicks() async throws {
+        let tm = TimerManager()
+        let match = Match(duration: 4, numberOfPeriods: 2, halfTimeLength: 1)
+        var snapshots: [TimerManager.Snapshot] = []
+        let state = TimerManager.PersistenceState(
+            periodStartTime: Date().addingTimeInterval(-2),
+            stoppageStartTime: Date().addingTimeInterval(-1),
+            stoppageAccumulated: 2,
+            isInStoppage: true
+        )
+
+        tm.restorePeriodBoundaryOverrun(
+            match: match,
+            currentPeriod: 1,
+            persistenceState: state,
+            onTick: { snapshot in
+                snapshots.append(snapshot)
+            }
+        )
+        try await Task.sleep(nanoseconds: 1_100_000_000)
+
+        guard let lastSnapshot = snapshots.last else {
+            return XCTFail("Expected restored boundary overrun snapshots")
+        }
+
+        XCTAssertTrue(lastSnapshot.isInStoppage)
+        XCTAssertGreaterThanOrEqual(parseMMSS(lastSnapshot.matchTime), 3)
+        XCTAssertGreaterThanOrEqual(parseMMSS(lastSnapshot.formattedStoppageTime), 3)
+    }
+
     func test_stopHalfTime_cancelsPendingLifecyclePlayback() {
         let lifecycleHaptics = MatchLifecycleHapticsSpy()
         let tm = TimerManager(lifecycleHaptics: lifecycleHaptics)
@@ -115,6 +176,18 @@ private extension TimerManagerTests {
         }
 
         return condition()
+    }
+
+    func parseMMSS(_ value: String) -> Int {
+        let parts = value.split(separator: ":")
+        guard parts.count == 2,
+              let minutes = Int(parts[0]),
+              let seconds = Int(parts[1])
+        else {
+            return 0
+        }
+
+        return (minutes * 60) + seconds
     }
 }
 

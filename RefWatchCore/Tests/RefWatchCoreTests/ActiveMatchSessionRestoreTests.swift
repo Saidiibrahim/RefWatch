@@ -86,6 +86,45 @@ final class ActiveMatchSessionRestoreTests: XCTestCase {
     XCTAssertTrue(restored.isInStoppage)
   }
 
+  func test_restoreRoundTrip_pendingPeriodBoundaryDecision_preservesBoundaryState_withoutReplayingAlert() async throws {
+    let store = InMemoryActiveMatchSessionStore()
+    let lifecycleHaptics = MatchLifecycleHapticsSpy()
+    let viewModel = MatchViewModel(
+      history: MockMatchHistoryService(),
+      penaltyManager: PenaltyManager(),
+      haptics: NoopHaptics(),
+      lifecycleHaptics: lifecycleHaptics,
+      connectivity: nil,
+      backgroundRuntimeManager: nil,
+      activeMatchSessionStore: store)
+
+    viewModel.currentMatch = Match(duration: 2, numberOfPeriods: 2, halfTimeLength: 1)
+    viewModel.startMatch()
+
+    let reachedBoundary = await self.waitUntil(timeoutSeconds: 3) {
+      viewModel.pendingPeriodBoundaryDecision == .firstHalf
+    }
+    XCTAssertTrue(reachedBoundary)
+
+    let restoredLifecycleHaptics = MatchLifecycleHapticsSpy()
+    let restored = MatchViewModel(
+      history: MockMatchHistoryService(),
+      penaltyManager: PenaltyManager(),
+      haptics: NoopHaptics(),
+      lifecycleHaptics: restoredLifecycleHaptics,
+      connectivity: nil,
+      backgroundRuntimeManager: nil,
+      activeMatchSessionStore: store)
+
+    XCTAssertTrue(restored.restorePersistedActiveMatchSessionIfAvailable())
+    XCTAssertEqual(restored.pendingPeriodBoundaryDecision, .firstHalf)
+    XCTAssertFalse(restored.isMatchInProgress)
+    XCTAssertFalse(restored.isPaused)
+    XCTAssertFalse(restored.waitingForHalfTimeStart)
+    XCTAssertTrue(restored.isInStoppage)
+    XCTAssertTrue(restoredLifecycleHaptics.playedCues.isEmpty)
+  }
+
   private func makeViewModel(store: InMemoryActiveMatchSessionStore) -> MatchViewModel {
     MatchViewModel(
       history: MockMatchHistoryService(),
@@ -94,6 +133,20 @@ final class ActiveMatchSessionRestoreTests: XCTestCase {
       connectivity: nil,
       backgroundRuntimeManager: nil,
       activeMatchSessionStore: store)
+  }
+
+  func waitUntil(timeoutSeconds: TimeInterval, condition: @escaping () -> Bool) async -> Bool {
+    let timeoutNanos = UInt64(timeoutSeconds * 1_000_000_000)
+    let stepNanos: UInt64 = 100_000_000
+    var elapsedNanos: UInt64 = 0
+
+    while elapsedNanos < timeoutNanos {
+      if condition() { return true }
+      try? await Task.sleep(nanoseconds: stepNanos)
+      elapsedNanos += stepNanos
+    }
+
+    return condition()
   }
 }
 
@@ -120,4 +173,14 @@ private final class MockMatchHistoryService: MatchHistoryStoring {
   func save(_ match: CompletedMatch) throws {}
   func delete(id: UUID) throws {}
   func wipeAll() throws {}
+}
+
+private final class MatchLifecycleHapticsSpy: MatchLifecycleHapticsProviding {
+  private(set) var playedCues: [MatchLifecycleHapticCue] = []
+
+  func play(_ cue: MatchLifecycleHapticCue) {
+    self.playedCues.append(cue)
+  }
+
+  func cancelPendingPlayback() {}
 }

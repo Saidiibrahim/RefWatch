@@ -1,4 +1,5 @@
 import XCTest
+import RefWatchCore
 @testable import RefWatch_Watch_App
 
 @MainActor
@@ -47,6 +48,21 @@ final class AlwaysOnTimerViewTests: XCTestCase {
     XCTAssertEqual(content.accessibilityLabel, "Half time")
     XCTAssertEqual(content.accessibilityValue, "45:00")
   }
+
+  func testDisplayContentUsesExpiredHeaderDuringPendingBoundaryDecision() {
+    let model = FakeTimerFaceModel()
+    model.pendingPeriodBoundaryDecision = .firstHalf
+    model.matchTime = "45:18"
+    model.formattedStoppageTime = "00:18"
+
+    let content = AlwaysOnTimerView.displayContent(for: model)
+
+    XCTAssertEqual(content.headerText, "EXP")
+    XCTAssertEqual(content.primaryTime, "45:18")
+    XCTAssertEqual(content.secondaryTime, "+00:18")
+    XCTAssertEqual(content.accessibilityLabel, "Time expired")
+    XCTAssertEqual(content.accessibilityValue, "45:18, +00:18")
+  }
 }
 
 @MainActor
@@ -60,6 +76,7 @@ private final class FakeTimerFaceModel: TimerFaceModel {
   var isPaused = false
   var isHalfTime = false
   var waitingForHalfTimeStart = false
+  var pendingPeriodBoundaryDecision: PendingPeriodBoundaryDecision? = nil
   var isMatchInProgress = false
   var currentPeriod = 1
 

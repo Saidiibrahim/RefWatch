@@ -16,11 +16,13 @@
 - Services are instantiated in feature ViewModels; rely on protocols for testing.
 - Keep shared services platform-agnostic. Inject adapters for platform differences (e.g., haptics, connectivity).
 - `TimerManager` and `MatchViewModel` emit semantic lifecycle cues through `MatchLifecycleHapticsProviding`; repeated-sequence playback and cancellation stay in platform adapters, not in shared services or views.
+- Shared core owns the explicit `PendingPeriodBoundaryDecision` state for natural period expiry. `MatchViewModel` transitions into that state before requesting `.periodBoundaryReached`, while the watch layer remains responsible only for foreground alert playback and acknowledgment UI.
 
 ## Persistence & Sync
 - Short-term storage stays local on watch for responsiveness.
+- Unfinished-match persistence stores lifecycle decision state needed to restore referee-controlled continuation after a natural period boundary, but it does not persist foreground repeating-alert playback for automatic replay.
 - Planned enhancements include Supabase-backed sync triggered via connectivity adapters.
 
 ## Testing Strategy
 - Provide protocol-based mocks per service.
-- Focus on deterministic timer behaviors, lifecycle haptic dedupe/cancellation, and penalty edge cases.
+- Focus on deterministic timer behaviors, `PendingPeriodBoundaryDecision` sequencing, lifecycle haptic dedupe/cancellation, restore behavior, and penalty edge cases.

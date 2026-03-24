@@ -107,6 +107,21 @@ struct BackgroundRuntimeSessionControllerTests {
     #expect(content.secondaryTime == nil)
     #expect(content.accessibilityValue == "45:00")
   }
+
+  @Test
+  func alwaysOnTimerUsesExpiredHeaderDuringPendingBoundaryDecision() {
+    let model = MatchViewModel()
+    model.pendingPeriodBoundaryDecision = .firstHalf
+    model.matchTime = "45:12"
+    model.formattedStoppageTime = "00:12"
+
+    let content = AlwaysOnTimerView.displayContent(for: model)
+
+    #expect(content.headerText == "EXP")
+    #expect(content.primaryTime == "45:12")
+    #expect(content.secondaryTime == "+00:12")
+    #expect(content.accessibilityValue == "45:12, +00:12")
+  }
 }
 
 @MainActor

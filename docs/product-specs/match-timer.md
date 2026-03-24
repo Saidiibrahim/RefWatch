@@ -17,13 +17,17 @@ Provides referees with precise match, period, and stoppage tracking, optimized f
 5. On completion, results sync to `MatchHistoryService`.
 
 ## Lifecycle Haptics
-- Natural period boundary emits the `periodBoundaryReached` lifecycle cue exactly once per boundary, after stale-callback and period-end dedupe guards pass.
+- Natural period boundary emits the `periodBoundaryReached` lifecycle cue exactly once per boundary, after stale-callback guards pass and shared core has entered `PendingPeriodBoundaryDecision`.
+- Natural period expiry enters the shared-core `PendingPeriodBoundaryDecision` waiting state first, keeps boundary-overrun timing running without generic paused semantics, then requests `.periodBoundaryReached`; the repeating alert must begin from that stable state instead of being coupled to immediate `pauseMatch()` side effects.
+- The actual `.periodEnd(...)` event for a natural expiry is recorded only when the referee explicitly commits the transition through `endCurrentPeriod()`.
 - Half-time elapsed crossing the configured length emits the `halftimeDurationReached` lifecycle cue exactly once, including across restore/relaunch.
 - On watchOS both lifecycle cues use the same foreground-only repeating sequence policy: `3 x 0.4s` notification pulses, repeated every `3.0s` until the user explicitly acknowledges the alert while RefWatch remains active.
-- The repeating alert is watch-owned UI layered above the timer surface. Acknowledgment silences haptics only; it does not advance match state or replace Match Actions.
+- The repeating alert is watch-owned UI layered above the timer surface. Acknowledgment silences haptics only; it does not advance match state, clear `PendingPeriodBoundaryDecision`, or replace Match Actions.
 - If RefWatch becomes inactive or backgrounds, the repeating alert stops immediately and does not resume automatically on return or relaunch.
+- Unfinished-session restore may rehydrate `PendingPeriodBoundaryDecision` and reopen the corresponding waiting surface, but it must not replay or resume a repeating alert automatically.
 - Manual transition actions must not request a second lifecycle cue after the natural boundary cue has already fired.
 - Reset, finalize, abandonment, and manual state transitions must cancel queued later pulses so they do not leak into the next lifecycle state.
+- Manual progression remains referee-controlled: the user acknowledges the alert first, then explicitly commits the expired period through `endCurrentPeriod()`, which records `.periodEnd(...)` and moves into halftime waiting, the next kickoff waiting state, penalties waiting, or full-time as applicable.
 
 ## Configuration
 - Default face stored with `@AppStorage("timer_face_style")`.
@@ -36,6 +40,7 @@ Provides referees with precise match, period, and stoppage tracking, optimized f
   - waiting to start the first half
   - in-play periods
   - paused states
+  - `PendingPeriodBoundaryDecision`
   - waiting for halftime to start
   - halftime
   - waiting states between periods (second half, ET1, ET2)
@@ -44,6 +49,7 @@ Provides referees with precise match, period, and stoppage tracking, optimized f
 - Runtime protection ends when the match is completed, reset, or cancelled.
 - Match Mode persists unfinished state and must rehydrate on relaunch, including:
   - timer anchors and pause state
+  - `PendingPeriodBoundaryDecision`
   - halftime waiting
   - second-half / ET kickoff waiting
   - `waitingForPenaltiesStart`
@@ -69,9 +75,12 @@ Provides referees with precise match, period, and stoppage tracking, optimized f
 - Validate period transitions (start → halftime → next period).
 - Ensure pause/resume retains elapsed time correctly.
 - Cover penalty edge cases (stacked penalties, clearing after halftime).
+- Validate natural period expiry sets `PendingPeriodBoundaryDecision`, requests `.periodBoundaryReached` from that calm state, and does not record `.periodEnd(...)` until explicit referee commit.
 - Validate lifecycle haptic dedupe at natural period boundary and halftime expiry.
 - Validate cancellation of queued lifecycle pulses after reset, abandonment, end/finalize, manual transition, app interruption, and backgrounding.
 - Validate the acknowledgment overlay blocks timer taps and long-press actions until the user explicitly silences it.
-- Validate unfinished-match persistence and rehydration across relaunch, including `waitingForHalfTimeStart` and `waitingForPenaltiesStart`.
+- Validate acknowledgment does not clear `PendingPeriodBoundaryDecision`; only explicit referee progression consumes it.
+- Validate unfinished-match persistence and rehydration across relaunch, including `PendingPeriodBoundaryDecision`, `waitingForHalfTimeStart`, and `waitingForPenaltiesStart`, without replaying a stopped repeating alert.
 - Validate runtime continuity across kickoff waiting, in-play, halftime, ET, penalties, and full-time-pending-completion on Apple Watch Series 9 (45mm) physical hardware.
+- Validate on physical Apple Watch hardware that natural period-boundary alerts start after the calm-state transition and do not coincide with extra pause/runtime churn.
 - Validate elapsed vs remaining readability on Apple Watch Series 9 (45mm) and compact layout.

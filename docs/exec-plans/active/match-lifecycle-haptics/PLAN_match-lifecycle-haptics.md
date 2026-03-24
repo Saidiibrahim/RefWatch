@@ -3,6 +3,8 @@
 ## Purpose / Big Picture
 Refactor match lifecycle haptics so period-boundary and halftime-expiry cues are expressed semantically in shared code, while playback sequencing and cancellation remain platform-adapter responsibilities.
 
+Approved follow-up: smooth natural period-boundary alerts by introducing shared-core `PendingPeriodBoundaryDecision`, moving natural-boundary cue start onto that stable waiting state, and keeping repeating-alert playback foreground-only and non-restoring.
+
 ## Context and Orientation
 - Shared protocol surface: `RefWatchCore/Sources/RefWatchCore/Protocols/MatchLifecycleHapticsProviding.swift`
 - Shared timer service: `RefWatchCore/Sources/RefWatchCore/Services/TimerManager.swift`
@@ -19,6 +21,8 @@ Refactor match lifecycle haptics so period-boundary and halftime-expiry cues are
 4. Implement watch-owned repeated sequencing (`3 x 0.4s`) and iOS-owned conservative one-shot playback.
 5. Add deterministic tests for lifecycle cue requests, repeated scheduling, and cancellation.
 6. Update docs and release guidance so they match the new ownership split and validation expectations.
+7. Introduce `PendingPeriodBoundaryDecision` so natural period expiry enters a stable unfinished state, then requests `.periodBoundaryReached` without coupling cue start to immediate `pauseMatch()` side effects.
+8. Persist and restore `PendingPeriodBoundaryDecision` as shared lifecycle state while keeping repeating-alert playback transient and foreground-only.
 
 ## Concrete Steps
 - (TASK_01_match-lifecycle-haptics.md) Implement lifecycle-haptics protocol/adapters, add tests, and synchronize docs/release evidence.
@@ -31,6 +35,7 @@ Refactor match lifecycle haptics so period-boundary and halftime-expiry cues are
 - `TimerManager` could replay halftime-expiry haptics after restore because the old in-memory dedupe flag was not persisted.
 - Repeated lifecycle haptics need cancellation semantics that generic UI haptics do not, so overloading `HapticsProviding` would have leaked watch-specific behavior into iOS.
 - `MatchRootView`'s internal injected-`MatchViewModel` seam was unsafe on watchOS because it could bypass lifecycle-haptics, runtime-session, and persisted-session wiring that the production-owned constructor guarantees.
+- The feel difference between natural period-boundary alerts and halftime-expiry alerts is driven more by surrounding lifecycle churn than by scheduler policy; moving the natural-boundary cue onto a stable shared-core waiting state is the approved fix direction.
 
 ## Decision Log
 - Decision: Introduce `MatchLifecycleHapticsProviding` instead of extending `HapticsProviding`.
@@ -49,10 +54,19 @@ Refactor match lifecycle haptics so period-boundary and halftime-expiry cues are
 - Rationale: the seam was only a latent test/helper path, but it could construct a root view without lifecycle-haptics, runtime-session, or persisted-session ownership, weakening the watch app's invariants.
 - Date/Author: 2026-03-23 / Codex
 
+- Decision: Introduce shared-core `PendingPeriodBoundaryDecision` for natural period expiry and emit `.periodBoundaryReached` only after entering that state; defer `.periodEnd(...)` until explicit `endCurrentPeriod()` commit.
+- Rationale: natural period-boundary alerts should feel like halftime expiry by starting from a calmer unfinished state, while keeping manual referee progression explicit and preserving restore/runtime semantics in shared core.
+- Date/Author: 2026-03-24 / Codex
+
+- Decision: Do not restore or auto-replay repeating alert playback across interruption/relaunch, even when `PendingPeriodBoundaryDecision` is restored.
+- Rationale: the unfinished decision state is durable, but the repeating alert remains a watch-owned foreground prompt that stops on inactivity/backgrounding and should not restart out of band.
+- Date/Author: 2026-03-24 / Codex
+
 ## Testing Approach
 - Core unit tests:
   - `swift test --package-path RefWatchCore --filter MatchViewModel_EventsAndStoppageTests`
   - `swift test --package-path RefWatchCore --filter TimerManagerTests`
+  - `swift test --package-path RefWatchCore --filter MatchViewModel_BackgroundRuntimeTests`
 - watchOS unit tests:
   - `xcodebuild test -project RefWatch.xcodeproj -scheme "RefWatch Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)' -only-testing:'RefWatch Watch AppTests/WatchMatchLifecycleHapticsTests'`
   - `xcodebuild test -project RefWatch.xcodeproj -scheme "RefWatch Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)' -only-testing:'RefWatch Watch AppTests/PersistedActiveMatchSessionStoreTests'`
@@ -60,7 +74,7 @@ Refactor match lifecycle haptics so period-boundary and halftime-expiry cues are
   - `xcodebuild -project RefWatch.xcodeproj -scheme "RefWatch Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)' build`
 - Optional broader core regression sweep:
   - `swift test --package-path RefWatchCore`
-- Physical-watch verification remains required for tactile feel and “no late pulses after transition/reset”.
+- Physical-watch verification remains required for tactile feel, “no late pulses after transition/reset”, and proof that natural period-boundary playback now begins after the stable `PendingPeriodBoundaryDecision` transition instead of alongside immediate pause/runtime churn.
 
 ## Validation Evidence
 - `swift test --package-path RefWatchCore --filter MatchViewModel_EventsAndStoppageTests` passed in the closure batch after the watch-root seam removal, preserving the semantic lifecycle cue dedupe plus cancellation coverage through manual halftime, penalties flow, reset, and abandonment paths.
@@ -77,6 +91,7 @@ Refactor match lifecycle haptics so period-boundary and halftime-expiry cues are
 - Scope excludes generic view-level haptics and the unrelated direct watch haptic in `PenaltyManager`.
 - Shared services must remain free of direct WatchKit/UIKit haptic playback.
 - Manual transitions must not double-fire lifecycle cues or allow queued pulses to leak into the next state.
+- `PendingPeriodBoundaryDecision` is shared unfinished state and therefore belongs in persistence/restore/runtime routing; the repeating alert itself remains watch-only transient state and must not become restore-owned.
 
 ## Outcomes & Retrospective
 - Shared timer/lifecycle code now emits semantic cues through `MatchLifecycleHapticsProviding` instead of calling platform haptic APIs directly.

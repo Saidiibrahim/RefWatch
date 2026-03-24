@@ -107,6 +107,23 @@ final class MatchViewModel_BackgroundRuntimeTests: XCTestCase {
   }
 
   @MainActor
+  func test_natural_period_expiry_updates_runtime_to_pending_boundary_phase() async {
+    let runtimeSpy = BackgroundRuntimeManagerSpy()
+    let viewModel = MatchViewModel(backgroundRuntime: runtimeSpy)
+    viewModel.currentMatch = Match(duration: 2, numberOfPeriods: 2, halfTimeLength: 1)
+    viewModel.startMatch()
+
+    let reachedBoundary = await self.waitUntil(timeoutSeconds: 3) {
+      viewModel.pendingPeriodBoundaryDecision == .firstHalf
+    }
+
+    XCTAssertTrue(reachedBoundary)
+    XCTAssertTrue(runtimeSpy.endReasons.isEmpty)
+    XCTAssertEqual(runtimeSpy.beginCalls.last?.metadata["phase"], "pending-period-end-first-half")
+    XCTAssertEqual(runtimeSpy.beginCalls.last?.metadata["isPaused"], "false")
+  }
+
+  @MainActor
   func test_runtimeStaysActiveAcrossExtraTimeAndPenaltiesTransitions() {
     let runtimeSpy = BackgroundRuntimeManagerSpy()
     let viewModel = MatchViewModel(backgroundRuntime: runtimeSpy)
@@ -195,6 +212,23 @@ final class MatchViewModel_BackgroundRuntimeTests: XCTestCase {
     XCTAssertTrue(viewModel.isFullTime)
     XCTAssertTrue(runtimeSpy.endReasons.isEmpty)
     XCTAssertEqual(runtimeSpy.beginCalls.last?.metadata["phase"], "full-time-pending-completion")
+  }
+}
+
+private extension MatchViewModel_BackgroundRuntimeTests {
+  @MainActor
+  func waitUntil(timeoutSeconds: TimeInterval, condition: @escaping () -> Bool) async -> Bool {
+    let timeoutNanos = UInt64(timeoutSeconds * 1_000_000_000)
+    let stepNanos: UInt64 = 100_000_000
+    var elapsedNanos: UInt64 = 0
+
+    while elapsedNanos < timeoutNanos {
+      if condition() { return true }
+      try? await Task.sleep(nanoseconds: stepNanos)
+      elapsedNanos += stepNanos
+    }
+
+    return condition()
   }
 }
 

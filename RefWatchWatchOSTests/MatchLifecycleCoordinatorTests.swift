@@ -4,6 +4,7 @@
 //
 
 import Testing
+import RefWatchCore
 @testable import RefWatch_Watch_App
 
 @MainActor
@@ -47,6 +48,16 @@ struct MatchLifecycleCoordinatorTests {
         let state = FakeRoutingState(
             hasCurrentMatch: true,
             waitingForHalfTimeStart: true)
+
+        #expect(lc.resumedState(using: state) == .setup)
+    }
+
+    @Test func test_resumedState_routesPendingBoundaryDecisionToTimerSurface() async throws {
+        let lc = MatchLifecycleCoordinator()
+
+        let state = FakeRoutingState(
+            hasCurrentMatch: true,
+            pendingPeriodBoundaryDecision: .firstHalf)
 
         #expect(lc.resumedState(using: state) == .setup)
     }
@@ -95,6 +106,7 @@ private struct FakeRoutingState: MatchLifecycleRoutingState {
     var waitingForET1Start: Bool = false
     var waitingForET2Start: Bool = false
     var waitingForPenaltiesStart: Bool = false
+    var pendingPeriodBoundaryDecision: PendingPeriodBoundaryDecision? = nil
     var penaltyShootoutActive: Bool = false
     var isFullTime: Bool = false
     var matchCompleted: Bool = false
