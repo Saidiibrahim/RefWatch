@@ -44,8 +44,7 @@ struct CardEventFlow: View {
 
             case .teamOfficial:
                 TeamOfficialSelectionView(
-                    team: coordinator.selectedTeam,
-                    accentColor: coordinator.cardType == .yellow ? .yellow : .red
+                    team: coordinator.selectedTeam
                 ) { role in
                     print("DEBUG: Team official selected, handling role")
                     coordinator.handleTeamOfficial(role)
