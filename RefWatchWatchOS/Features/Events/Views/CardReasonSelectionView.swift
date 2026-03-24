@@ -7,6 +7,10 @@ struct CardReasonSelectionView: View {
   let onSelect: (MisconductReason) -> Void
   @Environment(SettingsViewModel.self) private var settingsViewModel
 
+  private var accentColor: Color {
+    cardType == .yellow ? .yellow : .red
+  }
+
   var body: some View {
     if reasons.isEmpty {
       EmptyStateView(title: title)
@@ -15,6 +19,7 @@ struct CardReasonSelectionView: View {
         title: title,
         options: reasons,
         formatter: { $0.displayText },
+        accentColor: accentColor,
         onSelect: { reason in
           onSelect(reason)
         }
@@ -57,4 +62,42 @@ private struct EmptyStateView: View {
     .background(theme.colors.backgroundPrimary.ignoresSafeArea())
     .navigationTitle(title)
   }
+}
+
+// MARK: - Previews
+
+#Preview("Yellow Card – Player") {
+  CardReasonSelectionView(
+    cardType: .yellow,
+    isTeamOfficial: false,
+    onSelect: { reason in print("Selected: \(reason.displayText)") }
+  )
+  .environment(SettingsViewModel())
+}
+
+#Preview("Red Card – Player") {
+  CardReasonSelectionView(
+    cardType: .red,
+    isTeamOfficial: false,
+    onSelect: { reason in print("Selected: \(reason.displayText)") }
+  )
+  .environment(SettingsViewModel())
+}
+
+#Preview("Yellow Card – Team Official") {
+  CardReasonSelectionView(
+    cardType: .yellow,
+    isTeamOfficial: true,
+    onSelect: { reason in print("Selected: \(reason.displayText)") }
+  )
+  .environment(SettingsViewModel())
+}
+
+#Preview("Red Card – Team Official") {
+  CardReasonSelectionView(
+    cardType: .red,
+    isTeamOfficial: true,
+    onSelect: { reason in print("Selected: \(reason.displayText)") }
+  )
+  .environment(SettingsViewModel())
 }
