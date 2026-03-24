@@ -41,7 +41,7 @@ public struct ActiveMatchDisplayState: Codable, Equatable {
 /// correct screen after watchOS interruption, relaunch, or active workout
 /// recovery.
 public struct ActiveMatchSessionSnapshot: Codable {
-  public static let schemaVersion = 1
+  public static let schemaVersion = 2
 
   public var schemaVersion: Int
   public var match: Match
@@ -55,6 +55,7 @@ public struct ActiveMatchSessionSnapshot: Codable {
   public var waitingForET1Start: Bool
   public var waitingForET2Start: Bool
   public var waitingForPenaltiesStart: Bool
+  public var pendingPeriodBoundaryDecision: PendingPeriodBoundaryDecision?
   public var isFullTime: Bool
   public var matchCompleted: Bool
   public var displayState: ActiveMatchDisplayState
@@ -80,6 +81,7 @@ public struct ActiveMatchSessionSnapshot: Codable {
     waitingForET1Start: Bool,
     waitingForET2Start: Bool,
     waitingForPenaltiesStart: Bool,
+    pendingPeriodBoundaryDecision: PendingPeriodBoundaryDecision? = nil,
     isFullTime: Bool,
     matchCompleted: Bool,
     displayState: ActiveMatchDisplayState,
@@ -104,6 +106,7 @@ public struct ActiveMatchSessionSnapshot: Codable {
     self.waitingForET1Start = waitingForET1Start
     self.waitingForET2Start = waitingForET2Start
     self.waitingForPenaltiesStart = waitingForPenaltiesStart
+    self.pendingPeriodBoundaryDecision = pendingPeriodBoundaryDecision
     self.isFullTime = isFullTime
     self.matchCompleted = matchCompleted
     self.displayState = displayState

@@ -52,6 +52,7 @@ public final class MatchViewModel {
   public var waitingForET1Start: Bool = false
   public var waitingForET2Start: Bool = false
   public var waitingForPenaltiesStart: Bool = false
+  public var pendingPeriodBoundaryDecision: PendingPeriodBoundaryDecision? = nil
   public var isFullTime: Bool = false
   public var matchCompleted: Bool = false
 
@@ -318,6 +319,7 @@ public final class MatchViewModel {
 
     if !self.isMatchInProgress {
       self.lifecycleHaptics.cancelPendingPlayback()
+      self.pendingPeriodBoundaryDecision = nil
       self.isMatchInProgress = true
       self.isPaused = false
       self.waitingForMatchStart = false
@@ -421,6 +423,8 @@ public final class MatchViewModel {
 
   public func startNextPeriod() {
     self.lifecycleHaptics.cancelPendingPlayback()
+    self.recordPeriodEndIfNeeded(for: self.currentPeriod)
+    self.pendingPeriodBoundaryDecision = nil
     self.currentPeriod += 1
     self.isHalfTime = false
 
@@ -458,6 +462,7 @@ public final class MatchViewModel {
   public func startHalfTime() {
     guard let match = currentMatch else { return }
     self.lifecycleHaptics.cancelPendingPlayback()
+    self.pendingPeriodBoundaryDecision = nil
     self.isHalfTime = true
     self.timerManager.startHalfTime(match: match) { [weak self] elapsed in
       self?.halfTimeElapsed = elapsed
@@ -470,10 +475,31 @@ public final class MatchViewModel {
     // transitions. Ignore stale callbacks once match state has moved on.
     guard self.isMatchInProgress, !self.isHalfTime, !self.isFullTime else { return }
     guard self.currentPeriod == expectedPeriod else { return }
+    guard let match = self.currentMatch else { return }
+    guard self.pendingPeriodBoundaryDecision == nil else { return }
+    guard let boundaryDecision = self.makePendingPeriodBoundaryDecision(
+      for: expectedPeriod,
+      match: match)
+    else { return }
 
-    guard self.recordPeriodEndIfNeeded(for: expectedPeriod) else { return }
+    self.pendingPeriodBoundaryDecision = boundaryDecision
+    self.isMatchInProgress = false
+    self.isPaused = false
+    self.isHalfTime = false
+    self.isInStoppage = true
+    self.waitingForHalfTimeStart = false
+    self.waitingForSecondHalfStart = false
+    self.waitingForET1Start = false
+    self.waitingForET2Start = false
+    self.waitingForPenaltiesStart = false
+    self.timerManager.enterPeriodBoundaryOverrun { [weak self] snap in
+      guard let self else { return }
+      self.matchTime = snap.matchTime
+      self.formattedStoppageTime = snap.formattedStoppageTime
+      self.isInStoppage = snap.isInStoppage
+    }
+    self.syncRuntimeSession(inactiveReason: .cancelled)
     self.lifecycleHaptics.play(.periodBoundaryReached)
-    self.pauseMatch()
   }
 
   @discardableResult
@@ -497,11 +523,46 @@ public final class MatchViewModel {
     return false
   }
 
+  private func makePendingPeriodBoundaryDecision(
+    for period: Int,
+    match: Match)
+    -> PendingPeriodBoundaryDecision?
+  {
+    let regularPeriods = max(1, match.numberOfPeriods)
+
+    switch period {
+    case 1 where regularPeriods > 1:
+      return .firstHalf
+    case regularPeriods:
+      return .secondHalf
+    case regularPeriods + 1 where match.hasExtraTime:
+      return .extraTimeFirstHalf
+    case regularPeriods + 2 where match.hasExtraTime:
+      return .extraTimeSecondHalf
+    default:
+      return nil
+    }
+  }
+
+  private func runtimePhaseLabel(for decision: PendingPeriodBoundaryDecision) -> String {
+    switch decision {
+    case .firstHalf:
+      return "pending-period-end-first-half"
+    case .secondHalf:
+      return "pending-period-end-second-half"
+    case .extraTimeFirstHalf:
+      return "pending-period-end-et1"
+    case .extraTimeSecondHalf:
+      return "pending-period-end-et2"
+    }
+  }
+
   private func endHalfTime() {
     self.endHalfTimeManually()
   }
 
   private func endMatch() {
+    self.pendingPeriodBoundaryDecision = nil
     self.isMatchInProgress = false
     self.isPaused = false
     self.isFullTime = true
@@ -842,6 +903,7 @@ extension MatchViewModel {
 
   public func beginPenaltiesIfNeeded() {
     guard !self.penaltyManager.isActive else { return }
+    self.pendingPeriodBoundaryDecision = nil
     self.waitingForPenaltiesStart = false
     self.isMatchInProgress = false
     self.isPaused = false
@@ -867,6 +929,7 @@ extension MatchViewModel {
 
   public func endPenaltiesAndProceed() {
     if self.penaltyManager.isActive { self.penaltyManager.end() }
+    self.pendingPeriodBoundaryDecision = nil
     self.waitingForPenaltiesStart = false
     self.isMatchInProgress = false
     self.isPaused = false
@@ -926,6 +989,7 @@ extension MatchViewModel {
 
     guard let match = currentMatch else { return }
 
+    self.pendingPeriodBoundaryDecision = nil
     self.timerManager.stopAll()
     self.timer = nil
     self.stoppageTimer = nil
@@ -958,6 +1022,7 @@ extension MatchViewModel {
   }
 
   public func resetMatch() {
+    self.pendingPeriodBoundaryDecision = nil
     self.timerManager.stopAll()
     self.timer = nil
     self.stoppageTimer = nil
@@ -1037,6 +1102,7 @@ extension MatchViewModel {
         }
       }
     }
+    self.pendingPeriodBoundaryDecision = nil
     self.timerManager.stopAll()
     self.timer = nil
     self.stoppageTimer = nil
@@ -1095,6 +1161,7 @@ extension MatchViewModel {
   public func startHalfTimeManually() {
     guard self.waitingForHalfTimeStart else { return }
     self.lifecycleHaptics.cancelPendingPlayback()
+    self.pendingPeriodBoundaryDecision = nil
     self.waitingForHalfTimeStart = false
     self.isHalfTime = true
     self.recordMatchEvent(.halfTime)
@@ -1109,6 +1176,7 @@ extension MatchViewModel {
   public func startSecondHalfManually() {
     guard self.waitingForSecondHalfStart else { return }
     self.lifecycleHaptics.cancelPendingPlayback()
+    self.pendingPeriodBoundaryDecision = nil
     self.waitingForSecondHalfStart = false
     self.isHalfTime = false
     self.currentPeriod = 2
@@ -1146,6 +1214,7 @@ extension MatchViewModel {
   public func startExtraTimeFirstHalfManually() {
     guard self.waitingForET1Start, let match = currentMatch else { return }
     self.lifecycleHaptics.cancelPendingPlayback()
+    self.pendingPeriodBoundaryDecision = nil
     self.waitingForET1Start = false
     self.isHalfTime = false
     self.currentPeriod = max(1, match.numberOfPeriods) + 1 // ET1
@@ -1181,6 +1250,7 @@ extension MatchViewModel {
   public func startExtraTimeSecondHalfManually() {
     guard self.waitingForET2Start, let match = currentMatch else { return }
     self.lifecycleHaptics.cancelPendingPlayback()
+    self.pendingPeriodBoundaryDecision = nil
     self.waitingForET2Start = false
     self.isHalfTime = false
     self.currentPeriod = max(1, match.numberOfPeriods) + 2 // ET2
@@ -1266,6 +1336,7 @@ extension MatchViewModel {
     self.waitingForET1Start = snapshot.waitingForET1Start
     self.waitingForET2Start = snapshot.waitingForET2Start
     self.waitingForPenaltiesStart = snapshot.waitingForPenaltiesStart
+    self.pendingPeriodBoundaryDecision = snapshot.pendingPeriodBoundaryDecision
     self.isFullTime = snapshot.isFullTime
     self.matchCompleted = snapshot.matchCompleted
     self.matchTime = snapshot.displayState.matchTime
@@ -1354,6 +1425,7 @@ extension MatchViewModel {
       self.waitingForET1Start ||
       self.waitingForET2Start ||
       self.waitingForPenaltiesStart ||
+      self.pendingPeriodBoundaryDecision != nil ||
       self.penaltyShootoutActive ||
       (self.isFullTime && self.matchCompleted == false && self.currentMatch != nil)
   }
@@ -1363,6 +1435,9 @@ extension MatchViewModel {
   private var runtimePhaseLabel: String {
     if self.penaltyShootoutActive { return "penalties" }
     if self.waitingForPenaltiesStart { return "waiting-penalties" }
+    if let pendingPeriodBoundaryDecision {
+      return self.runtimePhaseLabel(for: pendingPeriodBoundaryDecision)
+    }
     if self.isFullTime && self.matchCompleted == false { return "full-time-pending-completion" }
     if self.isHalfTime { return "halftime" }
     if self.waitingForHalfTimeStart { return "waiting-halftime" }
@@ -1392,11 +1467,28 @@ extension MatchViewModel {
     data["isPaused"] = self.isPaused ? "true" : "false"
     data["runtimeProtectionRequired"] = self.runtimeProtectionRequired ? "true" : "false"
     data["hasExtraTime"] = match.hasExtraTime ? "true" : "false"
+    if let pendingPeriodBoundaryDecision {
+      data["pendingPeriodBoundaryDecision"] = pendingPeriodBoundaryDecision.rawValue
+    }
     return data
   }
 
   private func restoreTimerState(from snapshot: ActiveMatchSessionSnapshot) {
     guard let match = self.currentMatch else { return }
+
+    if self.pendingPeriodBoundaryDecision != nil {
+      self.timerManager.restorePeriodBoundaryOverrun(
+        match: match,
+        currentPeriod: self.currentPeriod,
+        persistenceState: snapshot.timerState,
+        onTick: { [weak self] restoredSnapshot in
+          guard let self else { return }
+          self.matchTime = restoredSnapshot.matchTime
+          self.formattedStoppageTime = restoredSnapshot.formattedStoppageTime
+          self.isInStoppage = restoredSnapshot.isInStoppage
+        })
+      return
+    }
 
     if self.isHalfTime {
       self.timerManager.restoreHalfTime(match: match, persistenceState: snapshot.timerState) { [weak self] elapsed in
@@ -1456,6 +1548,7 @@ extension MatchViewModel {
       waitingForET1Start: self.waitingForET1Start,
       waitingForET2Start: self.waitingForET2Start,
       waitingForPenaltiesStart: self.waitingForPenaltiesStart,
+      pendingPeriodBoundaryDecision: self.pendingPeriodBoundaryDecision,
       isFullTime: self.isFullTime,
       matchCompleted: self.matchCompleted,
       displayState: ActiveMatchDisplayState(

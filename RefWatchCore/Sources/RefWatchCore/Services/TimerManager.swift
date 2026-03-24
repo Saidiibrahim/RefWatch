@@ -78,6 +78,7 @@ public final class TimerManager: @unchecked Sendable { // @Observable in app; ob
     private var periodTimer: Timer?
     private var stoppageTimer: Timer?
     private var halftimeTimer: Timer?
+    private var boundaryOverrunTimer: Timer?
 
     private var periodStartTime: Date?
     private var halfTimeStartTime: Date?
@@ -122,6 +123,7 @@ public final class TimerManager: @unchecked Sendable { // @Observable in app; ob
         self.onPeriodEnd = onPeriodEnd
 
         // Reset and start
+        stopBoundaryOverrunTimer()
         stopPeriodTimer()
         periodStartTime = Date()
         startPeriodTimer()
@@ -131,6 +133,7 @@ public final class TimerManager: @unchecked Sendable { // @Observable in app; ob
     public func pause(onTick: @escaping (Snapshot) -> Void) {
         self.onTick = onTick
 
+        stopBoundaryOverrunTimer()
         stopPeriodTimer()
         if stoppageStartTime == nil {
             stoppageStartTime = Date()
@@ -161,6 +164,7 @@ public final class TimerManager: @unchecked Sendable { // @Observable in app; ob
     public func resume(onTick: @escaping (Snapshot) -> Void) {
         self.onTick = onTick
 
+        stopBoundaryOverrunTimer()
         // Accumulate stoppage and stop its timer
         if let start = stoppageStartTime {
             stoppageAccumulated += Date().timeIntervalSince(start)
@@ -175,6 +179,38 @@ public final class TimerManager: @unchecked Sendable { // @Observable in app; ob
 
         // Resume the period ticking (do not change periodStartTime)
         startPeriodTimer()
+    }
+
+    /// Enters the natural period-boundary overrun mode after nominal expiry.
+    /// This keeps match and stoppage clocks updating without treating the match
+    /// as generically paused.
+    public func enterPeriodBoundaryOverrun(onTick: @escaping (Snapshot) -> Void) {
+        self.onTick = onTick
+        self.onPeriodEnd = nil
+
+        stopPeriodTimer()
+        stopBoundaryOverrunTimer()
+
+        if stoppageStartTime == nil {
+            stoppageStartTime = Date()
+        }
+
+        lastSnapshot.isInStoppage = true
+        if let match = activeMatch, let start = periodStartTime {
+            let now = Date()
+            let periodElapsed = now.timeIntervalSince(start)
+            var priorDurations: TimeInterval = 0
+            if activePeriod > 1 {
+                for i in 1..<activePeriod {
+                    priorDurations += perPeriodDurationSeconds(for: match, currentPeriod: i)
+                }
+            }
+            let totalMatchElapsed = priorDurations + periodElapsed
+            lastSnapshot.matchTime = formatMMSS(totalMatchElapsed)
+        }
+
+        startBoundaryOverrunTimer()
+        onTick(self.lastSnapshot)
     }
 
     // MARK: - Stoppage While Running
@@ -208,10 +244,12 @@ public final class TimerManager: @unchecked Sendable { // @Observable in app; ob
         lastSnapshot.formattedStoppageTime = "00:00"
         lastSnapshot.isInStoppage = false
         stopStoppageTimer()
+        stopBoundaryOverrunTimer()
     }
 
     /// Starts half-time elapsed updates (counts up). Fires haptic when configured length reached.
     public func startHalfTime(match: Match, onTick: @escaping (String) -> Void) {
+        stopBoundaryOverrunTimer()
         stopHalftimeTimer()
         self.halfTimeStartTime = Date()
         self.didRequestHalftimeDurationCue = false
@@ -244,6 +282,7 @@ public final class TimerManager: @unchecked Sendable { // @Observable in app; ob
         stopPeriodTimer()
         stopStoppageTimer()
         stopHalftimeTimer()
+        stopBoundaryOverrunTimer()
 
         self.periodStartTime = persistenceState.periodStartTime ?? Date()
         self.halfTimeStartTime = persistenceState.halfTimeStartTime
@@ -261,6 +300,32 @@ public final class TimerManager: @unchecked Sendable { // @Observable in app; ob
         DispatchQueue.main.async {
             onTick(self.lastSnapshot)
         }
+    }
+
+    public func restorePeriodBoundaryOverrun(
+        match: Match,
+        currentPeriod: Int,
+        persistenceState: PersistenceState,
+        onTick: @escaping (Snapshot) -> Void
+    ) {
+        self.activeMatch = match
+        self.activePeriod = currentPeriod
+        self.onTick = onTick
+        self.onPeriodEnd = nil
+
+        stopPeriodTimer()
+        stopStoppageTimer()
+        stopBoundaryOverrunTimer()
+        stopHalftimeTimer()
+
+        self.periodStartTime = persistenceState.periodStartTime ?? Date()
+        self.halfTimeStartTime = persistenceState.halfTimeStartTime
+        self.stoppageStartTime = persistenceState.stoppageStartTime ?? Date()
+        self.stoppageAccumulated = persistenceState.stoppageAccumulated
+        self.lastSnapshot = self.snapshot(at: Date(), isInStoppage: true)
+
+        startBoundaryOverrunTimer()
+        onTick(self.lastSnapshot)
     }
 
     public func restoreHalfTime(
@@ -313,6 +378,7 @@ public final class TimerManager: @unchecked Sendable { // @Observable in app; ob
         stopPeriodTimer()
         stopStoppageTimer()
         stopHalftimeTimer()
+        stopBoundaryOverrunTimer()
         didRequestHalftimeDurationCue = false
         onTick = nil
         onPeriodEnd = nil
@@ -397,6 +463,43 @@ public final class TimerManager: @unchecked Sendable { // @Observable in app; ob
     private func stopHalftimeTimer() {
         halftimeTimer?.invalidate()
         halftimeTimer = nil
+    }
+
+    private func startBoundaryOverrunTimer() {
+        stopBoundaryOverrunTimer()
+        boundaryOverrunTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            guard let self else { return }
+            guard self.activeMatch != nil, self.periodStartTime != nil else { return }
+            let now = Date()
+
+            if let start = self.stoppageStartTime {
+                let currentStoppage = self.stoppageAccumulated + now.timeIntervalSince(start)
+                self.lastSnapshot.formattedStoppageTime = self.formatMMSS(currentStoppage)
+            }
+
+            if let match = self.activeMatch, let start = self.periodStartTime {
+                let periodElapsed = now.timeIntervalSince(start)
+                var priorDurations: TimeInterval = 0
+                if self.activePeriod > 1 {
+                    for i in 1..<self.activePeriod {
+                        priorDurations += self.perPeriodDurationSeconds(for: match, currentPeriod: i)
+                    }
+                }
+                let totalMatchElapsed = priorDurations + periodElapsed
+                self.lastSnapshot.matchTime = self.formatMMSS(totalMatchElapsed)
+            }
+
+            self.lastSnapshot.isInStoppage = true
+            if let onTick = self.onTick {
+                DispatchQueue.main.async { onTick(self.lastSnapshot) }
+            }
+        }
+        if let t = boundaryOverrunTimer { RunLoop.current.add(t, forMode: .common) }
+    }
+
+    private func stopBoundaryOverrunTimer() {
+        boundaryOverrunTimer?.invalidate()
+        boundaryOverrunTimer = nil
     }
 
     private func requestHalftimeDurationCueIfNeeded(elapsed: TimeInterval, threshold: TimeInterval) {
