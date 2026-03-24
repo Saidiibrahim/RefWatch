@@ -88,7 +88,9 @@ final class LiveActivityStatePublisher: LiveActivityPublishing {
       return
     }
 
-    if model.isMatchInProgress || model.isHalfTime || model.penaltyShootoutActive {
+    if model.isMatchInProgress || model.isHalfTime || model.penaltyShootoutActive ||
+      model.pendingPeriodBoundaryDecision != nil
+    {
       self.update(state: state)
     } else if model.isFullTime || model.matchCompleted {
       self.end()

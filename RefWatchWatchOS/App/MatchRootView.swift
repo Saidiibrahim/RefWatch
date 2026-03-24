@@ -162,7 +162,7 @@ struct MatchRootView: View {
     }
     .onChange(of: self.scenePhase) { _, newPhase in
       MatchAlertInvestigationLogger.timestamped(
-        "matchRoot.scenePhase newPhase=\(self.debugScenePhaseName(newPhase)) lifecycleState=\(String(describing: self.lifecycle.state)) runtimeStatus=\(self.debugRuntimeStatusName(self.backgroundRuntimeController.status)) hasActiveAlert=\(self.lifecycleHaptics.activeAlert != nil) waitingForHalfTimeStart=\(self.matchViewModel.waitingForHalfTimeStart) isPaused=\(self.matchViewModel.isPaused) isMatchInProgress=\(self.matchViewModel.isMatchInProgress)")
+        "matchRoot.scenePhase newPhase=\(self.debugScenePhaseName(newPhase)) lifecycleState=\(String(describing: self.lifecycle.state)) runtimeStatus=\(self.debugRuntimeStatusName(self.backgroundRuntimeController.status)) hasActiveAlert=\(self.lifecycleHaptics.activeAlert != nil) waitingForHalfTimeStart=\(self.matchViewModel.waitingForHalfTimeStart) pendingPeriodBoundaryDecision=\(self.matchViewModel.pendingPeriodBoundaryDecision?.rawValue ?? "none") isPaused=\(self.matchViewModel.isPaused) isMatchInProgress=\(self.matchViewModel.isMatchInProgress)")
       switch newPhase {
       case .active:
         self.matchViewModel.reconcileBackgroundRuntimeSession()
@@ -211,6 +211,9 @@ struct MatchRootView: View {
       if completed {
         self.latestSummary = self.matchViewModel.latestCompletedMatchSummary()
       }
+    }
+    .onChange(of: self.matchViewModel.pendingPeriodBoundaryDecision?.rawValue) { _, _ in
+      self.resumeUnfinishedMatchIfNeeded()
     }
     .onChange(of: self.lifecycle.state) { oldState, newState in
       #if DEBUG

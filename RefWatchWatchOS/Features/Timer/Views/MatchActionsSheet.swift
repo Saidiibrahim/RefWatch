@@ -205,6 +205,11 @@ extension MatchActionsSheet {
           color: self.theme.colors.matchPositive,
           showBackground: false)
         {
+          if self.matchViewModel.pendingPeriodBoundaryDecision != nil {
+            self.matchViewModel.endCurrentPeriod()
+            self.dismiss()
+            return
+          }
           // Check if we should skip confirmation (final period and time expired)
           if self.shouldSkipConfirmation {
             self.executeEndActionDirectly()
@@ -276,6 +281,11 @@ extension MatchActionsSheet {
             color: self.theme.colors.matchPositive,
             width: cellWidth)
           {
+            if self.matchViewModel.pendingPeriodBoundaryDecision != nil {
+              self.matchViewModel.endCurrentPeriod()
+              self.dismiss()
+              return
+            }
             // Check if we should skip confirmation (final period and time expired)
             if self.shouldSkipConfirmation {
               self.executeEndActionDirectly()
@@ -330,6 +340,10 @@ extension MatchActionsSheet {
 
   /// Computes the end action title based on current match state
   private func computeEndActionTitle() -> String {
+    if let pendingBoundaryTitle {
+      return pendingBoundaryTitle
+    }
+
     if self.matchViewModel.isFullTime {
       return "End Match"
     }
@@ -362,6 +376,9 @@ extension MatchActionsSheet {
 
   /// Checks if confirmation should be skipped (final period and time expired)
   private var shouldSkipConfirmation: Bool {
+    guard self.matchViewModel.pendingPeriodBoundaryDecision == nil else {
+      return false
+    }
     guard let match = matchViewModel.currentMatch else {
       return false
     }
@@ -412,6 +429,23 @@ extension MatchActionsSheet {
     } else {
       self.matchViewModel.endCurrentPeriod()
       self.dismiss()
+    }
+  }
+
+  private var pendingBoundaryTitle: String? {
+    guard let decision = self.matchViewModel.pendingPeriodBoundaryDecision else { return nil }
+    let hasExtraTime = self.matchViewModel.currentMatch?.hasExtraTime ?? false
+    let hasPenalties = self.matchViewModel.currentMatch?.hasPenalties ?? false
+
+    switch decision {
+    case .firstHalf:
+      return "End 1st Half"
+    case .secondHalf:
+      return hasExtraTime ? "End 2nd Half" : "End Match"
+    case .extraTimeFirstHalf:
+      return "End ET 1st Half"
+    case .extraTimeSecondHalf:
+      return hasPenalties ? "End ET 2nd Half" : "End Match"
     }
   }
 }

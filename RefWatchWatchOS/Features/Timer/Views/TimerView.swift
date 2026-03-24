@@ -68,6 +68,12 @@ extension TimerView {
 
   private var lifecycleObservedContent: some View {
     self.sheetedContent
+      .onChange(of: self.model.pendingPeriodBoundaryDecision?.rawValue) { _, _ in
+        if self.model.pendingPeriodBoundaryDecision != nil {
+          self.lifecycle.goToSetup()
+        }
+        self.publishLiveActivityState()
+      }
       .onChange(of: self.model.isFullTime) { _, isFT in
         self.handleFullTimeChange(isFT)
       }
@@ -164,6 +170,7 @@ extension TimerView {
   private var timerFace: some View {
     TimerFaceFactory.view(for: self.faceStyle, model: self.model)
       .hapticsProvider(WatchHaptics())
+      .allowsHitTesting(self.model.pendingPeriodBoundaryDecision == nil)
   }
 
   @ViewBuilder
@@ -189,7 +196,10 @@ extension TimerView {
   }
 
   private func handleLongPress() {
-    guard (self.model.isMatchInProgress || self.model.isHalfTime) && !self.isLifecycleAlertPresented else { return }
+    guard
+      (self.model.isMatchInProgress || self.model.isHalfTime || self.model.pendingPeriodBoundaryDecision != nil) &&
+        !self.isLifecycleAlertPresented
+    else { return }
     WKInterfaceDevice.current().play(.notification)
     self.showingActionSheet = true
   }
@@ -214,6 +224,10 @@ extension TimerView {
   }
 
   private func handleFullTimeChange(_ isFT: Bool) {
+    guard self.model.pendingPeriodBoundaryDecision == nil else {
+      self.publishLiveActivityState()
+      return
+    }
     #if DEBUG
     print(
       "DEBUG: TimerView.onChange isFullTime=\(isFT) state=\(self.lifecycle.state) " +
@@ -228,6 +242,10 @@ extension TimerView {
   }
 
   private func handleSecondHalfWaitingChange(_ waiting: Bool) {
+    guard self.model.pendingPeriodBoundaryDecision == nil else {
+      self.publishLiveActivityState()
+      return
+    }
     if waiting {
       self.lifecycle.goToKickoffSecond()
     }
@@ -235,6 +253,10 @@ extension TimerView {
   }
 
   private func handleET1WaitingChange(_ waiting: Bool) {
+    guard self.model.pendingPeriodBoundaryDecision == nil else {
+      self.publishLiveActivityState()
+      return
+    }
     if waiting {
       self.lifecycle.goToKickoffETFirst()
     }
@@ -242,6 +264,10 @@ extension TimerView {
   }
 
   private func handleET2WaitingChange(_ waiting: Bool) {
+    guard self.model.pendingPeriodBoundaryDecision == nil else {
+      self.publishLiveActivityState()
+      return
+    }
     if waiting {
       self.lifecycle.goToKickoffETSecond()
     }
@@ -249,6 +275,10 @@ extension TimerView {
   }
 
   private func handlePenaltiesWaitingChange(_ waiting: Bool) {
+    guard self.model.pendingPeriodBoundaryDecision == nil else {
+      self.publishLiveActivityState()
+      return
+    }
     #if DEBUG
     print("DEBUG: TimerView.onChange waitingForPenaltiesStart=\(waiting) sheetShown=\(self.showingActionSheet)")
     #endif

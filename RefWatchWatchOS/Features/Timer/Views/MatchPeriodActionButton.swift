@@ -69,6 +69,10 @@ struct MatchPeriodActionButton: View {
     
     /// Determines if the button should be visible
     private var shouldShowButton: Bool {
+        if matchViewModel.pendingPeriodBoundaryDecision != nil {
+            return true
+        }
+
         // Show during match in progress
         if matchViewModel.isMatchInProgress {
             return true
@@ -97,6 +101,10 @@ struct MatchPeriodActionButton: View {
     
     /// Returns the appropriate button title based on current state
     private var buttonTitle: String {
+        if let pendingBoundaryTitle {
+            return pendingBoundaryTitle
+        }
+
         // Full-time state
         if matchViewModel.isFullTime {
             return "Complete Match"
@@ -154,6 +162,9 @@ struct MatchPeriodActionButton: View {
     }
 
     private var buttonAccessibilityIdentifier: String {
+        if matchViewModel.pendingPeriodBoundaryDecision != nil {
+            return "commitExpiredPeriodButton"
+        }
         if matchViewModel.isFullTime {
             return "completeMatchButton"
         }
@@ -177,6 +188,9 @@ struct MatchPeriodActionButton: View {
     
     /// Returns the appropriate icon based on current state
     private var buttonIcon: String {
+        if matchViewModel.pendingPeriodBoundaryDecision != nil {
+            return "checkmark.circle.fill"
+        }
         if matchViewModel.isFullTime {
             return "checkmark.circle.fill"
         }
@@ -194,6 +208,12 @@ struct MatchPeriodActionButton: View {
     
     /// Returns confirmation message for ending half
     private var confirmationMessage: String {
+        if self.matchViewModel.pendingPeriodBoundaryDecision != nil {
+            return self.pendingBoundaryCommitsMatch
+                ? "Are you sure you want to 'End Match'?"
+                : "Are you sure you want to '\(self.buttonTitle)'?"
+        }
+
         guard let match = matchViewModel.currentMatch else {
             return "Are you sure you want to 'End Half'?"
         }
@@ -214,6 +234,11 @@ struct MatchPeriodActionButton: View {
     /// Handles button tap based on current state
     private func handleButtonAction() {
         WKInterfaceDevice.current().play(.click)
+
+        if self.matchViewModel.pendingPeriodBoundaryDecision != nil {
+            self.showingEndHalfConfirmation = true
+            return
+        }
         
         // Full-time: show confirmation and finalize
         if matchViewModel.isFullTime {
@@ -306,6 +331,40 @@ struct MatchPeriodActionButton: View {
         
         // Check if total seconds <= 0
         return (minutes * 60 + seconds) <= 0
+    }
+
+    private var pendingBoundaryTitle: String? {
+        guard let decision = self.matchViewModel.pendingPeriodBoundaryDecision else { return nil }
+        let hasExtraTime = self.matchViewModel.currentMatch?.hasExtraTime ?? false
+        let hasPenalties = self.matchViewModel.currentMatch?.hasPenalties ?? false
+
+        switch decision {
+        case .firstHalf:
+            return "End 1st Half"
+        case .secondHalf:
+            return hasExtraTime ? "End 2nd Half" : "End Match"
+        case .extraTimeFirstHalf:
+            return "End ET 1st Half"
+        case .extraTimeSecondHalf:
+            return hasPenalties ? "End ET 2nd Half" : "End Match"
+        }
+    }
+
+    private var pendingBoundaryCommitsMatch: Bool {
+        guard let decision = self.matchViewModel.pendingPeriodBoundaryDecision else { return false }
+        let hasExtraTime = self.matchViewModel.currentMatch?.hasExtraTime ?? false
+        let hasPenalties = self.matchViewModel.currentMatch?.hasPenalties ?? false
+
+        switch decision {
+        case .firstHalf:
+            return false
+        case .secondHalf:
+            return !hasExtraTime
+        case .extraTimeFirstHalf:
+            return false
+        case .extraTimeSecondHalf:
+            return !hasPenalties
+        }
     }
 }
 

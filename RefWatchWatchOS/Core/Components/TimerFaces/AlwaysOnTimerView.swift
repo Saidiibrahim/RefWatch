@@ -18,6 +18,17 @@ struct AlwaysOnTimerView: View {
     let scale: CGFloat
 
     static func displayContent(for model: any TimerFaceModelState) -> DisplayContent {
+        if model.pendingPeriodBoundaryDecision != nil {
+            let stoppage = model.formattedStoppageTime == "00:00" ? nil : "+\(model.formattedStoppageTime)"
+            return DisplayContent(
+                headerText: "EXP",
+                primaryTime: model.matchTime,
+                secondaryTime: stoppage,
+                accessibilityLabel: "Time expired",
+                accessibilityValue: stoppage.map { "\(model.matchTime), \($0)" } ?? model.matchTime
+            )
+        }
+
         if model.isHalfTime {
             return DisplayContent(
                 headerText: "HT",

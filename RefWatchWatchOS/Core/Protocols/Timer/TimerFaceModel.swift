@@ -28,6 +28,7 @@ public protocol TimerFaceModelState: AnyObject {
     var isPaused: Bool { get }
     var isHalfTime: Bool { get }
     var waitingForHalfTimeStart: Bool { get }
+    var pendingPeriodBoundaryDecision: PendingPeriodBoundaryDecision? { get }
     var isMatchInProgress: Bool { get }
     var currentPeriod: Int { get }
 }

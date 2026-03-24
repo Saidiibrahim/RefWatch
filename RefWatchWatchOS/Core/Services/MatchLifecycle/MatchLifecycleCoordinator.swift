@@ -24,6 +24,7 @@ protocol MatchLifecycleRoutingState {
   var waitingForET1Start: Bool { get }
   var waitingForET2Start: Bool { get }
   var waitingForPenaltiesStart: Bool { get }
+  var pendingPeriodBoundaryDecision: PendingPeriodBoundaryDecision? { get }
   var penaltyShootoutActive: Bool { get }
   var isFullTime: Bool { get }
   var matchCompleted: Bool { get }
@@ -208,6 +209,9 @@ final class MatchLifecycleCoordinator {
     }
     if state.waitingForSecondHalfStart {
       return .kickoffSecondHalf
+    }
+    if state.pendingPeriodBoundaryDecision != nil {
+      return .setup
     }
     if state.isMatchInProgress || state.isPaused || state.isHalfTime || state.waitingForHalfTimeStart {
       return .setup

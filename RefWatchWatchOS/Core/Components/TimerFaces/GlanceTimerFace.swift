@@ -19,6 +19,8 @@ public struct GlanceTimerFace: View {
             Group {
                 if isLuminanceReduced {
                     AlwaysOnTimerView(model: model, scale: scale)
+                } else if model.pendingPeriodBoundaryDecision != nil {
+                    expiredPeriodView(scale: scale, width: proxy.size.width)
                 } else if model.isHalfTime || model.waitingForHalfTimeStart {
                     halfTimeView(scale: scale)
                 } else {
@@ -64,6 +66,39 @@ public struct GlanceTimerFace: View {
                     .padding(.vertical, theme.spacing.m * scale)
             }
         }
+    }
+
+    @ViewBuilder
+    private func expiredPeriodView(scale: CGFloat, width: CGFloat) -> some View {
+        let widthCap = layout.dimension(196, minimum: 156, maximum: 208)
+        let rowWidth = min(width * 0.88, widthCap)
+
+        VStack(spacing: Constants.verticalSpacingBase * scale) {
+            Text("Time Expired")
+                .font(theme.typography.timerSecondary)
+                .fontWeight(.semibold)
+                .foregroundStyle(theme.colors.matchWarning)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+
+            Text(model.matchTime)
+                .font(theme.typography.timerPrimary)
+                .foregroundStyle(theme.colors.textPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.66)
+                .scaleEffect(max(1.0, scale * Constants.prominentScale), anchor: .center)
+
+            if model.isInStoppage {
+                Text("+\(model.formattedStoppageTime)")
+                    .font(theme.typography.timerTertiary)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(theme.colors.matchWarning)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+        }
+        .padding(.vertical, Constants.contentPaddingBase * scale)
+        .frame(maxWidth: rowWidth)
     }
 
     @ViewBuilder

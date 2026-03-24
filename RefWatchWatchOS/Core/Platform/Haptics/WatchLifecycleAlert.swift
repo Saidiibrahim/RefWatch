@@ -23,7 +23,7 @@ struct WatchLifecycleAlert: Equatable, Identifiable, Sendable {
     switch cue {
     case .periodBoundaryReached:
       self.title = "Time Expired"
-      self.message = "Match is paused. Acknowledge to silence this alert. Use Match Actions when you are ready to move on."
+      self.message = "Acknowledge to silence this alert. The period stays in its expired state until you end it from Match Actions."
     case .halftimeDurationReached:
       self.title = "Half-Time Complete"
       self.message = "Acknowledge to silence this alert. Half-time stays active until you end it from Match Actions."

@@ -20,6 +20,8 @@ public struct ProStoppageFace: View {
             Group {
                 if isLuminanceReduced {
                     AlwaysOnTimerView(model: model, scale: scale)
+                } else if model.pendingPeriodBoundaryDecision != nil {
+                    expiredPeriodView(scale: scale, width: width)
                 } else if model.isHalfTime || model.waitingForHalfTimeStart {
                     halfTimeView(scale: scale)
                 } else {
@@ -72,6 +74,54 @@ public struct ProStoppageFace: View {
                     .scaleEffect(scale, anchor: .center)
             }
         }
+    }
+
+    @ViewBuilder
+    private func expiredPeriodView(scale: CGFloat, width: CGFloat) -> some View {
+        let rowMaxWidth = min(width * 0.78, 180)
+
+        VStack(spacing: Constants.verticalSpacingBase * scale) {
+            Text("Time Expired")
+                .font(theme.typography.timerSecondary)
+                .fontWeight(.semibold)
+                .foregroundStyle(theme.colors.matchWarning)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+
+            HStack {
+                Text("Elapsed")
+                    .font(theme.typography.caption)
+                    .foregroundStyle(theme.colors.textSecondary)
+                Spacer()
+                Text(model.matchTime)
+                    .font(theme.typography.timerSecondary)
+                    .foregroundStyle(theme.colors.textPrimary)
+                    .scaleEffect(scale * 0.9, anchor: .center)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+            }
+            .frame(maxWidth: rowMaxWidth)
+            .frame(maxWidth: .infinity)
+
+            if model.isInStoppage {
+                HStack {
+                    Text("Stoppage")
+                        .font(theme.typography.caption)
+                        .foregroundStyle(theme.colors.textSecondary)
+                    Spacer()
+                    Text("+\(model.formattedStoppageTime)")
+                        .font(theme.typography.timerTertiary)
+                        .foregroundStyle(theme.colors.matchWarning)
+                        .scaleEffect(scale * 0.85, anchor: .center)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
+                }
+                .frame(maxWidth: rowMaxWidth)
+                .frame(maxWidth: .infinity)
+            }
+        }
+        .padding(.vertical, Constants.contentVerticalPaddingBase * scale)
+        .padding(.bottom, max(Constants.bottomInsetBase * scale, layout.timerBottomPadding * 0.6))
     }
 
     @ViewBuilder
