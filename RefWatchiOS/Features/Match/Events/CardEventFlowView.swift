@@ -109,6 +109,7 @@ struct CardEventFlowView: View {
           } label: {
             Label("Save Card", systemImage: "checkmark.circle.fill")
           }
+          .tint(self.cardType == .yellow ? .yellow : .red)
         }
       }
       .navigationTitle("Card")

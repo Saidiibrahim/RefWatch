@@ -14,10 +14,15 @@ struct CardRecipientSelectionView: View {
     let cardType: CardDetails.CardType
     let onComplete: (CardRecipientType) -> Void
     
+    private var accentColor: Color {
+        cardType == .yellow ? .yellow : .red
+    }
+
     var body: some View {
         // Use the new reusable SelectionListView component
         SelectionListView<CardRecipientType>(
-            title: "Select Recipient"
+            title: "Select Recipient",
+            accentColor: accentColor
         ) { recipient in
             onComplete(recipient)
         }

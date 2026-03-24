@@ -17,6 +17,7 @@ struct SelectionListView<T>: View where T: Hashable {
   let options: [T]
   let formatter: (T) -> String
   let onSelect: (T) -> Void
+  let accentColor: Color?
 
   // Optional customization - using enum for list style
   let useCarouselStyle: Bool
@@ -26,12 +27,14 @@ struct SelectionListView<T>: View where T: Hashable {
     title: String,
     options: [T],
     formatter: @escaping (T) -> String,
+    accentColor: Color? = nil,
     useCarouselStyle: Bool = true,
     onSelect: @escaping (T) -> Void)
   {
     self.title = title
     self.options = options
     self.formatter = formatter
+    self.accentColor = accentColor
     self.useCarouselStyle = useCarouselStyle
     self.onSelect = onSelect
   }
@@ -39,12 +42,14 @@ struct SelectionListView<T>: View where T: Hashable {
   /// Convenience initializer for CaseIterable enums with RawValue String
   init(
     title: String,
+    accentColor: Color? = nil,
     useCarouselStyle: Bool = true,
     onSelect: @escaping (T) -> Void) where T: RawRepresentable & CaseIterable, T.RawValue == String
   {
     self.title = title
     self.options = Array(T.allCases)
     self.formatter = { $0.rawValue }
+    self.accentColor = accentColor
     self.useCarouselStyle = useCarouselStyle
     self.onSelect = onSelect
   }
@@ -72,11 +77,15 @@ struct SelectionListView<T>: View where T: Hashable {
     List {
       ForEach(self.options, id: \.self) { option in
         Button(action: { self.onSelect(option) }, label: {
-          ThemeCardContainer(role: .secondary, minHeight: self.theme.components.buttonHeight) {
-            Text(self.formatter(option))
-              .font(self.theme.typography.cardHeadline)
-              .foregroundStyle(self.theme.colors.textPrimary)
-              .frame(maxWidth: .infinity, alignment: .leading)
+          if let accentColor {
+            self.accentedRow(option, color: accentColor)
+          } else {
+            ThemeCardContainer(role: .secondary, minHeight: self.theme.components.buttonHeight) {
+              Text(self.formatter(option))
+                .font(self.theme.typography.cardHeadline)
+                .foregroundStyle(self.theme.colors.textPrimary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
           }
         })
         .buttonStyle(.plain)
@@ -84,6 +93,24 @@ struct SelectionListView<T>: View where T: Hashable {
         .listRowBackground(Color.clear)
       }
     }
+  }
+
+  private func accentedRow(_ option: T, color: Color) -> some View {
+    let cornerRadius = self.theme.components.controlCornerRadius
+    return Text(self.formatter(option))
+      .font(self.theme.typography.cardHeadline)
+      .foregroundStyle(self.theme.colors.textPrimary)
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .padding(.horizontal, self.theme.components.cardHorizontalPadding)
+      .frame(minHeight: self.theme.components.buttonHeight)
+      .background(
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+          .fill(color.opacity(0.3))
+      )
+      .overlay(
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+          .stroke(color.opacity(0.8), lineWidth: 1.5)
+      )
   }
 
   private var rowInsets: EdgeInsets {
