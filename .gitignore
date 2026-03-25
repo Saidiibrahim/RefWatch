@@ -82,6 +82,8 @@ RefWatchCore/build/
 DerivedData/
 .derivedData/
 .derivedData*/
+.xcodebuild-watch-review/
+.xcodebuildmcp/
 
 # SwiftPM / xcodebuild cache folders sometimes generated at repo root
 .build-modulecache/
