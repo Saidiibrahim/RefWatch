@@ -108,15 +108,34 @@ struct SubstitutionFlow: View {
 
   @ViewBuilder
   private func selectionDestination(for target: SubstitutionTarget) -> some View {
-    if let roster = self.resolvedRoster, roster.isEmpty == false {
-      SubstitutionPlayerSelectionView(
-        title: target.title,
-        players: roster,
-        selections: self.binding(for: target))
-    } else {
+    switch self.resolvedSelectionSource {
+    case let .frozenSheet(lineup):
+      let players = self.frozenSheetPlayers(for: target, lineup: lineup)
+      if players.isEmpty {
+        SubstitutionUnavailableView(
+          title: target.title,
+          message: self.frozenSheetEmptyMessage(for: target))
+      } else {
+        SubstitutionPlayerSelectionView(
+          title: target.title,
+          players: players,
+          selections: self.binding(for: target))
+      }
+    case .manualOnly:
       SubstitutionNumberCollectorView(
         title: target.title,
         selections: self.binding(for: target))
+    case .legacyLibrary:
+      if let roster = self.resolvedPlayers(for: target), roster.isEmpty == false {
+        SubstitutionPlayerSelectionView(
+          title: target.title,
+          players: roster,
+          selections: self.binding(for: target))
+      } else {
+        SubstitutionNumberCollectorView(
+          title: target.title,
+          selections: self.binding(for: target))
+      }
     }
   }
 
@@ -129,37 +148,45 @@ struct SubstitutionFlow: View {
     }
   }
 
-  private var resolvedRoster: [MatchLibraryPlayer]? {
-    if let teamRecord = self.resolvedLibraryTeam, teamRecord.players.isEmpty == false {
-      return teamRecord.players
+  private func resolvedPlayers(for target: SubstitutionTarget) -> [SubstitutionSelectablePlayer]? {
+    switch self.resolvedSelectionSource {
+    case let .frozenSheet(lineup):
+      return self.frozenSheetPlayers(for: target, lineup: lineup)
+    case let .legacyLibrary(players):
+      return players.map(SubstitutionSelectablePlayer.init(player:))
+    case .manualOnly:
+      return nil
     }
-    return nil
   }
 
-  private var resolvedLibraryTeam: MatchLibraryTeam? {
-    if let teamId = self.matchTeamId,
-       let teamRecord = self.matchViewModel.libraryTeams.first(where: { $0.id == teamId })
-    {
-      return teamRecord
+  private func frozenSheetPlayers(
+    for target: SubstitutionTarget,
+    lineup: MatchSheetResolvedLineup) -> [SubstitutionSelectablePlayer]
+  {
+    switch target {
+    case .playerOff:
+      return lineup.onField.map(SubstitutionSelectablePlayer.init(entry:))
+    case .playerOn:
+      return lineup.unusedSubstitutes.map(SubstitutionSelectablePlayer.init(entry:))
     }
-
-    let expectedName = self.teamDisplayName
-    let matches = self.matchViewModel.libraryTeams.filter { teamRecord in
-      teamRecord.name.trimmingCharacters(in: .whitespacesAndNewlines)
-        .localizedCaseInsensitiveCompare(expectedName) == .orderedSame
-    }
-    return matches.count == 1 ? matches.first : nil
   }
 
-  private var matchTeamId: UUID? {
-    guard let match = self.matchViewModel.currentMatch else { return nil }
-    return self.team == .home ? match.homeTeamId : match.awayTeamId
+  private func frozenSheetEmptyMessage(for target: SubstitutionTarget) -> String {
+    switch target {
+    case .playerOff:
+      return "No eligible on-field players remain on the official match sheet."
+    case .playerOn:
+      return "No unused substitutes remain on the official match sheet."
+    }
   }
 
-  private var teamDisplayName: String {
-    let name = self.team == .home ? self.matchViewModel.homeTeamDisplayName : self.matchViewModel.awayTeamDisplayName
-    let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-    return trimmed.isEmpty ? (self.team == .home ? "Home" : "Away") : trimmed
+  private var resolvedSelectionSource: MatchParticipantSelectionSource {
+    guard let match = self.matchViewModel.currentMatch else { return .manualOnly }
+    return MatchParticipantSelectionResolver.resolve(
+      match: match,
+      team: self.teamSide,
+      libraryTeams: self.matchViewModel.libraryTeams,
+      events: self.matchViewModel.matchEvents)
   }
 
   private func selectionSummary(for target: SubstitutionTarget) -> String {
@@ -246,6 +273,34 @@ struct SubstitutionFlow: View {
   }
 }
 
+private struct SubstitutionUnavailableView: View {
+  let title: String
+  let message: String
+
+  @Environment(\.theme) private var theme
+
+  var body: some View {
+    ScrollView {
+      ThemeCardContainer(role: .secondary, minHeight: 120) {
+        VStack(alignment: .leading, spacing: self.theme.spacing.s) {
+          Text("No Eligible Players")
+            .font(self.theme.typography.cardHeadline)
+            .foregroundStyle(self.theme.colors.textPrimary)
+
+          Text(self.message)
+            .font(self.theme.typography.cardMeta)
+            .foregroundStyle(self.theme.colors.textSecondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+      }
+      .padding(.horizontal, self.theme.spacing.xs)
+      .padding(.vertical, self.theme.spacing.s)
+    }
+    .background(self.theme.colors.backgroundPrimary)
+    .navigationTitle(self.title)
+  }
+}
+
 private enum SubstitutionTarget: String, Hashable {
   case playerOff
   case playerOn
@@ -276,25 +331,25 @@ private enum SubstitutionRoute: Identifiable, Hashable {
 
 private struct SubstitutionSelection: Identifiable, Equatable, Hashable {
   let id: UUID
-  let playerId: UUID?
+  let participantId: UUID
   let number: Int?
   let name: String?
 
   init(
     id: UUID = UUID(),
-    playerId: UUID? = nil,
+    participantId: UUID = UUID(),
     number: Int? = nil,
     name: String? = nil)
   {
     self.id = id
-    self.playerId = playerId
+    self.participantId = participantId
     self.number = number
     self.name = name?.trimmedOrNil
   }
 
-  init(player: MatchLibraryPlayer) {
+  init(player: SubstitutionSelectablePlayer) {
     self.id = UUID()
-    self.playerId = player.id
+    self.participantId = player.participantId
     self.number = player.number
     self.name = player.name.trimmedOrNil
   }
@@ -324,9 +379,35 @@ private struct SubstitutionPair: Identifiable, Equatable {
   let playerOn: SubstitutionSelection
 }
 
+private struct SubstitutionSelectablePlayer: Identifiable, Equatable {
+  let participantId: UUID
+  let name: String
+  let number: Int?
+  let position: String?
+  let notes: String?
+
+  var id: UUID { self.participantId }
+
+  init(player: MatchLibraryPlayer) {
+    self.participantId = player.id
+    self.name = player.name
+    self.number = player.number
+    self.position = player.position
+    self.notes = player.notes
+  }
+
+  init(entry: MatchSheetPlayerEntry) {
+    self.participantId = entry.entryId
+    self.name = entry.displayName
+    self.number = entry.shirtNumber
+    self.position = entry.position
+    self.notes = entry.notes
+  }
+}
+
 private struct SubstitutionPlayerSelectionView: View {
   let title: String
-  let players: [MatchLibraryPlayer]
+  let players: [SubstitutionSelectablePlayer]
   @Binding var selections: [SubstitutionSelection]
 
   @Environment(\.theme) private var theme
@@ -351,7 +432,7 @@ private struct SubstitutionPlayerSelectionView: View {
     .navigationTitle(self.title)
   }
 
-  private func row(for player: MatchLibraryPlayer) -> some View {
+  private func row(for player: SubstitutionSelectablePlayer) -> some View {
     let order = self.selectionOrder(for: player)
     let isSelected = order != nil
 
@@ -393,20 +474,20 @@ private struct SubstitutionPlayerSelectionView: View {
               lineWidth: isSelected ? 1.5 : 1)))
   }
 
-  private func toggle(_ player: MatchLibraryPlayer) {
-    if let index = self.selections.firstIndex(where: { $0.playerId == player.id }) {
+  private func toggle(_ player: SubstitutionSelectablePlayer) {
+    if let index = self.selections.firstIndex(where: { $0.participantId == player.participantId }) {
       self.selections.remove(at: index)
     } else {
       self.selections.append(SubstitutionSelection(player: player))
     }
   }
 
-  private func selectionOrder(for player: MatchLibraryPlayer) -> Int? {
-    guard let index = self.selections.firstIndex(where: { $0.playerId == player.id }) else { return nil }
+  private func selectionOrder(for player: SubstitutionSelectablePlayer) -> Int? {
+    guard let index = self.selections.firstIndex(where: { $0.participantId == player.participantId }) else { return nil }
     return index + 1
   }
 
-  private func playerLabel(for player: MatchLibraryPlayer) -> String {
+  private func playerLabel(for player: SubstitutionSelectablePlayer) -> String {
     let trimmedName = player.name.trimmingCharacters(in: .whitespacesAndNewlines)
     switch (player.number, trimmedName.isEmpty ? nil : trimmedName) {
     case let (number?, name?):
@@ -502,7 +583,7 @@ private struct SubstitutionNumberCollectorView: View {
   private func addCurrentNumber() -> Bool {
     guard let number = Int(self.numberString), number > 0 else { return false }
 
-    if self.selections.contains(where: { $0.playerId == nil && $0.number == number && $0.id != self.editingSelectionID }) {
+    if self.selections.contains(where: { $0.number == number && $0.id != self.editingSelectionID }) {
       return false
     }
 
