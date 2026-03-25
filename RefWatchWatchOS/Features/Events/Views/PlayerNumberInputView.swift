@@ -31,7 +31,8 @@ struct PlayerNumberInputView: View {
                 maxDigits: 2,
                 placeholder: context ?? "0",
                 placeholderColor: .gray
-            ) { number in
+            ) {
+                guard let number = Int(self.numberString), number > 0 else { return }
                 onComplete(number)
             }
         }

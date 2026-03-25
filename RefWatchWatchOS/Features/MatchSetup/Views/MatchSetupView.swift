@@ -14,7 +14,6 @@ struct MatchSetupView: View {
     @State private var goalInputContext: GoalInputContext?
     @State private var cardEventContext: CardEventContext?
     @State private var substitutionContext: SubstitutionContext?
-    @Environment(SettingsViewModel.self) private var settingsViewModel
 
     init(
         matchViewModel: MatchViewModel,
@@ -42,10 +41,7 @@ struct MatchSetupView: View {
                     cardEventContext = CardEventContext(team: .home, cardType: cardType)
                 },
                 onSubstitutionSelected: {
-                    substitutionContext = SubstitutionContext(
-                        team: .home,
-                        initialStep: settingsViewModel.settings.substitutionOrderPlayerOffFirst ? .playerOff : .playerOn
-                    )
+                    substitutionContext = SubstitutionContext(team: .home)
                 }
             )
             .tag(0)
@@ -69,10 +65,7 @@ struct MatchSetupView: View {
                     cardEventContext = CardEventContext(team: .away, cardType: cardType)
                 },
                 onSubstitutionSelected: {
-                    substitutionContext = SubstitutionContext(
-                        team: .away,
-                        initialStep: settingsViewModel.settings.substitutionOrderPlayerOffFirst ? .playerOff : .playerOn
-                    )
+                    substitutionContext = SubstitutionContext(team: .away)
                 }
             )
             .tag(2)
@@ -105,7 +98,6 @@ struct MatchSetupView: View {
             SubstitutionFlow(
                 team: context.team,
                 matchViewModel: viewModel.matchViewModel,
-                initialStep: context.initialStep,
                 onComplete: {
                     substitutionContext = nil
                     viewModel.setSelectedTab(1)
@@ -164,5 +156,4 @@ private struct CardEventContext: Identifiable, Hashable {
 private struct SubstitutionContext: Identifiable, Hashable {
     let id = UUID()
     let team: TeamDetailsView.TeamType
-    let initialStep: SubstitutionFlow.SubstitutionStep
 }

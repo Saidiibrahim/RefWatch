@@ -108,10 +108,18 @@ struct EventConfirmationView: View {
       }
       return details.reason
     case let .substitution(details):
-      if let playerOut = details.playerOut, let playerIn = details.playerIn {
-        return "#\(playerOut) → #\(playerIn)"
+      let playerOut = self.formattedParticipant(number: details.playerOut, name: details.playerOutName)
+      let playerIn = self.formattedParticipant(number: details.playerIn, name: details.playerInName)
+      switch (playerOut, playerIn) {
+      case let (playerOut?, playerIn?):
+        return "\(playerOut) -> \(playerIn)"
+      case let (playerOut?, nil):
+        return playerOut
+      case let (nil, playerIn?):
+        return playerIn
+      case (nil, nil):
+        return nil
       }
-      return nil
     case let .penaltyAttempt(attempt):
       if let number = attempt.playerNumber {
         return self.formattedPlayer(number: number, name: nil)
@@ -127,6 +135,22 @@ struct EventConfirmationView: View {
       return "#\(number) · \(name)"
     }
     return "#\(number)"
+  }
+
+  private func formattedParticipant(number: Int?, name: String?) -> String? {
+    let trimmedName = name?.trimmingCharacters(in: .whitespacesAndNewlines)
+    let resolvedName = trimmedName?.isEmpty == false ? trimmedName : nil
+
+    switch (number, resolvedName) {
+    case let (number?, name?):
+      return "#\(number) \(name)"
+    case let (number?, nil):
+      return "#\(number)"
+    case let (nil, name?):
+      return name
+    case (nil, nil):
+      return nil
+    }
   }
 }
 

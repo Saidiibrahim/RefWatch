@@ -15,11 +15,14 @@ struct NumericKeypad: View {
     @Environment(\.watchLayoutScale) private var layout
     @Binding var numberString: String
     let maxDigits: Int
-    let onSubmit: (Int) -> Void
+    let onSubmit: () -> Void
     
     // Configuration options
     let placeholder: String
     let placeholderColor: Color // Customizable color for placeholder text
+    let accessoryIcon: String?
+    let accessoryColor: Color
+    let onAccessoryTap: (() -> Void)?
     
     // Keypad layout - updated to match new design with back button and OK
     private let keypadLayout = [
@@ -35,13 +38,19 @@ struct NumericKeypad: View {
         maxDigits: Int = 2,
         placeholder: String = "0",
         placeholderColor: Color = .secondary, // Default to secondary to indicate placeholder
-        onSubmit: @escaping (Int) -> Void
+        accessoryIcon: String? = nil,
+        accessoryColor: Color = .blue,
+        onSubmit: @escaping () -> Void,
+        onAccessoryTap: (() -> Void)? = nil
     ) {
         self._numberString = numberString
         self.maxDigits = maxDigits
         self.placeholder = placeholder
         self.placeholderColor = placeholderColor
+        self.accessoryIcon = accessoryIcon
+        self.accessoryColor = accessoryColor
         self.onSubmit = onSubmit
+        self.onAccessoryTap = onAccessoryTap
     }
     
     var body: some View {
@@ -49,12 +58,32 @@ struct NumericKeypad: View {
 
         VStack(spacing: metrics.rowSpacing) {
             // Number display
-            Text(numberString.isEmpty ? placeholder : numberString)
-                .font(theme.typography.cardMeta)
-                // Use placeholder color when there is no input, otherwise primary
-                .foregroundStyle(numberString.isEmpty ? placeholderColor : theme.colors.textPrimary)
-                .frame(maxWidth: .infinity)
+            if let accessoryIcon, let onAccessoryTap {
+                HStack(spacing: metrics.columnSpacing) {
+                    Text(numberString.isEmpty ? placeholder : numberString)
+                        .font(theme.typography.cardMeta)
+                        .foregroundStyle(numberString.isEmpty ? placeholderColor : theme.colors.textPrimary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    Button(action: onAccessoryTap) {
+                        Image(systemName: accessoryIcon)
+                            .font(theme.typography.cardHeadline)
+                            .foregroundStyle(theme.colors.textInverted)
+                            .frame(width: metrics.actionButtonHeight, height: metrics.actionButtonHeight)
+                            .background(Circle().fill(accessoryColor))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(Text(accessoryIcon.accessibilityLabelFallback))
+                }
                 .padding(.top, theme.spacing.xs)
+            } else {
+                Text(numberString.isEmpty ? placeholder : numberString)
+                    .font(theme.typography.cardMeta)
+                    // Use placeholder color when there is no input, otherwise primary
+                    .foregroundStyle(numberString.isEmpty ? placeholderColor : theme.colors.textPrimary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, theme.spacing.xs)
+            }
             
             // Keypad grid
             VStack(spacing: metrics.rowSpacing) {
@@ -105,8 +134,8 @@ struct NumericKeypad: View {
     }
     
     private func submitNumber() {
-        if let number = Int(numberString), number > 0 {
-            onSubmit(number)
+        if Int(numberString).map({ $0 > 0 }) == true {
+            onSubmit()
         }
     }
 
@@ -232,18 +261,29 @@ private struct KeypadMetrics {
     let minButtonWidth: CGFloat
 }
 
+private extension String {
+    var accessibilityLabelFallback: String {
+        switch self {
+        case "person.badge.plus":
+            return "Add player"
+        default:
+            return self
+        }
+    }
+}
+
 // MARK: - Preview
 
 #Preview {
     @Previewable @State var numberString = ""
     
-    return VStack(spacing: 20) {
+    VStack(spacing: 20) {
         NumericKeypad(
             numberString: $numberString,
             maxDigits: 2,
             placeholder: "Enter number"
-        ) { number in
-            print("Number entered: \(number)")
+        ) {
+            print("Number entered: \(numberString)")
         }
     }
     .padding()

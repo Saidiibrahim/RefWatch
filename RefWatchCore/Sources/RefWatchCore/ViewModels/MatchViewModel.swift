@@ -19,6 +19,18 @@ import Observation
 @Observable
 @MainActor
 public final class MatchViewModel {
+  public struct EventSnapshot: Equatable {
+    let timestamp: Date
+    public let matchTime: String
+    public let period: Int
+
+    public init(timestamp: Date, matchTime: String, period: Int) {
+      self.timestamp = timestamp
+      self.matchTime = matchTime
+      self.period = period
+    }
+  }
+
   // MARK: - Properties
 
   public internal(set) var currentMatch: Match?
@@ -241,6 +253,8 @@ public final class MatchViewModel {
         scheduledMatchId: schedule.id, // Also link to schedule for status updates
         homeTeam: schedule.homeName,
         awayTeam: schedule.awayName)
+      match.homeTeamId = schedule.homeTeamId
+      match.awayTeamId = schedule.awayTeamId
       match.startTime = schedule.kickoff
       match.competitionName = schedule.competitionName
       match.venueName = schedule.venueName
@@ -783,18 +797,45 @@ public final class MatchViewModel {
 // MARK: - Match Event Recording
 
 extension MatchViewModel {
+  private func captureMatchEventSnapshot() -> EventSnapshot {
+    EventSnapshot(
+      timestamp: Date(),
+      matchTime: self.matchTime,
+      period: self.currentPeriod)
+  }
+
+  public func captureEventSnapshotForConfirmation() -> EventSnapshot {
+    self.captureMatchEventSnapshot()
+  }
+
+  private func makeEventRecord(
+    _ eventType: MatchEventType,
+    team: TeamSide? = nil,
+    details: EventDetails,
+    snapshot: EventSnapshot) -> MatchEventRecord
+  {
+    MatchEventRecord(
+      id: UUID(),
+      timestamp: snapshot.timestamp,
+      actualTime: snapshot.timestamp,
+      matchTime: snapshot.matchTime,
+      period: snapshot.period,
+      eventType: eventType,
+      team: team,
+      details: details)
+  }
+
   @discardableResult
   public func recordEvent(
     _ eventType: MatchEventType,
     team: TeamSide? = nil,
     details: EventDetails) -> MatchEventRecord
   {
-    let event = MatchEventRecord(
-      matchTime: matchTime,
-      period: currentPeriod,
-      eventType: eventType,
+    let event = self.makeEventRecord(
+      eventType,
       team: team,
-      details: details)
+      details: details,
+      snapshot: self.captureMatchEventSnapshot())
     self.matchEvents.append(event)
     self.setPendingConfirmationIfNeeded(for: event)
     self.persistActiveMatchSessionIfNeeded()
@@ -853,6 +894,59 @@ extension MatchViewModel {
       playerInName: playerInName)
     self.recordEvent(.substitution(subDetails), team: team, details: .substitution(subDetails))
     self.addSubstitution(isHome: team == .home)
+  }
+
+  /// Records multiple substitution events using a single captured match-time snapshot.
+  ///
+  /// Each substitution is still stored as a normal event so history, sync, and undo
+  /// continue to operate on individual substitutions. The event timestamp, displayed
+  /// match time, and period are frozen once for the whole batch.
+  public func recordSubstitutions(
+    team: TeamSide,
+    substitutions: [SubstitutionDetails])
+  {
+    self.recordSubstitutions(
+      team: team,
+      substitutions: substitutions,
+      snapshot: self.captureMatchEventSnapshot())
+  }
+
+  public func recordSubstitutions(
+    team: TeamSide,
+    substitutions: [SubstitutionDetails],
+    snapshot: EventSnapshot)
+  {
+    let filtered = substitutions.filter { substitution in
+      substitution.playerOut != nil || substitution.playerIn != nil
+        || substitution.playerOutName != nil || substitution.playerInName != nil
+    }
+    guard filtered.isEmpty == false else { return }
+    let events = filtered.map { substitution in
+      self.makeEventRecord(
+        .substitution(substitution),
+        team: team,
+        details: .substitution(substitution),
+        snapshot: snapshot)
+    }
+
+    self.matchEvents.append(contentsOf: events)
+    if case .substitution? = self.pendingConfirmation?.event.eventType {
+      self.pendingConfirmation = nil
+    }
+
+    guard var match = self.currentMatch else {
+      self.persistActiveMatchSessionIfNeeded()
+      return
+    }
+
+    if team == .home {
+      match.homeSubs += filtered.count
+    } else {
+      match.awaySubs += filtered.count
+    }
+
+    self.currentMatch = match
+    self.persistActiveMatchSessionIfNeeded()
   }
 
   public func recordMatchEvent(_ eventType: MatchEventType) {

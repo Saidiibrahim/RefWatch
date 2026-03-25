@@ -105,6 +105,102 @@ final class MatchViewModel_EventsAndStoppageTests: XCTestCase {
         XCTAssertNil(vm.pendingConfirmation)
     }
 
+    func test_recordSubstitutions_usesSingleFrozenSnapshotAndIncrementsCount() {
+        let vm = MatchViewModel()
+        vm.configureMatch(duration: 45, periods: 2, halfTimeLength: 15, hasExtraTime: false, hasPenalties: false)
+        vm.createMatch()
+        vm.startMatch()
+
+        vm.matchTime = "12:34"
+        vm.currentPeriod = 2
+
+        let substitutions = [
+            SubstitutionDetails(playerOut: 4, playerIn: 12, playerOutName: nil, playerInName: nil),
+            SubstitutionDetails(playerOut: 7, playerIn: 15, playerOutName: nil, playerInName: nil)
+        ]
+
+        vm.recordSubstitutions(team: .home, substitutions: substitutions)
+
+        let recorded = vm.matchEvents.suffix(2)
+        XCTAssertEqual(recorded.count, 2)
+        XCTAssertEqual(vm.currentMatch?.homeSubs, 2)
+        XCTAssertNil(vm.pendingConfirmation)
+
+        let first = recorded[recorded.startIndex]
+        let second = recorded[recorded.index(after: recorded.startIndex)]
+
+        XCTAssertEqual(first.matchTime, "12:34")
+        XCTAssertEqual(second.matchTime, "12:34")
+        XCTAssertEqual(first.period, 2)
+        XCTAssertEqual(second.period, 2)
+        XCTAssertEqual(first.timestamp, second.timestamp)
+        XCTAssertEqual(first.actualTime, second.actualTime)
+
+        switch first.eventType {
+        case let .substitution(details):
+            XCTAssertEqual(details.playerOut, 4)
+            XCTAssertEqual(details.playerIn, 12)
+        default:
+            XCTFail("Expected first event to be substitution")
+        }
+
+        switch second.eventType {
+        case let .substitution(details):
+            XCTAssertEqual(details.playerOut, 7)
+            XCTAssertEqual(details.playerIn, 15)
+        default:
+            XCTFail("Expected second event to be substitution")
+        }
+    }
+
+    func test_recordSubstitutions_filtersEmptyEntries() {
+        let vm = MatchViewModel()
+        vm.configureMatch(duration: 45, periods: 2, halfTimeLength: 15, hasExtraTime: false, hasPenalties: false)
+        vm.createMatch()
+        vm.startMatch()
+
+        vm.recordSubstitutions(
+            team: .away,
+            substitutions: [
+                SubstitutionDetails(playerOut: nil, playerIn: nil, playerOutName: nil, playerInName: nil),
+                SubstitutionDetails(playerOut: 6, playerIn: 14, playerOutName: nil, playerInName: nil)
+            ])
+
+        XCTAssertEqual(vm.currentMatch?.awaySubs, 1)
+        guard let last = vm.matchEvents.last else {
+            return XCTFail("Expected a recorded substitution")
+        }
+
+        switch last.eventType {
+        case let .substitution(details):
+            XCTAssertEqual(details.playerOut, 6)
+            XCTAssertEqual(details.playerIn, 14)
+        default:
+            XCTFail("Expected substitution event")
+        }
+    }
+
+    func test_substitutionDisplayDescription_usesNamesAndNumbersWhenAvailable() {
+        let details = SubstitutionDetails(
+            playerOut: 4,
+            playerIn: nil,
+            playerOutName: "Alex",
+            playerInName: "Jamie"
+        )
+        let event = MatchEventRecord(
+            id: UUID(),
+            timestamp: Date(timeIntervalSince1970: 1),
+            actualTime: Date(timeIntervalSince1970: 1),
+            matchTime: "12:34",
+            period: 1,
+            eventType: .substitution(details),
+            team: .home,
+            details: .substitution(details)
+        )
+
+        XCTAssertEqual(event.displayDescription, "Substitution - #4 Alex -> Jamie")
+    }
+
     func test_undo_without_events_returns_false() {
         let vm = MatchViewModel()
         XCTAssertFalse(vm.undoLastUserEvent())

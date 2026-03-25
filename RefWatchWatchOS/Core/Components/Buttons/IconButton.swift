@@ -55,6 +55,8 @@ private extension String {
             return "Confirm"
         case "xmark.circle.fill":
             return "Cancel"
+        case "person.badge.plus":
+            return "Add player"
         default:
             return self
         }

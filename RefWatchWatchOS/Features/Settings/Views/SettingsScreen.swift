@@ -143,23 +143,6 @@ extension SettingsScreen {
         isOn: self.$settingsViewModel.settings.confirmSubstitutions)
         .listRowInsets(self.cardRowInsets)
         .listRowBackground(Color.clear)
-
-      ThemeCardContainer(role: .secondary, minHeight: 72) {
-        Picker(selection: self.$settingsViewModel.settings.substitutionOrderPlayerOffFirst) {
-          Label("Player Off First", systemImage: "arrow.left.circle")
-            .tag(true)
-          Label("Player On First", systemImage: "arrow.right.circle")
-            .tag(false)
-        } label: {
-          SettingsRowContent(
-            title: "Recording Order",
-            value: nil,
-            icon: "arrow.triangle.2.circlepath")
-        }
-        .pickerStyle(.navigationLink)
-      }
-      .listRowInsets(self.cardRowInsets)
-      .listRowBackground(Color.clear)
     } header: {
       SettingsSectionHeader(title: "Substitutions")
     }
@@ -209,10 +192,6 @@ extension SettingsScreen {
 
   private var misconductTemplateSummary: String {
     self.settingsViewModel.activeMisconductTemplate.name
-  }
-
-  private var substitutionOrderLabel: String {
-    self.settingsViewModel.settings.substitutionOrderPlayerOffFirst ? "Player Off First" : "Player On First"
   }
 
   private var syncHeadline: String {

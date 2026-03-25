@@ -1,5 +1,5 @@
 // SubstitutionFlow.swift
-// Description: View for handling player substitution process
+// Description: Hub-and-spoke flow for recording one or more substitutions on watchOS.
 
 import RefWatchCore
 import SwiftUI
@@ -9,353 +9,666 @@ struct SubstitutionFlow: View {
   let matchViewModel: MatchViewModel
   let onComplete: () -> Void
 
-  @State private var step: SubstitutionStep
-  @State private var playerOffNumber: Int?
-  @State private var playerOnNumber: Int?
   @Environment(SettingsViewModel.self) private var settingsViewModel
-
-  enum SubstitutionStep {
-    case playerOff
-    case playerOn
-    case confirmation
-  }
-
-  // Initialize with proper starting step based on settings
-  init(
-    team: TeamDetailsView.TeamType,
-    matchViewModel: MatchViewModel,
-    initialStep: SubstitutionStep = .playerOff,
-    onComplete: @escaping () -> Void)
-  {
-    self.team = team
-    self.matchViewModel = matchViewModel
-    self._step = State(initialValue: initialStep)
-    self.onComplete = onComplete
-  }
+  @Environment(\.theme) private var theme
+  @State private var activeRoute: SubstitutionRoute?
+  @State private var playersOff: [SubstitutionSelection] = []
+  @State private var playersOn: [SubstitutionSelection] = []
+  @State private var confirmationSnapshot: MatchViewModel.EventSnapshot?
 
   var body: some View {
-    Group {
-      switch self.step {
-      case .playerOff:
-        PlayerNumberInputView(
-          team: self.team,
-          goalType: nil,
-          cardType: nil,
-          context: "player off",
-          onComplete: { number in
-            self.playerOffNumber = number
-            self.advanceAfterCapturingPlayerOff()
-          })
-
-      case .playerOn:
-        PlayerNumberInputView(
-          team: self.team,
-          goalType: nil,
-          cardType: nil,
-          context: "player on",
-          onComplete: { number in
-            self.playerOnNumber = number
-            self.advanceAfterCapturingPlayerOn()
-          })
-          .navigationBarBackButtonHidden(false)
-
+    List {
+      self.summaryCard
+      self.selectionButton(for: .playerOff)
+      self.selectionButton(for: .playerOn)
+      self.doneButton
+    }
+    .listStyle(.carousel)
+    .scrollContentBackground(.hidden)
+    .padding(.vertical, self.theme.components.listRowVerticalInset)
+    .background(self.theme.colors.backgroundPrimary)
+    .navigationTitle("Sub")
+    .navigationDestination(item: self.$activeRoute) { route in
+      switch route {
+      case let .selection(target):
+        self.selectionDestination(for: target)
       case .confirmation:
-        self.confirmationView
-          // .navigationTitle("Confirm Substitution")
-            .navigationBarBackButtonHidden(false)
+        SubstitutionBatchConfirmationView(
+          pairs: self.orderedPairs,
+          matchTime: self.confirmationSnapshot?.matchTime ?? self.matchViewModel.matchTime,
+          onConfirm: {
+            self.commitBatch()
+          })
       }
     }
   }
 
-  private var confirmationView: some View {
-    VStack(spacing: 20) {
-      // Text("Substitution")
-      //     .font(.system(size: 16, weight: .medium))
-
-      VStack(spacing: 12) {
+  private var summaryCard: some View {
+    ThemeCardContainer(role: .secondary, minHeight: 72) {
+      VStack(alignment: .leading, spacing: self.theme.spacing.xs) {
         HStack {
-          Text("Player Off:")
-            .font(.body)
+          Text("Substitutions made:")
+            .font(self.theme.typography.cardHeadline)
+            .foregroundStyle(self.theme.colors.textPrimary)
+
           Spacer()
-          Text("#\(self.playerOffNumber ?? 0)")
-            .font(.title2)
-            .fontWeight(.medium)
+
+          Text("\(self.orderedPairs.count)")
+            .font(self.theme.typography.cardHeadline)
+            .foregroundStyle(self.theme.colors.textPrimary)
         }
 
-        HStack {
-          Text("Player On:")
-            .font(.body)
-          Spacer()
-          Text("#\(self.playerOnNumber ?? 0)")
-            .font(.title2)
-            .fontWeight(.medium)
+        if self.canSubmit == false, self.hasAnySelections {
+          Text("Select equal players off and on")
+            .font(self.theme.typography.cardMeta)
+            .foregroundStyle(self.theme.colors.textSecondary)
+        } else {
+          Text("All saved substitutions share one match time")
+            .font(self.theme.typography.cardMeta)
+            .foregroundStyle(self.theme.colors.textSecondary)
         }
       }
-      // .padding()
-      .background(
-        RoundedRectangle(cornerRadius: 12)
-          .fill(Color.gray.opacity(0.1)))
-
-      Spacer()
-
-      // Replace with custom button
-      Button("Confirm Substitution") {
-        self.recordSubstitution()
-      }
-      // .font(.headline)
-      // .padding()
-      // .frame(maxWidth: .infinity)
-      // .background(Color.blue)
-      // .foregroundColor(.white)
-      // .cornerRadius(12)
-      // .padding(.horizontal)
     }
-    .padding()
+    .listRowInsets(self.rowInsets)
+    .listRowBackground(Color.clear)
   }
 
-  private func recordSubstitution() {
-    guard let offNumber = playerOffNumber,
-          let onNumber = playerOnNumber else { return }
+  private func selectionButton(for target: SubstitutionTarget) -> some View {
+    Button {
+      self.confirmationSnapshot = nil
+      self.navigate(to: .selection(target))
+    } label: {
+      NavigationRowLabel(
+        title: target.title,
+        subtitle: self.selectionSummary(for: target),
+        showChevron: true)
+    }
+    .buttonStyle(.plain)
+    .listRowInsets(self.rowInsets)
+    .listRowBackground(Color.clear)
+  }
 
-    print("DEBUG: Recording substitution - Off: #\(offNumber), On: #\(onNumber), Team: \(self.team)")
+  private var doneButton: some View {
+    Button {
+      self.handleDone()
+    } label: {
+      ThemeCardContainer(role: self.canSubmit ? .positive : .secondary, minHeight: 72) {
+        Text("Done")
+          .font(self.theme.typography.cardHeadline)
+          .foregroundStyle(
+            self.canSubmit ? self.theme.colors.textInverted : self.theme.colors.textSecondary)
+          .frame(maxWidth: .infinity, alignment: .center)
+      }
+    }
+    .buttonStyle(.plain)
+    .disabled(self.canSubmit == false)
+    .listRowInsets(self.rowInsets)
+    .listRowBackground(Color.clear)
+  }
 
-    // Map team to new enum
-    let teamSide: TeamSide = self.team == .home ? .home : .away
+  @ViewBuilder
+  private func selectionDestination(for target: SubstitutionTarget) -> some View {
+    if let roster = self.resolvedRoster, roster.isEmpty == false {
+      SubstitutionPlayerSelectionView(
+        title: target.title,
+        players: roster,
+        selections: self.binding(for: target))
+    } else {
+      SubstitutionNumberCollectorView(
+        title: target.title,
+        selections: self.binding(for: target))
+    }
+  }
 
-    // Record substitution using new comprehensive system
-    self.matchViewModel.recordSubstitution(
-      team: teamSide,
-      playerOut: offNumber,
-      playerIn: onNumber)
+  private func binding(for target: SubstitutionTarget) -> Binding<[SubstitutionSelection]> {
+    switch target {
+    case .playerOff:
+      self.$playersOff
+    case .playerOn:
+      self.$playersOn
+    }
+  }
 
-    print("DEBUG: Substitution recorded successfully using new system")
+  private var resolvedRoster: [MatchLibraryPlayer]? {
+    if let teamRecord = self.resolvedLibraryTeam, teamRecord.players.isEmpty == false {
+      return teamRecord.players
+    }
+    return nil
+  }
 
-    // Notify parent to handle navigation
+  private var resolvedLibraryTeam: MatchLibraryTeam? {
+    if let teamId = self.matchTeamId,
+       let teamRecord = self.matchViewModel.libraryTeams.first(where: { $0.id == teamId })
+    {
+      return teamRecord
+    }
+
+    let expectedName = self.teamDisplayName
+    let matches = self.matchViewModel.libraryTeams.filter { teamRecord in
+      teamRecord.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        .localizedCaseInsensitiveCompare(expectedName) == .orderedSame
+    }
+    return matches.count == 1 ? matches.first : nil
+  }
+
+  private var matchTeamId: UUID? {
+    guard let match = self.matchViewModel.currentMatch else { return nil }
+    return self.team == .home ? match.homeTeamId : match.awayTeamId
+  }
+
+  private var teamDisplayName: String {
+    let name = self.team == .home ? self.matchViewModel.homeTeamDisplayName : self.matchViewModel.awayTeamDisplayName
+    let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+    return trimmed.isEmpty ? (self.team == .home ? "Home" : "Away") : trimmed
+  }
+
+  private func selectionSummary(for target: SubstitutionTarget) -> String {
+    let selections = self.selections(for: target)
+    guard selections.isEmpty == false else { return "Select player" }
+    return selections.enumerated().map { index, selection in
+      "\(index + 1). \(selection.displayLabel)"
+    }.joined(separator: ", ")
+  }
+
+  private func selections(for target: SubstitutionTarget) -> [SubstitutionSelection] {
+    switch target {
+    case .playerOff:
+      self.playersOff
+    case .playerOn:
+      self.playersOn
+    }
+  }
+
+  private var orderedPairs: [SubstitutionPair] {
+    Array(zip(self.playersOff, self.playersOn)).map { playerOff, playerOn in
+      SubstitutionPair(playerOff: playerOff, playerOn: playerOn)
+    }
+  }
+
+  private var canSubmit: Bool {
+    self.playersOff.isEmpty == false
+      && self.playersOff.count == self.playersOn.count
+  }
+
+  private var hasAnySelections: Bool {
+    self.playersOff.isEmpty == false || self.playersOn.isEmpty == false
+  }
+
+  private func handleDone() {
+    guard self.canSubmit else { return }
+    if self.settingsViewModel.settings.confirmSubstitutions {
+      self.confirmationSnapshot = self.matchViewModel.captureEventSnapshotForConfirmation()
+      self.navigate(to: .confirmation)
+    } else {
+      self.commitBatch()
+    }
+  }
+
+  private func navigate(to route: SubstitutionRoute) {
+    self.activeRoute = nil
+    Task { @MainActor in
+      self.activeRoute = route
+    }
+  }
+
+  private func commitBatch() {
+    guard self.canSubmit else { return }
+    let substitutions = self.orderedPairs.map { pair in
+      SubstitutionDetails(
+        playerOut: pair.playerOff.number,
+        playerIn: pair.playerOn.number,
+        playerOutName: pair.playerOff.name,
+        playerInName: pair.playerOn.name)
+    }
+
+    if let confirmationSnapshot {
+      self.matchViewModel.recordSubstitutions(
+        team: self.teamSide,
+        substitutions: substitutions,
+        snapshot: confirmationSnapshot)
+      self.confirmationSnapshot = nil
+    } else {
+      self.matchViewModel.recordSubstitutions(team: self.teamSide, substitutions: substitutions)
+    }
     self.onComplete()
   }
 
-  private func advanceAfterCapturingPlayerOff() {
-    if self.playerOnNumber == nil {
-      self.step = .playerOn
+  private var teamSide: TeamSide {
+    self.team == .home ? .home : .away
+  }
+
+  private var rowInsets: EdgeInsets {
+    EdgeInsets(
+      top: self.theme.components.listRowVerticalInset,
+      leading: 0,
+      bottom: self.theme.components.listRowVerticalInset,
+      trailing: 0)
+  }
+}
+
+private enum SubstitutionTarget: String, Hashable {
+  case playerOff
+  case playerOn
+
+  var title: String {
+    switch self {
+    case .playerOff:
+      "Player(s) off"
+    case .playerOn:
+      "Player(s) on"
+    }
+  }
+}
+
+private enum SubstitutionRoute: Identifiable, Hashable {
+  case selection(SubstitutionTarget)
+  case confirmation
+
+  var id: String {
+    switch self {
+    case let .selection(target):
+      return target.rawValue
+    case .confirmation:
+      return "confirmation"
+    }
+  }
+}
+
+private struct SubstitutionSelection: Identifiable, Equatable, Hashable {
+  let id: UUID
+  let playerId: UUID?
+  let number: Int?
+  let name: String?
+
+  init(
+    id: UUID = UUID(),
+    playerId: UUID? = nil,
+    number: Int? = nil,
+    name: String? = nil)
+  {
+    self.id = id
+    self.playerId = playerId
+    self.number = number
+    self.name = name?.trimmedOrNil
+  }
+
+  init(player: MatchLibraryPlayer) {
+    self.id = UUID()
+    self.playerId = player.id
+    self.number = player.number
+    self.name = player.name.trimmedOrNil
+  }
+
+  var displayLabel: String {
+    Self.formattedParticipant(number: self.number, name: self.name) ?? "Player"
+  }
+
+  private static func formattedParticipant(number: Int?, name: String?) -> String? {
+    let trimmedName = name?.trimmedOrNil
+    switch (number, trimmedName) {
+    case let (number?, name?):
+      return "#\(number) \(name)"
+    case let (number?, nil):
+      return "#\(number)"
+    case let (nil, name?):
+      return name
+    case (nil, nil):
+      return nil
+    }
+  }
+}
+
+private struct SubstitutionPair: Identifiable, Equatable {
+  let id = UUID()
+  let playerOff: SubstitutionSelection
+  let playerOn: SubstitutionSelection
+}
+
+private struct SubstitutionPlayerSelectionView: View {
+  let title: String
+  let players: [MatchLibraryPlayer]
+  @Binding var selections: [SubstitutionSelection]
+
+  @Environment(\.theme) private var theme
+
+  var body: some View {
+    List {
+      ForEach(self.players) { player in
+        Button {
+          self.toggle(player)
+        } label: {
+          self.row(for: player)
+        }
+        .buttonStyle(.plain)
+        .listRowInsets(self.rowInsets)
+        .listRowBackground(Color.clear)
+      }
+    }
+    .listStyle(.carousel)
+    .scrollContentBackground(.hidden)
+    .padding(.vertical, self.theme.components.listRowVerticalInset)
+    .background(self.theme.colors.backgroundPrimary)
+    .navigationTitle(self.title)
+  }
+
+  private func row(for player: MatchLibraryPlayer) -> some View {
+    let order = self.selectionOrder(for: player)
+    let isSelected = order != nil
+
+    return HStack(spacing: self.theme.spacing.m) {
+      VStack(alignment: .leading, spacing: self.theme.spacing.xs) {
+        Text(self.playerLabel(for: player))
+          .font(self.theme.typography.cardHeadline)
+          .foregroundStyle(self.theme.colors.textPrimary)
+          .frame(maxWidth: .infinity, alignment: .leading)
+
+        if let order {
+          Text("Selected \(order)")
+            .font(self.theme.typography.cardMeta)
+            .foregroundStyle(self.theme.colors.textSecondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+      }
+
+      if let order {
+        Text("\(order)")
+          .font(self.theme.typography.cardHeadline)
+          .foregroundStyle(self.theme.colors.textPrimary)
+          .padding(.horizontal, self.theme.spacing.s)
+          .padding(.vertical, self.theme.spacing.xs)
+          .background(Capsule().fill(Color.white.opacity(0.45)))
+      }
+    }
+    .padding(.vertical, self.theme.spacing.m)
+    .padding(.horizontal, self.theme.components.cardHorizontalPadding)
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .frame(minHeight: 72, alignment: .leading)
+    .background(
+      RoundedRectangle(cornerRadius: self.theme.components.cardCornerRadius, style: .continuous)
+        .fill(isSelected ? Color.yellow.opacity(0.75) : self.theme.colors.backgroundElevated)
+        .overlay(
+          RoundedRectangle(cornerRadius: self.theme.components.cardCornerRadius, style: .continuous)
+            .stroke(
+              isSelected ? Color.yellow.opacity(0.95) : self.theme.colors.outlineMuted,
+              lineWidth: isSelected ? 1.5 : 1)))
+  }
+
+  private func toggle(_ player: MatchLibraryPlayer) {
+    if let index = self.selections.firstIndex(where: { $0.playerId == player.id }) {
+      self.selections.remove(at: index)
     } else {
-      self.transitionToConfirmationOrRecord()
+      self.selections.append(SubstitutionSelection(player: player))
     }
   }
 
-  private func advanceAfterCapturingPlayerOn() {
-    if self.playerOffNumber == nil {
-      self.step = .playerOff
-    } else {
-      self.transitionToConfirmationOrRecord()
+  private func selectionOrder(for player: MatchLibraryPlayer) -> Int? {
+    guard let index = self.selections.firstIndex(where: { $0.playerId == player.id }) else { return nil }
+    return index + 1
+  }
+
+  private func playerLabel(for player: MatchLibraryPlayer) -> String {
+    let trimmedName = player.name.trimmingCharacters(in: .whitespacesAndNewlines)
+    switch (player.number, trimmedName.isEmpty ? nil : trimmedName) {
+    case let (number?, name?):
+      return "\(number). \(name)"
+    case let (number?, nil):
+      return "\(number). Player"
+    case let (nil, name?):
+      return name
+    case (nil, nil):
+      return "Player"
     }
   }
 
-  private func transitionToConfirmationOrRecord() {
-    if self.settingsViewModel.settings.confirmSubstitutions {
-      self.step = .confirmation
-    } else {
-      self.recordSubstitution()
+  private var rowInsets: EdgeInsets {
+    EdgeInsets(
+      top: self.theme.components.listRowVerticalInset,
+      leading: 0,
+      bottom: self.theme.components.listRowVerticalInset,
+      trailing: 0)
+  }
+}
+
+private struct SubstitutionNumberCollectorView: View {
+  let title: String
+  @Binding var selections: [SubstitutionSelection]
+
+  @Environment(\.dismiss) private var dismiss
+  @Environment(\.theme) private var theme
+  @State private var numberString = ""
+  @State private var editingSelectionID: UUID?
+
+  var body: some View {
+    ScrollView {
+      VStack(spacing: self.theme.spacing.m) {
+        if self.selections.isEmpty == false {
+          ThemeCardContainer(role: .secondary) {
+            VStack(alignment: .leading, spacing: self.theme.spacing.xs) {
+              Text("Selected")
+                .font(self.theme.typography.cardHeadline)
+                .foregroundStyle(self.theme.colors.textPrimary)
+
+              ForEach(self.selections) { selection in
+                HStack(spacing: self.theme.spacing.s) {
+                  Button {
+                    self.beginEditing(selection)
+                  } label: {
+                    Text(selection.displayLabel)
+                      .font(self.theme.typography.cardMeta)
+                      .foregroundStyle(self.theme.colors.textPrimary)
+                      .frame(maxWidth: .infinity, alignment: .leading)
+                  }
+                  .buttonStyle(.plain)
+
+                  Button {
+                    self.remove(selection)
+                  } label: {
+                    Image(systemName: "xmark.circle.fill")
+                      .foregroundStyle(self.theme.colors.textSecondary)
+                  }
+                  .buttonStyle(.plain)
+                }
+              }
+
+              Text(self.editingSelectionID == nil ? "Tap a number to edit" : "Editing selected number")
+                .font(self.theme.typography.cardMeta)
+                .foregroundStyle(self.theme.colors.textSecondary)
+            }
+          }
+        }
+
+        NumericKeypad(
+          numberString: self.$numberString,
+          maxDigits: 2,
+          placeholder: self.title,
+          placeholderColor: .gray,
+          accessoryIcon: "person.badge.plus",
+          accessoryColor: self.theme.colors.accentSecondary,
+          onSubmit: {
+            self.submitCurrentNumber()
+          },
+          onAccessoryTap: {
+            self.addCurrentNumber()
+          })
+      }
+      .padding(.horizontal, self.theme.spacing.xs)
+      .padding(.vertical, self.theme.spacing.s)
     }
+    .background(self.theme.colors.backgroundPrimary)
+    .navigationTitle(self.title)
+  }
+
+  @discardableResult
+  private func addCurrentNumber() -> Bool {
+    guard let number = Int(self.numberString), number > 0 else { return false }
+
+    if self.selections.contains(where: { $0.playerId == nil && $0.number == number && $0.id != self.editingSelectionID }) {
+      return false
+    }
+
+    if let editingSelectionID,
+       let index = self.selections.firstIndex(where: { $0.id == editingSelectionID })
+    {
+      self.selections[index] = SubstitutionSelection(
+        id: editingSelectionID,
+        number: number,
+        name: nil)
+      self.editingSelectionID = nil
+    } else {
+      self.selections.append(SubstitutionSelection(number: number, name: nil))
+    }
+
+    self.numberString = ""
+    return true
+  }
+
+  private func submitCurrentNumber() {
+    guard self.addCurrentNumber() else { return }
+    guard self.selections.isEmpty == false else { return }
+    self.dismiss()
+  }
+
+  private func beginEditing(_ selection: SubstitutionSelection) {
+    self.editingSelectionID = selection.id
+    self.numberString = selection.number.map(String.init) ?? ""
+  }
+
+  private func remove(_ selection: SubstitutionSelection) {
+    self.selections.removeAll { $0.id == selection.id }
+    if self.editingSelectionID == selection.id {
+      self.editingSelectionID = nil
+      self.numberString = ""
+    }
+  }
+}
+
+private struct SubstitutionBatchConfirmationView: View {
+  let pairs: [SubstitutionPair]
+  let matchTime: String
+  let onConfirm: () -> Void
+
+  @Environment(\.theme) private var theme
+
+  var body: some View {
+    List {
+      ThemeCardContainer(role: .secondary, minHeight: 72) {
+        VStack(alignment: .leading, spacing: self.theme.spacing.xs) {
+          Text("Shared match time")
+            .font(self.theme.typography.cardHeadline)
+            .foregroundStyle(self.theme.colors.textPrimary)
+
+          Text(self.matchTime)
+            .font(self.theme.typography.cardMeta)
+            .foregroundStyle(self.theme.colors.textSecondary)
+        }
+      }
+      .listRowInsets(self.rowInsets)
+      .listRowBackground(Color.clear)
+
+      ForEach(Array(self.pairs.enumerated()), id: \.offset) { index, pair in
+        ThemeCardContainer(role: .secondary, minHeight: 72) {
+          VStack(alignment: .leading, spacing: self.theme.spacing.xs) {
+            Text("Sub \(index + 1)")
+              .font(self.theme.typography.cardMeta)
+              .foregroundStyle(self.theme.colors.textSecondary)
+
+            Text("\(pair.playerOff.displayLabel) -> \(pair.playerOn.displayLabel)")
+              .font(self.theme.typography.cardHeadline)
+              .foregroundStyle(self.theme.colors.textPrimary)
+              .frame(maxWidth: .infinity, alignment: .leading)
+          }
+        }
+        .listRowInsets(self.rowInsets)
+        .listRowBackground(Color.clear)
+      }
+
+      Button {
+        self.onConfirm()
+      } label: {
+        ThemeCardContainer(role: .positive, minHeight: 72) {
+          Text("Save \(self.pairs.count) Subs")
+            .font(self.theme.typography.cardHeadline)
+            .foregroundStyle(self.theme.colors.textInverted)
+            .frame(maxWidth: .infinity, alignment: .center)
+        }
+      }
+      .buttonStyle(.plain)
+      .listRowInsets(self.rowInsets)
+      .listRowBackground(Color.clear)
+    }
+    .listStyle(.carousel)
+    .scrollContentBackground(.hidden)
+    .padding(.vertical, self.theme.components.listRowVerticalInset)
+    .background(self.theme.colors.backgroundPrimary)
+    .navigationTitle("Confirm")
+  }
+
+  private var rowInsets: EdgeInsets {
+    EdgeInsets(
+      top: self.theme.components.listRowVerticalInset,
+      leading: 0,
+      bottom: self.theme.components.listRowVerticalInset,
+      trailing: 0)
+  }
+}
+
+private extension String {
+  var trimmedOrNil: String? {
+    let trimmed = self.trimmingCharacters(in: .whitespacesAndNewlines)
+    return trimmed.isEmpty ? nil : trimmed
   }
 }
 
 // MARK: - Preview Support
 
-#Preview("Making Substitution - Player Off") {
-  SubstitutionFlow(
-    team: .home,
-    matchViewModel: PreviewMatchViewModel(),
-    onComplete: { print("Preview: onComplete called") })
-    .environment(SettingsViewModel())
-}
+#Preview("Batch Substitution") {
+  let matchViewModel = previewSubstitutionMatchViewModel()
 
-#Preview("Making Substitution - Player On") {
-  SubstitutionFlowWithState(
-    team: .away,
-    initialStep: .playerOn)
-    .environment(SettingsViewModel())
-}
-
-#Preview("Confirming Substitution") {
-  SubstitutionFlowWithState(
-    team: .home,
-    initialStep: .confirmation)
-    .environment(SettingsViewModel())
-}
-
-// MARK: - Preview Helper View
-
-private struct SubstitutionFlowWithState: View {
-  let team: TeamDetailsView.TeamType
-  let initialStep: SubstitutionFlow.SubstitutionStep
-
-  var body: some View {
-    SubstitutionFlowPreview(
-      team: self.team,
-      matchViewModel: PreviewMatchViewModel(),
-      setupViewModel: PreviewMatchSetupViewModel(),
-      initialStep: self.initialStep)
+  return NavigationStack {
+    SubstitutionFlow(
+      team: .home,
+      matchViewModel: matchViewModel,
+      onComplete: {})
   }
+  .environment(SettingsViewModel())
+  .theme(DefaultTheme())
 }
-
-private struct SubstitutionFlowPreview: View {
-  let team: TeamDetailsView.TeamType
-  let matchViewModel: MatchViewModel
-  let setupViewModel: MatchSetupViewModel
-  let initialStep: SubstitutionFlow.SubstitutionStep
-
-  @State private var step: SubstitutionFlow.SubstitutionStep
-  @State private var playerOffNumber: Int? = 10
-  @State private var playerOnNumber: Int? = 23
-  @Environment(\.dismiss) private var dismiss
-
-  init(
-    team: TeamDetailsView.TeamType,
-    matchViewModel: MatchViewModel,
-    setupViewModel: MatchSetupViewModel,
-    initialStep: SubstitutionFlow.SubstitutionStep)
-  {
-    self.team = team
-    self.matchViewModel = matchViewModel
-    self.setupViewModel = setupViewModel
-    self.initialStep = initialStep
-    self._step = State(initialValue: initialStep)
-  }
-
-  var body: some View {
-    NavigationStack {
-      switch self.step {
-      case .playerOff:
-        PlayerNumberInputView(
-          team: self.team,
-          goalType: nil,
-          cardType: nil,
-          context: "player off",
-          onComplete: { number in
-            self.playerOffNumber = number
-            self.step = .playerOn
-          })
-
-      case .playerOn:
-        PlayerNumberInputView(
-          team: self.team,
-          goalType: nil,
-          cardType: nil,
-          context: "player on",
-          onComplete: { number in
-            self.playerOnNumber = number
-            self.step = .confirmation
-          })
-          .navigationBarBackButtonHidden(false)
-
-      case .confirmation:
-        self.confirmationView
-//                    .navigationTitle("Confirm Substitution")
-            .navigationBarBackButtonHidden(false)
-      }
-    }
-  }
-
-  private var confirmationView: some View {
-    VStack(spacing: 20) {
-//            Text("Substitution")
-//                .font(.headline)
-
-      VStack(spacing: 12) {
-        HStack {
-          Text("Player Off:")
-            .font(.body)
-          Spacer()
-          Text("#\(self.playerOffNumber ?? 10)")
-            .font(.title2)
-            .fontWeight(.medium)
-        }
-
-        HStack {
-          Text("Player On:")
-            .font(.body)
-          Spacer()
-          Text("#\(self.playerOnNumber ?? 23)")
-            .font(.title2)
-            .fontWeight(.medium)
-        }
-      }
-      // .padding()
-      .background(
-        RoundedRectangle(cornerRadius: 12)
-          .fill(Color.gray.opacity(0.1)))
-
-      Spacer()
-
-      Button("Confirm Substitution") {
-        self.recordSubstitution()
-      }
-      // .font(.headline)
-      // .padding()
-      // .frame(maxWidth: .infinity)
-      // .background(Color.blue)
-      // .foregroundColor(.white)
-      // .cornerRadius(12)
-      // .padding(.horizontal)
-    }
-    // .padding()
-  }
-
-  private func recordSubstitution() {
-    guard let offNumber = playerOffNumber,
-          let onNumber = playerOnNumber else { return }
-
-    print("Preview: Recording substitution - Off: #\(offNumber), On: #\(onNumber), Team: \(self.team)")
-
-    // Map team to new enum
-    let teamSide: TeamSide = self.team == .home ? .home : .away
-
-    // Record substitution using mock system
-    self.matchViewModel.recordSubstitution(
-      team: teamSide,
-      playerOut: offNumber,
-      playerIn: onNumber)
-
-    print("Preview: Substitution recorded successfully")
-
-    // Navigate back to middle screen
-    self.setupViewModel.setSelectedTab(1)
-
-    // Dismiss the entire flow
-    self.dismiss()
-  }
-}
-
-// MARK: - Preview Mock View Models
 
 @MainActor
-private func PreviewMatchViewModel() -> MatchViewModel {
-  // Create a mock MatchViewModel for previews with proper initialization
-  let mockViewModel = MatchViewModel(
+private func previewSubstitutionMatchViewModel() -> MatchViewModel {
+  let homeTeamId = UUID()
+  let awayTeamId = UUID()
+  let viewModel = MatchViewModel(
     history: MockMatchHistoryService(),
     haptics: NoopHaptics())
 
-  // Set up a mock match
-  mockViewModel.newMatch = Match(homeTeam: "Arsenal", awayTeam: "Chelsea")
-  mockViewModel.createMatch()
+  viewModel.updateLibrary(
+    with: MatchLibrarySnapshot(
+      teams: [
+        MatchLibraryTeam(
+          id: homeTeamId,
+          name: "Arsenal",
+          players: [
+            MatchLibraryPlayer(id: UUID(), name: "Bob Smith", number: 1),
+            MatchLibraryPlayer(id: UUID(), name: "James Woods", number: 2),
+            MatchLibraryPlayer(id: UUID(), name: "Mike Robson", number: 3),
+            MatchLibraryPlayer(id: UUID(), name: "Oliver Keeble", number: 4),
+          ]),
+        MatchLibraryTeam(id: awayTeamId, name: "Chelsea"),
+      ]))
 
-  return mockViewModel
+  viewModel.newMatch = Match(
+    homeTeam: "Arsenal",
+    awayTeam: "Chelsea",
+    homeTeamId: homeTeamId,
+    awayTeamId: awayTeamId)
+  viewModel.createMatch()
+  return viewModel
 }
 
-@MainActor
-private func PreviewMatchSetupViewModel() -> MatchSetupViewModel {
-  let matchViewModel = PreviewMatchViewModel()
-  return MatchSetupViewModel(matchViewModel: matchViewModel)
-}
-
-// MARK: - Mock Services for Previews
-
-private class MockMatchHistoryService: MatchHistoryStoring {
+private final class MockMatchHistoryService: MatchHistoryStoring {
   func loadAll() throws -> [CompletedMatch] { [] }
-  func save(_ match: CompletedMatch) throws {
-    print("Mock: Saved match \(match.match.homeTeam) vs \(match.match.awayTeam)")
-  }
-
-  func delete(id: UUID) throws { print("Mock: Deleted match \(id)") }
-  func wipeAll() throws { print("Mock: Wiped all matches") }
+  func save(_ match: CompletedMatch) throws {}
+  func delete(id: UUID) throws {}
+  func wipeAll() throws {}
 }

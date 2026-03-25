@@ -38,6 +38,29 @@ final class MatchViewModel_LibraryIntegrationTests: XCTestCase {
         XCTAssertEqual(viewModel.savedMatches.count, 2)
         XCTAssertTrue(viewModel.savedMatches.contains { $0.homeTeam == "Watch Select" })
     }
+
+    func testUpdateLibraryPropagatesScheduleTeamIdsToSavedMatch() {
+        let viewModel = MatchViewModel(history: InMemoryHistory())
+        let homeTeamId = UUID()
+        let awayTeamId = UUID()
+
+        let schedule = MatchLibrarySchedule(
+            id: UUID(),
+            homeName: "Team A",
+            awayName: "Team B",
+            homeTeamId: homeTeamId,
+            awayTeamId: awayTeamId,
+            kickoff: Date().addingTimeInterval(3600),
+            competitionName: "Premier Cup",
+            statusRaw: "scheduled"
+        )
+
+        viewModel.updateLibrary(with: MatchLibrarySnapshot(schedules: [schedule]))
+
+        XCTAssertEqual(viewModel.savedMatches.count, 1)
+        XCTAssertEqual(viewModel.savedMatches.first?.homeTeamId, homeTeamId)
+        XCTAssertEqual(viewModel.savedMatches.first?.awayTeamId, awayTeamId)
+    }
 }
 
 @MainActor

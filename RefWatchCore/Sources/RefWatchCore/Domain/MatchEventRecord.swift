@@ -237,8 +237,8 @@ extension MatchEventRecord {
       return "\(cardText) - \(cardDetails.reason)"
 
     case let .substitution(subDetails):
-      if let playerOut = subDetails.playerOut, let playerIn = subDetails.playerIn {
-        return "Substitution - #\(playerOut) → #\(playerIn)"
+      if let summary = self.substitutionSummary(details: subDetails) {
+        return "Substitution - \(summary)"
       }
       return "Substitution"
 
@@ -274,5 +274,37 @@ extension MatchEventRecord {
   /// Formatted actual time for display in logs
   public var formattedActualTime: String {
     DateFormatter.watchShortTime.string(from: self.actualTime)
+  }
+
+  private func substitutionSummary(details: SubstitutionDetails) -> String? {
+    let playerOut = self.formattedParticipant(number: details.playerOut, name: details.playerOutName)
+    let playerIn = self.formattedParticipant(number: details.playerIn, name: details.playerInName)
+
+    switch (playerOut, playerIn) {
+    case let (playerOut?, playerIn?):
+      return "\(playerOut) -> \(playerIn)"
+    case let (playerOut?, nil):
+      return playerOut
+    case let (nil, playerIn?):
+      return playerIn
+    case (nil, nil):
+      return nil
+    }
+  }
+
+  private func formattedParticipant(number: Int?, name: String?) -> String? {
+    let trimmedName = name?.trimmingCharacters(in: .whitespacesAndNewlines)
+    let resolvedName = trimmedName?.isEmpty == false ? trimmedName : nil
+
+    switch (number, resolvedName) {
+    case let (number?, name?):
+      return "#\(number) \(name)"
+    case let (number?, nil):
+      return "#\(number)"
+    case let (nil, name?):
+      return name
+    case (nil, nil):
+      return nil
+    }
   }
 }
