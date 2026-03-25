@@ -1,7 +1,7 @@
 # PLAN_multi-substitution-watchos
 
 ## Purpose / Big Picture
-Allow referees to record multiple substitutions on watchOS in one flow so each pair is saved at the same match time, while making roster-based selection reliable for iPhone-created matches.
+Allow referees to record multiple substitutions on watchOS in one flow so each pair is saved at the same match time. This plan now remains historical implementation context for the batch UX only; participant-source precedence is superseded by schedule-owned match sheets.
 
 ## Context and Orientation
 - Watch substitution entry starts from `RefWatchWatchOS/Features/MatchSetup/Views/MatchSetupView.swift`.
@@ -15,8 +15,8 @@ Allow referees to record multiple substitutions on watchOS in one flow so each p
 - Product and architecture baselines: `docs/product-specs/match-timer.md`, `docs/design-docs/architecture/watchos.md`.
 
 ## Plan of Work
-1. Propagate scheduled-match team IDs through iPhone persistence, aggregate sync payloads, watch persistence, and watch library hydration so roster lookup prefers IDs.
-2. Replace the single-substitution watch flow with a hub-and-spoke multi-substitution flow that supports roster multi-select and keypad collection fallback.
+1. Propagate scheduled-match identity through iPhone persistence, aggregate sync payloads, watch persistence, and watch library hydration so the watch can resolve the correct participant source for a selected fixture.
+2. Replace the single-substitution watch flow with a hub-and-spoke multi-substitution flow that supports frozen-lineup selection when match sheets are ready and keypad/manual collection for explicit incomplete sheets.
 3. Add shared batch-recording semantics so all saved substitutions in a batch share one captured event-time snapshot.
 4. Validate shared tests, watch build/test, and document the resulting product and architecture behavior.
 
@@ -40,6 +40,9 @@ Allow referees to record multiple substitutions on watchOS in one flow so each p
 - Decision: roster-based substitution entry prefers synced team IDs and only falls back to exact team-name matching for compatibility with older local data.
 - Rationale: team IDs make iPhone-created team sheets usable on watch without depending on display-name matching.
 - Date/Author: 2026-03-24 / Codex
+- Decision: this workstream is no longer the source of truth for participant precedence on newly authored scheduled matches.
+- Rationale: `PLAN_schedule-match-sheets` changed the contract to `ready frozen sheets -> explicit incomplete sheets force manual/numeric -> roster lookup only for legacy no-sheet schedules`.
+- Date/Author: 2026-03-25 / Codex
 - Decision: save batch substitutions as normal individual substitution events captured from one frozen match-time snapshot.
 - Rationale: this preserves existing history/sync/undo behavior while meeting the referee need for shared match time.
 - Date/Author: 2026-03-24 / Codex
@@ -54,8 +57,9 @@ Allow referees to record multiple substitutions on watchOS in one flow so each p
   - `xcodebuild -project RefWatch.xcodeproj -scheme "RefWatch Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)' build`
   - `xcodebuild test -project RefWatch.xcodeproj -scheme "RefWatch Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)'`
 - Manual:
-  - verify roster multi-select from both home and away team surfaces
-  - verify keypad collection add/edit/remove fallback when no roster exists
+  - verify frozen-lineup multi-select when both scheduled match sheets are ready
+  - verify keypad/manual add/edit/remove fallback when explicit match-sheet data exists but a side is not watch-ready
+  - verify legacy no-sheet schedules still use roster multi-select
   - verify `Done` stays disabled until off/on counts match
   - verify confirmation summarizes ordered pairs when `Confirm Subs` is enabled
 
@@ -65,4 +69,11 @@ Allow referees to record multiple substitutions on watchOS in one flow so each p
 - Treat Apple Watch Series 9 (45mm) as the primary validation target.
 
 ## Outcomes & Retrospective
-- In progress.
+- Completed historically for batch substitution UX; participant precedence is now governed by `PLAN_schedule-match-sheets`.
+
+## Superseded Assumption
+- Superseded on 2026-03-25 by `PLAN_schedule-match-sheets`: roster-based watch participant resolution via synced library teams is no longer the target end state for newly authored scheduled matches.
+- Current rule after the schedule-match-sheets workstream lands:
+  - ready schedule-owned match sheets drive watch participant selection
+  - incomplete match sheets fall back to manual/numeric entry
+  - library-roster lookup remains legacy compatibility only for schedules created before match-sheet support

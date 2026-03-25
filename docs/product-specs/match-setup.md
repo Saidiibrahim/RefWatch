@@ -7,6 +7,7 @@ Collect match parameters (teams, period length, stoppage settings) before launch
 - `MatchSetupView`: SwiftUI flow guiding the referee through configuration steps.
 - `MatchSetupViewModel`: owns form state, validation, and default values.
 - Shared Models: team definitions and rule presets reused by watch and iOS.
+- When kickoff begins from a scheduled fixture, team identity and any frozen match sheets come from that schedule. Referees must edit the schedule first if they need to change teams or official participants; see `scheduled-match-sheets.md`.
 
 ## Flow
 1. User opens Match Setup from the watch home or iOS matches tab.

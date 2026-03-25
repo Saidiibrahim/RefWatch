@@ -39,11 +39,11 @@
   - ordered `player(s) on` selections
   - destination routing to each spoke and optional confirmation
 - The watch substitution hub allows either side to be entered first and keeps the hub as the state owner so selections survive navigation back from each spoke.
-- Roster resolution prefers the active match team's synced `homeTeamId` / `awayTeamId`.
-  - Exact team-name matching remains a compatibility fallback for older locally persisted schedules that lack team IDs.
-- Spoke selection behavior branches by roster availability:
-  - roster present: multi-select player list with roster sort order preserved and selection order tracked separately for pairing
-  - no roster: numeric collector based on `NumericKeypad` with multi-entry add/edit/remove behavior
+- Participant resolution prefers frozen scheduled match sheets carried on the active match or schedule snapshot.
+  - When both home and away sheets are `ready`, watch resolves `player(s) off` from the current on-field set and `player(s) on` from unused substitutes.
+  - If a ready frozen sheet has no eligible candidates for a spoke, watch shows a blocked unavailable state instead of falling through to numeric/manual entry.
+  - When a schedule has match-sheet fields but is not watch-ready, watch uses numeric/manual entry and does not silently mix live library roster members into the official participant path.
+  - Legacy schedules with no match-sheet fields retain the old team-ID / exact-name library lookup only as backward compatibility.
 - `Done` is enabled only when off/on counts match and are non-zero.
 - If `Confirm Subs` is enabled, the hub navigates to one batch confirmation surface that summarizes the ordered pairs and shared match time.
 - `MatchViewModel.recordSubstitutions(team:substitutions:)` performs the save boundary:

@@ -13,6 +13,7 @@ Execution plans and granular task files are the canonical workflow tracker for n
 - `active/multi-substitution-watchos/PLAN_multi-substitution-watchos.md`
 - `active/mode-switcher-ux/PLAN_mode-switcher-ux.md`
 - `active/sa-npl-2026-readiness/PLAN_sa-npl-2026-readiness.md`
+- `active/schedule-match-sheets/PLAN_schedule-match-sheets.md`
 - `active/substitution-nav/PLAN_substitution_nav.md`
 - `active/watch-match-runtime-continuity/PLAN_watch-match-runtime-continuity.md`
 - `active/watch-timer-readability/PLAN_watch-timer-readability.md`

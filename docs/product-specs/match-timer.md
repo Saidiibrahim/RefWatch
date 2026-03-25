@@ -22,10 +22,13 @@ Provides referees with precise match, period, and stoppage tracking, optimized f
   - `Player(s) off`
   - `Player(s) on`
 - Referees may enter either side first; watchOS no longer uses `substitutionOrderPlayerOffFirst` to control substitution navigation order.
-- If the selected match resolves to a synced roster for that team, the spoke uses a multi-select player list.
-  - Rows remain roster-sorted.
-  - Tap order is preserved separately and becomes the pairing order for saved substitutions.
-- If no roster is available, the spoke uses the numeric keypad flow with an add-player affordance so multiple shirt numbers can be collected before returning to the hub.
+- If the selected scheduled match is watch-ready, each spoke resolves from the scheduled match sheet frozen onto that fixture.
+  - `Player(s) off` comes from the active on-field set derived from starters plus saved substitution history.
+  - `Player(s) on` comes from unused substitutes on the frozen sheet.
+  - Rows remain deterministic and selection order becomes the pairing order for saved substitutions.
+- If the scheduled match has match-sheet data but either side is not ready, the spoke uses the numeric keypad/manual path instead of silently promoting live library rosters to official participants.
+- Legacy schedules created before match-sheet support may still use synced library-roster lookup as a backward-compatibility fallback when no match-sheet fields exist at all.
+- If the official frozen sheet is ready but a spoke has no eligible candidates left, the watch shows an unavailable state for that spoke instead of falling through to numeric/manual selection.
 - The hub enables `Done` only when both sides contain the same non-zero count.
 - If `Confirm Subs` is enabled, `Done` opens one confirmation surface summarizing the ordered pairs and the shared match time.
 - Saving a batch records `N` normal substitution events, not a grouped event type.
