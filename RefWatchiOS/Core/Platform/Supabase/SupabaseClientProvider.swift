@@ -215,8 +215,21 @@ extension SupabaseClient: SupabaseClientRepresenting {
     let response = try await from(table)
       .upsert(payload, onConflict: onConflict, returning: .representation)
       .execute()
+
+    if let decoded = try? decoder.decode(Response.self, from: response.data) {
+      return decoded
+    }
+
+    if let wrapped = try? decoder.decode(SupabaseWrappedResponse<Response>.self, from: response.data) {
+      return wrapped.data
+    }
+
     return try decoder.decode(Response.self, from: response.data)
   }
+}
+
+private struct SupabaseWrappedResponse<T: Decodable>: Decodable {
+  let data: T
 }
 
 private struct EncodableDictionary: Encodable, Sendable {
