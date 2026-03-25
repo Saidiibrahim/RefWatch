@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import RefWatchCore
 
 struct ScheduledMatch: Identifiable, Codable, Hashable {
     enum Status: String, Codable, CaseIterable {
@@ -20,6 +21,8 @@ struct ScheduledMatch: Identifiable, Codable, Hashable {
     var awayTeam: String
     var homeTeamId: UUID?
     var awayTeamId: UUID?
+    var homeMatchSheet: ScheduledMatchSheet?
+    var awayMatchSheet: ScheduledMatchSheet?
     var kickoff: Date
     var competition: String?
     var notes: String?
@@ -38,6 +41,8 @@ struct ScheduledMatch: Identifiable, Codable, Hashable {
         awayTeam: String,
         homeTeamId: UUID? = nil,
         awayTeamId: UUID? = nil,
+        homeMatchSheet: ScheduledMatchSheet? = nil,
+        awayMatchSheet: ScheduledMatchSheet? = nil,
         kickoff: Date,
         competition: String? = nil,
         notes: String? = nil,
@@ -53,6 +58,8 @@ struct ScheduledMatch: Identifiable, Codable, Hashable {
         self.awayTeam = awayTeam
         self.homeTeamId = homeTeamId
         self.awayTeamId = awayTeamId
+        self.homeMatchSheet = homeMatchSheet
+        self.awayMatchSheet = awayMatchSheet
         self.kickoff = kickoff
         self.competition = competition
         self.notes = notes
@@ -62,6 +69,14 @@ struct ScheduledMatch: Identifiable, Codable, Hashable {
         self.needsRemoteSync = needsRemoteSync
         self.sourceDeviceId = sourceDeviceId
         self.lastModifiedAt = lastModifiedAt
+    }
+
+    var hasAnyMatchSheetData: Bool {
+        self.homeMatchSheet != nil || self.awayMatchSheet != nil
+    }
+
+    var areMatchSheetsReadyForWatch: Bool {
+        self.homeMatchSheet?.isReady == true && self.awayMatchSheet?.isReady == true
     }
 }
 

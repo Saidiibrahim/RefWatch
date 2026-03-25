@@ -8,7 +8,7 @@
 //
 
 import Foundation
-import OSLog
+import RefWatchCore
 import Supabase
 
 protocol SupabaseScheduleServing {
@@ -34,6 +34,8 @@ struct SupabaseScheduleAPI: SupabaseScheduleServing {
     let venueName: String?
     let homeTeamId: UUID?
     let awayTeamId: UUID?
+    let homeMatchSheet: ScheduledMatchSheet?
+    let awayMatchSheet: ScheduledMatchSheet?
     let notes: String?
     let sourceDeviceId: String?
     let createdAt: Date
@@ -53,6 +55,8 @@ struct SupabaseScheduleAPI: SupabaseScheduleServing {
     let venueName: String?
     let homeTeamId: UUID?
     let awayTeamId: UUID?
+    let homeMatchSheet: ScheduledMatchSheet?
+    let awayMatchSheet: ScheduledMatchSheet?
     let notes: String?
     let sourceDeviceId: String?
   }
@@ -69,8 +73,6 @@ struct SupabaseScheduleAPI: SupabaseScheduleServing {
   private let clientProvider: SupabaseClientProviding
   private let decoder: JSONDecoder
   private let isoFormatter: ISO8601DateFormatter
-  private let log = AppLog.supabase
-
   init(
     clientProvider: SupabaseClientProviding = SupabaseClientProvider.shared,
     decoder: JSONDecoder = SupabaseScheduleAPI.makeDecoder(),
@@ -83,9 +85,6 @@ struct SupabaseScheduleAPI: SupabaseScheduleServing {
 
   func fetchScheduledMatches(ownerId: UUID, updatedAfter: Date?) async throws -> [RemoteScheduledMatch] {
     let client = try await clientProvider.authorizedClient()
-    guard let supabaseClient = client as? SupabaseClient else {
-      throw APIError.unsupportedClient
-    }
 
     var filters: [SupabaseQueryFilter] = [
       .equals("owner_id", value: ownerId.uuidString),
@@ -102,6 +101,8 @@ struct SupabaseScheduleAPI: SupabaseScheduleServing {
       "away_team_name",
       "home_team_id",
       "away_team_id",
+      "home_match_sheet",
+      "away_match_sheet",
       "kickoff_at",
       "status",
       "competition_id",
@@ -113,7 +114,7 @@ struct SupabaseScheduleAPI: SupabaseScheduleServing {
       "created_at",
       "updated_at",
     ].joined(separator: ", ")
-    let rows: [ScheduledMatchRowDTO] = try await supabaseClient.fetchRows(
+    let rows: [ScheduledMatchRowDTO] = try await client.fetchRows(
       SupabaseFetchRequest(
         table: "scheduled_matches",
         columns: selectColumns,
@@ -137,6 +138,8 @@ struct SupabaseScheduleAPI: SupabaseScheduleServing {
         venueName: row.venueName,
         homeTeamId: row.homeTeamId,
         awayTeamId: row.awayTeamId,
+        homeMatchSheet: row.homeMatchSheet,
+        awayMatchSheet: row.awayMatchSheet,
         notes: row.notes,
         sourceDeviceId: row.sourceDeviceId,
         createdAt: row.createdAt,
@@ -146,9 +149,6 @@ struct SupabaseScheduleAPI: SupabaseScheduleServing {
 
   func syncScheduledMatch(_ request: UpsertRequest) async throws -> SyncResult {
     let client = try await clientProvider.authorizedClient()
-    guard let supabaseClient = client as? SupabaseClient else {
-      throw APIError.unsupportedClient
-    }
 
     let payload = ScheduledMatchUpsertDTO(
       id: request.id,
@@ -157,8 +157,10 @@ struct SupabaseScheduleAPI: SupabaseScheduleServing {
       awayTeamName: request.awayTeamName,
       homeTeamId: request.homeTeamId,
       awayTeamId: request.awayTeamId,
+      homeMatchSheet: request.homeMatchSheet?.normalized(),
+      awayMatchSheet: request.awayMatchSheet?.normalized(),
       kickoffAt: request.kickoffAt,
-      status: request.status.rawValue,
+      status: request.status.databaseValue,
       competitionId: request.competitionId,
       competitionName: request.competitionName,
       venueId: request.venueId,
@@ -166,18 +168,11 @@ struct SupabaseScheduleAPI: SupabaseScheduleServing {
       notes: request.notes,
       sourceDeviceId: request.sourceDeviceId)
 
-    let response = try await supabaseClient
-      .from("scheduled_matches")
-      .upsert([payload], onConflict: "id", returning: .representation)
-      .execute()
-
-    if let raw = String(data: response.data, encoding: .utf8) {
-      self.log.debug("Scheduled match upsert response: \(raw, privacy: .public)")
-    } else {
-      self.log.debug("Scheduled match upsert response size=\(response.data.count, privacy: .public) bytes")
-    }
-
-    let updatedRows = try Self.decodeUpsertResponse(data: response.data, decoder: self.decoder)
+    let updatedRows: [ScheduledMatchRowDTO] = try await client.upsertRows(
+      into: "scheduled_matches",
+      payload: [payload],
+      onConflict: "id",
+      decoder: self.decoder)
     guard let updated = updatedRows.first else {
       throw APIError.invalidResponse
     }
@@ -305,6 +300,8 @@ struct ScheduledMatchRowDTO: Decodable, Sendable {
   let awayTeamName: String
   let homeTeamId: UUID?
   let awayTeamId: UUID?
+  let homeMatchSheet: ScheduledMatchSheet?
+  let awayMatchSheet: ScheduledMatchSheet?
   let kickoffAt: Date
   let status: String
   let competitionId: UUID?
@@ -323,6 +320,8 @@ struct ScheduledMatchRowDTO: Decodable, Sendable {
     case awayTeamName = "away_team_name"
     case homeTeamId = "home_team_id"
     case awayTeamId = "away_team_id"
+    case homeMatchSheet = "home_match_sheet"
+    case awayMatchSheet = "away_match_sheet"
     case kickoffAt = "kickoff_at"
     case status
     case competitionId = "competition_id"
@@ -343,6 +342,8 @@ private struct ScheduledMatchUpsertDTO: Encodable, Sendable {
   let awayTeamName: String
   let homeTeamId: UUID?
   let awayTeamId: UUID?
+  let homeMatchSheet: ScheduledMatchSheet?
+  let awayMatchSheet: ScheduledMatchSheet?
   let kickoffAt: Date
   let status: String
   let competitionId: UUID?
@@ -359,6 +360,8 @@ private struct ScheduledMatchUpsertDTO: Encodable, Sendable {
     case awayTeamName = "away_team_name"
     case homeTeamId = "home_team_id"
     case awayTeamId = "away_team_id"
+    case homeMatchSheet = "home_match_sheet"
+    case awayMatchSheet = "away_match_sheet"
     case kickoffAt = "kickoff_at"
     case status
     case competitionId = "competition_id"
@@ -367,24 +370,5 @@ private struct ScheduledMatchUpsertDTO: Encodable, Sendable {
     case venueName = "venue_name"
     case notes
     case sourceDeviceId = "source_device_id"
-  }
-
-  // Explicit nonisolated Encodable conformance so it can be used with Sendable generics (Supabase upsert).
-  nonisolated func encode(to encoder: Encoder) throws {
-    var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(self.id, forKey: .id)
-    try container.encode(self.ownerId, forKey: .ownerId)
-    try container.encode(self.homeTeamName, forKey: .homeTeamName)
-    try container.encode(self.awayTeamName, forKey: .awayTeamName)
-    try container.encodeIfPresent(self.homeTeamId, forKey: .homeTeamId)
-    try container.encodeIfPresent(self.awayTeamId, forKey: .awayTeamId)
-    try container.encode(self.kickoffAt, forKey: .kickoffAt)
-    try container.encode(self.status, forKey: .status)
-    try container.encodeIfPresent(self.competitionId, forKey: .competitionId)
-    try container.encodeIfPresent(self.competitionName, forKey: .competitionName)
-    try container.encodeIfPresent(self.venueId, forKey: .venueId)
-    try container.encodeIfPresent(self.venueName, forKey: .venueName)
-    try container.encodeIfPresent(self.notes, forKey: .notes)
-    try container.encodeIfPresent(self.sourceDeviceId, forKey: .sourceDeviceId)
   }
 }

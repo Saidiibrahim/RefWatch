@@ -7,6 +7,8 @@
 //
 
 import Foundation
+import OSLog
+import RefWatchCore
 import SwiftData
 
 @Model
@@ -24,6 +26,8 @@ final class ScheduledMatchRecord {
     var awayName: String
     var homeTeamId: UUID?
     var awayTeamId: UUID?
+    @Attribute(.externalStorage) var homeMatchSheetData: Data?
+    @Attribute(.externalStorage) var awayMatchSheetData: Data?
 
     var competition: String?
     var notes: String?
@@ -46,6 +50,8 @@ final class ScheduledMatchRecord {
         awayName: String,
         homeTeamId: UUID? = nil,
         awayTeamId: UUID? = nil,
+        homeMatchSheet: ScheduledMatchSheet? = nil,
+        awayMatchSheet: ScheduledMatchSheet? = nil,
         competition: String? = nil,
         notes: String? = nil,
         status: ScheduledMatch.Status = .scheduled,
@@ -64,6 +70,8 @@ final class ScheduledMatchRecord {
         self.awayName = awayName
         self.homeTeamId = homeTeamId ?? homeTeam?.id
         self.awayTeamId = awayTeamId ?? awayTeam?.id
+        self.homeMatchSheetData = Self.encodeMatchSheet(homeMatchSheet)
+        self.awayMatchSheetData = Self.encodeMatchSheet(awayMatchSheet)
         self.competition = competition
         self.notes = notes
         self.statusRaw = status.databaseValue
@@ -76,6 +84,20 @@ final class ScheduledMatchRecord {
 }
 
 extension ScheduledMatchRecord {
+    private static let log = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "com.refwatch.app",
+        category: "SchedulePersistence")
+
+    var homeMatchSheet: ScheduledMatchSheet? {
+        get { Self.decodeMatchSheet(homeMatchSheetData) }
+        set { homeMatchSheetData = Self.encodeMatchSheet(newValue) }
+    }
+
+    var awayMatchSheet: ScheduledMatchSheet? {
+        get { Self.decodeMatchSheet(awayMatchSheetData) }
+        set { awayMatchSheetData = Self.encodeMatchSheet(newValue) }
+    }
+
     var status: ScheduledMatch.Status {
         get { ScheduledMatch.Status(fromDatabase: statusRaw) }
         set { statusRaw = newValue.databaseValue }
@@ -86,6 +108,8 @@ extension ScheduledMatchRecord {
         awayName = item.awayTeam
         homeTeamId = item.homeTeamId ?? homeTeam?.id
         awayTeamId = item.awayTeamId ?? awayTeam?.id
+        homeMatchSheet = item.homeMatchSheet?.normalized()
+        awayMatchSheet = item.awayMatchSheet?.normalized()
         kickoff = item.kickoff
         competition = item.competition
         notes = item.notes
@@ -115,5 +139,23 @@ extension ScheduledMatchRecord {
         needsRemoteSync = false
         lastModifiedAt = synchronizedAt
         statusRaw = status.databaseValue
+    }
+
+    private static let matchSheetEncoder = JSONEncoder()
+    private static let matchSheetDecoder = JSONDecoder()
+
+    private static func encodeMatchSheet(_ sheet: ScheduledMatchSheet?) -> Data? {
+        guard let normalized = sheet?.normalized() else { return nil }
+        return try? matchSheetEncoder.encode(normalized)
+    }
+
+    private static func decodeMatchSheet(_ data: Data?) -> ScheduledMatchSheet? {
+        guard let data else { return nil }
+        do {
+            return try matchSheetDecoder.decode(ScheduledMatchSheet.self, from: data)
+        } catch {
+            log.error("Failed to decode scheduled match sheet data: \(error.localizedDescription, privacy: .public)")
+            return nil
+        }
     }
 }
