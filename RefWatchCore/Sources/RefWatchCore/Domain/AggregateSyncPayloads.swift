@@ -233,6 +233,8 @@ public struct AggregateSnapshotPayload: Codable, Equatable {
     public var awayName: String
     public var homeTeamId: UUID?
     public var awayTeamId: UUID?
+    public var homeMatchSheet: ScheduledMatchSheet?
+    public var awayMatchSheet: ScheduledMatchSheet?
     public var kickoff: Date
     public var competition: String?
     public var notes: String?
@@ -248,6 +250,8 @@ public struct AggregateSnapshotPayload: Codable, Equatable {
       awayName: String,
       homeTeamId: UUID? = nil,
       awayTeamId: UUID? = nil,
+      homeMatchSheet: ScheduledMatchSheet? = nil,
+      awayMatchSheet: ScheduledMatchSheet? = nil,
       kickoff: Date,
       competition: String?,
       notes: String?,
@@ -262,6 +266,8 @@ public struct AggregateSnapshotPayload: Codable, Equatable {
       self.awayName = awayName
       self.homeTeamId = homeTeamId
       self.awayTeamId = awayTeamId
+      self.homeMatchSheet = homeMatchSheet
+      self.awayMatchSheet = awayMatchSheet
       self.kickoff = kickoff
       self.competition = competition
       self.notes = notes

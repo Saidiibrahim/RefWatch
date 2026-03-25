@@ -15,6 +15,8 @@ public struct Match: Identifiable, Codable {
     public var awayTeam: String
     public var homeTeamId: UUID?
     public var awayTeamId: UUID?
+    public var homeMatchSheet: ScheduledMatchSheet?
+    public var awayMatchSheet: ScheduledMatchSheet?
     public var competitionId: UUID?
     public var competitionName: String?
     public var venueId: UUID?
@@ -52,6 +54,8 @@ public struct Match: Identifiable, Codable {
         penaltyInitialRounds: Int = 5,
         homeTeamId: UUID? = nil,
         awayTeamId: UUID? = nil,
+        homeMatchSheet: ScheduledMatchSheet? = nil,
+        awayMatchSheet: ScheduledMatchSheet? = nil,
         competitionId: UUID? = nil,
         competitionName: String? = nil,
         venueId: UUID? = nil,
@@ -63,6 +67,8 @@ public struct Match: Identifiable, Codable {
         self.awayTeam = awayTeam
         self.homeTeamId = homeTeamId
         self.awayTeamId = awayTeamId
+        self.homeMatchSheet = homeMatchSheet
+        self.awayMatchSheet = awayMatchSheet
         self.competitionId = competitionId
         self.competitionName = competitionName
         self.venueId = venueId
@@ -85,5 +91,13 @@ public struct Match: Identifiable, Codable {
         self.awayRedCards = 0
         self.homeSubs = 0
         self.awaySubs = 0
+    }
+
+    public var hasAnyMatchSheetData: Bool {
+        self.homeMatchSheet != nil || self.awayMatchSheet != nil
+    }
+
+    public var areMatchSheetsReadyForWatch: Bool {
+        self.homeMatchSheet?.isReady == true && self.awayMatchSheet?.isReady == true
     }
 }

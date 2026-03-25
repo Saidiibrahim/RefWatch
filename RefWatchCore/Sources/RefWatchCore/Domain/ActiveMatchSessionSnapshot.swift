@@ -41,7 +41,7 @@ public struct ActiveMatchDisplayState: Codable, Equatable {
 /// correct screen after watchOS interruption, relaunch, or active workout
 /// recovery.
 public struct ActiveMatchSessionSnapshot: Codable {
-  public static let schemaVersion = 2
+  public static let schemaVersion = 3
 
   public var schemaVersion: Int
   public var match: Match

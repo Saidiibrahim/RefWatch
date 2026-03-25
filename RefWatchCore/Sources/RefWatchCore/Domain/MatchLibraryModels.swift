@@ -8,7 +8,7 @@
 
 import Foundation
 
-public struct MatchLibraryPlayer: Identifiable, Equatable {
+public struct MatchLibraryPlayer: Identifiable, Equatable, Sendable {
     public let id: UUID
     public let name: String
     public let number: Int?
@@ -24,7 +24,7 @@ public struct MatchLibraryPlayer: Identifiable, Equatable {
     }
 }
 
-public struct MatchLibraryOfficial: Identifiable, Equatable {
+public struct MatchLibraryOfficial: Identifiable, Equatable, Sendable {
     public let id: UUID
     public let name: String
     public let role: String
@@ -40,7 +40,7 @@ public struct MatchLibraryOfficial: Identifiable, Equatable {
     }
 }
 
-public struct MatchLibraryTeam: Identifiable, Equatable {
+public struct MatchLibraryTeam: Identifiable, Equatable, Sendable {
     public let id: UUID
     public let name: String
     public let shortName: String?
@@ -71,7 +71,7 @@ public struct MatchLibraryTeam: Identifiable, Equatable {
     }
 }
 
-public struct MatchLibraryCompetition: Identifiable, Equatable {
+public struct MatchLibraryCompetition: Identifiable, Equatable, Sendable {
     public let id: UUID
     public let name: String
     public let level: String?
@@ -83,7 +83,7 @@ public struct MatchLibraryCompetition: Identifiable, Equatable {
     }
 }
 
-public struct MatchLibraryVenue: Identifiable, Equatable {
+public struct MatchLibraryVenue: Identifiable, Equatable, Sendable {
     public let id: UUID
     public let name: String
     public let city: String?
@@ -108,12 +108,14 @@ public struct MatchLibraryVenue: Identifiable, Equatable {
     }
 }
 
-public struct MatchLibrarySchedule: Identifiable, Equatable {
+public struct MatchLibrarySchedule: Identifiable, Equatable, Sendable {
     public let id: UUID
     public let homeName: String
     public let awayName: String
     public let homeTeamId: UUID?
     public let awayTeamId: UUID?
+    public let homeMatchSheet: ScheduledMatchSheet?
+    public let awayMatchSheet: ScheduledMatchSheet?
     public let kickoff: Date
     public let competitionName: String?
     public let notes: String?
@@ -127,6 +129,8 @@ public struct MatchLibrarySchedule: Identifiable, Equatable {
         awayName: String,
         homeTeamId: UUID? = nil,
         awayTeamId: UUID? = nil,
+        homeMatchSheet: ScheduledMatchSheet? = nil,
+        awayMatchSheet: ScheduledMatchSheet? = nil,
         kickoff: Date,
         competitionName: String? = nil,
         notes: String? = nil,
@@ -139,6 +143,8 @@ public struct MatchLibrarySchedule: Identifiable, Equatable {
         self.awayName = awayName
         self.homeTeamId = homeTeamId
         self.awayTeamId = awayTeamId
+        self.homeMatchSheet = homeMatchSheet
+        self.awayMatchSheet = awayMatchSheet
         self.kickoff = kickoff
         self.competitionName = competitionName
         self.notes = notes
@@ -146,9 +152,17 @@ public struct MatchLibrarySchedule: Identifiable, Equatable {
         self.sourceDeviceId = sourceDeviceId
         self.venueName = venueName
     }
+
+    public var hasAnyMatchSheetData: Bool {
+        self.homeMatchSheet != nil || self.awayMatchSheet != nil
+    }
+
+    public var areMatchSheetsReadyForWatch: Bool {
+        self.homeMatchSheet?.isReady == true && self.awayMatchSheet?.isReady == true
+    }
 }
 
-public struct MatchLibrarySnapshot: Equatable {
+public struct MatchLibrarySnapshot: Equatable, Sendable {
     public var teams: [MatchLibraryTeam]
     public var competitions: [MatchLibraryCompetition]
     public var venues: [MatchLibraryVenue]
