@@ -8,6 +8,7 @@
 import Testing
 import Foundation
 @testable import RefWatchiOS
+import RefWatchCore
 
 @Suite("AggregateSnapshotBuilder Status Encoding")
 struct AggregateSnapshotBuilderStatusEncodingTests {
@@ -174,5 +175,36 @@ struct AggregateSnapshotBuilderStatusEncodingTests {
 
         #expect(payload.homeTeamId == homeTeamId)
         #expect(payload.awayTeamId == awayTeamId)
+    }
+
+    @Test("Schedule payload preserves normalized match sheets")
+    func schedulePayloadPreservesMatchSheets() {
+        let homeSheet = ScheduledMatchSheet(
+            sourceTeamName: "Team A",
+            status: .ready,
+            starters: [MatchSheetPlayerEntry(displayName: " Starter ", shirtNumber: 9, sortOrder: 1)],
+            updatedAt: Date(timeIntervalSince1970: 1_742_000_800)
+        )
+        let awaySheet = ScheduledMatchSheet(
+            sourceTeamName: "Team B",
+            status: .draft,
+            starters: [],
+            updatedAt: Date(timeIntervalSince1970: 1_742_000_801)
+        )
+        let schedule = ScheduledMatch(
+            id: UUID(),
+            homeTeam: "Team A",
+            awayTeam: "Team B",
+            homeMatchSheet: homeSheet,
+            awayMatchSheet: awaySheet,
+            kickoff: Date(),
+            status: .scheduled
+        )
+        let builder = AggregateSnapshotBuilder()
+
+        let payload = builder.makeSchedulePayload(from: schedule)
+
+        #expect(payload.homeMatchSheet == homeSheet.normalized())
+        #expect(payload.awayMatchSheet == awaySheet.normalized())
     }
 }

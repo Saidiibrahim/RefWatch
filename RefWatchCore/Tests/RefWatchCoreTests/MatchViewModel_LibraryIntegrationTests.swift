@@ -61,6 +61,47 @@ final class MatchViewModel_LibraryIntegrationTests: XCTestCase {
         XCTAssertEqual(viewModel.savedMatches.first?.homeTeamId, homeTeamId)
         XCTAssertEqual(viewModel.savedMatches.first?.awayTeamId, awayTeamId)
     }
+
+    func testUpdateLibraryPropagatesScheduledMatchSheetsToSavedMatch() {
+        let viewModel = MatchViewModel(history: InMemoryHistory())
+        let homeSheet = ScheduledMatchSheet(
+            sourceTeamName: "Team A",
+            status: .ready,
+            starters: [
+                MatchSheetPlayerEntry(displayName: "Starter", shirtNumber: 9, sortOrder: 1)
+            ],
+            substitutes: [
+                MatchSheetPlayerEntry(displayName: "Bench", shirtNumber: 14, sortOrder: 2)
+            ],
+            updatedAt: Date(timeIntervalSince1970: 1_742_000_300)
+        )
+        let awaySheet = ScheduledMatchSheet(
+            sourceTeamName: "Team B",
+            status: .ready,
+            starters: [
+                MatchSheetPlayerEntry(displayName: "Opponent", shirtNumber: 5, sortOrder: 1)
+            ],
+            updatedAt: Date(timeIntervalSince1970: 1_742_000_301)
+        )
+
+        let schedule = MatchLibrarySchedule(
+            id: UUID(),
+            homeName: "Team A",
+            awayName: "Team B",
+            homeMatchSheet: homeSheet,
+            awayMatchSheet: awaySheet,
+            kickoff: Date().addingTimeInterval(3600),
+            competitionName: "Premier Cup",
+            statusRaw: "scheduled"
+        )
+
+        viewModel.updateLibrary(with: MatchLibrarySnapshot(schedules: [schedule]))
+
+        XCTAssertEqual(viewModel.savedMatches.count, 1)
+        XCTAssertEqual(viewModel.savedMatches.first?.homeMatchSheet, homeSheet.normalized())
+        XCTAssertEqual(viewModel.savedMatches.first?.awayMatchSheet, awaySheet.normalized())
+        XCTAssertTrue(viewModel.savedMatches.first?.areMatchSheetsReadyForWatch == true)
+    }
 }
 
 @MainActor

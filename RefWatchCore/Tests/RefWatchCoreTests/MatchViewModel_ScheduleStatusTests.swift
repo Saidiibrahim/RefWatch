@@ -64,6 +64,29 @@ struct MatchViewModelScheduleStatusTests {
         #expect(vm.currentMatch == nil)
     }
 
+    @Test("finalizeMatch bridges completed schedule status over connectivity when updater is unavailable")
+    func finalizeMatchBridgesCompletedStatusWithoutUpdater() async throws {
+        let mockHistory = InMemoryHistory()
+        let connectivity = SpyConnectivity()
+        let vm = MatchViewModel(
+            history: mockHistory,
+            connectivity: connectivity,
+            scheduleStatusUpdater: nil
+        )
+
+        vm.configureMatch(duration: 90, periods: 2, halfTimeLength: 15, hasExtraTime: false, hasPenalties: false)
+        vm.createMatch()
+        let scheduledId = UUID()
+        if var m = vm.currentMatch { m.scheduledMatchId = scheduledId; vm.currentMatch = m }
+
+        vm.finalizeMatch()
+        try await Task.sleep(nanoseconds: 100_000_000)
+
+        #expect(connectivity.scheduleStatusUpdates.count == 1)
+        #expect(connectivity.scheduleStatusUpdates.first?.scheduledId == scheduledId)
+        #expect(connectivity.scheduleStatusUpdates.first?.status == "completed")
+    }
+
     @Test("finalizeMatch calls updater only once per finalization")
     func finalizeMatchCallsUpdaterOnce() async throws {
         // Given: A ViewModel with a spy updater
@@ -156,5 +179,25 @@ private final class SpyScheduleStatusUpdater: MatchScheduleStatusUpdating {
         markScheduleCompletedCalled = true
         lastMarkedId = scheduledId
         callCount += 1
+    }
+}
+
+private final class SpyConnectivity: ConnectivitySyncProvidingExtended {
+    struct ScheduleStatusUpdate: Equatable {
+        let scheduledId: UUID
+        let status: String
+    }
+
+    private(set) var completedMatches: [CompletedMatch] = []
+    private(set) var scheduleStatusUpdates: [ScheduleStatusUpdate] = []
+
+    var isAvailable: Bool { true }
+
+    func sendCompletedMatch(_ match: CompletedMatch) {
+        self.completedMatches.append(match)
+    }
+
+    func sendScheduleStatusUpdate(scheduledId: UUID, status: String) {
+        self.scheduleStatusUpdates.append(.init(scheduledId: scheduledId, status: status))
     }
 }

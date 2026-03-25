@@ -125,6 +125,31 @@ final class ActiveMatchSessionRestoreTests: XCTestCase {
     XCTAssertTrue(restoredLifecycleHaptics.playedCues.isEmpty)
   }
 
+  func test_restoreRoundTrip_preservesFrozenMatchSheets() async throws {
+    let store = InMemoryActiveMatchSessionStore()
+    let viewModel = self.makeViewModel(store: store)
+    viewModel.currentMatch = Match(
+      homeTeam: "Home",
+      awayTeam: "Away",
+      homeMatchSheet: ScheduledMatchSheet(
+        sourceTeamName: "Home",
+        status: .ready,
+        starters: [MatchSheetPlayerEntry(displayName: "Starter", shirtNumber: 9, sortOrder: 1)],
+        updatedAt: Date(timeIntervalSince1970: 1_742_000_400)),
+      awayMatchSheet: ScheduledMatchSheet(
+        sourceTeamName: "Away",
+        status: .ready,
+        starters: [MatchSheetPlayerEntry(displayName: "Opponent", shirtNumber: 4, sortOrder: 1)],
+        updatedAt: Date(timeIntervalSince1970: 1_742_000_401)))
+    viewModel.startMatch()
+
+    let restored = self.makeViewModel(store: store)
+    XCTAssertTrue(restored.restorePersistedActiveMatchSessionIfAvailable())
+    XCTAssertEqual(restored.currentMatch?.homeMatchSheet?.starters.first?.displayName, "Starter")
+    XCTAssertEqual(restored.currentMatch?.awayMatchSheet?.starters.first?.displayName, "Opponent")
+    XCTAssertTrue(restored.currentMatch?.areMatchSheetsReadyForWatch == true)
+  }
+
   private func makeViewModel(store: InMemoryActiveMatchSessionStore) -> MatchViewModel {
     MatchViewModel(
       history: MockMatchHistoryService(),

@@ -64,6 +64,25 @@ final class AggregateSyncPayloadTests: XCTestCase {
             remoteUpdatedAt: now.addingTimeInterval(-420),
             homeName: "Home",
             awayName: "Away",
+            homeTeamId: UUID(),
+            awayTeamId: UUID(),
+            homeMatchSheet: ScheduledMatchSheet(
+                sourceTeamName: "Home",
+                status: .ready,
+                starters: [
+                    MatchSheetPlayerEntry(displayName: "Starter 1", shirtNumber: 9, sortOrder: 1)
+                ],
+                substitutes: [
+                    MatchSheetPlayerEntry(displayName: "Sub 1", shirtNumber: 14, sortOrder: 2)
+                ],
+                updatedAt: now.addingTimeInterval(-390)
+            ),
+            awayMatchSheet: ScheduledMatchSheet(
+                sourceTeamName: "Away",
+                status: .draft,
+                starters: [],
+                updatedAt: now.addingTimeInterval(-380)
+            ),
             kickoff: now.addingTimeInterval(3600),
             competition: "League",
             notes: "Semi-final",
@@ -87,6 +106,8 @@ final class AggregateSyncPayloadTests: XCTestCase {
         let data = try encoder.encode(snapshot)
         let decoded = try decoder.decode(AggregateSnapshotPayload.self, from: data)
         XCTAssertEqual(decoded, snapshot)
+        XCTAssertEqual(decoded.schedules.first?.homeMatchSheet?.starterCount, 1)
+        XCTAssertEqual(decoded.schedules.first?.awayMatchSheet?.status, .draft)
     }
 
     func testDeltaPayloadRoundTrip() throws {
