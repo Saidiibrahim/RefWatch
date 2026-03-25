@@ -22,6 +22,8 @@ final class ScheduledMatchRecord {
     // Denormalized names for resilience and fast listing
     var homeName: String
     var awayName: String
+    var homeTeamId: UUID?
+    var awayTeamId: UUID?
 
     var competition: String?
     var notes: String?
@@ -42,6 +44,8 @@ final class ScheduledMatchRecord {
         awayTeam: TeamRecord? = nil,
         homeName: String,
         awayName: String,
+        homeTeamId: UUID? = nil,
+        awayTeamId: UUID? = nil,
         competition: String? = nil,
         notes: String? = nil,
         status: ScheduledMatch.Status = .scheduled,
@@ -58,6 +62,8 @@ final class ScheduledMatchRecord {
         self.awayTeam = awayTeam
         self.homeName = homeName
         self.awayName = awayName
+        self.homeTeamId = homeTeamId ?? homeTeam?.id
+        self.awayTeamId = awayTeamId ?? awayTeam?.id
         self.competition = competition
         self.notes = notes
         self.statusRaw = status.databaseValue
@@ -78,6 +84,8 @@ extension ScheduledMatchRecord {
     func update(from item: ScheduledMatch, markModified: Bool = true, dateProvider: () -> Date = Date.init) {
         homeName = item.homeTeam
         awayName = item.awayTeam
+        homeTeamId = item.homeTeamId ?? homeTeam?.id
+        awayTeamId = item.awayTeamId ?? awayTeam?.id
         kickoff = item.kickoff
         competition = item.competition
         notes = item.notes

@@ -70,6 +70,8 @@ extension WatchAggregateLibraryStore {
         id: record.id,
         homeName: record.homeName,
         awayName: record.awayName,
+        homeTeamId: record.homeTeamId,
+        awayTeamId: record.awayTeamId,
         kickoff: record.kickoff,
         competitionName: record.competition,
         notes: record.notes,

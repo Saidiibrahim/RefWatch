@@ -181,6 +181,8 @@ final class AggregateScheduleRecord {
   var remoteUpdatedAt: Date?
   var homeName: String
   var awayName: String
+  var homeTeamId: UUID?
+  var awayTeamId: UUID?
   var kickoff: Date
   var competition: String?
   var notes: String?
@@ -195,6 +197,8 @@ final class AggregateScheduleRecord {
     remoteUpdatedAt: Date? = nil,
     homeName: String,
     awayName: String,
+    homeTeamId: UUID? = nil,
+    awayTeamId: UUID? = nil,
     kickoff: Date,
     competition: String? = nil,
     notes: String? = nil,
@@ -208,6 +212,8 @@ final class AggregateScheduleRecord {
     self.remoteUpdatedAt = remoteUpdatedAt
     self.homeName = homeName
     self.awayName = awayName
+    self.homeTeamId = homeTeamId
+    self.awayTeamId = awayTeamId
     self.kickoff = kickoff
     self.competition = competition
     self.notes = notes

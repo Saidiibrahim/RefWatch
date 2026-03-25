@@ -18,6 +18,8 @@ struct ScheduledMatch: Identifiable, Codable, Hashable {
     let id: UUID
     var homeTeam: String
     var awayTeam: String
+    var homeTeamId: UUID?
+    var awayTeamId: UUID?
     var kickoff: Date
     var competition: String?
     var notes: String?
@@ -34,6 +36,8 @@ struct ScheduledMatch: Identifiable, Codable, Hashable {
         id: UUID = UUID(),
         homeTeam: String,
         awayTeam: String,
+        homeTeamId: UUID? = nil,
+        awayTeamId: UUID? = nil,
         kickoff: Date,
         competition: String? = nil,
         notes: String? = nil,
@@ -47,6 +51,8 @@ struct ScheduledMatch: Identifiable, Codable, Hashable {
         self.id = id
         self.homeTeam = homeTeam
         self.awayTeam = awayTeam
+        self.homeTeamId = homeTeamId
+        self.awayTeamId = awayTeamId
         self.kickoff = kickoff
         self.competition = competition
         self.notes = notes

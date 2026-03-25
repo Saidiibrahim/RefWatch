@@ -50,6 +50,8 @@ final class SwiftDataScheduleStore: ScheduleStoring, ScheduleMetadataPersisting 
         kickoff: item.kickoff,
         homeName: item.homeTeam,
         awayName: item.awayTeam,
+        homeTeamId: item.homeTeamId,
+        awayTeamId: item.awayTeamId,
         competition: item.competition,
         notes: item.notes,
         status: item.status,
@@ -111,6 +113,8 @@ final class SwiftDataScheduleStore: ScheduleStoring, ScheduleMetadataPersisting 
         id: record.id,
         homeTeam: record.homeName,
         awayTeam: record.awayName,
+        homeTeamId: record.homeTeamId ?? record.homeTeam?.id,
+        awayTeamId: record.awayTeamId ?? record.awayTeam?.id,
         kickoff: record.kickoff,
         competition: record.competition,
         notes: record.notes,
@@ -152,6 +156,8 @@ extension SwiftDataScheduleStore {
     if let existing = try record(id: aggregate.id) {
       existing.homeName = aggregate.homeName
       existing.awayName = aggregate.awayName
+      existing.homeTeamId = aggregate.homeTeamId
+      existing.awayTeamId = aggregate.awayTeamId
       existing.kickoff = aggregate.kickoff
       existing.competition = aggregate.competition
       existing.notes = aggregate.notes
@@ -170,6 +176,8 @@ extension SwiftDataScheduleStore {
         kickoff: aggregate.kickoff,
         homeName: aggregate.homeName,
         awayName: aggregate.awayName,
+        homeTeamId: aggregate.homeTeamId,
+        awayTeamId: aggregate.awayTeamId,
         competition: aggregate.competition,
         notes: aggregate.notes,
         status: ScheduledMatch.Status(fromDatabase: aggregate.statusRaw),

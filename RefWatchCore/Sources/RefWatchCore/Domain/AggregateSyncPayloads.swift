@@ -231,6 +231,8 @@ public struct AggregateSnapshotPayload: Codable, Equatable {
     public var remoteUpdatedAt: Date?
     public var homeName: String
     public var awayName: String
+    public var homeTeamId: UUID?
+    public var awayTeamId: UUID?
     public var kickoff: Date
     public var competition: String?
     public var notes: String?
@@ -244,6 +246,8 @@ public struct AggregateSnapshotPayload: Codable, Equatable {
       remoteUpdatedAt: Date?,
       homeName: String,
       awayName: String,
+      homeTeamId: UUID? = nil,
+      awayTeamId: UUID? = nil,
       kickoff: Date,
       competition: String?,
       notes: String?,
@@ -256,6 +260,8 @@ public struct AggregateSnapshotPayload: Codable, Equatable {
       self.remoteUpdatedAt = remoteUpdatedAt
       self.homeName = homeName
       self.awayName = awayName
+      self.homeTeamId = homeTeamId
+      self.awayTeamId = awayTeamId
       self.kickoff = kickoff
       self.competition = competition
       self.notes = notes

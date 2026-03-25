@@ -236,6 +236,8 @@ extension AggregateSnapshotBuilder {
       remoteUpdatedAt: match.remoteUpdatedAt,
       homeName: match.homeTeam,
       awayName: match.awayTeam,
+      homeTeamId: match.homeTeamId,
+      awayTeamId: match.awayTeamId,
       kickoff: match.kickoff,
       competition: match.competition,
       notes: match.notes,

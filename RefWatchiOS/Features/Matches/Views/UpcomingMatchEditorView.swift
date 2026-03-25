@@ -17,6 +17,10 @@ struct UpcomingMatchEditorView: View {
   @EnvironmentObject private var authController: SupabaseAuthController
   @State private var homeName: String = ""
   @State private var awayName: String = ""
+  @State private var selectedHomeTeamId: UUID?
+  @State private var selectedAwayTeamId: UUID?
+  @State private var selectedHomeTeamName: String?
+  @State private var selectedAwayTeamName: String?
   @State private var kickoff: Date = Self.defaultKickoff()
 
   @State private var showingHomePicker = false
@@ -68,10 +72,30 @@ struct UpcomingMatchEditorView: View {
       }
     }
     .sheet(isPresented: self.$showingHomePicker) {
-      TeamPickerSheet(teamStore: self.teamStore) { team in self.homeName = team.name }
+      TeamPickerSheet(teamStore: self.teamStore) { team in
+        self.homeName = team.name
+        self.selectedHomeTeamId = team.id
+        self.selectedHomeTeamName = team.name
+      }
     }
     .sheet(isPresented: self.$showingAwayPicker) {
-      TeamPickerSheet(teamStore: self.teamStore) { team in self.awayName = team.name }
+      TeamPickerSheet(teamStore: self.teamStore) { team in
+        self.awayName = team.name
+        self.selectedAwayTeamId = team.id
+        self.selectedAwayTeamName = team.name
+      }
+    }
+    .onChange(of: self.homeName) { _, newValue in
+      if newValue != self.selectedHomeTeamName {
+        self.selectedHomeTeamId = nil
+        self.selectedHomeTeamName = nil
+      }
+    }
+    .onChange(of: self.awayName) { _, newValue in
+      if newValue != self.selectedAwayTeamName {
+        self.selectedAwayTeamId = nil
+        self.selectedAwayTeamName = nil
+      }
     }
     .alert("Unable to Save", isPresented: self.alertBinding) {
       Button("OK", role: .cancel) { self.errorMessage = nil }
@@ -97,6 +121,8 @@ struct UpcomingMatchEditorView: View {
     let item = ScheduledMatch(
       homeTeam: homeName.trimmingCharacters(in: .whitespacesAndNewlines),
       awayTeam: self.awayName.trimmingCharacters(in: .whitespacesAndNewlines),
+      homeTeamId: self.selectedHomeTeamId,
+      awayTeamId: self.selectedAwayTeamId,
       kickoff: self.kickoff,
       needsRemoteSync: true,
       lastModifiedAt: Date())

@@ -363,6 +363,8 @@ extension SupabaseScheduleRepository {
       kickoff: remote.kickoffAt,
       homeName: remote.homeTeamName,
       awayName: remote.awayTeamName,
+      homeTeamId: remote.homeTeamId,
+      awayTeamId: remote.awayTeamId,
       competition: remote.competitionName,
       notes: remote.notes,
       status: remote.status,
@@ -381,6 +383,8 @@ extension SupabaseScheduleRepository {
   {
     record.homeName = remote.homeTeamName
     record.awayName = remote.awayTeamName
+    record.homeTeamId = remote.homeTeamId
+    record.awayTeamId = remote.awayTeamId
     record.kickoff = remote.kickoffAt
     record.competition = remote.competitionName
     record.notes = remote.notes
@@ -406,8 +410,8 @@ extension SupabaseScheduleRepository {
       competitionName: record.competition,
       venueId: nil,
       venueName: nil,
-      homeTeamId: record.homeTeam?.id,
-      awayTeamId: record.awayTeam?.id,
+      homeTeamId: record.homeTeamId ?? record.homeTeam?.id,
+      awayTeamId: record.awayTeamId ?? record.awayTeam?.id,
       notes: record.notes,
       sourceDeviceId: record.sourceDeviceId)
   }

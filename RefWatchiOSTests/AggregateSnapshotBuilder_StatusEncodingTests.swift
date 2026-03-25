@@ -154,4 +154,25 @@ struct AggregateSnapshotBuilderStatusEncodingTests {
             )
         }
     }
+
+    @Test("Schedule payload preserves home and away team IDs")
+    func schedulePayloadPreservesTeamIds() {
+        let homeTeamId = UUID()
+        let awayTeamId = UUID()
+        let schedule = ScheduledMatch(
+            id: UUID(),
+            homeTeam: "Team A",
+            awayTeam: "Team B",
+            homeTeamId: homeTeamId,
+            awayTeamId: awayTeamId,
+            kickoff: Date(),
+            status: .scheduled
+        )
+        let builder = AggregateSnapshotBuilder()
+
+        let payload = builder.makeSchedulePayload(from: schedule)
+
+        #expect(payload.homeTeamId == homeTeamId)
+        #expect(payload.awayTeamId == awayTeamId)
+    }
 }

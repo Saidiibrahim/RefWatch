@@ -112,6 +112,8 @@ public struct MatchLibrarySchedule: Identifiable, Equatable {
     public let id: UUID
     public let homeName: String
     public let awayName: String
+    public let homeTeamId: UUID?
+    public let awayTeamId: UUID?
     public let kickoff: Date
     public let competitionName: String?
     public let notes: String?
@@ -123,6 +125,8 @@ public struct MatchLibrarySchedule: Identifiable, Equatable {
         id: UUID,
         homeName: String,
         awayName: String,
+        homeTeamId: UUID? = nil,
+        awayTeamId: UUID? = nil,
         kickoff: Date,
         competitionName: String? = nil,
         notes: String? = nil,
@@ -133,6 +137,8 @@ public struct MatchLibrarySchedule: Identifiable, Equatable {
         self.id = id
         self.homeName = homeName
         self.awayName = awayName
+        self.homeTeamId = homeTeamId
+        self.awayTeamId = awayTeamId
         self.kickoff = kickoff
         self.competitionName = competitionName
         self.notes = notes

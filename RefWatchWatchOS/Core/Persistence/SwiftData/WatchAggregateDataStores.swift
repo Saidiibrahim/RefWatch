@@ -140,6 +140,8 @@ final class WatchAggregateLibraryStore {
         remoteUpdatedAt: schedule.remoteUpdatedAt,
         homeName: schedule.homeName,
         awayName: schedule.awayName,
+        homeTeamId: schedule.homeTeamId,
+        awayTeamId: schedule.awayTeamId,
         kickoff: schedule.kickoff,
         competition: schedule.competition,
         notes: schedule.notes,
