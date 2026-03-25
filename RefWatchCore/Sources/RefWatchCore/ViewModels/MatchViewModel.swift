@@ -255,6 +255,8 @@ public final class MatchViewModel {
         awayTeam: schedule.awayName)
       match.homeTeamId = schedule.homeTeamId
       match.awayTeamId = schedule.awayTeamId
+      match.homeMatchSheet = schedule.homeMatchSheet?.normalized()
+      match.awayMatchSheet = schedule.awayMatchSheet?.normalized()
       match.startTime = schedule.kickoff
       match.competitionName = schedule.competitionName
       match.venueName = schedule.venueName
@@ -263,6 +265,26 @@ public final class MatchViewModel {
 
     self.refreshSavedMatches()
     self.applyDefaultTeamsIfNeeded()
+  }
+
+  /// Refreshes the current live match with the latest schedule-owned identity
+  /// and frozen participant snapshots before kickoff.
+  public func refreshCurrentMatchScheduleContext(
+    homeTeam: String,
+    awayTeam: String,
+    homeTeamId: UUID?,
+    awayTeamId: UUID?,
+    homeMatchSheet: ScheduledMatchSheet?,
+    awayMatchSheet: ScheduledMatchSheet?)
+  {
+    guard var currentMatch else { return }
+    currentMatch.homeTeam = homeTeam
+    currentMatch.awayTeam = awayTeam
+    currentMatch.homeTeamId = homeTeamId
+    currentMatch.awayTeamId = awayTeamId
+    currentMatch.homeMatchSheet = homeMatchSheet?.normalized()
+    currentMatch.awayMatchSheet = awayMatchSheet?.normalized()
+    self.currentMatch = currentMatch
   }
 
   private func refreshSavedMatches() {
@@ -1182,7 +1204,14 @@ extension MatchViewModel {
         // Mark schedule as completed if this was a scheduled match (iOS-only)
         if let scheduledId = match.scheduledMatchId {
           Task { @MainActor in
-            try? await self.scheduleStatusUpdater?.markScheduleCompleted(scheduledId: scheduledId)
+            if let updater = self.scheduleStatusUpdater {
+              try? await updater.markScheduleCompleted(scheduledId: scheduledId)
+            } else {
+              (self.connectivity as? ConnectivitySyncProvidingExtended)?
+                .sendScheduleStatusUpdate(
+                  scheduledId: scheduledId,
+                  status: "completed")
+            }
           }
         }
       } catch {

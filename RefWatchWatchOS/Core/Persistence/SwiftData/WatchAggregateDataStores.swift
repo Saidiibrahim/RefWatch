@@ -142,6 +142,8 @@ final class WatchAggregateLibraryStore {
         awayName: schedule.awayName,
         homeTeamId: schedule.homeTeamId,
         awayTeamId: schedule.awayTeamId,
+        homeMatchSheet: schedule.homeMatchSheet,
+        awayMatchSheet: schedule.awayMatchSheet,
         kickoff: schedule.kickoff,
         competition: schedule.competition,
         notes: schedule.notes,

@@ -88,14 +88,14 @@ struct AggregateSnapshotBuilder {
         if fallbackSize > self.maxPayloadBytes {
           self.log
             .error(
-              "Aggregate chunk exceeds payload limit after splitting. entity=\(String(describing: T.self), privacy: .public)")
+              "Dropping aggregate item that still exceeds payload limit after splitting. entity=\(String(describing: T.self), privacy: .public)")
+          return
         }
         current = candidate
       } else {
-        current = candidate
         self.log
           .error(
-            "Aggregate item exceeds payload limit on its own. entity=\(String(describing: T.self), privacy: .public)")
+            "Dropping aggregate item that exceeds payload limit on its own. entity=\(String(describing: T.self), privacy: .public)")
       }
     }
 
@@ -238,6 +238,8 @@ extension AggregateSnapshotBuilder {
       awayName: match.awayTeam,
       homeTeamId: match.homeTeamId,
       awayTeamId: match.awayTeamId,
+      homeMatchSheet: match.homeMatchSheet?.normalized(),
+      awayMatchSheet: match.awayMatchSheet?.normalized(),
       kickoff: match.kickoff,
       competition: match.competition,
       notes: match.notes,

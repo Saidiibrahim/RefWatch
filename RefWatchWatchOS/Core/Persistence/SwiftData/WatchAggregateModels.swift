@@ -6,6 +6,8 @@
 //
 
 import Foundation
+import OSLog
+import RefWatchCore
 import SwiftData
 
 @Model
@@ -183,6 +185,8 @@ final class AggregateScheduleRecord {
   var awayName: String
   var homeTeamId: UUID?
   var awayTeamId: UUID?
+  @Attribute(.externalStorage) var homeMatchSheetData: Data?
+  @Attribute(.externalStorage) var awayMatchSheetData: Data?
   var kickoff: Date
   var competition: String?
   var notes: String?
@@ -199,6 +203,8 @@ final class AggregateScheduleRecord {
     awayName: String,
     homeTeamId: UUID? = nil,
     awayTeamId: UUID? = nil,
+    homeMatchSheet: ScheduledMatchSheet? = nil,
+    awayMatchSheet: ScheduledMatchSheet? = nil,
     kickoff: Date,
     competition: String? = nil,
     notes: String? = nil,
@@ -214,12 +220,48 @@ final class AggregateScheduleRecord {
     self.awayName = awayName
     self.homeTeamId = homeTeamId
     self.awayTeamId = awayTeamId
+    self.homeMatchSheetData = Self.encodeMatchSheet(homeMatchSheet)
+    self.awayMatchSheetData = Self.encodeMatchSheet(awayMatchSheet)
     self.kickoff = kickoff
     self.competition = competition
     self.notes = notes
     self.statusRaw = statusRaw
     self.sourceDeviceId = sourceDeviceId
     self.needsRemoteSync = needsRemoteSync
+  }
+}
+
+extension AggregateScheduleRecord {
+  private static let log = Logger(
+    subsystem: Bundle.main.bundleIdentifier ?? "com.refwatch.app.watch",
+    category: "WatchAggregatePersistence")
+
+  var homeMatchSheet: ScheduledMatchSheet? {
+    get { Self.decodeMatchSheet(homeMatchSheetData) }
+    set { homeMatchSheetData = Self.encodeMatchSheet(newValue) }
+  }
+
+  var awayMatchSheet: ScheduledMatchSheet? {
+    get { Self.decodeMatchSheet(awayMatchSheetData) }
+    set { awayMatchSheetData = Self.encodeMatchSheet(newValue) }
+  }
+
+  private static let matchSheetEncoder = JSONEncoder()
+  private static let matchSheetDecoder = JSONDecoder()
+
+  private static func encodeMatchSheet(_ sheet: ScheduledMatchSheet?) -> Data? {
+    guard let normalized = sheet?.normalized() else { return nil }
+    return try? matchSheetEncoder.encode(normalized)
+  }
+
+  private static func decodeMatchSheet(_ data: Data?) -> ScheduledMatchSheet? {
+    guard let data else { return nil }
+    do {
+      return try matchSheetDecoder.decode(ScheduledMatchSheet.self, from: data)
+    } catch {
+      log.error("Failed to decode watch aggregate match sheet data: \(error.localizedDescription, privacy: .public)")
+      return nil
+    }
   }
 }
 
