@@ -11,6 +11,7 @@ import SwiftUI
 
 struct MatchSetupView: View {
   let matchViewModel: MatchViewModel
+  let scheduleStore: ScheduleStoring
   let teamStore: TeamLibraryStoring
   let competitionStore: CompetitionLibraryStoring
   let venueStore: VenueLibraryStoring
@@ -59,6 +60,7 @@ struct MatchSetupView: View {
 
   init(
     matchViewModel: MatchViewModel,
+    scheduleStore: ScheduleStoring,
     teamStore: TeamLibraryStoring,
     competitionStore: CompetitionLibraryStoring,
     venueStore: VenueLibraryStoring,
@@ -67,6 +69,7 @@ struct MatchSetupView: View {
     prefillTeams: (String, String)? = nil)
   {
     self.matchViewModel = matchViewModel
+    self.scheduleStore = scheduleStore
     self.teamStore = teamStore
     self.competitionStore = competitionStore
     self.venueStore = venueStore
@@ -132,23 +135,6 @@ struct MatchSetupView: View {
       }
     }
     .navigationTitle("Match Setup")
-    .toolbar {
-      if self.scheduledMatch != nil {
-        if self.isEditing {
-          ToolbarItem(placement: .cancellationAction) {
-            Button("Cancel") { self.cancelEditing() }
-          }
-          ToolbarItem(placement: .topBarTrailing) {
-            Button("Done") { self.finishEditing() }
-              .disabled(!self.isValid)
-          }
-        } else {
-          ToolbarItem(placement: .topBarTrailing) {
-            Button("Edit") { self.startEditing() }
-          }
-        }
-      }
-    }
     .sheet(isPresented: self.$showingHomeTeamPicker) {
       TeamPickerSheet(teamStore: self.teamStore) { team in
         self.selectedHomeTeam = team
@@ -177,6 +163,7 @@ struct MatchSetupView: View {
       MatchKickoffView(
         matchViewModel: self.matchViewModel,
         phase: .firstHalf,
+        onPrepareStart: { self.freezeLatestScheduledMatchIntoCurrentMatch() },
         onConfirmStart: { self.onStarted?(self.matchViewModel) })
     }
   }
@@ -462,9 +449,12 @@ struct MatchSetupView: View {
   }
 
   private func startMatch() {
+    let currentScheduledMatch = self.latestScheduledMatch()
+    let lockedHomeTeam = currentScheduledMatch?.homeTeam.trimmingCharacters(in: .whitespacesAndNewlines)
+    let lockedAwayTeam = currentScheduledMatch?.awayTeam.trimmingCharacters(in: .whitespacesAndNewlines)
     var match = Match(
-      homeTeam: homeTeam.trimmingCharacters(in: .whitespacesAndNewlines),
-      awayTeam: self.awayTeam.trimmingCharacters(in: .whitespacesAndNewlines),
+      homeTeam: lockedHomeTeam ?? homeTeam.trimmingCharacters(in: .whitespacesAndNewlines),
+      awayTeam: lockedAwayTeam ?? self.awayTeam.trimmingCharacters(in: .whitespacesAndNewlines),
       duration: TimeInterval(self.durationMinutes * 60),
       numberOfPeriods: 2,
       halfTimeLength: TimeInterval(self.halfTimeMinutes * 60),
@@ -474,12 +464,17 @@ struct MatchSetupView: View {
       penaltyInitialRounds: self.penaltyRounds)
 
     // CRITICAL: Link to schedule if starting from one
-    if let sched = scheduledMatch {
+    if let sched = currentScheduledMatch {
       match.scheduledMatchId = sched.id
+      match.homeMatchSheet = sched.homeMatchSheet?.normalized()
+      match.awayMatchSheet = sched.awayMatchSheet?.normalized()
+      match.homeTeamId = sched.homeTeamId
+      match.awayTeamId = sched.awayTeamId
+    } else {
+      match.homeTeamId = self.selectedHomeTeam?.id
+      match.awayTeamId = self.selectedAwayTeam?.id
     }
 
-    match.homeTeamId = self.selectedHomeTeam?.id
-    match.awayTeamId = self.selectedAwayTeam?.id
     match.competitionId = self.selectedCompetition?.id
     match.competitionName = self.selectedCompetition?.name
     match.venueId = self.selectedVenue?.id
@@ -489,6 +484,27 @@ struct MatchSetupView: View {
     self.matchViewModel.createMatch()
     // Defer kickoff + start to first-half kickoff sheet
     self.showKickoffFirstHalf = true
+  }
+
+  private func latestScheduledMatch() -> ScheduledMatch? {
+    guard let scheduledMatch else { return nil }
+    return self.scheduleStore.loadAll().first(where: { $0.id == scheduledMatch.id }) ?? scheduledMatch
+  }
+
+  private func freezeLatestScheduledMatchIntoCurrentMatch() {
+    guard let latest = self.latestScheduledMatch(),
+          self.matchViewModel.currentMatch?.scheduledMatchId == latest.id
+    else {
+      return
+    }
+
+    self.matchViewModel.refreshCurrentMatchScheduleContext(
+      homeTeam: latest.homeTeam,
+      awayTeam: latest.awayTeam,
+      homeTeamId: latest.homeTeamId,
+      awayTeamId: latest.awayTeamId,
+      homeMatchSheet: latest.homeMatchSheet,
+      awayMatchSheet: latest.awayMatchSheet)
   }
 }
 
@@ -506,6 +522,7 @@ struct MatchSetupView: View {
   return NavigationStack {
     MatchSetupView(
       matchViewModel: vm,
+      scheduleStore: InMemoryScheduleStore(),
       teamStore: store,
       competitionStore: competitionStore,
       venueStore: venueStore)

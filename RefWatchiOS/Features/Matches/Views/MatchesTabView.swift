@@ -28,6 +28,7 @@ struct MatchesTabView: View {
   @State private var upcoming: [ScheduledMatch] = []
   @State private var lastNeedingJournal: CompletedMatch?
   @State private var showingAddUpcoming = false
+  @State private var editingSchedule: ScheduledMatch?
   @State private var deleteError: String?
 
   var body: some View {
@@ -62,6 +63,15 @@ struct MatchesTabView: View {
         } else {
           SignedOutFeaturePlaceholder(
             description: "Sign in to create or edit scheduled matches.")
+        }
+      }
+      .sheet(item: self.$editingSchedule) { match in
+        UpcomingMatchEditorView(
+          scheduleStore: self.scheduleStore,
+          teamStore: self.teamStore,
+          existingMatch: match)
+        {
+          refreshSchedule()
         }
       }
       .onChange(of: self.matchViewModel.matchCompleted) { _, completed in
@@ -108,6 +118,7 @@ struct MatchesTabView: View {
         case .setup:
           MatchSetupView(
             matchViewModel: self.matchViewModel,
+            scheduleStore: self.scheduleStore,
             teamStore: self.teamStore,
             competitionStore: self.competitionStore,
             venueStore: self.venueStore)
@@ -124,6 +135,7 @@ struct MatchesTabView: View {
         case let .scheduleSetup(sched):
           MatchSetupView(
             matchViewModel: self.matchViewModel,
+            scheduleStore: self.scheduleStore,
             teamStore: self.teamStore,
             competitionStore: self.competitionStore,
             venueStore: self.venueStore,
@@ -209,6 +221,14 @@ struct MatchesTabView: View {
               }
             }
             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+              if item.status == .scheduled {
+                Button {
+                  self.editingSchedule = item
+                } label: {
+                  Label("Edit", systemImage: "pencil")
+                }
+                .tint(.blue)
+              }
               Button(role: .destructive) {
                 deleteScheduledMatch(id: item.id)
               } label: {
@@ -234,6 +254,14 @@ struct MatchesTabView: View {
               }
             }
             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+              if item.status == .scheduled {
+                Button {
+                  self.editingSchedule = item
+                } label: {
+                  Label("Edit", systemImage: "pencil")
+                }
+                .tint(.blue)
+              }
               Button(role: .destructive) {
                 deleteScheduledMatch(id: item.id)
               } label: {

@@ -19,6 +19,7 @@ struct MatchKickoffView: View {
   let matchViewModel: MatchViewModel
   let phase: Phase
   let defaultSelected: TeamSide?
+  let onPrepareStart: (() -> Void)?
   let onConfirmStart: (() -> Void)?
   @Environment(\.dismiss) private var dismiss
   @Environment(\.theme) private var theme
@@ -28,11 +29,13 @@ struct MatchKickoffView: View {
     matchViewModel: MatchViewModel,
     phase: Phase,
     defaultSelected: TeamSide? = nil,
+    onPrepareStart: (() -> Void)? = nil,
     onConfirmStart: (() -> Void)? = nil)
   {
     self.matchViewModel = matchViewModel
     self.phase = phase
     self.defaultSelected = defaultSelected
+    self.onPrepareStart = onPrepareStart
     self.onConfirmStart = onConfirmStart
     _selected = State(initialValue: defaultSelected)
   }
@@ -66,6 +69,7 @@ struct MatchKickoffView: View {
           guard let s = selected else { return }
           switch self.phase {
           case .firstHalf:
+            self.onPrepareStart?()
             self.matchViewModel.setKickingTeam(s == .home)
             self.matchViewModel.startMatch()
             self.onConfirmStart?()
