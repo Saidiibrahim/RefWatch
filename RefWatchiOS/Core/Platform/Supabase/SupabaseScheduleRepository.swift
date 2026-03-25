@@ -324,8 +324,8 @@ extension SupabaseScheduleRepository {
     guard remote.isEmpty == false else { return }
     let filtered = remote.filter { !self.pendingDeletions.contains($0.id) }
     guard filtered.isEmpty == false else { return }
-    try mergeRemoteMatches(filtered, ownerUUID: ownerUUID)
-    if let maxDate = filtered.map(\.updatedAt).max() {
+    let appliedMaxDate = try mergeRemoteMatches(filtered, ownerUUID: ownerUUID)
+    if let maxDate = appliedMaxDate {
       self.remoteCursor = max(self.remoteCursor ?? maxDate, maxDate)
     }
     publishSyncStatus()
@@ -335,19 +335,30 @@ extension SupabaseScheduleRepository {
 // MARK: - Local Merge Helpers
 
 extension SupabaseScheduleRepository {
-  private func mergeRemoteMatches(_ remoteMatches: [SupabaseScheduleAPI.RemoteScheduledMatch], ownerUUID: UUID) throws {
+  private func mergeRemoteMatches(
+    _ remoteMatches: [SupabaseScheduleAPI.RemoteScheduledMatch],
+    ownerUUID: UUID) throws -> Date?
+  {
     var didChange = false
+    var appliedMaxDate: Date?
     for remote in remoteMatches {
       if let record = try store.record(id: remote.id) {
+        if record.needsRemoteSync {
+          self.log.notice(
+            "Skipping remote schedule merge for dirty local record id=\(remote.id.uuidString, privacy: .public)")
+          continue
+        }
         let remoteUpdatedAt = remote.updatedAt
         let currentRemote = record.remoteUpdatedAt ?? .distantPast
-        if remoteUpdatedAt <= currentRemote, record.needsRemoteSync == false {
+        if remoteUpdatedAt <= currentRemote {
           continue
         }
         self.apply(remote: remote, to: record, ownerUUID: ownerUUID)
+        appliedMaxDate = max(appliedMaxDate ?? remoteUpdatedAt, remoteUpdatedAt)
         didChange = true
       } else {
         try self.insertRemoteMatch(remote, ownerUUID: ownerUUID)
+        appliedMaxDate = max(appliedMaxDate ?? remote.updatedAt, remote.updatedAt)
         didChange = true
       }
     }
@@ -355,6 +366,7 @@ extension SupabaseScheduleRepository {
       try self.store.context.save()
       self.metadataPersistor.publishSnapshot()
     }
+    return appliedMaxDate
   }
 
   private func insertRemoteMatch(_ remote: SupabaseScheduleAPI.RemoteScheduledMatch, ownerUUID: UUID) throws {
@@ -365,6 +377,8 @@ extension SupabaseScheduleRepository {
       awayName: remote.awayTeamName,
       homeTeamId: remote.homeTeamId,
       awayTeamId: remote.awayTeamId,
+      homeMatchSheet: remote.homeMatchSheet,
+      awayMatchSheet: remote.awayMatchSheet,
       competition: remote.competitionName,
       notes: remote.notes,
       status: remote.status,
@@ -385,6 +399,8 @@ extension SupabaseScheduleRepository {
     record.awayName = remote.awayTeamName
     record.homeTeamId = remote.homeTeamId
     record.awayTeamId = remote.awayTeamId
+    record.homeMatchSheet = remote.homeMatchSheet
+    record.awayMatchSheet = remote.awayMatchSheet
     record.kickoff = remote.kickoffAt
     record.competition = remote.competitionName
     record.notes = remote.notes
@@ -412,6 +428,8 @@ extension SupabaseScheduleRepository {
       venueName: nil,
       homeTeamId: record.homeTeamId ?? record.homeTeam?.id,
       awayTeamId: record.awayTeamId ?? record.awayTeam?.id,
+      homeMatchSheet: record.homeMatchSheet,
+      awayMatchSheet: record.awayMatchSheet,
       notes: record.notes,
       sourceDeviceId: record.sourceDeviceId)
   }
