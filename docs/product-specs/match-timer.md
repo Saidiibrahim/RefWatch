@@ -16,6 +16,23 @@ Provides referees with precise match, period, and stoppage tracking, optimized f
 4. User interacts via actions sheet (pause, explicit halftime start, period transitions, penalties).
 5. On completion, results sync to `MatchHistoryService`.
 
+## Substitution Entry (watchOS)
+- Tapping `Sub` from either team detail screen opens a hub flow instead of immediately asking for a single player-off or player-on entry.
+- The hub exposes two spokes:
+  - `Player(s) off`
+  - `Player(s) on`
+- Referees may enter either side first; watchOS no longer uses `substitutionOrderPlayerOffFirst` to control substitution navigation order.
+- If the selected match resolves to a synced roster for that team, the spoke uses a multi-select player list.
+  - Rows remain roster-sorted.
+  - Tap order is preserved separately and becomes the pairing order for saved substitutions.
+- If no roster is available, the spoke uses the numeric keypad flow with an add-player affordance so multiple shirt numbers can be collected before returning to the hub.
+- The hub enables `Done` only when both sides contain the same non-zero count.
+- If `Confirm Subs` is enabled, `Done` opens one confirmation surface summarizing the ordered pairs and the shared match time.
+- Saving a batch records `N` normal substitution events, not a grouped event type.
+  - Every event in the batch shares one captured `matchTime`, `period`, and `actualTime` snapshot.
+  - Home/away substitution tallies increment by the batch size.
+  - Undo remains at individual substitution granularity in v1.
+
 ## Lifecycle Haptics
 - Natural period boundary emits the `periodBoundaryReached` lifecycle cue exactly once per boundary, after stale-callback guards pass and shared core has entered `PendingPeriodBoundaryDecision`.
 - Natural period expiry enters the shared-core `PendingPeriodBoundaryDecision` waiting state first, keeps boundary-overrun timing running without generic paused semantics, then requests `.periodBoundaryReached`; the repeating alert must begin from that stable state instead of being coupled to immediate `pauseMatch()` side effects.

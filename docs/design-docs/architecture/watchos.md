@@ -32,6 +32,26 @@
 - `Events`: displays chronological match events for quick review.
 - `Settings`: hosts personalization and integration options.
 
+## Substitution Entry Flow
+- `MatchSetupView` launches watch event-entry destinations on the parent `NavigationStack`; substitution entry no longer owns a nested stack.
+- `SubstitutionFlow` is a watch hub-and-spoke flow with local state ownership for:
+  - ordered `player(s) off` selections
+  - ordered `player(s) on` selections
+  - destination routing to each spoke and optional confirmation
+- The watch substitution hub allows either side to be entered first and keeps the hub as the state owner so selections survive navigation back from each spoke.
+- Roster resolution prefers the active match team's synced `homeTeamId` / `awayTeamId`.
+  - Exact team-name matching remains a compatibility fallback for older locally persisted schedules that lack team IDs.
+- Spoke selection behavior branches by roster availability:
+  - roster present: multi-select player list with roster sort order preserved and selection order tracked separately for pairing
+  - no roster: numeric collector based on `NumericKeypad` with multi-entry add/edit/remove behavior
+- `Done` is enabled only when off/on counts match and are non-zero.
+- If `Confirm Subs` is enabled, the hub navigates to one batch confirmation surface that summarizes the ordered pairs and shared match time.
+- `MatchViewModel.recordSubstitutions(team:substitutions:)` performs the save boundary:
+  - captures one timestamp / `matchTime` / `period` snapshot
+  - emits one normal substitution event per ordered pair
+  - increments team substitution tallies by batch size
+  - suppresses stale single-substitution confirmation state after batch saves
+
 ## Watch-Specific Adapters
 - `WatchHaptics` implements `HapticsProviding`.
 - `WatchMatchLifecycleHaptics` implements `MatchLifecycleHapticsProviding` and owns the watch-only repeating lifecycle alert policy: `3 x 0.4s` pulses repeated every `3.0s` until explicit acknowledgment while the app is active.
