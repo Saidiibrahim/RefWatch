@@ -21,16 +21,24 @@ Provides referees with precise match, period, and stoppage tracking, optimized f
 - The hub exposes two spokes:
   - `Player(s) off`
   - `Player(s) on`
+- The hub stays minimal for speed:
+  - the top `Substitutions made` summary card is removed
+  - hub subtitles show shirt numbers only, comma-separated, in selection order
+  - if a selected player has no shirt number, the hub shows `?` for that slot
+  - player names remain visible inside the selection lists, but not in the hub summary
 - Referees may enter either side first; watchOS no longer uses `substitutionOrderPlayerOffFirst` to control substitution navigation order.
 - If the selected scheduled match is watch-ready, each spoke resolves from the scheduled match sheet frozen onto that fixture.
   - `Player(s) off` comes from the active on-field set derived from starters plus saved substitution history.
   - `Player(s) on` comes from unused substitutes on the frozen sheet.
   - Rows remain deterministic and selection order becomes the pairing order for saved substitutions.
 - If the scheduled match has match-sheet data but either side is not ready, the spoke uses the numeric keypad/manual path instead of silently promoting live library rosters to official participants.
+- Manual numeric entry keeps the selected numbers visible on the hub rows; the old top selected-numbers card is removed.
+- In manual entry, backspace deletes the current typed digit when the keypad buffer is non-empty; when the buffer is empty, backspace removes the most recently committed selection so referees can correct a batch without leaving the flow.
 - Legacy schedules created before match-sheet support may still use synced library-roster lookup as a backward-compatibility fallback when no match-sheet fields exist at all.
 - If the official frozen sheet is ready but a spoke has no eligible candidates left, the watch shows an unavailable state for that spoke instead of falling through to numeric/manual selection.
 - The hub enables `Done` only when both sides contain the same non-zero count.
-- If `Confirm Subs` is enabled, `Done` opens one confirmation surface summarizing the ordered pairs and the shared match time.
+- If `Confirm Subs` is enabled, `Done` still opens the confirmation surface for single-pair substitutions.
+- Multi-pair batches bypass the confirmation surface and save directly from `Done` so referees can get play restarted faster.
 - Saving a batch records `N` normal substitution events, not a grouped event type.
   - Every event in the batch shares one captured `matchTime`, `period`, and `actualTime` snapshot.
   - Home/away substitution tallies increment by the batch size.
@@ -98,6 +106,8 @@ Provides referees with precise match, period, and stoppage tracking, optimized f
 - Validate natural period expiry sets `PendingPeriodBoundaryDecision`, requests `.periodBoundaryReached` from that calm state, and does not record `.periodEnd(...)` until explicit referee commit.
 - Validate lifecycle haptic dedupe at natural period boundary and halftime expiry.
 - Validate cancellation of queued lifecycle pulses after reset, abandonment, end/finalize, manual transition, app interruption, and backgrounding.
+- Validate multi-pair substitution batches bypass confirmation while single-pair saves still honor `Confirm Subs`.
+- Validate the manual substitution keypad backspace behavior that pops committed selections when the entry buffer is empty.
 - Validate the acknowledgment overlay blocks timer taps and long-press actions until the user explicitly silences it.
 - Validate acknowledgment does not clear `PendingPeriodBoundaryDecision`; only explicit referee progression consumes it.
 - Validate unfinished-match persistence and rehydration across relaunch, including `PendingPeriodBoundaryDecision`, `waitingForHalfTimeStart`, and `waitingForPenaltiesStart`, without replaying a stopped repeating alert.

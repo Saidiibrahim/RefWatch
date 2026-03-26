@@ -39,13 +39,20 @@
   - ordered `player(s) on` selections
   - destination routing to each spoke and optional confirmation
 - The watch substitution hub allows either side to be entered first and keeps the hub as the state owner so selections survive navigation back from each spoke.
+- The hub is intentionally stripped down for speed:
+  - the top `Substitutions made` summary card is removed
+  - `Player(s) off` and `Player(s) on` show shirt numbers only in the hub subtitle
+  - if a selected player has no shirt number, the hub subtitle renders `?` for that slot
+  - player names remain inside the roster/sheet selection spokes for disambiguation
 - Participant resolution prefers frozen scheduled match sheets carried on the active match or schedule snapshot.
   - When both home and away sheets are `ready`, watch resolves `player(s) off` from the current on-field set and `player(s) on` from unused substitutes.
   - If a ready frozen sheet has no eligible candidates for a spoke, watch shows a blocked unavailable state instead of falling through to numeric/manual entry.
   - When a schedule has match-sheet fields but is not watch-ready, watch uses numeric/manual entry and does not silently mix live library roster members into the official participant path.
   - Legacy schedules with no match-sheet fields retain the old team-ID / exact-name library lookup only as backward compatibility.
 - `Done` is enabled only when off/on counts match and are non-zero.
-- If `Confirm Subs` is enabled, the hub navigates to one batch confirmation surface that summarizes the ordered pairs and shared match time.
+- If `Confirm Subs` is enabled, the hub still navigates to confirmation for single-pair substitutions.
+- Multi-pair batches bypass confirmation and save directly from `Done`; this is the approved speed path for referees entering several substitutions at once.
+- Manual numeric entry keeps entered numbers visible on the hub rows and uses keypad backspace as stack-style undo when the current buffer is empty.
 - `MatchViewModel.recordSubstitutions(team:substitutions:)` performs the save boundary:
   - captures one timestamp / `matchTime` / `period` snapshot
   - emits one normal substitution event per ordered pair
@@ -61,6 +68,8 @@
 
 ## Testing Notes
 - Focus on ViewModel logic, persisted unfinished-match snapshots, and penalty/timer rehydration.
+- Add watch-side coverage for the simplified substitution hub, number-only summaries, and manual keypad backspace undo behavior.
+- Keep confirmation coverage explicit for the single-pair path while asserting multi-pair batches skip the confirmation surface.
 - Lifecycle haptics must be validated at two levels:
   - shared/core tests assert `PendingPeriodBoundaryDecision` sequencing, semantic cue requests, dedupe, persisted restore behavior, and cancellation triggers
   - watch adapter tests assert repeating-cycle scheduling, acknowledgment, and queued-pulse cancellation
