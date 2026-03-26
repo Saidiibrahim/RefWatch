@@ -138,7 +138,7 @@ extension SettingsScreen {
     Section {
       SettingsToggleRow(
         title: "Confirm Subs",
-        subtitle: nil,
+        subtitle: "Single-pair only",
         icon: "checkmark.shield",
         isOn: self.$settingsViewModel.settings.confirmSubstitutions)
         .listRowInsets(self.cardRowInsets)

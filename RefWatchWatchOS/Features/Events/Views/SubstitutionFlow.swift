@@ -42,7 +42,6 @@ struct SubstitutionFlow: View {
 
   var body: some View {
     List {
-      self.summaryCard
       self.selectionButton(for: .playerOff)
       self.selectionButton(for: .playerOn)
       self.doneButton
@@ -65,36 +64,6 @@ struct SubstitutionFlow: View {
           })
       }
     }
-  }
-
-  private var summaryCard: some View {
-    ThemeCardContainer(role: .secondary, minHeight: 72) {
-      VStack(alignment: .leading, spacing: self.theme.spacing.xs) {
-        HStack {
-          Text("Substitutions made:")
-            .font(self.theme.typography.cardHeadline)
-            .foregroundStyle(self.theme.colors.textPrimary)
-
-          Spacer()
-
-          Text("\(self.orderedPairs.count)")
-            .font(self.theme.typography.cardHeadline)
-            .foregroundStyle(self.theme.colors.textPrimary)
-        }
-
-        if self.canSubmit == false, self.hasAnySelections {
-          Text("Select equal players off and on")
-            .font(self.theme.typography.cardMeta)
-            .foregroundStyle(self.theme.colors.textSecondary)
-        } else {
-          Text("All saved substitutions share one match time")
-            .font(self.theme.typography.cardMeta)
-            .foregroundStyle(self.theme.colors.textSecondary)
-        }
-      }
-    }
-    .listRowInsets(self.rowInsets)
-    .listRowBackground(Color.clear)
   }
 
   private func selectionButton(for target: SubstitutionTarget) -> some View {
@@ -214,11 +183,7 @@ struct SubstitutionFlow: View {
   }
 
   private func selectionSummary(for target: SubstitutionTarget) -> String {
-    let selections = self.selections(for: target)
-    guard selections.isEmpty == false else { return "Select player" }
-    return selections.enumerated().map { index, selection in
-      "\(index + 1). \(selection.displayLabel)"
-    }.joined(separator: ", ")
+    SubstitutionFlowSupport.selectionSummary(for: self.selections(for: target))
   }
 
   private func selections(for target: SubstitutionTarget) -> [SubstitutionSelection] {
@@ -237,17 +202,15 @@ struct SubstitutionFlow: View {
   }
 
   private var canSubmit: Bool {
-    self.playersOff.isEmpty == false
-      && self.playersOff.count == self.playersOn.count
-  }
-
-  private var hasAnySelections: Bool {
-    self.playersOff.isEmpty == false || self.playersOn.isEmpty == false
+    SubstitutionFlowSupport.canSubmit(playersOff: self.playersOff, playersOn: self.playersOn)
   }
 
   private func handleDone() {
     guard self.canSubmit else { return }
-    if self.settingsViewModel.settings.confirmSubstitutions {
+    if SubstitutionFlowSupport.shouldRequireConfirmation(
+      confirmSubstitutions: self.settingsViewModel.settings.confirmSubstitutions,
+      pairCount: self.orderedPairs.count)
+    {
       self.confirmationSnapshot = self.matchViewModel.captureEventSnapshotForConfirmation()
       self.navigate(to: .confirmation)
     } else {
@@ -353,7 +316,7 @@ private enum SubstitutionRoute: Identifiable, Hashable {
   }
 }
 
-private struct SubstitutionSelection: Identifiable, Equatable, Hashable {
+struct SubstitutionSelection: Identifiable, Equatable, Hashable {
   let id: UUID
   let participantId: UUID
   let number: Int?
@@ -371,7 +334,7 @@ private struct SubstitutionSelection: Identifiable, Equatable, Hashable {
     self.name = name?.trimmedOrNil
   }
 
-  init(player: SubstitutionSelectablePlayer) {
+  fileprivate init(player: SubstitutionSelectablePlayer) {
     self.id = UUID()
     self.participantId = player.participantId
     self.number = player.number
@@ -380,6 +343,10 @@ private struct SubstitutionSelection: Identifiable, Equatable, Hashable {
 
   var displayLabel: String {
     Self.formattedParticipant(number: self.number, name: self.name) ?? "Player"
+  }
+
+  var summaryLabel: String {
+    self.number.map(String.init) ?? "?"
   }
 
   private static func formattedParticipant(number: Int?, name: String?) -> String? {
@@ -466,13 +433,6 @@ private struct SubstitutionPlayerSelectionView: View {
           .font(self.theme.typography.cardHeadline)
           .foregroundStyle(self.theme.colors.textPrimary)
           .frame(maxWidth: .infinity, alignment: .leading)
-
-        if let order {
-          Text("Selected \(order)")
-            .font(self.theme.typography.cardMeta)
-            .foregroundStyle(self.theme.colors.textSecondary)
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
       }
 
       if let order {
@@ -541,7 +501,6 @@ private struct SubstitutionNumberCollectorView: View {
   @Environment(\.dismiss) private var dismiss
   @Environment(\.theme) private var theme
   @State private var numberString = ""
-  @State private var editingSelectionID: UUID?
 
   init(title: String, selections: Binding<[SubstitutionSelection]>) {
     self.title = title
@@ -551,54 +510,16 @@ private struct SubstitutionNumberCollectorView: View {
   fileprivate init(
     title: String,
     selections: Binding<[SubstitutionSelection]>,
-    initialNumberString: String,
-    initialEditingSelectionID: UUID?)
+    initialNumberString: String)
   {
     self.title = title
     self._selections = selections
     self._numberString = State(initialValue: initialNumberString)
-    self._editingSelectionID = State(initialValue: initialEditingSelectionID)
   }
 
   var body: some View {
     ScrollView {
       VStack(spacing: self.theme.spacing.m) {
-        if self.selections.isEmpty == false {
-          ThemeCardContainer(role: .secondary) {
-            VStack(alignment: .leading, spacing: self.theme.spacing.xs) {
-              Text("Selected")
-                .font(self.theme.typography.cardHeadline)
-                .foregroundStyle(self.theme.colors.textPrimary)
-
-              ForEach(self.selections) { selection in
-                HStack(spacing: self.theme.spacing.s) {
-                  Button {
-                    self.beginEditing(selection)
-                  } label: {
-                    Text(selection.displayLabel)
-                      .font(self.theme.typography.cardMeta)
-                      .foregroundStyle(self.theme.colors.textPrimary)
-                      .frame(maxWidth: .infinity, alignment: .leading)
-                  }
-                  .buttonStyle(.plain)
-
-                  Button {
-                    self.remove(selection)
-                  } label: {
-                    Image(systemName: "xmark.circle.fill")
-                      .foregroundStyle(self.theme.colors.textSecondary)
-                  }
-                  .buttonStyle(.plain)
-                }
-              }
-
-              Text(self.editingSelectionID == nil ? "Tap a number to edit" : "Editing selected number")
-                .font(self.theme.typography.cardMeta)
-                .foregroundStyle(self.theme.colors.textSecondary)
-            }
-          }
-        }
-
         NumericKeypad(
           numberString: self.$numberString,
           maxDigits: 2,
@@ -611,6 +532,9 @@ private struct SubstitutionNumberCollectorView: View {
           },
           onAccessoryTap: {
             self.addCurrentNumber()
+          },
+          onEmptyBackspace: {
+            SubstitutionFlowSupport.removeMostRecentSelection(from: &self.selections)
           })
       }
       .padding(.horizontal, self.theme.spacing.xs)
@@ -623,21 +547,8 @@ private struct SubstitutionNumberCollectorView: View {
   @discardableResult
   private func addCurrentNumber() -> Bool {
     guard let number = Int(self.numberString), number > 0 else { return false }
-
-    if self.selections.contains(where: { $0.number == number && $0.id != self.editingSelectionID }) {
+    guard SubstitutionFlowSupport.appendManualSelection(number: number, to: &self.selections) else {
       return false
-    }
-
-    if let editingSelectionID,
-       let index = self.selections.firstIndex(where: { $0.id == editingSelectionID })
-    {
-      self.selections[index] = SubstitutionSelection(
-        id: editingSelectionID,
-        number: number,
-        name: nil)
-      self.editingSelectionID = nil
-    } else {
-      self.selections.append(SubstitutionSelection(number: number, name: nil))
     }
 
     self.numberString = ""
@@ -648,19 +559,6 @@ private struct SubstitutionNumberCollectorView: View {
     guard self.addCurrentNumber() else { return }
     guard self.selections.isEmpty == false else { return }
     self.dismiss()
-  }
-
-  private func beginEditing(_ selection: SubstitutionSelection) {
-    self.editingSelectionID = selection.id
-    self.numberString = selection.number.map(String.init) ?? ""
-  }
-
-  private func remove(_ selection: SubstitutionSelection) {
-    self.selections.removeAll { $0.id == selection.id }
-    if self.editingSelectionID == selection.id {
-      self.editingSelectionID = nil
-      self.numberString = ""
-    }
   }
 }
 
@@ -741,6 +639,46 @@ private extension String {
   }
 }
 
+enum SubstitutionFlowSupport {
+  static func selectionSummary(
+    for selections: [SubstitutionSelection],
+    emptyText: String = "Select player") -> String
+  {
+    guard selections.isEmpty == false else { return emptyText }
+    return selections.map(\.summaryLabel).joined(separator: ", ")
+  }
+
+  static func canSubmit(
+    playersOff: [SubstitutionSelection],
+    playersOn: [SubstitutionSelection]) -> Bool
+  {
+    playersOff.isEmpty == false && playersOff.count == playersOn.count
+  }
+
+  static func shouldRequireConfirmation(
+    confirmSubstitutions: Bool,
+    pairCount: Int) -> Bool
+  {
+    confirmSubstitutions && pairCount == 1
+  }
+
+  @discardableResult
+  static func appendManualSelection(
+    number: Int,
+    to selections: inout [SubstitutionSelection]) -> Bool
+  {
+    guard number > 0 else { return false }
+    guard selections.contains(where: { $0.number == number }) == false else { return false }
+    selections.append(SubstitutionSelection(number: number, name: nil))
+    return true
+  }
+
+  static func removeMostRecentSelection(from selections: inout [SubstitutionSelection]) {
+    guard selections.isEmpty == false else { return }
+    selections.removeLast()
+  }
+}
+
 // MARK: - Preview Support
 
 #Preview("Sub Hub – Legacy Empty") {
@@ -770,6 +708,20 @@ private extension String {
 }
 
 #Preview("Sub Hub – Ready To Confirm") {
+  previewNavigationHost(
+    layout: WatchLayoutScale(category: .standard),
+    settingsViewModel: SubstitutionFlowPreviewFixtures.settingsViewModel(confirmSubstitutions: true))
+  {
+    SubstitutionFlow(
+      team: .home,
+      matchViewModel: SubstitutionFlowPreviewFixtures.makeMatchViewModel(for: .readySheets),
+      onComplete: {},
+      initialPlayersOff: [SubstitutionFlowPreviewFixtures.readyOffSelections[0]],
+      initialPlayersOn: [SubstitutionFlowPreviewFixtures.readyOnSelections[0]])
+  }
+}
+
+#Preview("Sub Hub – Ready To Save") {
   previewNavigationHost(
     layout: WatchLayoutScale(category: .standard),
     settingsViewModel: SubstitutionFlowPreviewFixtures.settingsViewModel(confirmSubstitutions: true))
@@ -826,27 +778,39 @@ private extension String {
   }
 }
 
-#Preview("Sub Manual – Editing") {
+#Preview("Sub Manual – Typing") {
   @Previewable @State var selections = SubstitutionFlowPreviewFixtures.manualSelections
 
   previewNavigationHost(layout: WatchLayoutScale(category: .standard)) {
     SubstitutionNumberCollectorView(
       title: SubstitutionTarget.playerOn.title,
       selections: $selections,
-      initialNumberString: "16",
-      initialEditingSelectionID: SubstitutionFlowPreviewFixtures.manualSelections[1].id)
+      initialNumberString: "16")
   }
 }
 
-#Preview("Sub Manual – Editing – 41mm") {
+#Preview("Sub Manual – Filled – 41mm") {
   @Previewable @State var selections = SubstitutionFlowPreviewFixtures.manualSelections
 
   previewNavigationHost(layout: WatchLayoutScale(category: .compact)) {
     SubstitutionNumberCollectorView(
       title: SubstitutionTarget.playerOn.title,
       selections: $selections,
-      initialNumberString: "12",
-      initialEditingSelectionID: SubstitutionFlowPreviewFixtures.manualSelections[0].id)
+      initialNumberString: "")
+  }
+}
+
+#Preview("Sub Hub – Manual Ready") {
+  previewNavigationHost(
+    layout: WatchLayoutScale(category: .standard),
+    settingsViewModel: SubstitutionFlowPreviewFixtures.settingsViewModel(confirmSubstitutions: true))
+  {
+    SubstitutionFlow(
+      team: .home,
+      matchViewModel: SubstitutionFlowPreviewFixtures.makeMatchViewModel(for: .manualOnly),
+      onComplete: {},
+      initialPlayersOff: SubstitutionFlowPreviewFixtures.manualSelections,
+      initialPlayersOn: SubstitutionFlowPreviewFixtures.manualOnSelections)
   }
 }
 
@@ -870,15 +834,6 @@ private extension String {
   previewNavigationHost(layout: WatchLayoutScale(category: .standard)) {
     SubstitutionBatchConfirmationView(
       pairs: [SubstitutionFlowPreviewFixtures.confirmationPairs[0]],
-      matchTime: SubstitutionFlowPreviewFixtures.confirmationSnapshot.matchTime,
-      onConfirm: {})
-  }
-}
-
-#Preview("Sub Confirm – Three Pairs") {
-  previewNavigationHost(layout: WatchLayoutScale(category: .standard)) {
-    SubstitutionBatchConfirmationView(
-      pairs: SubstitutionFlowPreviewFixtures.confirmationPairs,
       matchTime: SubstitutionFlowPreviewFixtures.confirmationSnapshot.matchTime,
       onConfirm: {})
   }
@@ -982,6 +937,17 @@ private enum SubstitutionFlowPreviewFixtures {
       id: UUID(uuidString: "40000000-0000-0000-0000-000000000002")!,
       participantId: UUID(uuidString: "40000000-0000-0000-0000-000000000012")!,
       number: 16),
+  ]
+
+  static let manualOnSelections: [SubstitutionSelection] = [
+    SubstitutionSelection(
+      id: UUID(uuidString: "40000000-0000-0000-0000-000000000013")!,
+      participantId: UUID(uuidString: "40000000-0000-0000-0000-000000000014")!,
+      number: 14),
+    SubstitutionSelection(
+      id: UUID(uuidString: "40000000-0000-0000-0000-000000000015")!,
+      participantId: UUID(uuidString: "40000000-0000-0000-0000-000000000016")!,
+      number: 18),
   ]
 
   static let confirmationPairs: [SubstitutionPair] = [

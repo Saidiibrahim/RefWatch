@@ -68,7 +68,10 @@ struct NavigationRowLabel: View {
             Text(subtitle)
               .font(theme.typography.cardMeta)
               .foregroundStyle(theme.colors.textSecondary)
-              .lineLimit(1)
+              .frame(maxWidth: .infinity, alignment: .leading)
+              .lineLimit(2)
+              .multilineTextAlignment(.leading)
+              .fixedSize(horizontal: false, vertical: true)
           }
         }
 
@@ -124,7 +127,10 @@ struct NavigationRowLabelWithAccessory<Accessory: View>: View {
             Text(subtitle)
               .font(theme.typography.cardMeta)
               .foregroundStyle(theme.colors.textSecondary)
-              .lineLimit(1)
+              .frame(maxWidth: .infinity, alignment: .leading)
+              .lineLimit(2)
+              .multilineTextAlignment(.leading)
+              .fixedSize(horizontal: false, vertical: true)
           }
         }
 
@@ -199,4 +205,3 @@ struct NavigationRowLabelWithAccessory<Accessory: View>: View {
   }
   .theme(DefaultTheme())
 }
-

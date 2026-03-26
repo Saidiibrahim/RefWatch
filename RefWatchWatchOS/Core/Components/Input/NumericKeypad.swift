@@ -23,6 +23,7 @@ struct NumericKeypad: View {
     let accessoryIcon: String?
     let accessoryColor: Color
     let onAccessoryTap: (() -> Void)?
+    let onEmptyBackspace: (() -> Void)?
     
     // Keypad layout - updated to match new design with back button and OK
     private let keypadLayout = [
@@ -41,7 +42,8 @@ struct NumericKeypad: View {
         accessoryIcon: String? = nil,
         accessoryColor: Color = .blue,
         onSubmit: @escaping () -> Void,
-        onAccessoryTap: (() -> Void)? = nil
+        onAccessoryTap: (() -> Void)? = nil,
+        onEmptyBackspace: (() -> Void)? = nil
     ) {
         self._numberString = numberString
         self.maxDigits = maxDigits
@@ -51,6 +53,7 @@ struct NumericKeypad: View {
         self.accessoryColor = accessoryColor
         self.onSubmit = onSubmit
         self.onAccessoryTap = onAccessoryTap
+        self.onEmptyBackspace = onEmptyBackspace
     }
     
     var body: some View {
@@ -117,8 +120,8 @@ struct NumericKeypad: View {
         switch key {
         case "←":
             // Handle backspace
-            if !numberString.isEmpty {
-                numberString = String(numberString.dropLast())
+            if NumericKeypadSupport.applyBackspace(to: &numberString) == false {
+                onEmptyBackspace?()
             }
         case "OK":
             // Handle submit
@@ -181,6 +184,15 @@ struct NumericKeypad: View {
                 minButtonWidth: layout.dimension(46, minimum: 44, maximum: 56)
             )
         }
+    }
+}
+
+enum NumericKeypadSupport {
+    @discardableResult
+    static func applyBackspace(to numberString: inout String) -> Bool {
+        guard numberString.isEmpty == false else { return false }
+        numberString = String(numberString.dropLast())
+        return true
     }
 }
 
