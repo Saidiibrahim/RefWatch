@@ -14,19 +14,28 @@ struct WatchLifecycleAlert: Equatable, Identifiable, Sendable {
   let id: UUID
   let cue: MatchLifecycleHapticCue
   let title: String
-  let message: String
+  let message: String?
 
   init(id: UUID = UUID(), cue: MatchLifecycleHapticCue) {
     self.id = id
     self.cue = cue
 
     switch cue {
-    case .periodBoundaryReached:
-      self.title = "Time Expired"
-      self.message = "Acknowledge to silence this alert. The period stays in its expired state until you end it from Match Actions."
+    case let .periodBoundaryReached(boundaryDecision):
+      switch boundaryDecision {
+      case .firstHalf:
+        self.title = "End of Half"
+      case .secondHalf:
+        self.title = "End of Regulation"
+      case .extraTimeFirstHalf:
+        self.title = "End of ET 1"
+      case .extraTimeSecondHalf:
+        self.title = "End of ET 2"
+      }
+      self.message = nil
     case .halftimeDurationReached:
-      self.title = "Half-Time Complete"
-      self.message = "Acknowledge to silence this alert. Half-time stays active until you end it from Match Actions."
+      self.title = "Half-Time Over"
+      self.message = nil
     }
   }
 }

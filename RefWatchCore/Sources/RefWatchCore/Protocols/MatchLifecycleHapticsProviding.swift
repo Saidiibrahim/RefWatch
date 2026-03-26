@@ -9,7 +9,7 @@ import Foundation
 
 /// Semantic lifecycle cues emitted by shared match flow logic.
 public enum MatchLifecycleHapticCue: Equatable, Sendable {
-  case periodBoundaryReached
+  case periodBoundaryReached(PendingPeriodBoundaryDecision)
   case halftimeDurationReached
 }
 

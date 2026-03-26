@@ -535,7 +535,7 @@ public final class MatchViewModel {
       self.isInStoppage = snap.isInStoppage
     }
     self.syncRuntimeSession(inactiveReason: .cancelled)
-    self.lifecycleHaptics.play(.periodBoundaryReached)
+    self.lifecycleHaptics.play(.periodBoundaryReached(boundaryDecision))
   }
 
   @discardableResult

@@ -366,9 +366,9 @@ extension MatchRootPreviewConfiguration {
       commandHandler: WatchPreviewSupport.makeCommandHandler())
   }
 
-  static func pendingPeriodBoundaryAlertVisible() -> MatchRootPreviewConfiguration {
+  static func endOfHalfAlertVisible() -> MatchRootPreviewConfiguration {
     let runtimeController = WatchPreviewSupport.makeRuntimeController()
-    let lifecycleHaptics = WatchPreviewSupport.makeLifecycleHaptics(activeCue: .periodBoundaryReached)
+    let lifecycleHaptics = WatchPreviewSupport.makeLifecycleHaptics(activeCue: .periodBoundaryReached(.firstHalf))
     let matchViewModel = MatchViewModel(
       history: PreviewMatchHistoryStore(),
       haptics: NoopHaptics(),
@@ -400,7 +400,7 @@ extension MatchRootPreviewConfiguration {
       commandHandler: WatchPreviewSupport.makeCommandHandler())
   }
 
-  static func halfTimeCompleteAlertVisible() -> MatchRootPreviewConfiguration {
+  static func halfTimeOverAlertVisible() -> MatchRootPreviewConfiguration {
     let runtimeController = WatchPreviewSupport.makeRuntimeController()
     let lifecycleHaptics = WatchPreviewSupport.makeLifecycleHaptics(activeCue: .halftimeDurationReached)
     let matchViewModel = MatchViewModel(

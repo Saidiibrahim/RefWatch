@@ -36,16 +36,18 @@ struct LifecycleAlertOverlayView: View {
               .multilineTextAlignment(.center)
               .frame(maxWidth: .infinity)
 
-            Text(self.alert.message)
-              .font(self.theme.typography.cardMeta)
-              .foregroundStyle(self.theme.colors.textSecondary)
-              .multilineTextAlignment(.center)
-              .frame(maxWidth: .infinity)
+            if let message = self.alert.message {
+              Text(message)
+                .font(self.theme.typography.cardMeta)
+                .foregroundStyle(self.theme.colors.textSecondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+            }
           }
         }
 
         Button(action: self.onAcknowledge) {
-          Text("Acknowledge")
+          Text("Got it!")
             .font(self.theme.typography.cardHeadline)
             .foregroundStyle(self.theme.colors.textInverted)
             .frame(maxWidth: .infinity)
@@ -76,17 +78,32 @@ struct LifecycleAlertOverlayView: View {
   }
 }
 
-#Preview("Lifecycle Alert - Time Expired") {
-  LifecycleAlertOverlayView(alert: WatchLifecycleAlert(cue: .periodBoundaryReached)) {}
+#Preview("Lifecycle Alert - End of Half") {
+  LifecycleAlertOverlayView(alert: WatchLifecycleAlert(cue: .periodBoundaryReached(.firstHalf))) {}
     .watchPreviewChrome()
 }
 
-#Preview("Lifecycle Alert - Half-Time Complete") {
+#Preview("Lifecycle Alert - End of Regulation") {
+  LifecycleAlertOverlayView(alert: WatchLifecycleAlert(cue: .periodBoundaryReached(.secondHalf))) {}
+    .watchPreviewChrome()
+}
+
+#Preview("Lifecycle Alert - End of ET 1") {
+  LifecycleAlertOverlayView(alert: WatchLifecycleAlert(cue: .periodBoundaryReached(.extraTimeFirstHalf))) {}
+    .watchPreviewChrome()
+}
+
+#Preview("Lifecycle Alert - End of ET 2") {
+  LifecycleAlertOverlayView(alert: WatchLifecycleAlert(cue: .periodBoundaryReached(.extraTimeSecondHalf))) {}
+    .watchPreviewChrome()
+}
+
+#Preview("Lifecycle Alert - Half-Time Over") {
   LifecycleAlertOverlayView(alert: WatchLifecycleAlert(cue: .halftimeDurationReached)) {}
     .watchPreviewChrome()
 }
 
-#Preview("Lifecycle Alert - Compact") {
-  LifecycleAlertOverlayView(alert: WatchLifecycleAlert(cue: .periodBoundaryReached)) {}
+#Preview("Lifecycle Alert - End of Half (Compact)") {
+  LifecycleAlertOverlayView(alert: WatchLifecycleAlert(cue: .periodBoundaryReached(.firstHalf))) {}
     .watchPreviewChrome(layout: WatchPreviewSupport.compactLayout)
 }

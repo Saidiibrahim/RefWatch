@@ -333,15 +333,15 @@ private extension MatchRootView {
     .watchPreviewChrome()
 }
 
-#Preview("Match Root - Boundary Alert") {
-  MatchRootView(previewConfiguration: .pendingPeriodBoundaryAlertVisible())
+#Preview("Match Root - End of Half") {
+  MatchRootView(previewConfiguration: .endOfHalfAlertVisible())
     .environmentObject(WatchPreviewSupport.makeAggregateEnvironment())
     .defaultAppStorage(WatchPreviewSupport.makeDefaults(suiteName: "RefWatch.watchPreview.root.boundary"))
     .watchPreviewChrome()
 }
 
-#Preview("Match Root - Half-Time Complete Alert") {
-  MatchRootView(previewConfiguration: .halfTimeCompleteAlertVisible())
+#Preview("Match Root - Half-Time Over") {
+  MatchRootView(previewConfiguration: .halfTimeOverAlertVisible())
     .environmentObject(WatchPreviewSupport.makeAggregateEnvironment())
     .defaultAppStorage(WatchPreviewSupport.makeDefaults(suiteName: "RefWatch.watchPreview.root.halftime"))
     .watchPreviewChrome()

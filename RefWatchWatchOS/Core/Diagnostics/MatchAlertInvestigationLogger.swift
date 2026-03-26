@@ -27,8 +27,8 @@ enum MatchAlertInvestigationLogger {
 extension MatchLifecycleHapticCue {
   var debugName: String {
     switch self {
-    case .periodBoundaryReached:
-      "periodBoundaryReached"
+    case let .periodBoundaryReached(boundaryDecision):
+      "periodBoundaryReached.\(boundaryDecision.rawValue)"
     case .halftimeDurationReached:
       "halftimeDurationReached"
     }

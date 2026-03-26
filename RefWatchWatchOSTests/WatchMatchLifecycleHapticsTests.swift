@@ -5,8 +5,31 @@ import RefWatchCore
 @MainActor
 struct WatchMatchLifecycleHapticsTests {
   @Test
+  func lifecycleAlerts_use_context_aware_title_only_copy() {
+    let expectations: [(MatchLifecycleHapticCue, String)] = [
+      (.periodBoundaryReached(.firstHalf), "End of Half"),
+      (.periodBoundaryReached(.secondHalf), "End of Regulation"),
+      (.periodBoundaryReached(.extraTimeFirstHalf), "End of ET 1"),
+      (.periodBoundaryReached(.extraTimeSecondHalf), "End of ET 2"),
+      (.halftimeDurationReached, "Half-Time Over")
+    ]
+
+    for (cue, expectedTitle) in expectations {
+      let alert = WatchLifecycleAlert(cue: cue)
+      #expect(alert.title == expectedTitle)
+      #expect(alert.message == nil)
+    }
+  }
+
+  @Test
   func lifecycleCues_scheduleRepeatingNotificationCyclesUntilAcknowledged() async {
-    for cue in [MatchLifecycleHapticCue.periodBoundaryReached, .halftimeDurationReached] {
+    for cue in [
+      MatchLifecycleHapticCue.periodBoundaryReached(.firstHalf),
+      .periodBoundaryReached(.secondHalf),
+      .periodBoundaryReached(.extraTimeFirstHalf),
+      .periodBoundaryReached(.extraTimeSecondHalf),
+      .halftimeDurationReached
+    ] {
       let scheduler = FakeWatchMatchLifecycleScheduler()
       let driver = FakeWatchMatchLifecycleDriver()
       let haptics = WatchMatchLifecycleHaptics(scheduler: scheduler, driver: driver)
@@ -39,7 +62,7 @@ struct WatchMatchLifecycleHapticsTests {
     let driver = FakeWatchMatchLifecycleDriver()
     let haptics = WatchMatchLifecycleHaptics(scheduler: scheduler, driver: driver)
 
-    haptics.play(.periodBoundaryReached)
+    haptics.play(.periodBoundaryReached(.firstHalf))
     scheduler.advance(by: 0.0)
     haptics.cancelPendingPlayback()
     scheduler.advance(by: 1.0)
@@ -54,7 +77,7 @@ struct WatchMatchLifecycleHapticsTests {
     let driver = FakeWatchMatchLifecycleDriver()
     let haptics = WatchMatchLifecycleHaptics(scheduler: scheduler, driver: driver)
 
-    haptics.play(.periodBoundaryReached)
+    haptics.play(.periodBoundaryReached(.firstHalf))
     scheduler.advance(by: 0.0)
     #expect(driver.playCount == 1)
 
@@ -78,7 +101,7 @@ struct WatchMatchLifecycleHapticsTests {
     let driver = FakeWatchMatchLifecycleDriver()
     let haptics = WatchMatchLifecycleHaptics(scheduler: scheduler, driver: driver)
 
-    haptics.play(.periodBoundaryReached)
+    haptics.play(.periodBoundaryReached(.firstHalf))
     scheduler.advance(by: 0.0)
     scheduler.advance(by: 0.4)
     #expect(driver.playCount == 2)

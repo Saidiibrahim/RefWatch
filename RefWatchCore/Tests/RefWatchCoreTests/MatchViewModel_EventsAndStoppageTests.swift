@@ -244,7 +244,7 @@ final class MatchViewModel_EventsAndStoppageTests: XCTestCase {
         XCTAssertFalse(vm.waitingForHalfTimeStart)
         XCTAssertEqual(vm.pendingPeriodBoundaryDecision, .firstHalf)
         XCTAssertEqual(periodEndCount(in: vm, period: 1), 0)
-        XCTAssertEqual(lifecycleHaptics.playedCues, [.periodBoundaryReached])
+        XCTAssertEqual(lifecycleHaptics.playedCues, [.periodBoundaryReached(.firstHalf)])
 
         let boundaryMatchTime = parseMMSS(vm.matchTime)
         try await Task.sleep(nanoseconds: 1_100_000_000)
@@ -254,7 +254,7 @@ final class MatchViewModel_EventsAndStoppageTests: XCTestCase {
         let cancelCountBeforeManualEnd = lifecycleHaptics.cancelCount
         vm.endCurrentPeriod()
         XCTAssertEqual(periodEndCount(in: vm, period: 1), 1, "Manual end should not duplicate periodEnd")
-        XCTAssertEqual(lifecycleHaptics.playedCues, [.periodBoundaryReached])
+        XCTAssertEqual(lifecycleHaptics.playedCues, [.periodBoundaryReached(.firstHalf)])
         XCTAssertEqual(lifecycleHaptics.cancelCount, cancelCountBeforeManualEnd + 1)
         XCTAssertNil(vm.pendingPeriodBoundaryDecision)
         XCTAssertFalse(vm.isHalfTime)
