@@ -28,8 +28,9 @@ struct MatchRootView: View {
   // Resets the NavigationStack identity when we return to idle to avoid
   // stale column state causing SwiftUI AnyNavigationPath comparison crashes
   @State private var navigationStackID = UUID()
-  private let commandHandler = LiveActivityCommandHandler()
-  private let livePublisher = LiveActivityStatePublisher(reloadKind: "RefWatchWidgets")
+  private let commandHandler: LiveActivityCommandHandler
+  private let livePublisher: any MatchLiveActivityPublishing
+  private let shouldRestorePersistedSessionOnLaunch: Bool
   private let navigationReducer = MatchNavigationReducer()
 
   @MainActor
@@ -37,19 +38,61 @@ struct MatchRootView: View {
     let activeMatchSessionStore = PersistedActiveMatchSessionStore()
     let runtimeController = BackgroundRuntimeSessionController.makeForCurrentEnvironment()
     let lifecycleHaptics = WatchMatchLifecycleHaptics()
-    _backgroundRuntimeController = State(initialValue: runtimeController)
-    _lifecycleHaptics = State(initialValue: lifecycleHaptics)
-    _matchViewModel = State(initialValue: MatchViewModel(
+    let matchViewModel = MatchViewModel(
       history: MatchHistoryService(),
       penaltyManager: PenaltyManager(),
       haptics: WatchHaptics(),
       lifecycleHaptics: lifecycleHaptics,
       connectivity: connectivity,
       backgroundRuntimeManager: runtimeController,
-      activeMatchSessionStore: activeMatchSessionStore))
-    _settingsViewModel = State(initialValue: SettingsViewModel())
-    _lifecycle = State(initialValue: MatchLifecycleCoordinator())
+      activeMatchSessionStore: activeMatchSessionStore)
+
+    self.init(
+      backgroundRuntimeController: runtimeController,
+      lifecycleHaptics: lifecycleHaptics,
+      matchViewModel: matchViewModel,
+      settingsViewModel: SettingsViewModel(),
+      lifecycle: MatchLifecycleCoordinator(),
+      commandHandler: LiveActivityCommandHandler(),
+      livePublisher: LiveActivityStatePublisher(reloadKind: "RefWatchWidgets"),
+      shouldRestorePersistedSessionOnLaunch: true)
   }
+
+  @MainActor
+  private init(
+    backgroundRuntimeController: BackgroundRuntimeSessionController,
+    lifecycleHaptics: WatchMatchLifecycleHaptics,
+    matchViewModel: MatchViewModel,
+    settingsViewModel: SettingsViewModel,
+    lifecycle: MatchLifecycleCoordinator,
+    commandHandler: LiveActivityCommandHandler,
+    livePublisher: any MatchLiveActivityPublishing,
+    shouldRestorePersistedSessionOnLaunch: Bool)
+  {
+    _backgroundRuntimeController = State(initialValue: backgroundRuntimeController)
+    _lifecycleHaptics = State(initialValue: lifecycleHaptics)
+    _matchViewModel = State(initialValue: matchViewModel)
+    _settingsViewModel = State(initialValue: settingsViewModel)
+    _lifecycle = State(initialValue: lifecycle)
+    self.commandHandler = commandHandler
+    self.livePublisher = livePublisher
+    self.shouldRestorePersistedSessionOnLaunch = shouldRestorePersistedSessionOnLaunch
+  }
+
+#if DEBUG
+  @MainActor
+  init(previewConfiguration: MatchRootPreviewConfiguration) {
+    self.init(
+      backgroundRuntimeController: previewConfiguration.backgroundRuntimeController,
+      lifecycleHaptics: previewConfiguration.lifecycleHaptics,
+      matchViewModel: previewConfiguration.matchViewModel,
+      settingsViewModel: previewConfiguration.settingsViewModel,
+      lifecycle: previewConfiguration.lifecycle,
+      commandHandler: previewConfiguration.commandHandler,
+      livePublisher: previewConfiguration.livePublisher,
+      shouldRestorePersistedSessionOnLaunch: false)
+  }
+#endif
 
   var body: some View {
     ZStack {
@@ -75,7 +118,9 @@ struct MatchRootView: View {
             MatchSetupView(
               matchViewModel: self.matchViewModel,
               lifecycle: self.lifecycle,
-              isLifecycleAlertPresented: self.lifecycleHaptics.activeAlert != nil)
+              isLifecycleAlertPresented: self.lifecycleHaptics.activeAlert != nil,
+              liveActivityPublisher: self.livePublisher,
+              commandHandler: self.commandHandler)
           case .kickoffSecondHalf:
             MatchKickOffView(
               matchViewModel: self.matchViewModel,
@@ -145,7 +190,7 @@ struct MatchRootView: View {
     .environment(self.settingsViewModel)
     .background(self.theme.colors.backgroundPrimary.ignoresSafeArea())
     .task {
-      guard self.hasRestoredPersistedSession == false else { return }
+      guard self.shouldRestorePersistedSessionOnLaunch, self.hasRestoredPersistedSession == false else { return }
       self.hasRestoredPersistedSession = true
       if self.matchViewModel.restorePersistedActiveMatchSessionIfAvailable() {
         self.resumeUnfinishedMatchIfNeeded()
@@ -282,69 +327,24 @@ private extension MatchRootView {
 // MARK: - Preview
 
 #Preview("Match Root - Idle") {
-  // Create preview dependencies
-  MatchRootView_PreviewProvider.makePreview()
+  MatchRootView(previewConfiguration: .idle())
+    .environmentObject(WatchPreviewSupport.makeAggregateEnvironment())
+    .defaultAppStorage(WatchPreviewSupport.makeDefaults(suiteName: "RefWatch.watchPreview.root.idle"))
+    .watchPreviewChrome()
 }
 
-// MARK: - Preview Provider
+#Preview("Match Root - Boundary Alert") {
+  MatchRootView(previewConfiguration: .pendingPeriodBoundaryAlertVisible())
+    .environmentObject(WatchPreviewSupport.makeAggregateEnvironment())
+    .defaultAppStorage(WatchPreviewSupport.makeDefaults(suiteName: "RefWatch.watchPreview.root.boundary"))
+    .watchPreviewChrome()
+}
 
-/// Helper to build preview dependencies for MatchRootView
-@MainActor
-private struct MatchRootView_PreviewProvider {
-  static func makePreview() -> some View {
-    let mockTheme = AnyTheme(theme: DefaultTheme())
-    let aggregateEnvironment = self.makeAggregateSyncEnvironment()
-
-    return MatchRootView()
-      .environmentObject(aggregateEnvironment)
-      .environment(\.theme, mockTheme)
-  }
-
-  /// Creates an in-memory AggregateSyncEnvironment for preview
-  static func makeAggregateSyncEnvironment() -> AggregateSyncEnvironment {
-    // Create an in-memory ModelContainer for SwiftData
-    let schema = Schema([
-      AggregateTeamRecord.self,
-      AggregatePlayerRecord.self,
-      AggregateTeamOfficialRecord.self,
-      AggregateCompetitionRecord.self,
-      AggregateVenueRecord.self,
-      AggregateScheduleRecord.self,
-      AggregateHistoryRecord.self,
-      AggregateSnapshotChunkRecord.self,
-      AggregateDeltaRecord.self,
-      AggregateSyncStatusRecord.self,
-    ])
-
-    let config = ModelConfiguration(isStoredInMemoryOnly: true)
-    guard let container = try? ModelContainer(for: schema, configurations: [config]) else {
-      fatalError("Could not create ModelContainer for preview")
-    }
-
-    // Create stores with the in-memory container
-    let libraryStore = WatchAggregateLibraryStore(container: container)
-    let chunkStore = WatchAggregateSnapshotChunkStore(container: container)
-    let deltaStore = WatchAggregateDeltaOutboxStore(container: container)
-
-    // Create coordinator
-    let coordinator = WatchAggregateSyncCoordinator(
-      libraryStore: libraryStore,
-      chunkStore: chunkStore,
-      deltaStore: deltaStore)
-
-    // Create connectivity client (with nil session for preview)
-    let connectivity = WatchConnectivitySyncClient(
-      session: nil,
-      aggregateCoordinator: coordinator)
-
-    // Create and return the environment
-    return AggregateSyncEnvironment(
-      libraryStore: libraryStore,
-      chunkStore: chunkStore,
-      deltaStore: deltaStore,
-      coordinator: coordinator,
-      connectivity: connectivity)
-  }
+#Preview("Match Root - Half-Time Complete Alert") {
+  MatchRootView(previewConfiguration: .halfTimeCompleteAlertVisible())
+    .environmentObject(WatchPreviewSupport.makeAggregateEnvironment())
+    .defaultAppStorage(WatchPreviewSupport.makeDefaults(suiteName: "RefWatch.watchPreview.root.halftime"))
+    .watchPreviewChrome()
 }
 
 extension MatchRootView {

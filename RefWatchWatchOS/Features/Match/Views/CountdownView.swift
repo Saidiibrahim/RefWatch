@@ -10,9 +10,24 @@ struct CountdownView: View {
   let lifecycle: MatchLifecycleCoordinator
   let kickoffType: MatchLifecycleCoordinator.KickoffType
   let kickingTeam: Bool // true = home, false = away
+  let autoStartCountdown: Bool
   
   @State private var countdownViewModel = CountdownRingViewModel()
   @Environment(\.theme) private var theme
+
+  init(
+    matchViewModel: MatchViewModel,
+    lifecycle: MatchLifecycleCoordinator,
+    kickoffType: MatchLifecycleCoordinator.KickoffType,
+    kickingTeam: Bool,
+    autoStartCountdown: Bool = true)
+  {
+    self.matchViewModel = matchViewModel
+    self.lifecycle = lifecycle
+    self.kickoffType = kickoffType
+    self.kickingTeam = kickingTeam
+    self.autoStartCountdown = autoStartCountdown
+  }
   
   var body: some View {
     ZStack {
@@ -25,6 +40,7 @@ struct CountdownView: View {
     }
     .navigationBarBackButtonHidden(true) // Hide back button during countdown
     .onAppear {
+      guard self.autoStartCountdown else { return }
       // Start countdown when view appears
       countdownViewModel.start {
         // Execute kickoff action based on type
@@ -62,15 +78,27 @@ struct CountdownView: View {
 }
 
 #Preview("Countdown View - First Half") {
-  let viewModel = MatchViewModel(haptics: WatchHaptics())
-  let lifecycle = MatchLifecycleCoordinator()
-  viewModel.configureMatch(duration: 90, periods: 2, halfTimeLength: 15, hasExtraTime: true, hasPenalties: true)
-  
+  let viewModel = MatchViewModel.previewRunningRegulation()
+
   return CountdownView(
     matchViewModel: viewModel,
-    lifecycle: lifecycle,
+    lifecycle: MatchLifecycleCoordinator(),
     kickoffType: .firstHalf,
-    kickingTeam: true
+    kickingTeam: true,
+    autoStartCountdown: false
   )
+  .defaultAppStorage(WatchPreviewSupport.makeDefaults(suiteName: "RefWatch.watchPreview.countdown.first-half"))
+  .watchPreviewChrome()
 }
 
+#Preview("Countdown View - Second Half (Compact)") {
+  CountdownView(
+    matchViewModel: MatchViewModel.previewSecondHalfKickoff(),
+    lifecycle: MatchLifecycleCoordinator(),
+    kickoffType: .secondHalf,
+    kickingTeam: false,
+    autoStartCountdown: false
+  )
+  .defaultAppStorage(WatchPreviewSupport.makeDefaults(suiteName: "RefWatch.watchPreview.countdown.second-half"))
+  .watchPreviewChrome(layout: WatchPreviewSupport.compactLayout)
+}

@@ -9,11 +9,11 @@ struct TimerView: View {
   let model: MatchViewModel
   let lifecycle: MatchLifecycleCoordinator
   let isLifecycleAlertPresented: Bool
+  private let liveActivityPublisher: any MatchLiveActivityPublishing
+  private let commandHandler: LiveActivityCommandHandler
   @State private var showingActionSheet = false
   @State private var pendingRouteToChooseFirstKicker = false
-  @State private var livePublisher = LiveActivityStatePublisher(reloadKind: "RefWatchWidgets")
   @State private var confirmationDismissTask: Task<Void, Never>?
-  private let commandHandler = LiveActivityCommandHandler()
   @Environment(\.dismiss) private var dismiss
   @Environment(\.scenePhase) private var scenePhase
   @Environment(\.theme) private var theme
@@ -24,14 +24,19 @@ struct TimerView: View {
 
   private var periodLabel: String { PeriodLabelFormatter.label(for: self.model) }
 
+  @MainActor
   init(
     model: MatchViewModel,
     lifecycle: MatchLifecycleCoordinator,
-    isLifecycleAlertPresented: Bool = false)
+    isLifecycleAlertPresented: Bool = false,
+    liveActivityPublisher: (any MatchLiveActivityPublishing)? = nil,
+    commandHandler: LiveActivityCommandHandler? = nil)
   {
     self.model = model
     self.lifecycle = lifecycle
     self.isLifecycleAlertPresented = isLifecycleAlertPresented
+    self.liveActivityPublisher = liveActivityPublisher ?? LiveActivityStatePublisher(reloadKind: "RefWatchWidgets")
+    self.commandHandler = commandHandler ?? LiveActivityCommandHandler()
   }
 
   var body: some View {
@@ -182,7 +187,7 @@ extension TimerView {
   }
 
   private func publishLiveActivityState() {
-    self.livePublisher.publish(for: self.model)
+    self.liveActivityPublisher.publish(for: self.model)
   }
 
   private func processPendingWidgetCommand() {
@@ -237,7 +242,7 @@ extension TimerView {
       self.lifecycle.goToFinished()
     }
     if isFT {
-      self.livePublisher.end()
+      self.liveActivityPublisher.end()
     }
   }
 
@@ -308,59 +313,107 @@ extension TimerView {
 // MARK: - Supporting Views
 
 @MainActor
-private func makeRunningTimerPreviewModel() -> MatchViewModel {
-  let model = MatchViewModel(haptics: WatchHaptics())
-  model.newMatch = Match(homeTeam: "ARS", awayTeam: "MCI")
-  model.createMatch()
-
-  for _ in 0..<2 { model.updateScore(isHome: true, increment: true) }
-  for _ in 0..<1 { model.updateScore(isHome: false, increment: true) }
-
-  model.currentPeriod = 1
-  model.waitingForMatchStart = false
-  model.isMatchInProgress = true
-  model.isPaused = false
-  model.matchTime = "37:42"
-  model.periodTime = "37:42"
-  model.periodTimeRemaining = "07:18"
-
-  return model
-}
-
-@MainActor
 private func makePausedTimerPreviewModel() -> MatchViewModel {
-  let model = MatchViewModel(haptics: WatchHaptics())
-  model.newMatch = Match(homeTeam: "RMA", awayTeam: "FCB")
-  model.createMatch()
-
-  for _ in 0..<1 { model.updateScore(isHome: true, increment: true) }
-  for _ in 0..<1 { model.updateScore(isHome: false, increment: true) }
-
-  model.currentPeriod = 2
-  model.waitingForMatchStart = false
-  model.isMatchInProgress = true
+  let model = MatchViewModel.previewRunningRegulation()
   model.isPaused = true
+  model.currentPeriod = 2
   model.matchTime = "68:10"
   model.periodTime = "23:10"
   model.periodTimeRemaining = "21:50"
   model.isInStoppage = true
   model.formattedStoppageTime = "00:34"
-
   return model
 }
 
 #Preview("Timer – Running (Compact)") {
-  TimerView(model: makeRunningTimerPreviewModel(), lifecycle: MatchLifecycleCoordinator())
-    .watchLayoutScale(WatchLayoutScale(category: .compact))
+  TimerView(
+    model: MatchViewModel.previewRunningRegulation(),
+    lifecycle: MatchLifecycleCoordinator(),
+    liveActivityPublisher: WatchPreviewSupport.makeLiveActivityPublisher(),
+    commandHandler: WatchPreviewSupport.makeCommandHandler()
+  )
+  .defaultAppStorage(
+    WatchPreviewSupport.makeDefaults(
+      suiteName: "RefWatch.watchPreview.timer.running.compact"))
+  .watchPreviewChrome(layout: WatchPreviewSupport.compactLayout)
 }
 
 #Preview("Timer – Paused (Compact)") {
-  TimerView(model: makePausedTimerPreviewModel(), lifecycle: MatchLifecycleCoordinator())
-    .watchLayoutScale(WatchLayoutScale(category: .compact))
+  TimerView(
+    model: makePausedTimerPreviewModel(),
+    lifecycle: MatchLifecycleCoordinator(),
+    liveActivityPublisher: WatchPreviewSupport.makeLiveActivityPublisher(),
+    commandHandler: WatchPreviewSupport.makeCommandHandler()
+  )
+  .defaultAppStorage(
+    WatchPreviewSupport.makeDefaults(
+      suiteName: "RefWatch.watchPreview.timer.paused.compact"))
+  .watchPreviewChrome(layout: WatchPreviewSupport.compactLayout)
+}
+
+#Preview("Timer – Time Expired (Acknowledged)") {
+  TimerView(
+    model: MatchViewModel.previewExpiredBoundary(),
+    lifecycle: MatchLifecycleCoordinator(),
+    liveActivityPublisher: WatchPreviewSupport.makeLiveActivityPublisher(),
+    commandHandler: WatchPreviewSupport.makeCommandHandler()
+  )
+  .defaultAppStorage(
+    WatchPreviewSupport.makeDefaults(
+      suiteName: "RefWatch.watchPreview.timer.expired"))
+  .watchPreviewChrome()
+}
+
+#Preview("Timer – Time Expired (Alert Visible)") {
+  TimerView(
+    model: MatchViewModel.previewExpiredBoundary(),
+    lifecycle: MatchLifecycleCoordinator(),
+    isLifecycleAlertPresented: true,
+    liveActivityPublisher: WatchPreviewSupport.makeLiveActivityPublisher(),
+    commandHandler: WatchPreviewSupport.makeCommandHandler()
+  )
+  .defaultAppStorage(
+    WatchPreviewSupport.makeDefaults(
+      suiteName: "RefWatch.watchPreview.timer.expired.alert"))
+  .watchPreviewChrome()
+}
+
+#Preview("Timer – Waiting For Half-Time") {
+  TimerView(
+    model: MatchViewModel.previewWaitingForHalfTimeStart(),
+    lifecycle: MatchLifecycleCoordinator(),
+    liveActivityPublisher: WatchPreviewSupport.makeLiveActivityPublisher(),
+    commandHandler: WatchPreviewSupport.makeCommandHandler()
+  )
+  .defaultAppStorage(
+    WatchPreviewSupport.makeDefaults(
+      suiteName: "RefWatch.watchPreview.timer.waiting-halftime"))
+  .watchPreviewChrome()
+}
+
+#Preview("Timer – Half-Time Active") {
+  TimerView(
+    model: MatchViewModel.previewHalfTimeActive(),
+    lifecycle: MatchLifecycleCoordinator(),
+    liveActivityPublisher: WatchPreviewSupport.makeLiveActivityPublisher(),
+    commandHandler: WatchPreviewSupport.makeCommandHandler()
+  )
+  .defaultAppStorage(
+    WatchPreviewSupport.makeDefaults(
+      suiteName: "RefWatch.watchPreview.timer.halftime"))
+  .watchPreviewChrome()
 }
 
 // "Ultra" here applies expanded layout metrics; Canvas device still comes from Xcode preview target.
 #Preview("Timer – Running (Ultra Layout)") {
-  TimerView(model: makeRunningTimerPreviewModel(), lifecycle: MatchLifecycleCoordinator())
-    .watchLayoutScale(WatchLayoutScale(category: .expanded))
+  TimerView(
+    model: MatchViewModel.previewRunningRegulation(),
+    lifecycle: MatchLifecycleCoordinator(),
+    liveActivityPublisher: WatchPreviewSupport.makeLiveActivityPublisher(),
+    commandHandler: WatchPreviewSupport.makeCommandHandler()
+  )
+  .defaultAppStorage(
+    WatchPreviewSupport.makeDefaults(
+      suiteName: "RefWatch.watchPreview.timer.running.expanded"))
+  .watchPreviewChrome(layout: WatchPreviewSupport.expandedLayout)
 }

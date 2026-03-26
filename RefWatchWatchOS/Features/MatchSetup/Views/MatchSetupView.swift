@@ -11,18 +11,25 @@ struct MatchSetupView: View {
     @State private var viewModel: MatchSetupViewModel
     let lifecycle: MatchLifecycleCoordinator
     let isLifecycleAlertPresented: Bool
+    private let liveActivityPublisher: any MatchLiveActivityPublishing
+    private let commandHandler: LiveActivityCommandHandler
     @State private var goalInputContext: GoalInputContext?
     @State private var cardEventContext: CardEventContext?
     @State private var substitutionContext: SubstitutionContext?
 
+    @MainActor
     init(
         matchViewModel: MatchViewModel,
         lifecycle: MatchLifecycleCoordinator,
-        isLifecycleAlertPresented: Bool = false
+        isLifecycleAlertPresented: Bool = false,
+        liveActivityPublisher: (any MatchLiveActivityPublishing)? = nil,
+        commandHandler: LiveActivityCommandHandler? = nil
     ) {
         _viewModel = State(initialValue: MatchSetupViewModel(matchViewModel: matchViewModel))
         self.lifecycle = lifecycle
         self.isLifecycleAlertPresented = isLifecycleAlertPresented
+        self.liveActivityPublisher = liveActivityPublisher ?? LiveActivityStatePublisher(reloadKind: "RefWatchWidgets")
+        self.commandHandler = commandHandler ?? LiveActivityCommandHandler()
     }
 
     var body: some View {
@@ -50,7 +57,9 @@ struct MatchSetupView: View {
             TimerView(
                 model: viewModel.matchViewModel,
                 lifecycle: lifecycle,
-                isLifecycleAlertPresented: self.isLifecycleAlertPresented
+                isLifecycleAlertPresented: self.isLifecycleAlertPresented,
+                liveActivityPublisher: self.liveActivityPublisher,
+                commandHandler: self.commandHandler
             )
                 .tag(1)
 
@@ -130,6 +139,18 @@ struct MatchSetupView: View {
         print("DEBUG: Navigating to middle screen...")
         viewModel.setSelectedTab(1)
     }
+}
+
+#Preview("Match Setup - Alert Presented") {
+    MatchSetupView(
+        matchViewModel: MatchViewModel.previewExpiredBoundary(),
+        lifecycle: MatchLifecycleCoordinator(),
+        isLifecycleAlertPresented: true,
+        liveActivityPublisher: WatchPreviewSupport.makeLiveActivityPublisher(),
+        commandHandler: WatchPreviewSupport.makeCommandHandler()
+    )
+    .defaultAppStorage(WatchPreviewSupport.makeDefaults(suiteName: "RefWatch.watchPreview.setup.alert"))
+    .watchPreviewChrome()
 }
 
 // MARK: - Navigation Helpers
