@@ -121,8 +121,25 @@ struct MatchActionsSheet: View {
   }
 }
 
-#Preview {
-  MatchActionsSheet(matchViewModel: MatchViewModel(haptics: WatchHaptics()))
+#Preview("Match Actions - First Half Expired") {
+  MatchActionsSheet(
+    matchViewModel: MatchViewModel.previewExpiredBoundary(),
+    lifecycle: MatchLifecycleCoordinator())
+    .watchPreviewChrome()
+}
+
+#Preview("Match Actions - Full Time Expired (Compact)") {
+  MatchActionsSheet(
+    matchViewModel: MatchViewModel.previewExpiredBoundary(finalRegulation: true),
+    lifecycle: MatchLifecycleCoordinator())
+    .watchPreviewChrome(layout: WatchPreviewSupport.compactLayout)
+}
+
+#Preview("Match Actions - Half-Time Active") {
+  MatchActionsSheet(
+    matchViewModel: MatchViewModel.previewHalfTimeActive(),
+    lifecycle: MatchLifecycleCoordinator())
+    .watchPreviewChrome()
 }
 
 extension MatchActionsSheet {

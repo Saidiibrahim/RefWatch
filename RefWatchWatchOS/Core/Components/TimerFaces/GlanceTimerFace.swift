@@ -139,7 +139,27 @@ public struct GlanceTimerFace: View {
     }
 }
 
-#Preview {
-    GlanceTimerFace(model: MatchViewModel(haptics: NoopHaptics()))
-        .hapticsProvider(NoopHaptics())
+#Preview("Glance Face - Running") {
+    GlanceTimerFace(model: MatchViewModel.previewRunningRegulation())
+        .watchFacePreviewSurface()
+}
+
+#Preview("Glance Face - Time Expired") {
+    GlanceTimerFace(model: MatchViewModel.previewExpiredBoundary())
+        .watchFacePreviewSurface(layout: WatchPreviewSupport.compactLayout)
+}
+
+#Preview("Glance Face - Time Expired + Stoppage") {
+    GlanceTimerFace(model: MatchViewModel.previewExpiredBoundary(stoppage: true))
+        .watchFacePreviewSurface(layout: WatchPreviewSupport.compactLayout)
+}
+
+#Preview("Glance Face - Waiting For Half-Time") {
+    GlanceTimerFace(model: MatchViewModel.previewWaitingForHalfTimeStart())
+        .watchFacePreviewSurface(layout: WatchPreviewSupport.compactLayout)
+}
+
+#Preview("Glance Face - Half-Time Elapsed") {
+    GlanceTimerFace(model: MatchViewModel.previewHalfTimeActive())
+        .watchFacePreviewSurface()
 }

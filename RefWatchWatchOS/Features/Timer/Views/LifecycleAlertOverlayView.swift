@@ -75,3 +75,18 @@ struct LifecycleAlertOverlayView: View {
     }
   }
 }
+
+#Preview("Lifecycle Alert - Time Expired") {
+  LifecycleAlertOverlayView(alert: WatchLifecycleAlert(cue: .periodBoundaryReached)) {}
+    .watchPreviewChrome()
+}
+
+#Preview("Lifecycle Alert - Half-Time Complete") {
+  LifecycleAlertOverlayView(alert: WatchLifecycleAlert(cue: .halftimeDurationReached)) {}
+    .watchPreviewChrome()
+}
+
+#Preview("Lifecycle Alert - Compact") {
+  LifecycleAlertOverlayView(alert: WatchLifecycleAlert(cue: .periodBoundaryReached)) {}
+    .watchPreviewChrome(layout: WatchPreviewSupport.compactLayout)
+}

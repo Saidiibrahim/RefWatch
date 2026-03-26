@@ -90,3 +90,28 @@ struct AlwaysOnTimerView: View {
         .accessibilityValue(content.accessibilityValue)
     }
 }
+
+#Preview("Always-On Timer - Running") {
+    AlwaysOnTimerView(model: MatchViewModel.previewRunningRegulation(), scale: 1)
+        .watchFacePreviewSurface()
+}
+
+#Preview("Always-On Timer - Time Expired") {
+    AlwaysOnTimerView(model: MatchViewModel.previewExpiredBoundary(), scale: 1)
+        .watchFacePreviewSurface(layout: WatchPreviewSupport.compactLayout)
+}
+
+#Preview("Always-On Timer - Time Expired + Stoppage") {
+    AlwaysOnTimerView(model: MatchViewModel.previewExpiredBoundary(stoppage: true), scale: 1)
+        .watchFacePreviewSurface(layout: WatchPreviewSupport.compactLayout)
+}
+
+#Preview("Always-On Timer - Waiting For Half-Time") {
+    AlwaysOnTimerView(model: MatchViewModel.previewWaitingForHalfTimeStart(), scale: 1)
+        .watchFacePreviewSurface(layout: WatchPreviewSupport.compactLayout)
+}
+
+#Preview("Always-On Timer - Half-Time Elapsed") {
+    AlwaysOnTimerView(model: MatchViewModel.previewHalfTimeActive(), scale: 1)
+        .watchFacePreviewSurface()
+}

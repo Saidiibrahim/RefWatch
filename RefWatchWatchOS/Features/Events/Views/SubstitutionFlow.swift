@@ -16,6 +16,30 @@ struct SubstitutionFlow: View {
   @State private var playersOn: [SubstitutionSelection] = []
   @State private var confirmationSnapshot: MatchViewModel.EventSnapshot?
 
+  init(
+    team: TeamDetailsView.TeamType,
+    matchViewModel: MatchViewModel,
+    onComplete: @escaping () -> Void)
+  {
+    self.team = team
+    self.matchViewModel = matchViewModel
+    self.onComplete = onComplete
+  }
+
+  fileprivate init(
+    team: TeamDetailsView.TeamType,
+    matchViewModel: MatchViewModel,
+    onComplete: @escaping () -> Void,
+    initialPlayersOff: [SubstitutionSelection],
+    initialPlayersOn: [SubstitutionSelection])
+  {
+    self.team = team
+    self.matchViewModel = matchViewModel
+    self.onComplete = onComplete
+    self._playersOff = State(initialValue: initialPlayersOff)
+    self._playersOn = State(initialValue: initialPlayersOn)
+  }
+
   var body: some View {
     List {
       self.summaryCard
@@ -519,6 +543,23 @@ private struct SubstitutionNumberCollectorView: View {
   @State private var numberString = ""
   @State private var editingSelectionID: UUID?
 
+  init(title: String, selections: Binding<[SubstitutionSelection]>) {
+    self.title = title
+    self._selections = selections
+  }
+
+  fileprivate init(
+    title: String,
+    selections: Binding<[SubstitutionSelection]>,
+    initialNumberString: String,
+    initialEditingSelectionID: UUID?)
+  {
+    self.title = title
+    self._selections = selections
+    self._numberString = State(initialValue: initialNumberString)
+    self._editingSelectionID = State(initialValue: initialEditingSelectionID)
+  }
+
   var body: some View {
     ScrollView {
       VStack(spacing: self.theme.spacing.m) {
@@ -702,49 +743,367 @@ private extension String {
 
 // MARK: - Preview Support
 
-#Preview("Batch Substitution") {
-  let matchViewModel = previewSubstitutionMatchViewModel()
-
-  return NavigationStack {
+#Preview("Sub Hub – Legacy Empty") {
+  previewNavigationHost(
+    layout: WatchLayoutScale(category: .standard),
+    settingsViewModel: SubstitutionFlowPreviewFixtures.settingsViewModel())
+  {
     SubstitutionFlow(
       team: .home,
-      matchViewModel: matchViewModel,
+      matchViewModel: SubstitutionFlowPreviewFixtures.makeMatchViewModel(for: .legacyRoster),
       onComplete: {})
   }
-  .environment(SettingsViewModel())
-  .theme(DefaultTheme())
+}
+
+#Preview("Sub Hub – Mismatch") {
+  previewNavigationHost(
+    layout: WatchLayoutScale(category: .standard),
+    settingsViewModel: SubstitutionFlowPreviewFixtures.settingsViewModel())
+  {
+    SubstitutionFlow(
+      team: .home,
+      matchViewModel: SubstitutionFlowPreviewFixtures.makeMatchViewModel(for: .manualOnly),
+      onComplete: {},
+      initialPlayersOff: SubstitutionFlowPreviewFixtures.readyOffSelections,
+      initialPlayersOn: [SubstitutionFlowPreviewFixtures.readyOnSelections[0]])
+  }
+}
+
+#Preview("Sub Hub – Ready To Confirm") {
+  previewNavigationHost(
+    layout: WatchLayoutScale(category: .standard),
+    settingsViewModel: SubstitutionFlowPreviewFixtures.settingsViewModel(confirmSubstitutions: true))
+  {
+    SubstitutionFlow(
+      team: .home,
+      matchViewModel: SubstitutionFlowPreviewFixtures.makeMatchViewModel(for: .readySheets),
+      onComplete: {},
+      initialPlayersOff: SubstitutionFlowPreviewFixtures.readyOffSelections,
+      initialPlayersOn: SubstitutionFlowPreviewFixtures.readyOnSelections)
+  }
+}
+
+#Preview("Sub Off – Ready Sheet") {
+  @Previewable @State var selections = SubstitutionFlowPreviewFixtures.readyOffSelections
+
+  previewNavigationHost(layout: WatchLayoutScale(category: .standard)) {
+    SubstitutionPlayerSelectionView(
+      title: SubstitutionTarget.playerOff.title,
+      players: SubstitutionFlowPreviewFixtures.readyOffPlayers,
+      selections: $selections)
+  }
+}
+
+#Preview("Sub On – Ready Sheet") {
+  @Previewable @State var selections = SubstitutionFlowPreviewFixtures.readyOnSelections
+
+  previewNavigationHost(layout: WatchLayoutScale(category: .standard)) {
+    SubstitutionPlayerSelectionView(
+      title: SubstitutionTarget.playerOn.title,
+      players: SubstitutionFlowPreviewFixtures.readyOnPlayers,
+      selections: $selections)
+  }
+}
+
+#Preview("Sub Off – Ready Sheet – 41mm") {
+  @Previewable @State var selections = [SubstitutionFlowPreviewFixtures.readyOffSelections[0]]
+
+  previewNavigationHost(layout: WatchLayoutScale(category: .compact)) {
+    SubstitutionPlayerSelectionView(
+      title: SubstitutionTarget.playerOff.title,
+      players: SubstitutionFlowPreviewFixtures.readyOffPlayers,
+      selections: $selections)
+  }
+}
+
+#Preview("Sub Manual – Empty") {
+  @Previewable @State var selections: [SubstitutionSelection] = []
+
+  previewNavigationHost(layout: WatchLayoutScale(category: .standard)) {
+    SubstitutionNumberCollectorView(
+      title: SubstitutionTarget.playerOn.title,
+      selections: $selections)
+  }
+}
+
+#Preview("Sub Manual – Editing") {
+  @Previewable @State var selections = SubstitutionFlowPreviewFixtures.manualSelections
+
+  previewNavigationHost(layout: WatchLayoutScale(category: .standard)) {
+    SubstitutionNumberCollectorView(
+      title: SubstitutionTarget.playerOn.title,
+      selections: $selections,
+      initialNumberString: "16",
+      initialEditingSelectionID: SubstitutionFlowPreviewFixtures.manualSelections[1].id)
+  }
+}
+
+#Preview("Sub Manual – Editing – 41mm") {
+  @Previewable @State var selections = SubstitutionFlowPreviewFixtures.manualSelections
+
+  previewNavigationHost(layout: WatchLayoutScale(category: .compact)) {
+    SubstitutionNumberCollectorView(
+      title: SubstitutionTarget.playerOn.title,
+      selections: $selections,
+      initialNumberString: "12",
+      initialEditingSelectionID: SubstitutionFlowPreviewFixtures.manualSelections[0].id)
+  }
+}
+
+#Preview("Sub Blocked – Off") {
+  previewNavigationHost(layout: WatchLayoutScale(category: .standard)) {
+    SubstitutionUnavailableView(
+      title: SubstitutionTarget.playerOff.title,
+      message: SubstitutionFlowPreviewFixtures.unavailableMessage(for: .playerOff))
+  }
+}
+
+#Preview("Sub Blocked – On") {
+  previewNavigationHost(layout: WatchLayoutScale(category: .standard)) {
+    SubstitutionUnavailableView(
+      title: SubstitutionTarget.playerOn.title,
+      message: SubstitutionFlowPreviewFixtures.unavailableMessage(for: .playerOn))
+  }
+}
+
+#Preview("Sub Confirm – Single Pair") {
+  previewNavigationHost(layout: WatchLayoutScale(category: .standard)) {
+    SubstitutionBatchConfirmationView(
+      pairs: [SubstitutionFlowPreviewFixtures.confirmationPairs[0]],
+      matchTime: SubstitutionFlowPreviewFixtures.confirmationSnapshot.matchTime,
+      onConfirm: {})
+  }
+}
+
+#Preview("Sub Confirm – Three Pairs") {
+  previewNavigationHost(layout: WatchLayoutScale(category: .standard)) {
+    SubstitutionBatchConfirmationView(
+      pairs: SubstitutionFlowPreviewFixtures.confirmationPairs,
+      matchTime: SubstitutionFlowPreviewFixtures.confirmationSnapshot.matchTime,
+      onConfirm: {})
+  }
 }
 
 @MainActor
-private func previewSubstitutionMatchViewModel() -> MatchViewModel {
-  let homeTeamId = UUID()
-  let awayTeamId = UUID()
-  let viewModel = MatchViewModel(
-    history: MockMatchHistoryService(),
-    haptics: NoopHaptics())
+private enum SubstitutionFlowPreviewFixtures {
+  enum Scenario {
+    case legacyRoster
+    case readySheets
+    case manualOnly
+  }
 
-  viewModel.updateLibrary(
-    with: MatchLibrarySnapshot(
-      teams: [
-        MatchLibraryTeam(
-          id: homeTeamId,
-          name: "Arsenal",
-          players: [
-            MatchLibraryPlayer(id: UUID(), name: "Bob Smith", number: 1),
-            MatchLibraryPlayer(id: UUID(), name: "James Woods", number: 2),
-            MatchLibraryPlayer(id: UUID(), name: "Mike Robson", number: 3),
-            MatchLibraryPlayer(id: UUID(), name: "Oliver Keeble", number: 4),
-          ]),
-        MatchLibraryTeam(id: awayTeamId, name: "Chelsea"),
-      ]))
+  static let homeTeamID = UUID(uuidString: "10000000-0000-0000-0000-000000000001")!
+  static let awayTeamID = UUID(uuidString: "20000000-0000-0000-0000-000000000002")!
 
-  viewModel.newMatch = Match(
-    homeTeam: "Arsenal",
-    awayTeam: "Chelsea",
-    homeTeamId: homeTeamId,
-    awayTeamId: awayTeamId)
-  viewModel.createMatch()
-  return viewModel
+  static let readyStarterEntries: [MatchSheetPlayerEntry] = [
+    MatchSheetPlayerEntry(
+      entryId: UUID(uuidString: "30000000-0000-0000-0000-000000000001")!,
+      displayName: "Alexandria Johnson-Smith",
+      shirtNumber: 2,
+      position: "RB",
+      sortOrder: 1),
+    MatchSheetPlayerEntry(
+      entryId: UUID(uuidString: "30000000-0000-0000-0000-000000000002")!,
+      displayName: "Priya Bennett",
+      shirtNumber: 6,
+      position: "CM",
+      sortOrder: 2),
+    MatchSheetPlayerEntry(
+      entryId: UUID(uuidString: "30000000-0000-0000-0000-000000000003")!,
+      displayName: "Charlotte de la Cruz",
+      shirtNumber: 8,
+      position: "AM",
+      sortOrder: 3),
+    MatchSheetPlayerEntry(
+      entryId: UUID(uuidString: "30000000-0000-0000-0000-000000000004")!,
+      displayName: "Mia Torres",
+      shirtNumber: 11,
+      position: "FW",
+      sortOrder: 4),
+  ]
+
+  static let readySubstituteEntries: [MatchSheetPlayerEntry] = [
+    MatchSheetPlayerEntry(
+      entryId: UUID(uuidString: "30000000-0000-0000-0000-000000000011")!,
+      displayName: "Eleanor Whitmore",
+      shirtNumber: 12,
+      position: "WB",
+      sortOrder: 5),
+    MatchSheetPlayerEntry(
+      entryId: UUID(uuidString: "30000000-0000-0000-0000-000000000012")!,
+      displayName: "Sofia Martinez",
+      shirtNumber: 16,
+      position: "CM",
+      sortOrder: 6),
+    MatchSheetPlayerEntry(
+      entryId: UUID(uuidString: "30000000-0000-0000-0000-000000000013")!,
+      displayName: "Harper-Louise Andersen",
+      shirtNumber: 18,
+      position: "FW",
+      sortOrder: 7),
+  ]
+
+  static let awayStarterEntries: [MatchSheetPlayerEntry] = [
+    MatchSheetPlayerEntry(displayName: "Away Starter One", shirtNumber: 4, sortOrder: 1),
+    MatchSheetPlayerEntry(displayName: "Away Starter Two", shirtNumber: 5, sortOrder: 2),
+  ]
+
+  static let awaySubstituteEntries: [MatchSheetPlayerEntry] = [
+    MatchSheetPlayerEntry(displayName: "Away Sub One", shirtNumber: 14, sortOrder: 3),
+    MatchSheetPlayerEntry(displayName: "Away Sub Two", shirtNumber: 15, sortOrder: 4),
+  ]
+
+  static let legacyPlayers: [MatchLibraryPlayer] = [
+    MatchLibraryPlayer(id: UUID(), name: "Bob Smith", number: 1),
+    MatchLibraryPlayer(id: UUID(), name: "James Woods", number: 2),
+    MatchLibraryPlayer(id: UUID(), name: "Mike Robson", number: 3),
+    MatchLibraryPlayer(id: UUID(), name: "Oliver Keeble", number: 4),
+  ]
+
+  static let readyOffPlayers = Self.readyStarterEntries.map(SubstitutionSelectablePlayer.init(entry:))
+  static let readyOnPlayers = Self.readySubstituteEntries.map(SubstitutionSelectablePlayer.init(entry:))
+
+  static let readyOffSelections: [SubstitutionSelection] = [
+    Self.selection(from: Self.readyOffPlayers[0]),
+    Self.selection(from: Self.readyOffPlayers[2]),
+  ]
+
+  static let readyOnSelections: [SubstitutionSelection] = [
+    Self.selection(from: Self.readyOnPlayers[0]),
+    Self.selection(from: Self.readyOnPlayers[1]),
+  ]
+
+  static let manualSelections: [SubstitutionSelection] = [
+    SubstitutionSelection(
+      id: UUID(uuidString: "40000000-0000-0000-0000-000000000001")!,
+      participantId: UUID(uuidString: "40000000-0000-0000-0000-000000000011")!,
+      number: 12),
+    SubstitutionSelection(
+      id: UUID(uuidString: "40000000-0000-0000-0000-000000000002")!,
+      participantId: UUID(uuidString: "40000000-0000-0000-0000-000000000012")!,
+      number: 16),
+  ]
+
+  static let confirmationPairs: [SubstitutionPair] = [
+    SubstitutionPair(playerOff: Self.readyOffSelections[0], playerOn: Self.readyOnSelections[0]),
+    SubstitutionPair(playerOff: Self.readyOffSelections[1], playerOn: Self.readyOnSelections[1]),
+    SubstitutionPair(
+      playerOff: SubstitutionSelection(
+        participantId: UUID(uuidString: "40000000-0000-0000-0000-000000000021")!,
+        number: 11,
+        name: "Mia Torres"),
+      playerOn: SubstitutionSelection(
+        participantId: UUID(uuidString: "40000000-0000-0000-0000-000000000022")!,
+        number: 18,
+        name: "Harper-Louise Andersen")),
+  ]
+
+  static let confirmationSnapshot = MatchViewModel.EventSnapshot(
+    timestamp: Date(timeIntervalSince1970: 1_742_000_500),
+    matchTime: "67:42",
+    period: 2)
+
+  static func settingsViewModel(confirmSubstitutions: Bool = true) -> SettingsViewModel {
+    let viewModel = SettingsViewModel()
+    viewModel.settings.confirmSubstitutions = confirmSubstitutions
+    return viewModel
+  }
+
+  static func unavailableMessage(for target: SubstitutionTarget) -> String {
+    switch target {
+    case .playerOff:
+      return "No eligible on-field players remain on the official match sheet."
+    case .playerOn:
+      return "No unused substitutes remain on the official match sheet."
+    }
+  }
+
+  static func makeMatchViewModel(for scenario: Scenario) -> MatchViewModel {
+    let viewModel = MatchViewModel(
+      history: MockMatchHistoryService(),
+      haptics: NoopHaptics())
+
+    viewModel.updateLibrary(
+      with: MatchLibrarySnapshot(
+        teams: [
+          MatchLibraryTeam(
+            id: Self.homeTeamID,
+            name: "Arsenal",
+            players: Self.legacyPlayers),
+          MatchLibraryTeam(id: Self.awayTeamID, name: "Chelsea"),
+        ]))
+
+    viewModel.newMatch = Self.match(for: scenario)
+    viewModel.createMatch()
+    viewModel.matchTime = Self.confirmationSnapshot.matchTime
+    viewModel.currentPeriod = Self.confirmationSnapshot.period
+    return viewModel
+  }
+
+  private static func match(for scenario: Scenario) -> Match {
+    switch scenario {
+    case .legacyRoster:
+      return Match(
+        homeTeam: "Arsenal",
+        awayTeam: "Chelsea",
+        homeTeamId: Self.homeTeamID,
+        awayTeamId: Self.awayTeamID)
+    case .readySheets:
+      return Match(
+        homeTeam: "Arsenal",
+        awayTeam: "Chelsea",
+        homeTeamId: Self.homeTeamID,
+        awayTeamId: Self.awayTeamID,
+        homeMatchSheet: Self.readyHomeSheet,
+        awayMatchSheet: Self.readyAwaySheet)
+    case .manualOnly:
+      return Match(
+        homeTeam: "Arsenal",
+        awayTeam: "Chelsea",
+        homeTeamId: Self.homeTeamID,
+        awayTeamId: Self.awayTeamID,
+        homeMatchSheet: Self.draftHomeSheet,
+        awayMatchSheet: nil)
+    }
+  }
+
+  private static var readyHomeSheet: ScheduledMatchSheet {
+    ScheduledMatchSheet(
+      sourceTeamId: Self.homeTeamID,
+      sourceTeamName: "Arsenal",
+      status: .ready,
+      starters: Self.readyStarterEntries,
+      substitutes: Self.readySubstituteEntries,
+      updatedAt: Date(timeIntervalSince1970: 1_742_000_300))
+  }
+
+  private static var readyAwaySheet: ScheduledMatchSheet {
+    ScheduledMatchSheet(
+      sourceTeamId: Self.awayTeamID,
+      sourceTeamName: "Chelsea",
+      status: .ready,
+      starters: Self.awayStarterEntries,
+      substitutes: Self.awaySubstituteEntries,
+      updatedAt: Date(timeIntervalSince1970: 1_742_000_320))
+  }
+
+  private static var draftHomeSheet: ScheduledMatchSheet {
+    ScheduledMatchSheet(
+      sourceTeamId: Self.homeTeamID,
+      sourceTeamName: "Arsenal",
+      status: .draft,
+      starters: [
+        MatchSheetPlayerEntry(displayName: "Draft Starter", shirtNumber: 9, sortOrder: 1),
+      ],
+      updatedAt: Date(timeIntervalSince1970: 1_742_000_400))
+  }
+
+  private static func selection(from player: SubstitutionSelectablePlayer) -> SubstitutionSelection {
+    SubstitutionSelection(
+      participantId: player.participantId,
+      number: player.number,
+      name: player.name)
+  }
 }
 
 private final class MockMatchHistoryService: MatchHistoryStoring {
@@ -752,4 +1111,28 @@ private final class MockMatchHistoryService: MatchHistoryStoring {
   func save(_ match: CompletedMatch) throws {}
   func delete(id: UUID) throws {}
   func wipeAll() throws {}
+}
+
+private func previewNavigationHost<Content: View>(
+  layout: WatchLayoutScale,
+  settingsViewModel: SettingsViewModel? = nil,
+  @ViewBuilder content: () -> Content) -> some View
+{
+  NavigationStack {
+    content()
+  }
+  .theme(DefaultTheme())
+  .watchLayoutScale(layout)
+  .previewSettings(settingsViewModel)
+}
+
+private extension View {
+  @ViewBuilder
+  func previewSettings(_ settingsViewModel: SettingsViewModel?) -> some View {
+    if let settingsViewModel {
+      self.environment(settingsViewModel)
+    } else {
+      self
+    }
+  }
 }

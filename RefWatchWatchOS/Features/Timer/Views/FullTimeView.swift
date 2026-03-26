@@ -16,6 +16,16 @@ struct FullTimeView: View {
   @Environment(\.theme) private var theme
   @Environment(\.watchLayoutScale) private var layout
 
+  init(
+    matchViewModel: MatchViewModel,
+    lifecycle: MatchLifecycleCoordinator,
+    initiallyShowingEndMatchConfirmation: Bool = false)
+  {
+    self.matchViewModel = matchViewModel
+    self.lifecycle = lifecycle
+    self._showingEndMatchConfirmation = State(initialValue: initiallyShowingEndMatchConfirmation)
+  }
+
   var body: some View {
     ZStack {
       self.fullTimeBackgroundColor.ignoresSafeArea()
@@ -352,36 +362,30 @@ extension FullTimeView {
 }
 
 #Preview("Full Time – 41mm") {
-  let viewModel = MatchViewModel(haptics: WatchHaptics())
-  // Set up match with some scores for preview
-  viewModel.configureMatch(duration: 90, periods: 2, halfTimeLength: 15, hasExtraTime: false, hasPenalties: false)
-  viewModel.updateScore(isHome: true, increment: true)
-  viewModel.updateScore(isHome: false, increment: true)
-  viewModel.isFullTime = true
-
-  return FullTimeView(matchViewModel: viewModel, lifecycle: MatchLifecycleCoordinator())
-    .watchLayoutScale(WatchLayoutScale(category: .compact))
+  FullTimeView(
+    matchViewModel: MatchViewModel.previewFullTimePendingCompletion(),
+    lifecycle: MatchLifecycleCoordinator())
+    .watchPreviewChrome(layout: WatchPreviewSupport.compactLayout)
 }
 
 #Preview("Full Time – Series 9 (45mm)") {
-  let viewModel = MatchViewModel(haptics: WatchHaptics())
-  viewModel.configureMatch(duration: 90, periods: 2, halfTimeLength: 15, hasExtraTime: false, hasPenalties: false)
-  viewModel.updateScore(isHome: true, increment: true)
-  viewModel.updateScore(isHome: true, increment: true)
-  viewModel.updateScore(isHome: false, increment: true)
-  viewModel.isFullTime = true
+  FullTimeView(
+    matchViewModel: MatchViewModel.previewFullTimePendingCompletion(),
+    lifecycle: MatchLifecycleCoordinator())
+    .watchPreviewChrome()
+}
 
-  return FullTimeView(matchViewModel: viewModel, lifecycle: MatchLifecycleCoordinator())
-    .watchLayoutScale(WatchLayoutScale(category: .standard))
+#Preview("Full Time – Confirmation Overlay") {
+  FullTimeView(
+    matchViewModel: MatchViewModel.previewFullTimePendingCompletion(),
+    lifecycle: MatchLifecycleCoordinator(),
+    initiallyShowingEndMatchConfirmation: true)
+    .watchPreviewChrome(layout: WatchPreviewSupport.compactLayout)
 }
 
 #Preview("Full Time – Ultra") {
-  let viewModel = MatchViewModel(haptics: WatchHaptics())
-  viewModel.configureMatch(duration: 90, periods: 2, halfTimeLength: 15, hasExtraTime: false, hasPenalties: false)
-  viewModel.updateScore(isHome: true, increment: true)
-  viewModel.updateScore(isHome: false, increment: true)
-  viewModel.isFullTime = true
-
-  return FullTimeView(matchViewModel: viewModel, lifecycle: MatchLifecycleCoordinator())
-    .watchLayoutScale(WatchLayoutScale(category: .expanded))
+  FullTimeView(
+    matchViewModel: MatchViewModel.previewFullTimePendingCompletion(),
+    lifecycle: MatchLifecycleCoordinator())
+    .watchPreviewChrome(layout: WatchPreviewSupport.expandedLayout)
 }

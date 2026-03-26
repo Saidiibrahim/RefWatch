@@ -193,8 +193,27 @@ public struct ProStoppageFace: View {
     }
 }
 
-#Preview {
-    // Use NoopHaptics for previews to avoid platform haptic dependencies
-    ProStoppageFace(model: MatchViewModel(haptics: NoopHaptics()))
-        .hapticsProvider(NoopHaptics())
+#Preview("Pro Stoppage Face - Running") {
+    ProStoppageFace(model: MatchViewModel.previewRunningRegulation())
+        .watchFacePreviewSurface()
+}
+
+#Preview("Pro Stoppage Face - Time Expired") {
+    ProStoppageFace(model: MatchViewModel.previewExpiredBoundary())
+        .watchFacePreviewSurface(layout: WatchPreviewSupport.compactLayout)
+}
+
+#Preview("Pro Stoppage Face - Time Expired + Stoppage") {
+    ProStoppageFace(model: MatchViewModel.previewExpiredBoundary(stoppage: true))
+        .watchFacePreviewSurface(layout: WatchPreviewSupport.compactLayout)
+}
+
+#Preview("Pro Stoppage Face - Waiting For Half-Time") {
+    ProStoppageFace(model: MatchViewModel.previewWaitingForHalfTimeStart())
+        .watchFacePreviewSurface(layout: WatchPreviewSupport.compactLayout)
+}
+
+#Preview("Pro Stoppage Face - Half-Time Elapsed") {
+    ProStoppageFace(model: MatchViewModel.previewHalfTimeActive())
+        .watchFacePreviewSurface()
 }

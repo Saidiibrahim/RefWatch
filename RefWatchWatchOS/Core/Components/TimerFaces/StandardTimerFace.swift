@@ -150,3 +150,28 @@ public struct StandardTimerFace: View {
         }
     }
 }
+
+#Preview("Standard Face - Running") {
+    StandardTimerFace(model: MatchViewModel.previewRunningRegulation())
+        .watchFacePreviewSurface()
+}
+
+#Preview("Standard Face - Time Expired") {
+    StandardTimerFace(model: MatchViewModel.previewExpiredBoundary())
+        .watchFacePreviewSurface(layout: WatchPreviewSupport.compactLayout)
+}
+
+#Preview("Standard Face - Time Expired + Stoppage") {
+    StandardTimerFace(model: MatchViewModel.previewExpiredBoundary(stoppage: true))
+        .watchFacePreviewSurface(layout: WatchPreviewSupport.compactLayout)
+}
+
+#Preview("Standard Face - Waiting For Half-Time") {
+    StandardTimerFace(model: MatchViewModel.previewWaitingForHalfTimeStart())
+        .watchFacePreviewSurface(layout: WatchPreviewSupport.compactLayout)
+}
+
+#Preview("Standard Face - Half-Time Elapsed") {
+    StandardTimerFace(model: MatchViewModel.previewHalfTimeActive())
+        .watchFacePreviewSurface()
+}

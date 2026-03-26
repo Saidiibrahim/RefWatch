@@ -456,14 +456,35 @@ struct MatchKickOffView: View {
 
 @MainActor
 private func makeKickoffPreviewViewModel() -> MatchViewModel {
-  let viewModel = MatchViewModel(haptics: WatchHaptics())
+  let viewModel = MatchViewModel.previewRunningRegulation()
+  viewModel.resetMatch()
   viewModel.configureMatch(duration: 90, periods: 2, halfTimeLength: 15, hasExtraTime: true, hasPenalties: true)
+  viewModel.homeTeam = "ARS"
+  viewModel.awayTeam = "MCI"
+  viewModel.refreshCurrentMatchScheduleContext(
+    homeTeam: "ARS",
+    awayTeam: "MCI",
+    homeTeamId: nil,
+    awayTeamId: nil,
+    homeMatchSheet: nil,
+    awayMatchSheet: nil)
   return viewModel
 }
 
 #Preview("Kickoff – Series 9 (45mm)") {
-  let lifecycle = MatchLifecycleCoordinator()
-  let viewModel = makeKickoffPreviewViewModel()
+  MatchKickOffView(
+    matchViewModel: makeKickoffPreviewViewModel(),
+    lifecycle: MatchLifecycleCoordinator())
+    .defaultAppStorage(WatchPreviewSupport.makeDefaults(suiteName: "RefWatch.watchPreview.kickoff.first-half"))
+    .watchPreviewChrome()
+}
 
-  return MatchKickOffView(matchViewModel: viewModel, lifecycle: lifecycle)
+#Preview("Kickoff – Second Half (Compact)") {
+  MatchKickOffView(
+    matchViewModel: MatchViewModel.previewSecondHalfKickoff(),
+    isSecondHalf: true,
+    defaultSelectedTeam: .away,
+    lifecycle: MatchLifecycleCoordinator())
+    .defaultAppStorage(WatchPreviewSupport.makeDefaults(suiteName: "RefWatch.watchPreview.kickoff.second-half"))
+    .watchPreviewChrome(layout: WatchPreviewSupport.compactLayout)
 }
