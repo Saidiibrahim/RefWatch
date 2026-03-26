@@ -113,3 +113,5 @@ final class LiveActivityStatePublisher: LiveActivityPublishing {
     return TimeInterval(mm * 60 + ss)
   }
 }
+
+extension LiveActivityStatePublisher: MatchLiveActivityPublishing {}
