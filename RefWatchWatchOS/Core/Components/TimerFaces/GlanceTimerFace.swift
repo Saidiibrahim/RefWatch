@@ -72,15 +72,11 @@ public struct GlanceTimerFace: View {
     private func expiredPeriodView(scale: CGFloat, width: CGFloat) -> some View {
         let widthCap = layout.dimension(196, minimum: 156, maximum: 208)
         let rowWidth = min(width * 0.88, widthCap)
+        let accessibilityValue = model.isInStoppage
+            ? "\(model.matchTime), +\(model.formattedStoppageTime)"
+            : model.matchTime
 
         VStack(spacing: Constants.verticalSpacingBase * scale) {
-            Text("Time Expired")
-                .font(theme.typography.timerSecondary)
-                .fontWeight(.semibold)
-                .foregroundStyle(theme.colors.matchWarning)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-
             Text(model.matchTime)
                 .font(theme.typography.timerPrimary)
                 .foregroundStyle(theme.colors.textPrimary)
@@ -99,6 +95,9 @@ public struct GlanceTimerFace: View {
         }
         .padding(.vertical, Constants.contentPaddingBase * scale)
         .frame(maxWidth: rowWidth)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Time expired")
+        .accessibilityValue(accessibilityValue)
     }
 
     @ViewBuilder

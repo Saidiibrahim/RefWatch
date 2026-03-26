@@ -136,7 +136,7 @@ extension TimerView {
     }
 
     return VStack(spacing: verticalSpacing) {
-      if self.faceStyle.showsPeriodIndicator {
+      if self.faceStyle.showsPeriodIndicator && self.model.pendingPeriodBoundaryDecision == nil {
         self.periodIndicator
       }
       if self.faceStyle.showsScoreboard {
@@ -172,10 +172,20 @@ extension TimerView {
       emphasis: self.faceStyle == .standard)
   }
 
+  @ViewBuilder
   private var timerFace: some View {
-    TimerFaceFactory.view(for: self.faceStyle, model: self.model)
+    let face = TimerFaceFactory.view(for: self.faceStyle, model: self.model)
       .hapticsProvider(WatchHaptics())
       .allowsHitTesting(self.model.pendingPeriodBoundaryDecision == nil)
+
+    if self.model.pendingPeriodBoundaryDecision != nil {
+      face
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(self.periodLabel)
+        .accessibilityValue(self.expiredTimerAccessibilityValue)
+    } else {
+      face
+    }
   }
 
   @ViewBuilder
@@ -198,6 +208,13 @@ extension TimerView {
   private func handleAppear() {
     self.publishLiveActivityState()
     self.processPendingWidgetCommand()
+  }
+
+  private var expiredTimerAccessibilityValue: String {
+    if self.model.isInStoppage {
+      return "\(self.model.matchTime), +\(self.model.formattedStoppageTime)"
+    }
+    return self.model.matchTime
   }
 
   private func handleLongPress() {

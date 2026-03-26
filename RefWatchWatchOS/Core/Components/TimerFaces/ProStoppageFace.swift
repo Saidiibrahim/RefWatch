@@ -79,49 +79,37 @@ public struct ProStoppageFace: View {
     @ViewBuilder
     private func expiredPeriodView(scale: CGFloat, width: CGFloat) -> some View {
         let rowMaxWidth = min(width * 0.78, 180)
+        let accessibilityValue = model.isInStoppage
+            ? "\(model.matchTime), +\(model.formattedStoppageTime)"
+            : model.matchTime
 
         VStack(spacing: Constants.verticalSpacingBase * scale) {
-            Text("Time Expired")
-                .font(theme.typography.timerSecondary)
-                .fontWeight(.semibold)
-                .foregroundStyle(theme.colors.matchWarning)
+            Text(model.matchTime)
+                .font(theme.typography.timerPrimary)
+                .foregroundStyle(theme.colors.textPrimary)
                 .lineLimit(1)
-                .minimumScaleFactor(0.8)
-
-            HStack {
-                Text("Elapsed")
-                    .font(theme.typography.caption)
-                    .foregroundStyle(theme.colors.textSecondary)
-                Spacer()
-                Text(model.matchTime)
-                    .font(theme.typography.timerSecondary)
-                    .foregroundStyle(theme.colors.textPrimary)
-                    .scaleEffect(scale * 0.9, anchor: .center)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.85)
-            }
-            .frame(maxWidth: rowMaxWidth)
-            .frame(maxWidth: .infinity)
-
-            if model.isInStoppage {
-                HStack {
-                    Text("Stoppage")
-                        .font(theme.typography.caption)
-                        .foregroundStyle(theme.colors.textSecondary)
-                    Spacer()
-                    Text("+\(model.formattedStoppageTime)")
-                        .font(theme.typography.timerTertiary)
-                        .foregroundStyle(theme.colors.matchWarning)
-                        .scaleEffect(scale * 0.85, anchor: .center)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.85)
-                }
+                .minimumScaleFactor(0.66)
+                .scaleEffect(max(1.0, scale * 1.04), anchor: .center)
                 .frame(maxWidth: rowMaxWidth)
                 .frame(maxWidth: .infinity)
+
+            if model.isInStoppage {
+                Text("+\(model.formattedStoppageTime)")
+                    .font(theme.typography.timerTertiary)
+                    .foregroundStyle(theme.colors.matchWarning)
+                    .fontWeight(.semibold)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+                    .scaleEffect(scale * 0.85, anchor: .center)
+                    .frame(maxWidth: rowMaxWidth)
+                    .frame(maxWidth: .infinity)
             }
         }
         .padding(.vertical, Constants.contentVerticalPaddingBase * scale)
         .padding(.bottom, max(Constants.bottomInsetBase * scale, layout.timerBottomPadding * 0.6))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Time expired")
+        .accessibilityValue(accessibilityValue)
     }
 
     @ViewBuilder

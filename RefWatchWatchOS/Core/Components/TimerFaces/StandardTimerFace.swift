@@ -68,15 +68,11 @@ public struct StandardTimerFace: View {
     @ViewBuilder
     private func expiredPeriodView(scale: CGFloat, width: CGFloat) -> some View {
         let rowWidth = min(width * 0.86, 186)
+        let accessibilityValue = model.isInStoppage
+            ? "\(model.matchTime), +\(model.formattedStoppageTime)"
+            : model.matchTime
 
         VStack(spacing: Constants.groupSpacingBase * scale) {
-            Text("Time Expired")
-                .font(theme.typography.timerSecondary)
-                .fontWeight(.semibold)
-                .foregroundStyle(theme.colors.matchWarning)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-
             Text(model.matchTime)
                 .font(theme.typography.timerPrimary)
                 .foregroundStyle(theme.colors.textPrimary)
@@ -95,6 +91,9 @@ public struct StandardTimerFace: View {
         }
         .frame(maxWidth: rowWidth)
         .padding(.vertical, Constants.contentPaddingBase * scale)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Time expired")
+        .accessibilityValue(accessibilityValue)
     }
 
     @ViewBuilder
