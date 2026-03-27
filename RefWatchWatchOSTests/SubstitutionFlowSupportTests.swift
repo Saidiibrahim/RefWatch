@@ -35,6 +35,22 @@ struct SubstitutionFlowSupportTests {
     #expect(summary == "?, 7")
   }
 
+  @Test func testConfirmationSummary_whenNamesExist_returnsNumbersOnly() async throws {
+    let summary = SubstitutionFlowSupport.confirmationSummary(
+      playerOff: SubstitutionSelection(number: 2, name: "Alexandria Johnson-Smith"),
+      playerOn: SubstitutionSelection(number: 12, name: "Eleanor Whitmore"))
+
+    #expect(summary == "2 -> 12")
+  }
+
+  @Test func testConfirmationSummary_whenNumberMissing_usesQuestionMark() async throws {
+    let summary = SubstitutionFlowSupport.confirmationSummary(
+      playerOff: SubstitutionSelection(number: nil, name: "Alex"),
+      playerOn: SubstitutionSelection(number: 7, name: "Jamie"))
+
+    #expect(summary == "? -> 7")
+  }
+
   @Test func testAppendManualSelection_whenUnique_appendsInOrder() async throws {
     var selections = [SubstitutionSelection(number: 12, name: nil)]
 

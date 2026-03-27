@@ -56,12 +56,13 @@ struct SubstitutionFlow: View {
       case let .selection(target):
         self.selectionDestination(for: target)
       case .confirmation:
-        SubstitutionBatchConfirmationView(
-          pairs: self.orderedPairs,
-          matchTime: self.confirmationSnapshot?.matchTime ?? self.matchViewModel.matchTime,
-          onConfirm: {
-            self.commitBatch()
-          })
+        if let pair = self.orderedPairs.first {
+          SubstitutionSingleConfirmationView(
+            pair: pair,
+            onConfirm: {
+              self.commitBatch()
+            })
+        }
       }
     }
   }
@@ -368,6 +369,12 @@ private struct SubstitutionPair: Identifiable, Equatable {
   let id = UUID()
   let playerOff: SubstitutionSelection
   let playerOn: SubstitutionSelection
+
+  var confirmationLabel: String {
+    SubstitutionFlowSupport.confirmationSummary(
+      playerOff: self.playerOff,
+      playerOn: self.playerOn)
+  }
 }
 
 private struct SubstitutionSelectablePlayer: Identifiable, Equatable {
@@ -562,9 +569,8 @@ private struct SubstitutionNumberCollectorView: View {
   }
 }
 
-private struct SubstitutionBatchConfirmationView: View {
-  let pairs: [SubstitutionPair]
-  let matchTime: String
+private struct SubstitutionSingleConfirmationView: View {
+  let pair: SubstitutionPair
   let onConfirm: () -> Void
 
   @Environment(\.theme) private var theme
@@ -573,40 +579,24 @@ private struct SubstitutionBatchConfirmationView: View {
     List {
       ThemeCardContainer(role: .secondary, minHeight: 72) {
         VStack(alignment: .leading, spacing: self.theme.spacing.xs) {
-          Text("Shared match time")
-            .font(self.theme.typography.cardHeadline)
-            .foregroundStyle(self.theme.colors.textPrimary)
-
-          Text(self.matchTime)
+          Text("Substitution")
             .font(self.theme.typography.cardMeta)
             .foregroundStyle(self.theme.colors.textSecondary)
+
+          Text(self.pair.confirmationLabel)
+            .font(self.theme.typography.cardHeadline)
+            .foregroundStyle(self.theme.colors.textPrimary)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
       }
       .listRowInsets(self.rowInsets)
       .listRowBackground(Color.clear)
 
-      ForEach(Array(self.pairs.enumerated()), id: \.offset) { index, pair in
-        ThemeCardContainer(role: .secondary, minHeight: 72) {
-          VStack(alignment: .leading, spacing: self.theme.spacing.xs) {
-            Text("Sub \(index + 1)")
-              .font(self.theme.typography.cardMeta)
-              .foregroundStyle(self.theme.colors.textSecondary)
-
-            Text("\(pair.playerOff.displayLabel) -> \(pair.playerOn.displayLabel)")
-              .font(self.theme.typography.cardHeadline)
-              .foregroundStyle(self.theme.colors.textPrimary)
-              .frame(maxWidth: .infinity, alignment: .leading)
-          }
-        }
-        .listRowInsets(self.rowInsets)
-        .listRowBackground(Color.clear)
-      }
-
       Button {
         self.onConfirm()
       } label: {
         ThemeCardContainer(role: .positive, minHeight: 72) {
-          Text("Save \(self.pairs.count) Subs")
+          Text("Save Sub")
             .font(self.theme.typography.cardHeadline)
             .foregroundStyle(self.theme.colors.textInverted)
             .frame(maxWidth: .infinity, alignment: .center)
@@ -646,6 +636,13 @@ enum SubstitutionFlowSupport {
   {
     guard selections.isEmpty == false else { return emptyText }
     return selections.map(\.summaryLabel).joined(separator: ", ")
+  }
+
+  static func confirmationSummary(
+    playerOff: SubstitutionSelection,
+    playerOn: SubstitutionSelection) -> String
+  {
+    "\(playerOff.summaryLabel) -> \(playerOn.summaryLabel)"
   }
 
   static func canSubmit(
@@ -832,9 +829,8 @@ enum SubstitutionFlowSupport {
 
 #Preview("Sub Confirm – Single Pair") {
   previewNavigationHost(layout: WatchLayoutScale(category: .standard)) {
-    SubstitutionBatchConfirmationView(
-      pairs: [SubstitutionFlowPreviewFixtures.confirmationPairs[0]],
-      matchTime: SubstitutionFlowPreviewFixtures.confirmationSnapshot.matchTime,
+    SubstitutionSingleConfirmationView(
+      pair: SubstitutionFlowPreviewFixtures.confirmationPairs[0],
       onConfirm: {})
   }
 }
