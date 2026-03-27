@@ -49,14 +49,12 @@ The current Responses parser should handle the following events:
 | Event | Action |
 |-------|--------|
 | `response.output_text.delta` | Append incremental text to the active assistant message |
-| `response.output_text.done` | Mark the end of a text content part |
-| `response.content_part.done` | Confirm the content array is finalized |
-| `response.output_item.done` | Signal completion of a message item |
-| `response.completed` | Terminate the stream cleanly |
+| `response.completed` | Terminate the stream cleanly and capture usage when available |
+| `response.incomplete` | Terminate the stream and surface that the upstream answer stopped early |
 | `response.failed` | Terminate the stream and surface the upstream failure |
 | `error` | Terminate the stream and surface the transport failure |
 
-Unknown non-text events should be ignored or logged rather than aborting the stream. That keeps the assistant resilient when OpenAI adds new event types.
+Other lifecycle events such as `response.output_text.done`, `response.content_part.done`, and `response.output_item.done` are currently ignored/logged rather than treated as errors. That keeps the assistant resilient when OpenAI adds new event types while still terminating on the documented success/failure states above.
 
 ## Logging & Diagnostics
 

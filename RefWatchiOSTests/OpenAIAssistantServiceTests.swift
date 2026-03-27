@@ -152,4 +152,51 @@ final class OpenAIAssistantServiceTests: XCTestCase {
     XCTAssertTrue(result.chunks.isEmpty)
     XCTAssertEqual(result.terminalError, .streamFailed(message: "Invalid authentication"))
   }
+
+  func testParseStream_whenIncompleteEventOccurs_stopsStreamingWithTerminalError() {
+    let lines = [
+      "event: response.output_text.delta",
+      #"data: {"type":"response.output_text.delta","delta":"Partial answer"}"#,
+      "",
+      "event: response.incomplete",
+      #"data: {"type":"response.incomplete","response":{"status":"incomplete","incomplete_details":{"reason":"max_output_tokens"}}}"#,
+      "",
+    ]
+
+    let result = OpenAIAssistantService.Testing.parseStream(lines: lines)
+
+    XCTAssertEqual(result.chunks, ["Partial answer"])
+    XCTAssertTrue(result.shouldTerminate)
+    XCTAssertEqual(result.terminalError, .streamFailed(message: "The assistant stopped before finishing the answer."))
+  }
+
+  func testDecodeStreamLines_whenUTF8ScalarSpansChunks_preservesDecodedText() throws {
+    let firstChunk = Data("data: {\"delta\":\"caf".utf8) + Data([0xC3])
+    let secondChunk = Data([0xA9]) + Data("\"}\n\n".utf8)
+
+    XCTAssertEqual(
+      try OpenAIAssistantService.Testing.decodeStreamLines(chunks: [firstChunk, secondChunk]),
+      ["data: {\"delta\":\"café\"}", ""]
+    )
+  }
+
+  func testDecodeStreamLines_whenStreamEndsWithoutTrailingNewline_returnsRemainingLine() throws {
+    XCTAssertEqual(
+      try OpenAIAssistantService.Testing.decodeStreamLines(chunks: [
+        Data("event: response.completed\n".utf8),
+        Data("data: {\"type\":\"response.completed\"}".utf8),
+      ]),
+      ["event: response.completed", #"data: {"type":"response.completed"}"#]
+    )
+  }
+
+  func testDecodeStreamLines_whenUTF8IsInvalid_throwsInvalidResponse() {
+    XCTAssertThrowsError(
+      try OpenAIAssistantService.Testing.decodeStreamLines(chunks: [
+        Data([0xC3, 0x28, 0x0A]),
+      ])
+    ) { error in
+      XCTAssertEqual(error as? AssistantServiceError, .invalidResponse)
+    }
+  }
 }

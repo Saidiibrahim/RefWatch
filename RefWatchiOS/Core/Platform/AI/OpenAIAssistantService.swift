@@ -78,6 +78,16 @@ extension OpenAIAssistantService {
       parser.finishIfNeeded { output.append($0) }
       return (output, parser.usage, parser.shouldTerminate, parser.terminalError)
     }
+
+    static func decodeStreamLines(chunks: [Data]) throws -> [String] {
+      var lineBuffer = SSELineBuffer()
+      var output: [String] = []
+      for chunk in chunks {
+        output.append(contentsOf: try lineBuffer.append(chunk))
+      }
+      output.append(contentsOf: try lineBuffer.finish())
+      return output
+    }
   }
 }
 #endif
@@ -195,7 +205,7 @@ extension OpenAIAssistantService {
     let stream: AsyncThrowingStream<String, Error>
 
     private var parser = ResponsesStreamParser()
-    private var buffer = ""
+    private var lineBuffer = SSELineBuffer()
     private var errorBody = Data()
     private var statusCode: Int?
     private var session: URLSession?
@@ -265,6 +275,9 @@ extension OpenAIAssistantService {
     func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
       var lines: [String] = []
       var shouldIgnore = false
+      var bufferError: AssistantServiceError?
+      var task: URLSessionDataTask?
+      var sessionToCancel: URLSession?
 
       self.lock.lock()
       if self.finished {
@@ -272,16 +285,28 @@ extension OpenAIAssistantService {
       } else if let statusCode = self.statusCode, (200...299).contains(statusCode) == false {
         self.errorBody.append(data)
       } else {
-        self.buffer.append(String(decoding: data, as: UTF8.self))
-        while let newlineRange = self.buffer.range(of: "\n") {
-          let line = String(self.buffer[..<newlineRange.lowerBound])
-          lines.append(line)
-          self.buffer.removeSubrange(self.buffer.startIndex..<newlineRange.upperBound)
+        do {
+          lines = try self.lineBuffer.append(data)
+        } catch let error as AssistantServiceError {
+          bufferError = error
+          task = self.task
+          sessionToCancel = self.session
+        } catch {
+          bufferError = .invalidResponse
+          task = self.task
+          sessionToCancel = self.session
         }
       }
       self.lock.unlock()
 
       if shouldIgnore {
+        return
+      }
+
+      if let bufferError {
+        self.completeIfNeeded(throwing: bufferError)
+        task?.cancel()
+        sessionToCancel?.invalidateAndCancel()
         return
       }
 
@@ -297,6 +322,8 @@ extension OpenAIAssistantService {
       var body: String?
       var finished = false
       var cancelled = false
+      var bufferError: AssistantServiceError?
+      var bufferedLines: [String] = []
 
       self.lock.lock()
       statusCode = self.statusCode
@@ -304,12 +331,13 @@ extension OpenAIAssistantService {
       cancelled = self.cancelled
 
       if finished == false, let statusCode, (200...299).contains(statusCode) {
-        if self.buffer.isEmpty == false {
-          self.parser.handle(line: self.buffer) { emittedChunks.append($0) }
-          self.buffer.removeAll(keepingCapacity: true)
+        do {
+          bufferedLines = try self.lineBuffer.finish()
+        } catch let error as AssistantServiceError {
+          bufferError = error
+        } catch {
+          bufferError = .invalidResponse
         }
-        self.parser.finishIfNeeded { emittedChunks.append($0) }
-        parserTerminalError = self.parser.terminalError
       }
 
       if self.errorBody.isEmpty == false {
@@ -317,7 +345,31 @@ extension OpenAIAssistantService {
       }
       self.lock.unlock()
 
+      for line in bufferedLines {
+        self.process(line: line)
+      }
+
+      if self.isFinished {
+        return
+      }
+
+      if let bufferError {
+        self.completeIfNeeded(throwing: bufferError)
+        return
+      }
+
+      self.lock.lock()
+      if self.finished == false, let statusCode, (200...299).contains(statusCode) {
+        self.parser.finishIfNeeded { emittedChunks.append($0) }
+        parserTerminalError = self.parser.terminalError
+      }
+      self.lock.unlock()
+
       emittedChunks.forEach { self.continuation.yield($0) }
+
+      if self.isFinished {
+        return
+      }
 
       guard finished == false else { return }
       guard cancelled == false else {
@@ -396,6 +448,12 @@ extension OpenAIAssistantService {
       } else {
         self.continuation.finish()
       }
+    }
+
+    private var isFinished: Bool {
+      self.lock.lock()
+      defer { self.lock.unlock() }
+      return self.finished
     }
 
     private static func makeStream() -> (
@@ -494,6 +552,57 @@ extension OpenAIAssistantService {
     let outputTokens: Int?
   }
 
+  struct ResponseIncompleteEvent: Decodable {
+    struct ResponseSummary: Decodable {
+      struct IncompleteDetails: Decodable {
+        let reason: String?
+      }
+
+      let incompleteDetails: IncompleteDetails?
+    }
+
+    let response: ResponseSummary?
+  }
+
+  struct SSELineBuffer {
+    private var buffer = Data()
+
+    var isEmpty: Bool {
+      self.buffer.isEmpty
+    }
+
+    mutating func append(_ data: Data) throws -> [String] {
+      guard data.isEmpty == false else { return [] }
+      self.buffer.append(data)
+
+      var lines: [String] = []
+      while let newlineIndex = self.buffer.firstIndex(of: 0x0A) {
+        let lineData = self.buffer[..<newlineIndex]
+        lines.append(try self.decodeLine(Data(lineData)))
+        let nextIndex = self.buffer.index(after: newlineIndex)
+        self.buffer.removeSubrange(..<nextIndex)
+      }
+      return lines
+    }
+
+    mutating func finish() throws -> [String] {
+      guard self.buffer.isEmpty == false else { return [] }
+      let remainder = self.buffer
+      self.buffer.removeAll(keepingCapacity: true)
+      return [try self.decodeLine(remainder)]
+    }
+
+    private func decodeLine(_ data: Data) throws -> String {
+      guard var line = String(data: data, encoding: .utf8) else {
+        throw AssistantServiceError.invalidResponse
+      }
+      if line.hasSuffix("\r") {
+        line.removeLast()
+      }
+      return line
+    }
+  }
+
   struct ResponsesStreamParser {
     private var currentEvent: String?
     private var dataFragments: [String] = []
@@ -581,6 +690,14 @@ extension OpenAIAssistantService {
         }
         self.shouldTerminate = true
 
+      case "response.incomplete":
+        let reason = (try? decoder.decode(ResponseIncompleteEvent.self, from: data))?
+          .response?
+          .incompleteDetails?
+          .reason
+        self.terminalError = .streamFailed(message: self.incompleteMessage(for: reason))
+        self.shouldTerminate = true
+
       case "response.failed", "error":
         if let errorEvent = try? decoder.decode(ErrorEvent.self, from: data) {
           let message =
@@ -595,6 +712,17 @@ extension OpenAIAssistantService {
 
       default:
         OpenAIAssistantService.log("Ignoring SSE event: \(event)")
+      }
+    }
+
+    private func incompleteMessage(for reason: String?) -> String {
+      switch reason {
+      case "max_output_tokens":
+        return "The assistant stopped before finishing the answer."
+      case let .some(reason) where reason.isEmpty == false:
+        return "The assistant response was incomplete (\(reason))."
+      default:
+        return "The assistant response was incomplete."
       }
     }
 
