@@ -8,6 +8,7 @@ Approved behavior to document:
 - show shirt numbers only in the hub subtitles
 - let multi-pair batches skip confirmation and save immediately
 - keep `Confirm Subs` in place as single-pair confirmation behavior
+- keep the single-pair confirmation surface to one number-only substitution card with no separate shared match time card
 - let manual keypad backspace pop the most recently committed number when the input buffer is empty
 
 ## Context and Orientation
@@ -49,6 +50,10 @@ Approved behavior to document:
 - Rationale: preserves the existing setting while removing unnecessary friction from multi-pair batches.
 - Date/Author: 2026-03-26 / Codex
 
+- Decision: keep the single-pair confirmation surface aligned with the speed-first watch contract by showing one number-only substitution card and removing the separate shared match time card.
+- Rationale: preserves the quick verification affordance without reintroducing visual chrome that slows the referee down.
+- Date/Author: 2026-03-27 / Codex
+
 - Decision: document keypad backspace as stack-style undo when no partial number is being edited.
 - Rationale: lets referees correct manual batches without opening a second edit surface.
 - Date/Author: 2026-03-26 / Codex
@@ -67,11 +72,14 @@ Approved behavior to document:
 ## Outcomes & Retrospective
 - Implemented the approved watchOS speed polish in the hub, manual numeric spoke, shared keypad, settings copy, focused watch tests, previews, and product/architecture docs.
 - Added a low-risk follow-on polish to let navigation-row subtitles wrap to two lines, preventing multi-number substitution summaries from truncating on compact watch layouts.
+- Extended the follow-on polish so single-pair confirmation now stays speed-first as well: one number-only substitution card, no separate shared match time card, and no changes to the player-selection spokes.
 - Validation to date:
   - `git diff --check` passed.
   - `swift test --package-path RefWatchCore` reproduced the existing baseline failures in `AggregateSyncPayloadTests.testDeltaPayloadRoundTrip` and `ExtraTimeAndPenaltiesTests.test_penalty_attempt_logging_and_tallies`; no new package failures appeared.
   - `xcodebuild -project RefWatch.xcodeproj -scheme "RefWatch Watch App" -derivedDataPath /tmp/refwatch-multi-sub-speed-polish-build -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)' build` succeeded after the implementation fixes, with only the pre-existing widget short-version warning.
   - `xcodebuild test -project RefWatch.xcodeproj -scheme "RefWatch Watch App" -derivedDataPath /tmp/refwatch-multi-sub-speed-polish-test-target -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)' -only-testing:'RefWatch Watch AppTests/SubstitutionFlowSupportTests'` succeeded.
+  - `xcodebuild -project RefWatch.xcodeproj -scheme "RefWatch Watch App" -derivedDataPath /tmp/refwatch-single-sub-confirm-build -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)' build` succeeded after the single-pair confirmation simplification, with only the pre-existing widget short-version warning.
+  - `xcodebuild test -project RefWatch.xcodeproj -scheme "RefWatch Watch App" -derivedDataPath /tmp/refwatch-single-sub-confirm-test-target -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)' -only-testing:'RefWatch Watch AppTests/SubstitutionFlowSupportTests'` succeeded, including the new number-only confirmation summary checks.
   - The full scheme test under `/tmp/refwatch-multi-sub-speed-polish-test-full` rebuilt the patched watch files and entered simulator execution, but it did not finish within the available validation window; no watch compile failure surfaced before the stall.
 - Remaining follow-up:
   - Physical-watch verification on Apple Watch Series 9 (45mm).

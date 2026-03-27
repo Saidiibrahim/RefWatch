@@ -12,5 +12,6 @@ phase: watchOS UI
 - [x] Remove the manual-entry selected-numbers card and keep manual correction keypad-first.
 - [x] Add empty-backspace support so manual entry pops the most recently committed number when the buffer is empty.
 - [x] Keep `Confirm Subs` for single-pair substitutions only and bypass it for multi-pair batches.
+- [x] Slim the single-pair confirmation screen to one number-only substitution card with no separate shared match time card.
 - [x] Add focused watch-side tests for summaries, duplicate rejection, backspace undo, and confirmation gating.
 - [x] Allow navigation-row subtitles to wrap to two lines so the hub can still display longer multi-number summaries on compact watch layouts.

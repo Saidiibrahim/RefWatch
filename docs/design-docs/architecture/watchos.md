@@ -53,6 +53,10 @@ WatchOS owns match/timer continuity and does not host the live assistant/OpenAI 
   - Legacy schedules with no match-sheet fields retain the old team-ID / exact-name library lookup only as backward compatibility.
 - `Done` is enabled only when off/on counts match and are non-zero.
 - If `Confirm Subs` is enabled, the hub still navigates to confirmation for single-pair substitutions.
+- The single-pair confirmation surface is intentionally minimal:
+  - one substitution card only
+  - number-only `off -> on` content
+  - no separate shared match time card
 - Multi-pair batches bypass confirmation and save directly from `Done`; this is the approved speed path for referees entering several substitutions at once.
 - Manual numeric entry keeps entered numbers visible on the hub rows and uses keypad backspace as stack-style undo when the current buffer is empty.
 - `MatchViewModel.recordSubstitutions(team:substitutions:)` performs the save boundary:

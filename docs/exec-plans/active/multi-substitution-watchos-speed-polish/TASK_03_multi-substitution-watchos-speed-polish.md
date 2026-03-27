@@ -26,4 +26,10 @@ Validation notes:
   - `SubstitutionFlowSupportTests/testCanSubmit_requiresEqualNonZeroCounts()`
   - `SubstitutionFlowSupportTests/testShouldRequireConfirmation_onlyForSinglePairWhenEnabled()`
   - `SubstitutionFlowSupportTests/testNumericKeypadBackspace_removesTypedDigitsUntilEmpty()`
+- Follow-on single-pair confirmation validation on 2026-03-27:
+  - `xcodebuild -project RefWatch.xcodeproj -scheme "RefWatch Watch App" -derivedDataPath /tmp/refwatch-single-sub-confirm-build -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)' build` succeeded, with only the pre-existing widget short-version warning.
+  - `xcodebuild test -project RefWatch.xcodeproj -scheme "RefWatch Watch App" -derivedDataPath /tmp/refwatch-single-sub-confirm-test-target -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)' -only-testing:'RefWatch Watch AppTests/SubstitutionFlowSupportTests'` succeeded.
+  - New targeted checks passed:
+    - `SubstitutionFlowSupportTests/testConfirmationSummary_whenNamesExist_returnsNumbersOnly()`
+    - `SubstitutionFlowSupportTests/testConfirmationSummary_whenNumberMissing_usesQuestionMark()`
 - The full scheme test under `/tmp/refwatch-multi-sub-speed-polish-test-full` rebuilt the patched watch code and entered simulator execution, but did not complete within the available validation window. No watch compile failure surfaced before the stall; the only runtime noise observed was repeated `DebuggerLLDB.DebuggerVersionStore.StoreError` logging from Xcode.

@@ -38,6 +38,10 @@ Provides referees with precise match, period, and stoppage tracking, optimized f
 - If the official frozen sheet is ready but a spoke has no eligible candidates left, the watch shows an unavailable state for that spoke instead of falling through to numeric/manual selection.
 - The hub enables `Done` only when both sides contain the same non-zero count.
 - If `Confirm Subs` is enabled, `Done` still opens the confirmation surface for single-pair substitutions.
+- The single-pair confirmation surface stays compact:
+  - it shows one substitution card only
+  - the card uses shirt numbers only (`off -> on`), not names
+  - it does not show a separate shared match time card
 - Multi-pair batches bypass the confirmation surface and save directly from `Done` so referees can get play restarted faster.
 - Saving a batch records `N` normal substitution events, not a grouped event type.
   - Every event in the batch shares one captured `matchTime`, `period`, and `actualTime` snapshot.
