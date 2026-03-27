@@ -58,7 +58,7 @@ protocol SupabaseAuthStateProviding: AuthenticationProviding {
 }
 
 @MainActor
-final class SupabaseAuthController: ObservableObject {
+final class SupabaseAuthController: ObservableObject, SupabaseAuthStateProviding {
   /// The authoritative authentication state consumed by SwiftUI views and stores.
   @Published private(set) var state: AuthState = .signedOut
   /// The most recent user-presentable error emitted by a Supabase auth flow.
@@ -81,7 +81,9 @@ final class SupabaseAuthController: ObservableObject {
   ///   - profileSynchronizer: Optional synchronizer used to upsert `public.users` rows.
   init(
     clientProvider: SupabaseClientProviding,
-    profileSynchronizer: SupabaseUserProfileSynchronizing? = nil)
+    profileSynchronizer: SupabaseUserProfileSynchronizing? = nil,
+    bootstrapSessionOnInit: Bool = true,
+    observeChangesOnInit: Bool = true)
   {
     self.clientProvider = clientProvider
     if let profileSynchronizer {
@@ -89,8 +91,12 @@ final class SupabaseAuthController: ObservableObject {
     } else {
       self.profileSynchronizer = SupabaseUserProfileSynchronizer(clientProvider: clientProvider)
     }
-    Task { await self.restoreSessionIfAvailable() }
-    self.observeAuthChanges()
+    if bootstrapSessionOnInit {
+      Task { await self.restoreSessionIfAvailable() }
+    }
+    if observeChangesOnInit {
+      self.observeAuthChanges()
+    }
   }
 
   deinit {
@@ -348,7 +354,14 @@ final class SupabaseAuthController: ObservableObject {
     }
     return nil
   }
-}
 
-@MainActor
-extension SupabaseAuthController: SupabaseAuthStateProviding {}
+  #if DEBUG
+    func forceStateForUITests(_ state: AuthState) {
+      guard TestEnvironment.launchesSignedInUITestShell else { return }
+      self.profileSyncTask?.cancel()
+      self.profileSyncTask = nil
+      self.state = state
+      self.lastError = nil
+    }
+  #endif
+}
