@@ -95,7 +95,7 @@ The app works fully offline using SwiftData. When connected, data syncs to Supab
 
 **Optional cloud services:**
 - [Supabase](https://supabase.com/dashboard) — Cloud sync and authentication
-- [OpenAI](https://platform.openai.com) — AI assistant (uses gpt-4o-mini)
+- [OpenAI](https://platform.openai.com) — AI assistant (uses gpt-5.4-mini)
 - [Google Cloud Console](https://console.cloud.google.com) — OAuth client ID for Google Sign-In
 
 ### Setup

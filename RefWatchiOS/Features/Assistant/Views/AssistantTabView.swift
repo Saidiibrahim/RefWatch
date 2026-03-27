@@ -13,6 +13,7 @@ struct AssistantTabView: View {
   @EnvironmentObject private var authController: SupabaseAuthController
   @State private var usingStub = false
   @State private var selectedPhotoItem: PhotosPickerItem?
+  @State private var selectedPhotoLoadID = 0
   @State private var viewModel: AssistantViewModel
 
   init() {
@@ -80,15 +81,11 @@ struct AssistantTabView: View {
           .background(.bar)
           .overlay(Divider(), alignment: .top)
         }
-        .onChange(of: self.selectedPhotoItem?.itemIdentifier) { _, _ in
-          guard let item = self.selectedPhotoItem else { return }
-          Task {
-            let data = try? await item.loadTransferable(type: Data.self)
-            await self.viewModel.attachImageData(data)
-            await MainActor.run {
-              self.selectedPhotoItem = nil
-            }
-          }
+        .task(id: self.selectedPhotoLoadID) {
+          guard self.selectedPhotoLoadID > 0, let item = self.selectedPhotoItem else { return }
+          let data = try? await item.loadTransferable(type: Data.self)
+          await self.viewModel.attachImageData(data)
+          self.selectedPhotoItem = nil
         }
       }
     } else {
@@ -137,7 +134,7 @@ struct AssistantTabView: View {
     @Bindable var viewModel = self.viewModel
 
     return HStack(spacing: 10) {
-      PhotosPicker(selection: self.$selectedPhotoItem, matching: .images, photoLibrary: .shared()) {
+      PhotosPicker(selection: self.photoSelectionBinding, matching: .images, photoLibrary: .shared()) {
         Circle()
           .fill(Color(.systemGray5))
           .frame(width: 34, height: 34)
@@ -197,6 +194,17 @@ struct AssistantTabView: View {
     }
     .padding(.horizontal)
     .padding(.vertical, 8)
+  }
+
+  private var photoSelectionBinding: Binding<PhotosPickerItem?> {
+    Binding(
+      get: { self.selectedPhotoItem },
+      set: { newValue in
+        self.selectedPhotoItem = newValue
+        if newValue != nil {
+          self.selectedPhotoLoadID += 1
+        }
+      })
   }
 
   // Horizontal suggestions like chips
