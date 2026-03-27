@@ -4,29 +4,23 @@
 //
 
 import Foundation
+import Observation
+import PhotosUI
+import UIKit
 import SwiftUI
 
 struct AssistantTabView: View {
   @EnvironmentObject private var authController: SupabaseAuthController
   @State private var usingStub = false
-  @State private var showSpeakInfo = false
-  @State private var showAttachInfo = false
-  @StateObject private var viewModel: AssistantViewModel
-  @State private var isRecordingInline = false
-  @State private var inlineStart: Date?
-  @State private var inlinePower: Double = 0
-  @State private var inlineDebounceItem: DispatchWorkItem?
-  @State private var showVoiceMode = false
-  // Feature flag for the standalone voice mode flow.
-  private let isVoiceModeEnabled = false
+  @State private var selectedPhotoItem: PhotosPickerItem?
+  @State private var viewModel: AssistantViewModel
 
   init() {
-    if let svc = OpenAIAssistantService.fromBundleIfAvailable() {
-      _viewModel = StateObject(wrappedValue: AssistantViewModel(service: svc))
+    if let service = OpenAIAssistantService.fromBundleIfAvailable() {
+      _viewModel = State(initialValue: AssistantViewModel(service: service))
       _usingStub = State(initialValue: false)
     } else {
-      let stub = StubAssistantService()
-      _viewModel = StateObject(wrappedValue: AssistantViewModel(service: stub))
+      _viewModel = State(initialValue: AssistantViewModel(service: StubAssistantService()))
       _usingStub = State(initialValue: true)
     }
   }
@@ -43,7 +37,7 @@ struct AssistantTabView: View {
                     .padding(6)
                     .background(Color.orange)
                     .clipShape(RoundedRectangle(cornerRadius: 6))
-                  Text("OpenAI key missing — using demo replies.")
+                  Text("Assistant proxy unavailable — using demo replies.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                   Spacer()
@@ -72,29 +66,29 @@ struct AssistantTabView: View {
               self.suggestionsRow
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
+            if self.viewModel.isPreparingAttachment
+              || self.viewModel.draftAttachment != nil
+              || self.viewModel.attachmentErrorMessage != nil
+              || self.viewModel.transportError != nil
+            {
+              self.draftAttachmentStack
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
             self.modernInputBar
           }
           .padding(.top, self.showSuggestions ? 6 : 0)
           .background(.bar)
           .overlay(Divider(), alignment: .top)
         }
-        .sheet(isPresented: self.$showVoiceMode) {
-          VoiceModeView { finalText in
-            let trimmed = finalText.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !trimmed.isEmpty else { return }
-            self.viewModel.input = trimmed
-            self.viewModel.send()
+        .onChange(of: self.selectedPhotoItem?.itemIdentifier) { _, _ in
+          guard let item = self.selectedPhotoItem else { return }
+          Task {
+            let data = try? await item.loadTransferable(type: Data.self)
+            await self.viewModel.attachImageData(data)
+            await MainActor.run {
+              self.selectedPhotoItem = nil
+            }
           }
-        }
-        .alert("Speak Not Set Up", isPresented: self.$showSpeakInfo) {
-          Button("OK", role: .cancel) {}
-        } message: {
-          Text("Realtime voice will come later. Use text for now.")
-        }
-        .alert("Coming Soon", isPresented: self.$showAttachInfo) {
-          Button("OK", role: .cancel) {}
-        } message: {
-          Text("Attachments and tools are not available yet.")
         }
       }
     } else {
@@ -109,47 +103,65 @@ struct AssistantTabView: View {
   private func messageView(_ msg: ChatMessage) -> some View {
     HStack(alignment: .top) {
       if msg.role == .assistant {
-        VStack(alignment: .leading) {
-          if let attributed = try? AttributedString(markdown: msg.text) {
-            Text(attributed)
-          } else {
-            Text(msg.text)
-          }
-        }
-        .padding(10)
-        .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        self.messageBubble(msg, foreground: .primary, background: Color(.secondarySystemBackground))
         Spacer(minLength: 24)
       } else {
         Spacer(minLength: 24)
-        Text(msg.text)
-          .padding(10)
-          .foregroundStyle(.white)
-          .background(Color.accentColor)
-          .clipShape(RoundedRectangle(cornerRadius: 12))
+        self.messageBubble(msg, foreground: .white, background: Color.accentColor)
       }
     }
   }
 
-  // Modern bottom input bar with plus, pill text field, and conditional mic/send + voice mode button
+  private func messageBubble(_ msg: ChatMessage, foreground: Color, background: Color) -> some View {
+    VStack(alignment: .leading, spacing: msg.attachment != nil && !msg.trimmedText.isEmpty ? 8 : 0) {
+      if let attachment = msg.attachment {
+        self.messageAttachmentView(attachment, maxWidth: 230)
+      }
+
+      if !msg.text.isEmpty {
+        if let attributed = try? AttributedString(markdown: msg.text) {
+          Text(attributed)
+        } else {
+          Text(msg.text)
+        }
+      }
+    }
+    .padding(10)
+    .foregroundStyle(foreground)
+    .background(background)
+    .clipShape(RoundedRectangle(cornerRadius: 12))
+  }
+
+  // Modern bottom input bar with plus, pill text field, and conditional send/stop control.
   private var modernInputBar: some View {
-    HStack(spacing: 10) {
-      Button { self.showAttachInfo = true } label: {
+    @Bindable var viewModel = self.viewModel
+
+    return HStack(spacing: 10) {
+      PhotosPicker(selection: self.$selectedPhotoItem, matching: .images, photoLibrary: .shared()) {
         Circle()
           .fill(Color(.systemGray5))
           .frame(width: 34, height: 34)
           .overlay(Image(systemName: "plus").foregroundStyle(.primary))
       }
+      .disabled(self.viewModel.isPreparingAttachment)
+      .accessibilityLabel("Attach image")
 
       HStack(spacing: 8) {
-        if let start = inlineStart, isRecordingInline {
-          InlineRecordingIndicator(start: start, power: self.inlinePower)
-            .transition(.opacity)
-        }
         TextField("Ask anything", text: self.$viewModel.input, axis: .vertical)
           .textFieldStyle(.plain)
-        // Trailing control switches between mic (no input) and send (has input)
-        if self.hasInput {
+        if self.viewModel.isStreaming {
+          Button(action: self.viewModel.stopStreaming) {
+            Image(systemName: "stop.circle.fill")
+              .font(.system(size: 20, weight: .semibold))
+              .symbolRenderingMode(.hierarchical)
+              .foregroundStyle(.secondary)
+              .frame(width: 32, height: 32)
+              .contentShape(Rectangle())
+          }
+          .accessibilityLabel("Stop generating")
+          .transition(.opacity.combined(with: .scale))
+          .buttonStyle(PressBounceStyle())
+        } else if self.viewModel.canSend {
           Button(action: self.viewModel.send) {
             Image(systemName: "arrow.up.circle.fill")
               .font(.system(size: 20, weight: .semibold))
@@ -161,15 +173,20 @@ struct AssistantTabView: View {
           .accessibilityLabel("Send")
           .transition(.opacity.combined(with: .scale))
           .buttonStyle(PressBounceStyle())
+        } else if self.viewModel.isPreparingAttachment {
+          ProgressView()
+            .frame(width: 32, height: 32)
         } else {
-          Button(action: self.toggleInlineRecording) {
-            Image(systemName: self.isRecordingInline ? "mic.fill" : "mic")
-              .foregroundStyle(self.isRecordingInline ? .red : .secondary)
+          Button(action: self.viewModel.send) {
+            Image(systemName: "arrow.up.circle.fill")
+              .font(.system(size: 20, weight: .semibold))
+              .symbolRenderingMode(.hierarchical)
+              .foregroundStyle(self.viewModel.canSend ? Color.accentColor : .secondary)
               .frame(width: 32, height: 32)
               .contentShape(Rectangle())
           }
-          .accessibilityLabel("Record voice for input")
-          .transition(.opacity.combined(with: .scale))
+          .accessibilityLabel("Send")
+          .disabled(self.viewModel.canSend == false)
           .buttonStyle(PressBounceStyle())
         }
       }
@@ -177,17 +194,6 @@ struct AssistantTabView: View {
       .padding(.horizontal, 12)
       .background(Color(.secondarySystemBackground))
       .clipShape(Capsule())
-      if self.isVoiceModeEnabled {
-        // Big black button enters voice mode (distinct from inline mic)
-        Button(action: { self.showVoiceMode = true }, label: {
-          Circle()
-            .fill(Color.black)
-            .frame(width: 36, height: 36)
-            .overlay(Image(systemName: "waveform").foregroundStyle(.white))
-        })
-        .accessibilityLabel("Voice Mode")
-        .buttonStyle(PressBounceStyle())
-      }
     }
     .padding(.horizontal)
     .padding(.vertical, 8)
@@ -221,54 +227,126 @@ struct AssistantTabView: View {
 
   // Suggestion visibility: show on empty history and when not typing
   private var showSuggestions: Bool {
-    self.viewModel.messages.isEmpty && self.viewModel.input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    self.viewModel.messages.isEmpty
+      && self.viewModel.input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+      && self.viewModel.draftAttachment == nil
+      && !self.viewModel.isPreparingAttachment
   }
 
-  private var hasInput: Bool {
-    !self.viewModel.input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+  private var draftAttachmentStack: some View {
+    VStack(spacing: 8) {
+      if self.viewModel.isPreparingAttachment {
+        HStack(spacing: 10) {
+          ProgressView()
+          Text("Preparing image...")
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+          Spacer()
+        }
+        .padding(.horizontal)
+      }
+
+      if let attachment = self.viewModel.draftAttachment {
+        HStack(spacing: 12) {
+          self.attachmentPreview(for: attachment)
+
+          VStack(alignment: .leading, spacing: 3) {
+            Text("Image attached")
+              .font(.subheadline.weight(.semibold))
+            Text(Self.formatByteCount(attachment.data.count))
+              .font(.caption)
+              .foregroundStyle(.secondary)
+          }
+
+          Spacer(minLength: 8)
+
+          Button {
+            self.viewModel.removeDraftAttachment()
+          } label: {
+            Image(systemName: "xmark.circle.fill")
+              .font(.title3)
+              .foregroundStyle(.secondary)
+          }
+          .accessibilityLabel("Remove attached image")
+        }
+        .padding(.vertical, 8)
+        .padding(.horizontal, 10)
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .padding(.horizontal)
+      }
+
+      if let error = self.viewModel.attachmentErrorMessage {
+        HStack(spacing: 8) {
+          Image(systemName: "exclamationmark.circle.fill")
+            .foregroundStyle(.red)
+          Text(error)
+            .font(.footnote)
+            .foregroundStyle(.red)
+            .fixedSize(horizontal: false, vertical: true)
+          Spacer()
+        }
+        .padding(.horizontal)
+      }
+
+      if let error = self.viewModel.transportError {
+        HStack(spacing: 8) {
+          Image(systemName: "wifi.exclamationmark")
+            .foregroundStyle(.red)
+          Text(error)
+            .font(.footnote)
+            .foregroundStyle(.red)
+            .fixedSize(horizontal: false, vertical: true)
+          Spacer()
+        }
+        .padding(.horizontal)
+      }
+    }
   }
 
-  // Toggle inline speech recognition and stream transcript into the input field.
-  private func toggleInlineRecording() {
-    if self.isRecordingInline {
-      SpeechTranscriber.shared.stop()
-      self.isRecordingInline = false
-      self.inlineStart = nil
-      self.inlinePower = 0
-      return
+  private func attachmentPreview(for attachment: ChatMessage.ImageAttachment) -> some View {
+    Group {
+      if let image = UIImage(data: attachment.data) {
+        Image(uiImage: image)
+          .resizable()
+          .scaledToFill()
+      } else {
+        ZStack {
+          Color(.systemGray5)
+          Image(systemName: "photo")
+            .foregroundStyle(.secondary)
+        }
+      }
     }
+    .frame(width: 54, height: 54)
+    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+  }
 
-    SpeechTranscriber.shared.requestAuthorization { granted in
-      guard granted else { self.showSpeakInfo = true; return }
-      self.isRecordingInline = true
-      let base = self.viewModel.input
-      self.inlineStart = Date()
-      SpeechTranscriber.shared.startTranscribing(onPartial: { partial in
-        // Debounce partial updates to reduce cursor jumpiness
-        self.inlineDebounceItem?.cancel()
-        let item = DispatchWorkItem {
-          let spacer = base.isEmpty ? "" : " "
-          self.viewModel.input = base + spacer + partial
+  private func messageAttachmentView(_ attachment: ChatMessage.ImageAttachment, maxWidth: CGFloat) -> some View {
+    Group {
+      if let image = UIImage(data: attachment.data) {
+        Image(uiImage: image)
+          .resizable()
+          .scaledToFit()
+          .frame(maxWidth: maxWidth, maxHeight: 280)
+          .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+      } else {
+        ZStack {
+          Color(.systemGray5)
+          Image(systemName: "photo")
+            .foregroundStyle(.secondary)
         }
-        self.inlineDebounceItem = item
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.18, execute: item)
-      }, onFinal: { finalText in
-        DispatchQueue.main.async {
-          let spacer = base.isEmpty ? "" : " "
-          self.viewModel.input = base + spacer + finalText
-          self.isRecordingInline = false
-          self.inlineStart = nil
-        }
-        SpeechTranscriber.shared.stop()
-      }, onError: { _ in
-        DispatchQueue.main.async {
-          self.isRecordingInline = false
-          self.inlineStart = nil
-        }
-      }, onPower: { p in
-        self.inlinePower = p
-      })
+        .frame(width: maxWidth, height: maxWidth * 0.75)
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+      }
     }
+  }
+
+  private static func formatByteCount(_ count: Int) -> String {
+    let formatter = ByteCountFormatter()
+    formatter.allowedUnits = [.useKB, .useMB]
+    formatter.countStyle = .file
+    return formatter.string(fromByteCount: Int64(count))
   }
 
   private struct Suggestion: Identifiable {
@@ -298,49 +376,6 @@ private struct PressBounceStyle: ButtonStyle {
     configuration.label
       .scaleEffect(configuration.isPressed ? self.scale : 1.0)
       .animation(.spring(response: 0.2, dampingFraction: 0.6), value: configuration.isPressed)
-  }
-}
-
-// Small inline recording indicator that lives inside the input pill
-private struct InlineRecordingIndicator: View {
-  let start: Date
-  let power: Double // 0...1
-
-  var body: some View {
-    TimelineView(.periodic(from: self.start, by: 0.5)) { _ in
-      HStack(spacing: 6) {
-        WaveBars(power: self.power)
-        Text(Self.formatElapsed(since: self.start))
-          .font(.caption2)
-          .monospacedDigit()
-          .foregroundStyle(.secondary)
-      }
-      .padding(.vertical, 3)
-      .padding(.horizontal, 8)
-      .background(Color(.tertiarySystemFill))
-      .clipShape(Capsule())
-    }
-  }
-
-  private static func formatElapsed(since: Date) -> String {
-    let seconds = max(0, Int(Date().timeIntervalSince(since)))
-    let m = seconds / 60
-    let s = seconds % 60
-    return String(format: "%02d:%02d", m, s)
-  }
-}
-
-private struct WaveBars: View {
-  let power: Double // 0...1
-  var body: some View {
-    HStack(spacing: 2) {
-      ForEach(0..<3, id: \.self) { i in
-        let height = 6.0 + self.power * 10.0 + Double(i) * 2.0
-        Capsule()
-          .fill(Color.secondary)
-          .frame(width: 3, height: height)
-      }
-    }
   }
 }
 

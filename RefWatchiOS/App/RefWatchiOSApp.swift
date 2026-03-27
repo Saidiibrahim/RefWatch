@@ -8,6 +8,7 @@
 import Combine
 import OSLog
 import RefWatchCore
+import Supabase
 import SwiftData
 import SwiftUI
 import UIKit
@@ -29,7 +30,7 @@ struct RefWatchiOSApp: App {
   private let competitionStore: CompetitionLibraryStoring
   private let venueStore: VenueLibraryStoring
   @State private var matchVM: MatchViewModel
-  @StateObject private var syncController: ConnectivitySyncController
+  private let syncController: ConnectivitySyncController?
   @StateObject private var syncDiagnostics = SyncDiagnosticsCenter()
   @Environment(\.scenePhase) private var scenePhase
   @State private var lastAuthState: AuthState = .signedOut
@@ -59,6 +60,63 @@ struct RefWatchiOSApp: App {
       // Venues
       VenueRecord.self,
     ])
+    let usesInMemoryTestStack =
+      TestEnvironment.isRunningUnitTests
+      || TestEnvironment.launchesSignedInUITestShell
+
+    if usesInMemoryTestStack {
+      let clientProvider = SupabaseClientProvider.shared
+      let authController = SupabaseAuthController(
+        clientProvider: clientProvider,
+        profileSynchronizer: UnitTestProfileSynchronizer(),
+        bootstrapSessionOnInit: false,
+        observeChangesOnInit: false)
+      _authController = StateObject(wrappedValue: authController)
+      _authCoordinator = StateObject(wrappedValue: AuthenticationCoordinator(authController: authController))
+
+      if TestEnvironment.launchesSignedInUITestShell {
+        authController.forceStateForUITests(
+          .signedIn(
+            userId: "ui-test-user",
+            email: "ui-tests@example.com",
+            displayName: "UI Tests"))
+      }
+
+      let containerResult: (ModelContainer, SwiftDataMatchHistoryStore)
+      do {
+        containerResult = try ModelContainerFactory.makeStore(
+          builder: Self.containerBuilder,
+          schema: schema,
+          auth: NoopAuth())
+      } catch {
+        fatalError("Failed to create in-memory SwiftData container for unit tests: \(error)")
+      }
+
+      let container = containerResult.0
+      let historyRepo: MatchHistoryStoring = containerResult.1
+      let journalStore: JournalEntryStoring = InMemoryJournalStore()
+      let scheduleStore: ScheduleStoring = InMemoryScheduleStore()
+      let teamStore: TeamLibraryStoring = InMemoryTeamLibraryStore()
+      let competitionStore: CompetitionLibraryStoring = InMemoryCompetitionLibraryStore()
+      let venueStore: VenueLibraryStoring = InMemoryVenueLibraryStore()
+      let matchViewModel = MatchViewModel(
+        history: historyRepo,
+        haptics: NoopHaptics(),
+        lifecycleHaptics: NoopMatchLifecycleHaptics())
+
+      self.modelContainer = container
+      self.historyStore = historyRepo
+      self.matchSyncController = nil
+      self.journalStore = journalStore
+      self.scheduleStore = scheduleStore
+      self.teamStore = teamStore
+      self.competitionStore = competitionStore
+      self.venueStore = venueStore
+      _matchVM = State(initialValue: matchViewModel)
+      self.syncController = nil
+      return
+    }
+
     let clientProvider = SupabaseClientProvider.shared
     let synchronizer = SupabaseUserProfileSynchronizer(clientProvider: clientProvider)
     let authController = SupabaseAuthController(
@@ -145,73 +203,17 @@ struct RefWatchiOSApp: App {
     self.competitionStore = cStore
     self.venueStore = vStore
     _matchVM = State(initialValue: vm)
-    _syncController = StateObject(wrappedValue: controller)
+    self.syncController = controller
   }
 
   var body: some Scene {
     WindowGroup {
-      self.rootContent
-        .environmentObject(self.router)
-        .environmentObject(self.syncDiagnostics)
-        .environmentObject(self.themeManager)
-        .environmentObject(self.authController)
-        .environmentObject(self.authCoordinator)
-        .environment(\.journalStore, self.journalStore)
-        .theme(self.themeManager.theme)
-        .task {
-          await self.authController.restoreSessionIfAvailable()
-          self.authCoordinator.presentWelcomeIfNeeded()
-          // One-time healing: if any completed matches reference a schedule still marked scheduled,
-          // flip that schedule to completed to keep watch/iOS lists clean.
-          Task { @MainActor in
-            let completed = (try? self.historyStore.loadAll()) ?? []
-            let schedules = self.scheduleStore.loadAll()
-            var changed: [ScheduledMatch] = []
-            for snapshot in completed {
-              if let sid = snapshot.scheduledMatchId, let idx = schedules.firstIndex(where: { $0.id == sid }) {
-                var sc = schedules[idx]
-                if sc.status == .scheduled { sc.status = .completed; changed.append(sc) }
-              }
-            }
-            for s in changed {
-              try? self.scheduleStore.save(s)
-            }
-          }
-        }
-        .onReceive(self.router.$authenticationRequest.compactMap { $0 }) { screen in
-          self.authCoordinator.activeScreen = screen
-          self.router.authenticationRequest = nil
-        }
-        .onChange(of: self.scenePhase) { _, phase in
-          // Keep WCSession alive while signed in, even when backgrounded.
-          // Only stop on explicit sign-out (handled in auth state onChange).
-          // This ensures the watch can sync library data and completed matches
-          // even when the iOS app is not in the foreground.
-          switch phase {
-          case .active:
-            if self.authController.isSignedIn {
-              self.syncController.start()
-            } else {
-              self.syncController.stop()
-            }
-          case .inactive, .background:
-            // Don't stop - keep session alive for background transfers
-            break
-          @unknown default:
-            break
-          }
-        }
-        .onChange(of: self.authController.state) { _, state in
-          switch state {
-          case .signedIn:
-            if self.scenePhase == .active { self.syncController.start() }
-          case .signedOut:
-            self.syncController.stop()
-          }
-          handleAuthStateTransition(to: state)
-        }
-        .fullScreenCover(item: self.authScreenBinding, content: self.authScreenView)
-        .animation(.easeInOut(duration: 0.25), value: self.authController.state)
+      if TestEnvironment.isRunningUnitTests {
+        Color.clear
+          .accessibilityIdentifier("UnitTestHost")
+      } else {
+        self.liveRootContent
+      }
     }
   }
 
@@ -232,6 +234,74 @@ struct RefWatchiOSApp: App {
     case .signedOut:
       SignedOutGateView()
     }
+  }
+
+  private var liveRootContent: some View {
+    self.rootContent
+      .environmentObject(self.router)
+      .environmentObject(self.syncDiagnostics)
+      .environmentObject(self.themeManager)
+      .environmentObject(self.authController)
+      .environmentObject(self.authCoordinator)
+      .environment(\.journalStore, self.journalStore)
+      .theme(self.themeManager.theme)
+      .task {
+        if TestEnvironment.launchesSignedInUITestShell {
+          return
+        }
+        await self.authController.restoreSessionIfAvailable()
+        self.authCoordinator.presentWelcomeIfNeeded()
+        // One-time healing: if any completed matches reference a schedule still marked scheduled,
+        // flip that schedule to completed to keep watch/iOS lists clean.
+        Task { @MainActor in
+          let completed = (try? self.historyStore.loadAll()) ?? []
+          let schedules = self.scheduleStore.loadAll()
+          var changed: [ScheduledMatch] = []
+          for snapshot in completed {
+            if let sid = snapshot.scheduledMatchId, let idx = schedules.firstIndex(where: { $0.id == sid }) {
+              var sc = schedules[idx]
+              if sc.status == .scheduled { sc.status = .completed; changed.append(sc) }
+            }
+          }
+          for s in changed {
+            try? self.scheduleStore.save(s)
+          }
+        }
+      }
+      .onReceive(self.router.$authenticationRequest.compactMap { $0 }) { screen in
+        self.authCoordinator.activeScreen = screen
+        self.router.authenticationRequest = nil
+      }
+      .onChange(of: self.scenePhase) { _, phase in
+        // Keep WCSession alive while signed in, even when backgrounded.
+        // Only stop on explicit sign-out (handled in auth state onChange).
+        // This ensures the watch can sync library data and completed matches
+        // even when the iOS app is not in the foreground.
+        switch phase {
+        case .active:
+          if self.authController.isSignedIn {
+            self.syncController?.start()
+          } else {
+            self.syncController?.stop()
+          }
+        case .inactive, .background:
+          // Don't stop - keep session alive for background transfers
+          break
+        @unknown default:
+          break
+        }
+      }
+      .onChange(of: self.authController.state) { _, state in
+        switch state {
+        case .signedIn:
+          if self.scenePhase == .active { self.syncController?.start() }
+        case .signedOut:
+          self.syncController?.stop()
+        }
+        handleAuthStateTransition(to: state)
+      }
+      .fullScreenCover(item: self.authScreenBinding, content: self.authScreenView)
+      .animation(.easeInOut(duration: 0.25), value: self.authController.state)
   }
 }
 
@@ -285,4 +355,8 @@ extension RefWatchiOSApp {
       }
     }
   }
+}
+
+private struct UnitTestProfileSynchronizer: SupabaseUserProfileSynchronizing {
+  func syncIfNeeded(session: Session?) async throws {}
 }
