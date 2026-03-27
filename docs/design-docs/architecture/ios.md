@@ -12,6 +12,7 @@
   - `ConnectivityClient` (placeholder) for syncing with watch.
   - `SupabaseAuthController` for authentication flows.
   - `AssistantProviding` / `OpenAIAssistantService` for the server-backed multimodal assistant proxy.
+  - `MatchSheetImportProviding` / `OpenAIMatchSheetImportService` for the iPhone-only screenshot-to-match-sheet import flow.
 
 ## Feature Modules
 - `Matches`: watch match history, continue sessions, and manage saved data.
@@ -35,6 +36,8 @@
 - When kickoff starts from a scheduled fixture, the live match must preserve the schedule's home/away team identity alongside the frozen match sheets; changing teams requires going back through the schedule editor first.
 - Watch remains a consumer of the synced frozen schedule data; it does not author official match sheets.
 - The assistant surface is not shared to watchOS; keep all assistant network and Photos attachment handling inside the iOS target.
+- Screenshot import for upcoming matches is iPhone-only as well. `UpcomingMatchEditorView` owns the multi-image Photos picker, transient parse state, and confirm/apply step, while `MatchSheetEditorView` is reused as the review surface for imported drafts.
+- The import flow should reuse the assistant's image-normalization approach, but it must not reuse the assistant chat history or streaming response contract.
 
 ## Shared Code Consumption
 - Most domain models originate in watch feature modules and are shared via target membership.

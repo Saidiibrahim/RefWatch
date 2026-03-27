@@ -14,6 +14,15 @@ This document captures the RefWatch assistant path after the move to a server-ba
 
 The app no longer stores or reads an OpenAI API key from the bundle. The assistant surface remains iOS-only.
 
+## Structured Extraction for Match-Sheet Import
+
+The upcoming-match screenshot import flow uses the same Responses API family, but it is a separate non-streaming parser contract rather than a chat transcript contract.
+
+- **Request shape**: a single user turn can carry multiple `input_image` parts so a complete sheet can be reconstructed from several screenshots.
+- **Response shape**: use `text.format` with a strict JSON schema so the model returns one structured payload with `parsedSheet`, `warnings`, `extractedTeamName`, and `terminalStatus`.
+- **Behavioral rules**: the prompt should forbid inventing unseen players, allow shirt numbers to be `null` when unreadable, preserve visible order when it is clear, and surface ambiguity instead of guessing.
+- **Persistence policy**: keep `store: false` and treat the parsed result as transient until the referee confirms the draft in the upcoming-match editor.
+
 ## Request Construction
 
 The edge function forwards multimodal turns using the Responses `input` array. Local Photos attachments are normalized to JPEG and encoded as a base64 data URL before the request is sent upstream.

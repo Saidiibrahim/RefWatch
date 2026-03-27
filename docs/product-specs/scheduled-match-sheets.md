@@ -74,6 +74,14 @@ Let referees prepare official home and away match sheets per scheduled fixture o
 - If the selected library team has no players or staff, iPhone must warn clearly and route users into sheet editing and/or library editing rather than pretending the side is ready.
 - Editing match sheets after kickoff is out of scope for v1.
 
+### Screenshot Import
+- Each side also exposes `Import from Screenshots` for referees who have the match sheet split across multiple Photos images.
+- Import is per side and supports multiple screenshots in one submission so a complete sheet can be reconstructed from several captures.
+- The app parses the screenshots into starters, substitutes, coaching staff, and medical staff when those roles are visible, then presents a transient review draft before anything is applied to the schedule.
+- `Apply Import` replaces the entire selected side with the normalized draft, and the imported sheet remains `draft` after apply and save so referees can continue editing it like any other schedule-owned sheet.
+- The import parser should surface warnings for unreadable text, ambiguous identity, duplicate entries, unsupported roles, or team-name mismatches so the referee can correct the draft before saving.
+- Raw screenshots and parser output stay transient in the import flow; only the normalized schedule-owned match sheet is persisted.
+
 ## Watch Consumption Rules
 - Watch substitution/player selection uses scheduled match sheets first when both sides are `ready`.
 - If a schedule contains match-sheet data but either side is not `ready`, watch must use manual/numeric entry and must not silently mix live library rosters into the official participant path.
