@@ -28,7 +28,11 @@ enum TestEnvironment {
   }
 
   static var launchesSignedInUITestShell: Bool {
-    self.isRunningUITests
-      && ProcessInfo.processInfo.environment[self.uiTestAuthStateKey] == "signed_in"
+    #if DEBUG
+      self.isRunningUITests
+        && ProcessInfo.processInfo.environment[self.uiTestAuthStateKey] == "signed_in"
+    #else
+      false
+    #endif
   }
 }

@@ -355,13 +355,11 @@ final class SupabaseAuthController: ObservableObject, SupabaseAuthStateProviding
     return nil
   }
 
-  #if DEBUG
-    func forceStateForUITests(_ state: AuthState) {
-      guard TestEnvironment.launchesSignedInUITestShell else { return }
-      self.profileSyncTask?.cancel()
-      self.profileSyncTask = nil
-      self.state = state
-      self.lastError = nil
-    }
-  #endif
+  func forceStateForUITests(_ state: AuthState) {
+    guard TestEnvironment.launchesSignedInUITestShell else { return }
+    self.profileSyncTask?.cancel()
+    self.profileSyncTask = nil
+    self.state = state
+    self.lastError = nil
+  }
 }
