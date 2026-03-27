@@ -79,15 +79,63 @@ enum MatchSheetDraftFactory {
   }
 }
 
+enum MatchSheetEditorMode: Equatable {
+  case standard
+  case importReview(warnings: [MatchSheetImportWarning], extractedTeamName: String?)
+
+  var allowsSourceReseed: Bool {
+    switch self {
+    case .standard:
+      return true
+    case .importReview:
+      return false
+    }
+  }
+
+  var allowsReadyStateChanges: Bool {
+    switch self {
+    case .standard:
+      return true
+    case .importReview:
+      return false
+    }
+  }
+}
+
 struct MatchSheetEditorView: View {
   let sideTitle: String
   let sourceTeam: TeamRecord?
   let fallbackTeamName: String
   @Binding var sheet: ScheduledMatchSheet
+  let mode: MatchSheetEditorMode
+  let onCancelRequest: (() -> Void)?
+  let onConfirmImport: ((ScheduledMatchSheet) -> Void)?
+  let replaceConfirmationMessage: String?
 
   @Environment(\.dismiss) private var dismiss
   @State private var playerDraft: PlayerDraft?
   @State private var staffDraft: StaffDraft?
+  @State private var showingReplaceConfirmation = false
+
+  init(
+    sideTitle: String,
+    sourceTeam: TeamRecord?,
+    fallbackTeamName: String,
+    sheet: Binding<ScheduledMatchSheet>,
+    mode: MatchSheetEditorMode = .standard,
+    onCancelRequest: (() -> Void)? = nil,
+    onConfirmImport: ((ScheduledMatchSheet) -> Void)? = nil,
+    replaceConfirmationMessage: String? = nil)
+  {
+    self.sideTitle = sideTitle
+    self.sourceTeam = sourceTeam
+    self.fallbackTeamName = fallbackTeamName
+    self._sheet = sheet
+    self.mode = mode
+    self.onCancelRequest = onCancelRequest
+    self.onConfirmImport = onConfirmImport
+    self.replaceConfirmationMessage = replaceConfirmationMessage
+  }
 
   var body: some View {
     NavigationStack {
@@ -113,13 +161,36 @@ struct MatchSheetEditorView: View {
           }
         }
 
-        Section("Source Actions") {
-          Button("Reseed from Source Team") {
-            self.sheet = MatchSheetDraftFactory.seededDraft(
-              sourceTeam: self.sourceTeam,
-              fallbackTeamName: self.fallbackTeamName)
+        if case let .importReview(warnings, extractedTeamName) = self.mode {
+          Section("Import Review") {
+            if let extractedTeamName {
+              LabeledContent("Detected Team") {
+                Text(extractedTeamName)
+              }
+            }
+
+            if warnings.isEmpty {
+              Text("No parser warnings were reported.")
+                .foregroundStyle(.secondary)
+            } else {
+              ForEach(warnings) { warning in
+                Text(warning.message)
+                  .font(.footnote)
+                  .foregroundStyle(.orange)
+              }
+            }
           }
-          .disabled(self.sourceTeam == nil)
+        }
+
+        if self.mode.allowsSourceReseed {
+          Section("Source Actions") {
+            Button("Reseed from Source Team") {
+              self.sheet = MatchSheetDraftFactory.seededDraft(
+                sourceTeam: self.sourceTeam,
+                fallbackTeamName: self.fallbackTeamName)
+            }
+            .disabled(self.sourceTeam == nil)
+          }
         }
 
         Section("Starters") {
@@ -158,31 +229,60 @@ struct MatchSheetEditorView: View {
           }
         }
 
-        Section {
-          if self.sheet.isReady {
-            Button("Mark Draft") {
-              self.sheet.status = .draft
-              self.sheet = self.normalizedSheet()
+        if self.mode.allowsReadyStateChanges {
+          Section {
+            if self.sheet.isReady {
+              Button("Mark Draft") {
+                self.sheet.status = .draft
+                self.sheet = self.normalizedSheet()
+              }
+              .foregroundStyle(.orange)
+            } else {
+              Button("Mark Ready") {
+                var updated = self.normalizedSheet()
+                updated.status = .ready
+                self.sheet = updated.normalized()
+              }
+              .disabled(self.normalizedSheet().meetsReadyRequirements == false)
             }
-            .foregroundStyle(.orange)
-          } else {
-            Button("Mark Ready") {
-              var updated = self.normalizedSheet()
-              updated.status = .ready
-              self.sheet = updated.normalized()
-            }
-            .disabled(self.normalizedSheet().meetsReadyRequirements == false)
           }
         }
       }
       .navigationTitle("\(self.sideTitle) Match Sheet")
       .toolbar {
-        ToolbarItem(placement: .cancellationAction) {
-          Button("Done") {
-            self.sheet = self.normalizedSheet()
-            self.dismiss()
+        switch self.mode {
+        case .standard:
+          ToolbarItem(placement: .cancellationAction) {
+            Button("Done") {
+              self.sheet = self.normalizedSheet()
+              self.dismiss()
+            }
+          }
+        case .importReview:
+          ToolbarItem(placement: .cancellationAction) {
+            Button("Cancel") {
+              self.onCancelRequest?()
+            }
+          }
+          ToolbarItem(placement: .confirmationAction) {
+            Button("Apply Import") {
+              if self.replaceConfirmationMessage == nil {
+                self.applyImport()
+              } else {
+                self.showingReplaceConfirmation = true
+              }
+            }
+            .accessibilityIdentifier("match-sheet-import-apply")
           }
         }
+      }
+      .alert("Replace Existing Match Sheet?", isPresented: self.$showingReplaceConfirmation) {
+        Button("Cancel", role: .cancel) {}
+        Button("Replace", role: .destructive) {
+          self.applyImport()
+        }
+      } message: {
+        Text(self.replaceConfirmationMessage ?? "Applying this import will replace the current match sheet.")
       }
       .sheet(item: self.$playerDraft) { draft in
         NavigationStack {
@@ -318,6 +418,14 @@ struct MatchSheetEditorView: View {
       self.sheet,
       sourceTeam: self.sourceTeam,
       fallbackTeamName: self.fallbackTeamName)
+  }
+
+  private func applyImport() {
+    var updated = self.normalizedSheet()
+    updated.status = .draft
+    updated = updated.normalized()
+    self.sheet = updated
+    self.onConfirmImport?(updated)
   }
 
   private func playerTitle(_ entry: MatchSheetPlayerEntry) -> String {

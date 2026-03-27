@@ -12,6 +12,7 @@ import SwiftUI
 struct UpcomingMatchEditorView: View {
   let scheduleStore: ScheduleStoring
   let teamStore: TeamLibraryStoring
+  let matchSheetImportService: MatchSheetImportProviding?
   let existingMatch: ScheduledMatch?
   var onSaved: (() -> Void)?
 
@@ -26,7 +27,10 @@ struct UpcomingMatchEditorView: View {
   @State private var awayMatchSheet: ScheduledMatchSheet
 
   @State private var teams: [TeamRecord] = []
+  @State private var hasLoadedTeams = false
   @State private var activeSheetSide: MatchSheetSide?
+  @State private var activeImportSide: MatchSheetSide?
+  @State private var importDraft: MatchSheetImportDraft?
   @State private var editingSourceTeam: TeamRecord?
   @State private var showingHomePicker = false
   @State private var showingAwayPicker = false
@@ -36,11 +40,13 @@ struct UpcomingMatchEditorView: View {
   init(
     scheduleStore: ScheduleStoring,
     teamStore: TeamLibraryStoring,
+    matchSheetImportService: MatchSheetImportProviding? = MatchSheetImportServiceFactory.makeDefault(),
     existingMatch: ScheduledMatch? = nil,
     onSaved: (() -> Void)? = nil)
   {
     self.scheduleStore = scheduleStore
     self.teamStore = teamStore
+    self.matchSheetImportService = matchSheetImportService
     self.existingMatch = existingMatch
     self.onSaved = onSaved
 
@@ -129,6 +135,45 @@ struct UpcomingMatchEditorView: View {
         sourceTeam: self.sourceTeam(for: side),
         fallbackTeamName: self.teamName(for: side),
         sheet: self.binding(for: side))
+    }
+    .sheet(item: self.$activeImportSide) { side in
+      if let service = self.matchSheetImportService {
+        MatchSheetImportPickerSheet(
+          side: side,
+          service: service,
+          expectedTeamName: self.teamName(for: side),
+          onCancel: {
+            self.activeImportSide = nil
+          },
+          onImported: { draft in
+            let preparedDraft = self.prepareImportDraft(draft)
+            self.activeImportSide = nil
+            Task { @MainActor in
+              self.importDraft = preparedDraft
+            }
+          })
+      }
+    }
+    .sheet(isPresented: self.importReviewBinding) {
+      if let importDraft = self.importDraft {
+        MatchSheetEditorView(
+          sideTitle: importDraft.side.title,
+          sourceTeam: self.sourceTeam(for: importDraft.side),
+          fallbackTeamName: self.teamName(for: importDraft.side),
+          sheet: self.importDraftSheetBinding,
+          mode: .importReview(
+            warnings: importDraft.warnings,
+            extractedTeamName: importDraft.extractedTeamName),
+          onCancelRequest: {
+            self.importDraft = nil
+          },
+          onConfirmImport: { normalizedSheet in
+            self.applyImportSheet(normalizedSheet, for: importDraft.side)
+          },
+          replaceConfirmationMessage: self.sheet(for: importDraft.side).hasAnyEntries
+            ? "\(importDraft.side.title) match sheet already has entries. Applying this import will replace the entire side."
+            : nil)
+      }
     }
     .sheet(item: self.$editingSourceTeam) { team in
       NavigationStack {
@@ -235,6 +280,14 @@ struct UpcomingMatchEditorView: View {
         self.activeSheetSide = side
       }
 
+      if self.supportsMatchSheetImport {
+        Button("Import from Screenshots") {
+          self.activeImportSide = side
+        }
+        .accessibilityIdentifier("match-sheet-import-\(side.rawValue)")
+        .disabled(self.hasLoadedTeams == false)
+      }
+
       if let team {
         Button("Edit Source Team") {
           self.editingSourceTeam = team
@@ -290,6 +343,10 @@ struct UpcomingMatchEditorView: View {
   }
 
   private func loadTeams() async {
+    defer {
+      self.hasLoadedTeams = true
+    }
+
     do {
       try await self.teamStore.refreshFromRemote()
     } catch {
@@ -379,7 +436,9 @@ struct UpcomingMatchEditorView: View {
     let desiredTeamName = selectedTeam?.name
       ?? normalizedCurrent.sourceTeamName
       ?? normalizedFallback
-    let sourceSelectionChanged = selectedTeam != nil && normalizedCurrent.sourceTeamId != desiredTeamId
+    let sourceSelectionChanged = selectedTeam != nil
+      && normalizedCurrent.sourceTeamId != nil
+      && normalizedCurrent.sourceTeamId != desiredTeamId
 
     if sourceSelectionChanged {
       return MatchSheetDraftFactory.emptyDraft(sourceTeam: selectedTeam, fallbackTeamName: desiredTeamName)
@@ -429,9 +488,13 @@ struct UpcomingMatchEditorView: View {
   private func handleSelectedSourceTeam(_ team: TeamRecord, for side: MatchSheetSide) {
     let currentSheet = self.sheet(for: side)
     let currentSourceTeamId = currentSheet.sourceTeamId ?? self.sourceTeam(for: side)?.id
+    let matchesCurrentSourceName = currentSheet.sourceTeamName?
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+      .localizedCaseInsensitiveCompare(team.name.trimmingCharacters(in: .whitespacesAndNewlines)) == .orderedSame
     let isSameSource = currentSourceTeamId == team.id
+      || (currentSourceTeamId == nil && matchesCurrentSourceName == true)
 
-    if isSameSource || currentSheet.hasAnyEntries == false {
+    if isSameSource || currentSheet.hasAnyEntries == false || currentSheet.sourceTeamId == nil {
       self.commitSourceTeamChange(.init(side: side, team: team))
     } else {
       self.pendingSourceTeamChange = .init(side: side, team: team)
@@ -445,7 +508,12 @@ struct UpcomingMatchEditorView: View {
     case .home:
       self.selectedHomeTeam = pending.team
       self.homeName = pending.team.name
-      if self.homeMatchSheet.sourceTeamId != pending.team.id {
+      if self.homeMatchSheet.sourceTeamId == nil, self.homeMatchSheet.hasAnyEntries {
+        self.homeMatchSheet = MatchSheetEditorState.normalizedSheet(
+          self.homeMatchSheet,
+          sourceTeam: pending.team,
+          fallbackTeamName: pending.team.name)
+      } else if self.homeMatchSheet.sourceTeamId != pending.team.id {
         self.homeMatchSheet = MatchSheetDraftFactory.emptyDraft(
           sourceTeam: pending.team,
           fallbackTeamName: pending.team.name)
@@ -453,12 +521,71 @@ struct UpcomingMatchEditorView: View {
     case .away:
       self.selectedAwayTeam = pending.team
       self.awayName = pending.team.name
-      if self.awayMatchSheet.sourceTeamId != pending.team.id {
+      if self.awayMatchSheet.sourceTeamId == nil, self.awayMatchSheet.hasAnyEntries {
+        self.awayMatchSheet = MatchSheetEditorState.normalizedSheet(
+          self.awayMatchSheet,
+          sourceTeam: pending.team,
+          fallbackTeamName: pending.team.name)
+      } else if self.awayMatchSheet.sourceTeamId != pending.team.id {
         self.awayMatchSheet = MatchSheetDraftFactory.emptyDraft(
           sourceTeam: pending.team,
           fallbackTeamName: pending.team.name)
       }
     }
+  }
+
+  private func prepareImportDraft(_ draft: MatchSheetImportDraft) -> MatchSheetImportDraft {
+    var aligned = draft
+    aligned.sheet = MatchSheetEditorState.normalizedSheet(
+      draft.sheet,
+      sourceTeam: self.sourceTeam(for: draft.side),
+      fallbackTeamName: self.teamName(for: draft.side))
+    aligned.sheet.status = .draft
+    aligned.sheet = aligned.sheet.normalized()
+    return aligned
+  }
+
+  private func applyImportSheet(_ sheet: ScheduledMatchSheet, for side: MatchSheetSide) {
+    let normalized = MatchSheetEditorState.normalizedSheet(
+      sheet,
+      sourceTeam: self.sourceTeam(for: side),
+      fallbackTeamName: self.teamName(for: side))
+
+    switch side {
+    case .home:
+      self.homeMatchSheet = normalized
+    case .away:
+      self.awayMatchSheet = normalized
+    }
+
+    self.importDraft = nil
+  }
+
+  private var supportsMatchSheetImport: Bool {
+    UIDevice.current.userInterfaceIdiom == .phone && self.matchSheetImportService != nil
+  }
+
+  private var importReviewBinding: Binding<Bool> {
+    Binding(
+      get: { self.importDraft != nil },
+      set: { isPresented in
+        if isPresented == false {
+          self.importDraft = nil
+        }
+      })
+  }
+
+  private var importDraftSheetBinding: Binding<ScheduledMatchSheet> {
+    Binding(
+      get: {
+        self.importDraft?.sheet
+          ?? MatchSheetDraftFactory.emptyDraft(sourceTeam: nil, fallbackTeamName: "")
+      },
+      set: { updatedSheet in
+        guard var importDraft = self.importDraft else { return }
+        importDraft.sheet = updatedSheet
+        self.importDraft = importDraft
+      })
   }
 
   private static func defaultKickoff() -> Date {
@@ -469,22 +596,6 @@ struct UpcomingMatchEditorView: View {
     comps.hour = 14
     comps.minute = 0
     return cal.nextDate(after: now, matching: comps, matchingPolicy: .nextTimePreservingSmallerComponents) ?? now
-  }
-}
-
-private enum MatchSheetSide: String, Identifiable {
-  case home
-  case away
-
-  var id: String { self.rawValue }
-
-  var title: String {
-    switch self {
-    case .home:
-      return "Home"
-    case .away:
-      return "Away"
-    }
   }
 }
 

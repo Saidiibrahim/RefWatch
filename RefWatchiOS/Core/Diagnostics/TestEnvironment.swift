@@ -9,6 +9,7 @@ import Foundation
 
 enum TestEnvironment {
   private static let uiTestAuthStateKey = "REFWATCH_UI_TEST_AUTH_STATE"
+  private static let matchSheetImportModeKey = "REFWATCH_UI_TEST_MATCH_SHEET_IMPORT_MODE"
 
   static var isRunningTests: Bool {
     let env = ProcessInfo.processInfo.environment
@@ -29,10 +30,18 @@ enum TestEnvironment {
 
   static var launchesSignedInUITestShell: Bool {
     #if DEBUG
-      self.isRunningUITests
-        && ProcessInfo.processInfo.environment[self.uiTestAuthStateKey] == "signed_in"
+      ProcessInfo.processInfo.environment[self.uiTestAuthStateKey] == "signed_in"
     #else
       false
+    #endif
+  }
+
+  static var matchSheetImportUITestMode: MatchSheetImportUITestMode? {
+    #if DEBUG
+      return MatchSheetImportUITestMode(
+        rawValue: ProcessInfo.processInfo.environment[self.matchSheetImportModeKey] ?? "")
+    #else
+      nil
     #endif
   }
 }
