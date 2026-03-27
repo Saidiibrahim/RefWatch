@@ -37,7 +37,12 @@ final class MatchSheetImportUITests: XCTestCase {
     XCTAssertTrue(applyButton.waitForExistence(timeout: 5))
     applyButton.tap()
 
+    XCTAssertTrue(self.app.navigationBars["Upcoming Match"].waitForExistence(timeout: 5))
     let saveButton = self.app.buttons["Save"]
+    if saveButton.waitForExistence(timeout: 2) == false {
+      self.app.swipeUp()
+      self.app.swipeUp()
+    }
     XCTAssertTrue(saveButton.waitForExistence(timeout: 5))
     saveButton.tap()
 
