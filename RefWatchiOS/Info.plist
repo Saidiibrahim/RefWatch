@@ -51,12 +51,6 @@
 	<string>RefWatch reads workout metrics like heart rate, distance, and energy to power live officiating insights and history.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>RefWatch saves the workouts you record during matches so they appear in the Health app.</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>RefWatch needs microphone access to capture your voice for the Assistant.</string>
-	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>RefWatch uses speech recognition to convert your voice to text for the Assistant.</string>
-	<key>OPENAI_API_KEY</key>
-	<string>$(OPENAI_API_KEY)</string>
 	<key>SUPABASE_ANON_KEY</key>
 	<string>$(SUPABASE_ANON_KEY)</string>
 	<key>SUPABASE_PUBLISHABLE_KEY</key>

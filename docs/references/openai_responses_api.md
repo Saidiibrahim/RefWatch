@@ -1,29 +1,35 @@
 # OpenAI Responses API Integration
 
-This document captures the RefWatch iOS migration from the legacy Chat Completions endpoint to the modern [OpenAI Responses API](https://platform.openai.com/docs/api-reference/responses/create). It is intended as a reference for future maintenance and for onboarding teammates who need to touch the assistant feature.
+This document captures the RefWatch assistant path after the move to a server-backed multimodal Responses flow. The iOS app now sends draft turns to a Supabase Edge Function, and that function forwards the request to OpenAI's Responses API.
 
 ## Overview
 
-- **Primary client**: `RefWatchiOS/Core/Platform/AI/OpenAIAssistantService.swift`
-- **Protocol**: `AssistantProviding` (unchanged)
-- **Target endpoint**: `POST https://api.openai.com/v1/responses`
-- **Transport**: Server Sent Events (SSE) with `stream: true`
-- **System instructions**: Sent via the top-level `instructions` key instead of the first chat message
+- **Primary iOS client**: `RefWatchiOS/Core/Platform/AI/OpenAIAssistantService.swift`
+- **Protocol**: `AssistantProviding`
+- **Proxy transport**: authenticated Supabase Edge Function
+- **Upstream endpoint**: `POST https://api.openai.com/v1/responses`
+- **Transport**: Server-Sent Events with `stream: true`
+- **Model tier**: `gpt-5.4-mini`
+- **Conversation policy**: stateless replay in this wave, `store: false`
 
-The service keeps the public API identical (`AsyncStream<String>`) so the existing `AssistantViewModel` continues to consume streaming text with no changes.
+The app no longer stores or reads an OpenAI API key from the bundle. The assistant surface remains iOS-only.
 
 ## Request Construction
 
+The edge function forwards multimodal turns using the Responses `input` array. Local Photos attachments are normalized to JPEG and encoded as a base64 data URL before the request is sent upstream.
+
 ```jsonc
 {
-  "model": "gpt-4o-mini",
+  "model": "gpt-5.4-mini",
   "stream": true,
+  "store": false,
   "instructions": "You are RefWatch's helpful football referee assistant on iOS.",
   "input": [
     {
       "role": "user",
       "content": [
-        { "type": "input_text", "text": "How do I signal offside?" }
+        { "type": "input_text", "text": "How do I signal offside?" },
+        { "type": "input_image", "image_url": "data:image/jpeg;base64,..." }
       ]
     }
   ]
@@ -32,56 +38,59 @@ The service keeps the public API identical (`AsyncStream<String>`) so the existi
 
 Implementation notes:
 
-- The `input` array is built from `ChatMessage` instances; empty/whitespace-only messages are filtered.
-- The system prompt now lives in `instructions`.
-- Optional fields (`metadata`, `previous_response_id`, `max_output_tokens`) can be added easily inside `ResponsesPayload` if we need them later.
+- The `input` array is built from the current assistant history plus the in-flight user turn.
+- Empty text is allowed when an image is attached; empty text with no image remains invalid.
+- `previous_response_id` is intentionally deferred for this wave so the assistant remains stateless and easy to reason about.
 
 ## Streaming Events
 
-The Responses API emits richer SSE events than Chat Completions. The parser handles:
+The current Responses parser should handle the following events:
 
 | Event | Action |
 |-------|--------|
 | `response.output_text.delta` | Append incremental text to the active assistant message |
-| `response.output_text.done` | Marks the end of a single content part |
-| `response.content_part.done` | Confirms the content array is finalized |
-| `response.output_item.done` | Signals completion of a message item |
-| `response.completed` / `response.done` | Terminates stream and captures usage |
-| `response.failed` / `error` | Terminates stream and logs details in DEBUG builds |
+| `response.output_text.done` | Mark the end of a text content part |
+| `response.content_part.done` | Confirm the content array is finalized |
+| `response.output_item.done` | Signal completion of a message item |
+| `response.completed` | Terminate the stream cleanly |
+| `response.failed` | Terminate the stream and surface the upstream failure |
+| `error` | Terminate the stream and surface the transport failure |
 
-Because these events arrive sequentially, the parser must flush buffered `data:` lines whenever a new `event:` header is observed. This was the root cause of the missing UI updates during testing.
+Unknown non-text events should be ignored or logged rather than aborting the stream. That keeps the assistant resilient when OpenAI adds new event types.
 
 ## Logging & Diagnostics
 
-For easier debugging in Xcode:
+For easier debugging in Xcode or proxy logs:
 
-- `OpenAI[Responses] ...` log statements trace request preparation, SSE frames, and terminal events (only compiled in DEBUG).
-- HTTP error status codes print the response body when available.
-- Token usage metrics (`input`, `output`, `total`) are surfaced after the stream completes.
+- Request-preparation logs should identify the selected model and whether an image was attached.
+- SSE logs should show the upstream event type and terminal status.
+- HTTP error status codes should capture the response body when available.
+- Token usage metrics can still be surfaced after completion if the proxy chooses to forward them.
 
-If the UI fails to update, confirm that `response.output_text.delta` messages are being logged. Missing deltas usually point to parsing issues or incorrect payloads.
+If the UI fails to update, confirm that `response.output_text.delta` messages are being observed by the proxy and forwarded to the app. Missing deltas usually point to payload construction or SSE parsing issues.
 
 ## Testing
 
-Unit coverage lives in `RefWatchiOSTests/OpenAIAssistantServiceTests.swift`:
+Unit coverage should live in `RefWatchiOSTests/OpenAIAssistantServiceTests.swift` and related view-model tests:
 
 - Payload generation trims whitespace and preserves roles.
-- SSE parser tests validate delta accumulation, done events, and error paths.
+- Multimodal encoding covers text-only, text-plus-image, and image-only turns.
+- SSE parser tests validate delta accumulation, completion, failure, and unknown-event handling.
 
-When running `xcodebuild test`, ensure the simulator destination references an available iOS runtime (e.g. `iPhone 16`). The hosted environment may require adjusting destinations if bundled simulators differ.
+When running `xcodebuild test`, use an available iOS simulator runtime for the RefWatchiOS scheme. The exact simulator name may differ across machines.
 
 ## Troubleshooting Checklist
 
-1. **No streaming text** → Verify SSE parser flush logic and watch for logged `response.output_text.delta` events.
-2. **HTTP 401/403** → Confirm `Secrets.openAIKey` is populated; otherwise the feature falls back to the stub service.
-3. **UI stuck on stub messaging** → Ensure `OpenAIAssistantService.fromBundleIfAvailable()` returns a non-nil service (valid key in bundle).
-4. **Rate limits or server errors** → DEBUG logs include `error` payload contents for quick diagnosis.
+1. **No streaming text** → Verify the proxy forwards `response.output_text.delta` and that the parser flushes each SSE event frame.
+2. **HTTP 401/403** → Confirm the Supabase JWT and server-side OpenAI secret are configured; the iOS bundle no longer carries an OpenAI key.
+3. **UI stuck on stub messaging** → Ensure the server-backed assistant path is enabled and `StubAssistantService` is only being used as the fallback.
+4. **Rate limits or server errors** → Surface the upstream `response.failed` payload in logs before changing the client-side parser.
 
 ## Future Enhancements
 
-- Support `previous_response_id` to let OpenAI manage conversation state server-side.
+- Introduce `previous_response_id` only if the product needs server-managed conversation state.
 - Surface token usage/stats to the UI or analytics pipeline.
-- Introduce tool/function calling once the Responses API toolchain is finalized.
-- Extend the parser for multimodal content (`output_image`, `output_audio`) as product needs expand.
+- Add tool/function calling once the assistant contract stabilizes.
+- Consider a Files API upload path only if image sizes or retention requirements outgrow the current data URL approach.
 
-_Last updated: 2025-10-10_
+_Last updated: 2026-03-26_

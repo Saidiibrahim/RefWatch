@@ -10,11 +10,11 @@
 - `HapticsProviding`: watch/iOS adapters implement this to send context-specific haptics.
 - `MatchLifecycleHapticsProviding`: shared match flow uses this for lifecycle cues such as natural period boundary and halftime expiry.
 - `ConnectivityProviding`: abstract layer for future watch ↔︎ iPhone sync.
-- `AIResponseProviding`: wraps AI assistant calls so features can consume them without platform coupling.
+- `AssistantProviding`: wraps the iOS assistant transport so feature views can consume it without coupling to the server proxy.
 
 ## Dependency Injection
 - Services are instantiated in feature ViewModels; rely on protocols for testing.
-- Keep shared services platform-agnostic. Inject adapters for platform differences (e.g., haptics, connectivity).
+- Keep shared services platform-agnostic. Inject adapters for platform differences (e.g., haptics, connectivity). The assistant transport is iOS-only and should not be treated as a watch-shared runtime service.
 - `TimerManager` and `MatchViewModel` emit semantic lifecycle cues through `MatchLifecycleHapticsProviding`; repeated-sequence playback and cancellation stay in platform adapters, not in shared services or views.
 - Shared core owns the explicit `PendingPeriodBoundaryDecision` state for natural period expiry. `MatchViewModel` transitions into that state before requesting `.periodBoundaryReached`, while the watch layer remains responsible only for foreground alert playback and acknowledgment UI.
 

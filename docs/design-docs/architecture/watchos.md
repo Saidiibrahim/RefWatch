@@ -1,5 +1,7 @@
 # watchOS Architecture
 
+WatchOS owns match/timer continuity and does not host the live assistant/OpenAI runtime. Keep AI assistant references in this repo iOS-only unless a future feature explicitly adds a watch handoff state.
+
 ## Entry Points
 - `RefWatchApp.swift` configures the watch scene.
 - `AppRootView` handles onboarding versus active match routing.

@@ -5,7 +5,7 @@
     @TechnologyRoot
 }
 
-RefWatch is a referee companion built primarily for watchOS with an iOS assistant. This catalog documents public APIs, services, and feature flows shared across the project.
+RefWatch is a referee companion built primarily for watchOS with a server-backed iOS assistant. This catalog documents public APIs, services, and feature flows shared across the project.
 
 ## Getting Started
 - Build the documentation in Xcode via **Product > Build Documentation** or run `xcodebuild docbuild` (see `docs/getting-started/running.md`).

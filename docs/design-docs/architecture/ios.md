@@ -11,12 +11,14 @@
   - `IOSHaptics` for tactile feedback.
   - `ConnectivityClient` (placeholder) for syncing with watch.
   - `SupabaseAuthController` for authentication flows.
+  - `AssistantProviding` / `OpenAIAssistantService` for the server-backed multimodal assistant proxy.
 
 ## Feature Modules
 - `Matches`: watch match history, continue sessions, and manage saved data.
 - `Live`: planned for real-time monitoring or scoreboard.
 - `Library`: references to training material, rules, or external content.
 - `Trends`: analytics and performance insights.
+- `Assistant`: iOS-only multimodal chat, attachment drafting, and streamed AI responses.
 - `Settings`: account management and device preferences.
 
 ## Scheduled Match Sheets
@@ -32,6 +34,7 @@
 - This freeze guarantee applies when the schedule carries match-sheet data; legacy no-sheet schedules still rely on the older backward-compatible library lookup path on watch.
 - When kickoff starts from a scheduled fixture, the live match must preserve the schedule's home/away team identity alongside the frozen match sheets; changing teams requires going back through the schedule editor first.
 - Watch remains a consumer of the synced frozen schedule data; it does not author official match sheets.
+- The assistant surface is not shared to watchOS; keep all assistant network and Photos attachment handling inside the iOS target.
 
 ## Shared Code Consumption
 - Most domain models originate in watch feature modules and are shared via target membership.

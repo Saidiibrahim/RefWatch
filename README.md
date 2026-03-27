@@ -136,11 +136,11 @@ The app works fully offline using SwiftData. When connected, data syncs to Supab
    2. Click '+' and select 'App Groups'
    3. Enter your App Group ID
 
-4. **Configure API keys** (required for cloud features)
+4. **Configure local app secrets** (required for cloud features)
    ```bash
    cp RefWatchiOS/Config/Secrets.example.xcconfig RefWatchiOS/Config/Secrets.xcconfig
    ```
-   Edit `Secrets.xcconfig` with your API keys if using cloud features.
+   Edit `Secrets.xcconfig` with your local app-facing values if using cloud features.
 
    **Environment Variables Reference:**
 
@@ -148,17 +148,25 @@ The app works fully offline using SwiftData. When connected, data syncs to Supab
    |----------|---------|-------------|
    | `SUPABASE_URL` | Supabase | Your project URL |
    | `SUPABASE_PUBLISHABLE_KEY` | Supabase | Public/anon key |
-   | `OPENAI_API_KEY` | OpenAI | API key for assistant |
    | `GID_CLIENT_ID` | Google | OAuth client ID |
    | `GID_REVERSED_CLIENT_ID` | Google | Reversed client ID for URL scheme |
 
-5. **Google Sign-In setup** (optional)
+   The assistant no longer reads `OPENAI_API_KEY` from the iOS app bundle or `Secrets.xcconfig`. OpenAI access is server-side only via the Supabase `assistant-responses` edge function.
+
+5. **Deploy the assistant edge function** (required for live assistant replies)
+   ```bash
+   supabase functions deploy assistant-responses --project-ref <project-ref>
+   supabase secrets set OPENAI_API_KEY=<server-side-openai-key> --project-ref <project-ref>
+   ```
+   Keep `OPENAI_API_KEY` in Supabase secrets only. Do not add it to the iOS project xcconfig files or Info.plist.
+
+6. **Google Sign-In setup** (optional)
    - Create an OAuth 2.0 Client ID at [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
    - Select "iOS" as the application type and enter your bundle identifier
    - Add the client ID to `GID_CLIENT_ID` in `Secrets.xcconfig`
    - Add the reversed client ID (e.g., `com.googleusercontent.apps.YOUR_ID`) to `GID_REVERSED_CLIENT_ID`
 
-6. **Build and run**
+7. **Build and run**
    ```bash
    # Build watchOS app
    xcodebuild -project RefWatch.xcodeproj \

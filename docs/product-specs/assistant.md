@@ -1,24 +1,30 @@
 # Assistant Feature Guide
 
 ## Overview
-The Assistant tab integrates AI-powered workflows to support referees with quick insights, rules lookup, and match preparation tips.
+The Assistant tab is RefWatch's iOS-only multimodal assistant. Users can send text, attach one Photos-library image per turn, and receive streamed answers through a Supabase Edge Function proxy that forwards to OpenAI's Responses API.
 
 ## Key Components
-- `AssistantTabView`: SwiftUI entry for the tab.
-- `OpenAIAssistantService`: wraps AI requests and response streaming.
-- `SupabaseAuthController`: authenticates and authorizes AI usage.
+- `AssistantTabView`: SwiftUI entry point for chat, attachment picker, and send controls.
+- `OpenAIAssistantService`: iOS transport adapter that streams assistant responses through the server proxy.
+- `AssistantProviding`: protocol boundary used by the view model.
+- `SupabaseAuthController`: authenticates the user before AI usage.
+- `ChatMessage`: multimodal message model that supports text plus one optional image attachment on user turns.
 
 ## Data Flow
-1. User prompts originate from Assistant views.
-2. ViewModel calls `OpenAIAssistantService` for responses.
-3. Responses persist via `openai_responses_api.md` guidelines (see [docs/references/openai_responses_api.md](../references/openai_responses_api.md)).
-4. Display updates in the Assistant feed, optionally syncing to history.
+1. User drafts a text prompt and optionally attaches one image from Photos.
+2. The view model packages the current turn and sends it through `AssistantProviding` to the Supabase Edge Function.
+3. The edge function authenticates the request, applies the repo-selected `gpt-5.4-mini` model, sets `store: false`, and forwards the multimodal payload to OpenAI's Responses API.
+4. Responses stream back as SSE text deltas and terminal events; the app updates the feed as chunks arrive.
+5. The assistant conversation remains ephemeral/local in this wave. No app-bundle OpenAI key is used and no new transcript persistence is introduced.
 
 ## Extension Points
-- Add new prompt templates in the ViewModel.
-- Expand AI response storage by implementing additional persistence in shared services.
-- Consider rate limiting or offline fallbacks if connectivity fails.
+- Add more prompt templates or quick actions in the view model.
+- Add alternate attachment sources or more than one image only after product approval.
+- Introduce persistence only if future product decisions require it.
+- Keep watchOS documentation honest: there is no live assistant runtime on watch today.
 
 ## Testing
-- Provide mocks for AI services to exercise ViewModel logic without network calls.
-- Validate UI states (loading, error, success) with unit or UI tests.
+- Extend service tests for multimodal payload encoding, streaming event handling, and failure cases.
+- Add view-model tests for attachment lifecycle and send enablement.
+- Add UI tests for Photos picker attach/remove/send flows.
+- Validate on iPhone 15 Pro Max with a real photo-library image before release.
