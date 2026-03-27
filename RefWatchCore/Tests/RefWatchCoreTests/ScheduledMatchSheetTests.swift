@@ -256,4 +256,33 @@ final class ScheduledMatchSheetTests: XCTestCase {
     XCTAssertTrue(decoded.substitutes.isEmpty)
     XCTAssertTrue(decoded.otherMembers.isEmpty)
   }
+
+  func testImportedDraftKeepsNilNumbersAndNormalizesStaffBuckets() {
+    let sheet = ScheduledMatchSheet(
+      sourceTeamName: "Metro FC",
+      status: .draft,
+      starters: [
+        MatchSheetPlayerEntry(displayName: "Alex Starter", shirtNumber: 9, position: "FW", notes: nil, sortOrder: 3),
+      ],
+      substitutes: [
+        MatchSheetPlayerEntry(displayName: "Riley Bench", shirtNumber: nil, position: nil, notes: "Number unreadable", sortOrder: 8),
+      ],
+      staff: [
+        MatchSheetStaffEntry(displayName: "Taylor Coach", roleLabel: "Head Coach", notes: nil, sortOrder: 7, category: .otherMember),
+      ],
+      otherMembers: [
+        MatchSheetStaffEntry(displayName: "Casey Analyst", roleLabel: "Analyst", notes: nil, sortOrder: 5, category: .staff),
+      ],
+      updatedAt: Date(timeIntervalSince1970: 1_742_000_900))
+
+    let normalized = sheet.normalized()
+
+    XCTAssertEqual(normalized.status, .draft)
+    XCTAssertEqual(normalized.substitutes.first?.shirtNumber, nil)
+    XCTAssertEqual(normalized.substitutes.first?.notes, "Number unreadable")
+    XCTAssertEqual(normalized.staff.first?.category, .staff)
+    XCTAssertEqual(normalized.otherMembers.first?.category, .otherMember)
+    XCTAssertEqual(normalized.starters.first?.sortOrder, 0)
+    XCTAssertEqual(normalized.substitutes.first?.sortOrder, 0)
+  }
 }

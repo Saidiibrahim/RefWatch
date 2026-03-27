@@ -170,6 +170,46 @@ final class SwiftDataScheduleStoreTests: XCTestCase {
     XCTAssertEqual(saved.awayMatchSheet, awaySheet.normalized())
   }
 
+  func testSaveAndLoadPreservesImportedDraftFieldsWithoutWarnings() throws {
+    let container = try self.makeContainer()
+    let store = SwiftDataScheduleStore(
+      container: container,
+      auth: SignedInAuth(userId: UUID().uuidString))
+    let importedSheet = ScheduledMatchSheet(
+      sourceTeamId: UUID(),
+      sourceTeamName: "Metro FC",
+      status: .draft,
+      starters: [
+        MatchSheetPlayerEntry(displayName: "Alex Starter", shirtNumber: 9, position: "FW", notes: nil, sortOrder: 0),
+      ],
+      substitutes: [
+        MatchSheetPlayerEntry(displayName: "Riley Bench", shirtNumber: nil, position: nil, notes: "Number unreadable", sortOrder: 0),
+      ],
+      staff: [
+        MatchSheetStaffEntry(displayName: "Taylor Coach", roleLabel: "Head Coach", notes: nil, sortOrder: 0, category: .staff),
+      ],
+      otherMembers: [
+        MatchSheetStaffEntry(displayName: "Casey Analyst", roleLabel: "Analyst", notes: nil, sortOrder: 0, category: .otherMember),
+      ],
+      updatedAt: Date(timeIntervalSince1970: 1_742_000_800))
+
+    try store.save(
+      ScheduledMatch(
+        homeTeam: "Home",
+        awayTeam: "Away",
+        homeMatchSheet: importedSheet,
+        kickoff: Date()))
+
+    let saved = try XCTUnwrap(store.loadAll().first?.homeMatchSheet)
+    XCTAssertEqual(saved.status, .draft)
+    XCTAssertEqual(saved.sourceTeamName, "Metro FC")
+    XCTAssertNotNil(saved.sourceTeamId)
+    XCTAssertEqual(saved.substitutes.first?.shirtNumber, nil)
+    XCTAssertEqual(saved.substitutes.first?.notes, "Number unreadable")
+    XCTAssertEqual(saved.staff.first?.category, .staff)
+    XCTAssertEqual(saved.otherMembers.first?.category, .otherMember)
+  }
+
   func testMatchSheetEditorStatePreservesSourceTeamWhenLocalTeamIsMissing() {
     let sourceTeamId = UUID()
     let normalized = MatchSheetEditorState.normalizedSheet(
