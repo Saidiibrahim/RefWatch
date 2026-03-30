@@ -234,6 +234,7 @@ struct MatchesTabView: View {
               } label: {
                 Label("Delete", systemImage: "trash")
               }
+              .tint(.red)
             }
           }
         }
@@ -267,6 +268,7 @@ struct MatchesTabView: View {
               } label: {
                 Label("Delete", systemImage: "trash")
               }
+              .tint(.red)
             }
           }
         }
