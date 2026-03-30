@@ -152,15 +152,10 @@ extension OpenAIMatchSheetImportService {
       throw MatchSheetImportServiceError.sessionUnavailable
     }
 
-    var request = URLRequest(url: Self.edgeFunctionURL(for: environment.url))
-    request.httpMethod = "POST"
-    request.timeoutInterval = Self.defaultRequestTimeout
-    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-    request.setValue("application/json", forHTTPHeaderField: "Accept")
-    request.setValue("Bearer \(session.accessToken)", forHTTPHeaderField: "Authorization")
-    request.setValue("ios", forHTTPHeaderField: "X-RefWatch-Client")
-    request.httpBody = try Self.jsonEncoder().encode(payload)
-    return request
+    return try Self.buildRequest(
+      environment: environment,
+      accessToken: session.accessToken,
+      payload: payload)
   }
 
   static func edgeFunctionURL(for supabaseURL: URL) -> URL {
@@ -174,6 +169,23 @@ extension OpenAIMatchSheetImportService {
     let encoder = JSONEncoder()
     encoder.outputFormatting = [.withoutEscapingSlashes]
     return encoder
+  }
+
+  static func buildRequest(
+    environment: SupabaseEnvironment,
+    accessToken: String,
+    payload: MatchSheetImportPayload) throws -> URLRequest
+  {
+    var request = URLRequest(url: Self.edgeFunctionURL(for: environment.url))
+    request.httpMethod = "POST"
+    request.timeoutInterval = Self.defaultRequestTimeout
+    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+    request.setValue("application/json", forHTTPHeaderField: "Accept")
+    request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+    request.setValue(environment.anonKey, forHTTPHeaderField: "apikey")
+    request.setValue("ios", forHTTPHeaderField: "X-RefWatch-Client")
+    request.httpBody = try Self.jsonEncoder().encode(payload)
+    return request
   }
 
   static func jsonDecoder() -> JSONDecoder {

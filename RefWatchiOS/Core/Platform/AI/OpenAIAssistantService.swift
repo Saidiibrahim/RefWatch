@@ -147,15 +147,10 @@ extension OpenAIAssistantService {
       throw AssistantServiceError.sessionUnavailable
     }
 
-    var request = URLRequest(url: Self.edgeFunctionURL(for: environment.url))
-    request.httpMethod = "POST"
-    request.timeoutInterval = Self.defaultRequestTimeout
-    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-    request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
-    request.setValue("Bearer \(session.accessToken)", forHTTPHeaderField: "Authorization")
-    request.setValue("ios", forHTTPHeaderField: "X-RefWatch-Client")
-    request.httpBody = try Self.jsonEncoder().encode(payload)
-    return request
+    return try Self.buildRequest(
+      environment: environment,
+      accessToken: session.accessToken,
+      payload: payload)
   }
 
   static func edgeFunctionURL(for supabaseURL: URL) -> URL {
@@ -181,6 +176,23 @@ extension OpenAIAssistantService {
     #if DEBUG
     print("OpenAI[Responses]", message())
     #endif
+  }
+
+  static func buildRequest(
+    environment: SupabaseEnvironment,
+    accessToken: String,
+    payload: AssistantProxyPayload) throws -> URLRequest
+  {
+    var request = URLRequest(url: Self.edgeFunctionURL(for: environment.url))
+    request.httpMethod = "POST"
+    request.timeoutInterval = Self.defaultRequestTimeout
+    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+    request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+    request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+    request.setValue(environment.anonKey, forHTTPHeaderField: "apikey")
+    request.setValue("ios", forHTTPHeaderField: "X-RefWatch-Client")
+    request.httpBody = try Self.jsonEncoder().encode(payload)
+    return request
   }
 }
 
