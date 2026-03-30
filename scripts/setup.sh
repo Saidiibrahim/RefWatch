@@ -91,11 +91,12 @@ echo "Created: $CONFIG_FILE"
 if [ ! -f "$SECRETS_FILE" ]; then
     echo ""
     echo "Note: Secrets.xcconfig not found."
-    echo "If you want to use cloud features (Supabase, OpenAI), copy the example:"
+    echo "If you want to use app-facing cloud features (Supabase, Google Sign-In), copy the example:"
     echo ""
     echo "  cp $SECRETS_EXAMPLE $SECRETS_FILE"
     echo ""
-    echo "Then edit Secrets.xcconfig with your API keys."
+    echo "Then edit Secrets.xcconfig with your local app-facing values."
+    echo "Keep OPENAI_API_KEY in Supabase secrets only."
 fi
 
 # Note about Google Sign-In (optional)

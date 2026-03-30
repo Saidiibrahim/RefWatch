@@ -83,7 +83,7 @@ The app works fully offline using SwiftData. When connected, data syncs to Supab
 ## Post-clone setup
 
 - Run `./scripts/setup.sh` to generate `RefWatchiOS/Config/Config.xcconfig` with your Team ID, bundle prefix, app group, and URL scheme (local-only, gitignored).
-- Optional: copy `RefWatchiOS/Config/Secrets.example.xcconfig` to `RefWatchiOS/Config/Secrets.xcconfig` and add API keys.
+- Optional: copy `RefWatchiOS/Config/Secrets.example.xcconfig` to `RefWatchiOS/Config/Secrets.xcconfig` and add local app-facing values.
 - Optional: configure Google Sign-In credentials in `Secrets.xcconfig` (see setup step 5).
 
 ### Prerequisites
@@ -151,14 +151,15 @@ The app works fully offline using SwiftData. When connected, data syncs to Supab
    | `GID_CLIENT_ID` | Google | OAuth client ID |
    | `GID_REVERSED_CLIENT_ID` | Google | Reversed client ID for URL scheme |
 
-   The assistant no longer reads `OPENAI_API_KEY` from the iOS app bundle or `Secrets.xcconfig`. OpenAI access is server-side only via the Supabase `assistant-responses` edge function.
+   The assistant and match-sheet import flows no longer read `OPENAI_API_KEY` from the iOS app bundle or `Secrets.xcconfig`. OpenAI access is server-side only via Supabase edge functions.
 
-5. **Deploy the assistant edge function** (required for live assistant replies)
+5. **Deploy the AI edge functions** (required for live assistant replies and screenshot import)
    ```bash
    supabase functions deploy assistant-responses --project-ref <project-ref>
+   supabase functions deploy match-sheet-parse --project-ref <project-ref>
    supabase secrets set OPENAI_API_KEY=<server-side-openai-key> --project-ref <project-ref>
    ```
-   Keep `OPENAI_API_KEY` in Supabase secrets only. Do not add it to the iOS project xcconfig files or Info.plist.
+   Keep `OPENAI_API_KEY` in Supabase secrets only. Do not add it to the iOS project xcconfig files or Info.plist. The same secret is used by both `assistant-responses` and `match-sheet-parse`.
 
 6. **Google Sign-In setup** (optional)
    - Create an OAuth 2.0 Client ID at [Google Cloud Console](https://console.cloud.google.com/apis/credentials)

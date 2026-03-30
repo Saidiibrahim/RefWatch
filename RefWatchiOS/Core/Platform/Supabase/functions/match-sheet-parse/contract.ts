@@ -225,7 +225,7 @@ export function buildMatchSheetParseResponsesRequest(
   return {
     model: MATCH_SHEET_PARSE_MODEL,
     stream: false,
-    store: false,
+    store: false, // The output may contain personally identifiable information and should not be stored by OpenAI.
     input: [
       {
         role: "user",
