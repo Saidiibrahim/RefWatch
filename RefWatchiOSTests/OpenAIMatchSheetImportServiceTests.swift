@@ -35,4 +35,36 @@ final class OpenAIMatchSheetImportServiceTests: XCTestCase {
     XCTAssertNotNil(imageArray[0]["image_url"] as? String)
     XCTAssertEqual(imageArray[1]["filename"] as? String, "sheet-2.jpg")
   }
+
+  func testBuildRequest_includesSupabaseGatewayHeaders() throws {
+    let payload = OpenAIMatchSheetImportService.Testing.buildPayload(
+      side: .away,
+      expectedTeamName: "Metro FC",
+      images: [
+        AssistantImageAttachment(
+          filename: "sheet.jpg",
+          jpegData: Data([0x01, 0x02, 0x03]),
+          detail: .high,
+          pixelWidth: 320,
+          pixelHeight: 480),
+      ])
+    let environment = SupabaseEnvironment(
+      url: try XCTUnwrap(URL(string: "https://muwuzfbtmqwvwacqnofc.supabase.co")),
+      anonKey: "sb_publishable_test")
+
+    let request = try OpenAIMatchSheetImportService.buildRequest(
+      environment: environment,
+      accessToken: "session-token",
+      payload: payload)
+
+    XCTAssertEqual(
+      request.url?.absoluteString,
+      "https://muwuzfbtmqwvwacqnofc.supabase.co/functions/v1/match-sheet-parse")
+    XCTAssertEqual(request.value(forHTTPHeaderField: "Content-Type"), "application/json")
+    XCTAssertEqual(request.value(forHTTPHeaderField: "Accept"), "application/json")
+    XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer session-token")
+    XCTAssertEqual(request.value(forHTTPHeaderField: "apikey"), "sb_publishable_test")
+    XCTAssertEqual(request.value(forHTTPHeaderField: "X-RefWatch-Client"), "ios")
+    XCTAssertNotNil(request.httpBody)
+  }
 }

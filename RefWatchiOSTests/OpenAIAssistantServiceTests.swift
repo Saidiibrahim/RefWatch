@@ -70,6 +70,30 @@ final class OpenAIAssistantServiceTests: XCTestCase {
         }
   }
 
+  func testBuildRequest_includesSupabaseGatewayHeaders() throws {
+    let payload = try OpenAIAssistantService.Testing.buildPayload(
+      systemPrompt: "System prompt",
+      messages: [ChatMessage(role: .user, text: "Explain this image")])
+    let environment = SupabaseEnvironment(
+      url: try XCTUnwrap(URL(string: "https://muwuzfbtmqwvwacqnofc.supabase.co")),
+      anonKey: "sb_publishable_test")
+
+    let request = try OpenAIAssistantService.buildRequest(
+      environment: environment,
+      accessToken: "session-token",
+      payload: payload)
+
+    XCTAssertEqual(
+      request.url?.absoluteString,
+      "https://muwuzfbtmqwvwacqnofc.supabase.co/functions/v1/assistant-responses")
+    XCTAssertEqual(request.value(forHTTPHeaderField: "Content-Type"), "application/json")
+    XCTAssertEqual(request.value(forHTTPHeaderField: "Accept"), "text/event-stream")
+    XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer session-token")
+    XCTAssertEqual(request.value(forHTTPHeaderField: "apikey"), "sb_publishable_test")
+    XCTAssertEqual(request.value(forHTTPHeaderField: "X-RefWatch-Client"), "ios")
+    XCTAssertNotNil(request.httpBody)
+  }
+
   func testParseStream_whenReceivingCompletedEvent_emitsChunksAndUsage() {
     let completedPayload = #"data: {"type":"response.completed","response":{"id":"resp_456","status":"completed","usage":{"input_tokens":11,"output_tokens":5,"total_tokens":16}}}"#
     let lines = [
