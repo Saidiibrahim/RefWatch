@@ -460,6 +460,72 @@ struct MatchSheetEditorView: View {
   }
 }
 
+#if DEBUG
+private struct MatchSheetEditorPreviewHost: View {
+  let sideTitle: String
+  let sourceTeam: TeamRecord?
+  let fallbackTeamName: String
+  let mode: MatchSheetEditorMode
+  let initialSheet: ScheduledMatchSheet
+  let replaceConfirmationMessage: String?
+
+  @State private var sheet: ScheduledMatchSheet
+
+  init(
+    sideTitle: String,
+    sourceTeam: TeamRecord?,
+    fallbackTeamName: String,
+    mode: MatchSheetEditorMode,
+    initialSheet: ScheduledMatchSheet,
+    replaceConfirmationMessage: String? = nil)
+  {
+    self.sideTitle = sideTitle
+    self.sourceTeam = sourceTeam
+    self.fallbackTeamName = fallbackTeamName
+    self.mode = mode
+    self.initialSheet = initialSheet
+    self.replaceConfirmationMessage = replaceConfirmationMessage
+    _sheet = State(initialValue: initialSheet)
+  }
+
+  var body: some View {
+    MatchSheetEditorView(
+      sideTitle: self.sideTitle,
+      sourceTeam: self.sourceTeam,
+      fallbackTeamName: self.fallbackTeamName,
+      sheet: self.$sheet,
+      mode: self.mode,
+      onCancelRequest: {},
+      onConfirmImport: { _ in },
+      replaceConfirmationMessage: self.replaceConfirmationMessage)
+  }
+}
+
+#Preview("Match Sheet Review - Warnings") {
+  let teams = MatchSheetImportPreviewSupport.makeTeamContext()
+  return MatchSheetEditorPreviewHost(
+    sideTitle: MatchSheetSide.home.title,
+    sourceTeam: teams.homeTeam,
+    fallbackTeamName: teams.homeTeam.name,
+    mode: .importReview(
+      warnings: MatchSheetImportPreviewSupport.sampleWarnings(),
+      extractedTeamName: MatchSheetImportPreviewSupport.homeTeamName),
+    initialSheet: MatchSheetImportPreviewSupport.importedHomeSheet(sourceTeam: teams.homeTeam))
+}
+
+#Preview("Match Sheet Review - Clean Parse") {
+  let teams = MatchSheetImportPreviewSupport.makeTeamContext()
+  return MatchSheetEditorPreviewHost(
+    sideTitle: MatchSheetSide.home.title,
+    sourceTeam: teams.homeTeam,
+    fallbackTeamName: teams.homeTeam.name,
+    mode: .importReview(
+      warnings: [],
+      extractedTeamName: MatchSheetImportPreviewSupport.homeTeamName),
+    initialSheet: MatchSheetImportPreviewSupport.cleanImportedSheet(sourceTeam: teams.homeTeam))
+}
+#endif
+
 private enum PlayerSection: String, CaseIterable, Identifiable {
   case starters
   case substitutes

@@ -305,16 +305,19 @@ struct MatchesTabView: View {
 }
 
 #if DEBUG
-#Preview {
-  MatchesTabView(
+#Preview("Matches - Saved Imported Upcoming Match") {
+  let savedContext = MatchSheetImportPreviewSupport.makeSavedMatchContext()
+  return MatchesTabView(
     matchViewModel: MatchViewModel(haptics: NoopHaptics()),
     historyStore: MatchHistoryService(),
     matchSyncController: nil,
-    scheduleStore: InMemoryScheduleStore(),
-    teamStore: InMemoryTeamLibraryStore(),
+    scheduleStore: savedContext.scheduleStore,
+    teamStore: savedContext.teamStore,
     competitionStore: InMemoryCompetitionLibraryStore(),
     venueStore: InMemoryVenueLibraryStore())
     .environmentObject(AppRouter.preview())
+    .environmentObject(MatchSheetImportPreviewSupport.authController())
+    .environment(\.journalStore, InMemoryJournalStore())
 }
 #endif
 

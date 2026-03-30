@@ -38,6 +38,24 @@ struct MatchSheetImportPickerSheet: View {
       service: service))
   }
 
+#if DEBUG
+  init(
+    side: MatchSheetSide,
+    expectedTeamName: String,
+    service: MatchSheetImportProviding = MatchSheetImportPreviewSupport.makeImportService(),
+    previewViewModel: MatchSheetImportViewModel,
+    onCancel: @escaping () -> Void = {},
+    onImported: @escaping (MatchSheetImportDraft) -> Void = { _ in })
+  {
+    self.side = side
+    self.service = service
+    self.expectedTeamName = expectedTeamName
+    self.onCancel = onCancel
+    self.onImported = onImported
+    _viewModel = State(initialValue: previewViewModel)
+  }
+#endif
+
   var body: some View {
     NavigationStack {
       Form {
@@ -224,3 +242,46 @@ struct MatchSheetImportPickerSheet: View {
     ByteCountFormatter.string(fromByteCount: Int64(byteCount), countStyle: .file)
   }
 }
+
+#if DEBUG
+#Preview("Import Picker - Empty Upload") {
+  MatchSheetImportPickerSheet(
+    side: .home,
+    expectedTeamName: MatchSheetImportPreviewSupport.homeTeamName,
+    previewViewModel: .preview(state: .empty))
+}
+
+#Preview("Import Picker - Ready To Parse") {
+  MatchSheetImportPickerSheet(
+    side: .home,
+    expectedTeamName: MatchSheetImportPreviewSupport.homeTeamName,
+    previewViewModel: .preview(
+      state: .ready(attachments: MatchSheetImportPreviewSupport.sampleAttachments())))
+}
+
+#Preview("Import Picker - Preparing") {
+  MatchSheetImportPickerSheet(
+    side: .home,
+    expectedTeamName: MatchSheetImportPreviewSupport.homeTeamName,
+    previewViewModel: .preview(
+      state: .preparing(attachments: MatchSheetImportPreviewSupport.sampleAttachments())))
+}
+
+#Preview("Import Picker - Parsing") {
+  MatchSheetImportPickerSheet(
+    side: .home,
+    expectedTeamName: MatchSheetImportPreviewSupport.homeTeamName,
+    previewViewModel: .preview(
+      state: .parsing(attachments: MatchSheetImportPreviewSupport.sampleAttachments())))
+}
+
+#Preview("Import Picker - Retry Parse") {
+  MatchSheetImportPickerSheet(
+    side: .home,
+    expectedTeamName: MatchSheetImportPreviewSupport.homeTeamName,
+    previewViewModel: .preview(
+      state: .transportError(
+        attachments: MatchSheetImportPreviewSupport.sampleAttachments(),
+        message: MatchSheetImportPreviewSupport.failureMessage)))
+}
+#endif

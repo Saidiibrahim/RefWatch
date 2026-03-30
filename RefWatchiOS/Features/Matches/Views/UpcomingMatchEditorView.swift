@@ -65,6 +65,45 @@ struct UpcomingMatchEditorView: View {
         ?? MatchSheetDraftFactory.emptyDraft(sourceTeam: nil, fallbackTeamName: initialAwayName))
   }
 
+#if DEBUG
+  struct PreviewSeed {
+    let scheduleStore: ScheduleStoring
+    let teamStore: TeamLibraryStoring
+    let matchSheetImportService: MatchSheetImportProviding?
+    let existingMatch: ScheduledMatch?
+    let homeName: String
+    let awayName: String
+    let selectedHomeTeam: TeamRecord?
+    let selectedAwayTeam: TeamRecord?
+    let kickoff: Date
+    let homeMatchSheet: ScheduledMatchSheet
+    let awayMatchSheet: ScheduledMatchSheet
+    let teams: [TeamRecord]
+    let hasLoadedTeams: Bool
+  }
+
+  init(
+    previewSeed: PreviewSeed,
+    onSaved: (() -> Void)? = nil)
+  {
+    self.scheduleStore = previewSeed.scheduleStore
+    self.teamStore = previewSeed.teamStore
+    self.matchSheetImportService = previewSeed.matchSheetImportService
+    self.existingMatch = previewSeed.existingMatch
+    self.onSaved = onSaved
+
+    _homeName = State(initialValue: previewSeed.homeName)
+    _awayName = State(initialValue: previewSeed.awayName)
+    _selectedHomeTeam = State(initialValue: previewSeed.selectedHomeTeam)
+    _selectedAwayTeam = State(initialValue: previewSeed.selectedAwayTeam)
+    _kickoff = State(initialValue: previewSeed.kickoff)
+    _homeMatchSheet = State(initialValue: previewSeed.homeMatchSheet)
+    _awayMatchSheet = State(initialValue: previewSeed.awayMatchSheet)
+    _teams = State(initialValue: previewSeed.teams)
+    _hasLoadedTeams = State(initialValue: previewSeed.hasLoadedTeams)
+  }
+#endif
+
   var body: some View {
     NavigationStack {
       Group {
@@ -606,7 +645,14 @@ private struct PendingSourceTeamChange: Identifiable {
   var id: String { "\(self.side.rawValue)-\(self.team.id.uuidString)" }
 }
 
-#Preview {
-  UpcomingMatchEditorView(scheduleStore: InMemoryScheduleStore(), teamStore: InMemoryTeamLibraryStore())
-    .environmentObject(SupabaseAuthController(clientProvider: SupabaseClientProvider.shared))
+#if DEBUG
+#Preview("Upcoming Match - Import Entry Point") {
+  UpcomingMatchEditorView(previewSeed: MatchSheetImportPreviewSupport.makeUpcomingEntryPointSeed())
+    .environmentObject(MatchSheetImportPreviewSupport.authController())
 }
+
+#Preview("Upcoming Match - Imported Draft Ready To Save") {
+  UpcomingMatchEditorView(previewSeed: MatchSheetImportPreviewSupport.makeUpcomingPostApplySeed())
+    .environmentObject(MatchSheetImportPreviewSupport.authController())
+}
+#endif

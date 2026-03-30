@@ -137,3 +137,46 @@ final class MatchSheetImportViewModel {
     }
   }
 }
+
+#if DEBUG
+extension MatchSheetImportViewModel {
+  enum PreviewState {
+    case empty
+    case ready(attachments: [AssistantImageAttachment])
+    case preparing(attachments: [AssistantImageAttachment])
+    case parsing(attachments: [AssistantImageAttachment])
+    case transportError(attachments: [AssistantImageAttachment], message: String)
+  }
+
+  @MainActor
+  static func preview(
+    side: MatchSheetSide = .home,
+    expectedTeamName: String = MatchSheetImportPreviewSupport.homeTeamName,
+    state: PreviewState,
+    service: MatchSheetImportProviding = MatchSheetImportPreviewSupport.makeImportService()) -> MatchSheetImportViewModel
+  {
+    let viewModel = MatchSheetImportViewModel(
+      side: side,
+      expectedTeamName: expectedTeamName,
+      service: service)
+
+    switch state {
+    case .empty:
+      break
+    case let .ready(attachments):
+      viewModel.attachments = attachments
+    case let .preparing(attachments):
+      viewModel.attachments = attachments
+      viewModel.isPreparingAttachments = true
+    case let .parsing(attachments):
+      viewModel.attachments = attachments
+      viewModel.isParsing = true
+    case let .transportError(attachments, message):
+      viewModel.attachments = attachments
+      viewModel.transportError = message
+    }
+
+    return viewModel
+  }
+}
+#endif

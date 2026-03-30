@@ -363,3 +363,32 @@ final class SupabaseAuthController: ObservableObject, SupabaseAuthStateProviding
     self.lastError = nil
   }
 }
+
+#if DEBUG
+private struct PreviewProfileSynchronizer: SupabaseUserProfileSynchronizing {
+  func syncIfNeeded(session: Session?) async throws {}
+}
+
+extension SupabaseAuthController {
+  @MainActor
+  static func previewSignedIn(
+    userId: String = "preview-refwatch-user",
+    email: String = "preview@refwatch.app",
+    displayName: String = "Preview Referee") -> SupabaseAuthController
+  {
+    let clientProvider = SupabaseClientProvider.shared
+    let controller = SupabaseAuthController(
+      clientProvider: clientProvider,
+      profileSynchronizer: PreviewProfileSynchronizer(),
+      bootstrapSessionOnInit: false,
+      observeChangesOnInit: false)
+    controller.authStateSubscription?.cancel()
+    controller.authStateSubscription = nil
+    controller.profileSyncTask?.cancel()
+    controller.profileSyncTask = nil
+    controller.state = .signedIn(userId: userId, email: email, displayName: displayName)
+    controller.lastError = nil
+    return controller
+  }
+}
+#endif
