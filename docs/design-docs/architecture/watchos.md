@@ -43,13 +43,13 @@ WatchOS owns match/timer continuity and does not host the live assistant/OpenAI 
 - The watch substitution hub allows either side to be entered first and keeps the hub as the state owner so selections survive navigation back from each spoke.
 - The hub is intentionally stripped down for speed:
   - the top `Substitutions made` summary card is removed
-  - `Player(s) off` and `Player(s) on` show shirt numbers only in the hub subtitle
-  - if a selected player has no shirt number, the hub subtitle renders `?` for that slot
-  - player names remain inside the roster/sheet selection spokes for disambiguation
+  - `Player(s) off` and `Player(s) on` keep number-first labels in the hub subtitle
+  - a selected player with a shirt number renders as `#10 Name`
+  - if a selected player has no shirt number, the hub subtitle renders `#? Name` for that slot
 - Participant resolution prefers frozen scheduled match sheets carried on the active match or schedule snapshot.
-  - When both home and away sheets are `ready`, watch resolves `player(s) off` from the current on-field set and `player(s) on` from unused substitutes.
+  - When the requested side has a `ready` frozen sheet, watch resolves `player(s) off` from the current on-field set and `player(s) on` from unused substitutes for that side.
   - If a ready frozen sheet has no eligible candidates for a spoke, watch shows a blocked unavailable state instead of falling through to numeric/manual entry.
-  - When a schedule has match-sheet fields but is not watch-ready, watch uses numeric/manual entry and does not silently mix live library roster members into the official participant path.
+  - When the requested side does not have a usable frozen sheet, watch uses numeric/manual entry for that side and does not silently mix live library roster members into the official participant path.
   - Legacy schedules with no match-sheet fields retain the old team-ID / exact-name library lookup only as backward compatibility.
 - `Done` is enabled only when off/on counts match and are non-zero.
 - If `Confirm Subs` is enabled, the hub still navigates to confirmation for single-pair substitutions.
@@ -64,6 +64,18 @@ WatchOS owns match/timer continuity and does not host the live assistant/OpenAI 
   - emits one normal substitution event per ordered pair
   - increments team substitution tallies by batch size
   - suppresses stale single-substitution confirmation state after batch saves
+
+## Goal And Card Entry
+- Goal scorer selection is side-specific.
+  - When the requested side has a usable frozen sheet, watch shows saved player options for that side.
+  - When the requested side does not, watch falls back to manual numeric entry for that side.
+- Card recipient selection is also side-specific.
+  - Player cards use saved starters/substitutes for that side when that side has a usable saved player list.
+  - Team-official cards use saved staff and other members for that side when available, preserve stored free-text role labels when they do not map cleanly to the generic picker roles, and still keep the generic role picker available as fallback.
+  - When a side does not have saved participants for the requested recipient type, the flow falls back to the existing generic/manual path for that side.
+- Player selection rows keep shirt numbers visible whenever a side list exists.
+  - Example: `#10 Lionel Messi`
+  - If the saved player has no shirt number, the row remains identifiable as `#? Name`
 
 ## Watch-Specific Adapters
 - `WatchHaptics` implements `HapticsProviding`.

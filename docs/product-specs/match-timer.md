@@ -23,19 +23,19 @@ Provides referees with precise match, period, and stoppage tracking, optimized f
   - `Player(s) on`
 - The hub stays minimal for speed:
   - the top `Substitutions made` summary card is removed
-  - hub subtitles show shirt numbers only, comma-separated, in selection order
-  - if a selected player has no shirt number, the hub shows `?` for that slot
-  - player names remain visible inside the selection lists, but not in the hub summary
+  - hub subtitles keep number-first labels, comma-separated, in selection order
+  - a selected player with a shirt number appears as `#10 Name`
+  - if a selected player has no shirt number, the hub shows `#? Name` for that slot
 - Referees may enter either side first; watchOS no longer uses `substitutionOrderPlayerOffFirst` to control substitution navigation order.
-- If the selected scheduled match is watch-ready, each spoke resolves from the scheduled match sheet frozen onto that fixture.
+- If the requested side has a usable scheduled match sheet frozen onto the fixture, each spoke resolves from that side’s saved sheet.
   - `Player(s) off` comes from the active on-field set derived from starters plus saved substitution history.
   - `Player(s) on` comes from unused substitutes on the frozen sheet.
   - Rows remain deterministic and selection order becomes the pairing order for saved substitutions.
-- If the scheduled match has match-sheet data but either side is not ready, the spoke uses the numeric keypad/manual path instead of silently promoting live library rosters to official participants.
+- If the requested side does not have a usable frozen sheet, the spoke uses the numeric keypad/manual path for that side instead of silently promoting live library rosters to official participants.
 - Manual numeric entry keeps the selected numbers visible on the hub rows; the old top selected-numbers card is removed.
 - In manual entry, backspace deletes the current typed digit when the keypad buffer is non-empty; when the buffer is empty, backspace removes the most recently committed selection so referees can correct a batch without leaving the flow.
 - Legacy schedules created before match-sheet support may still use synced library-roster lookup as a backward-compatibility fallback when no match-sheet fields exist at all.
-- If the official frozen sheet is ready but a spoke has no eligible candidates left, the watch shows an unavailable state for that spoke instead of falling through to numeric/manual selection.
+- If a usable frozen saved side has no eligible candidates left for a spoke, the watch shows an unavailable state for that spoke instead of falling through to numeric/manual selection.
 - The hub enables `Done` only when both sides contain the same non-zero count.
 - If `Confirm Subs` is enabled, `Done` still opens the confirmation surface for single-pair substitutions.
 - The single-pair confirmation surface stays compact:
@@ -47,6 +47,18 @@ Provides referees with precise match, period, and stoppage tracking, optimized f
   - Every event in the batch shares one captured `matchTime`, `period`, and `actualTime` snapshot.
   - Home/away substitution tallies increment by the batch size.
   - Undo remains at individual substitution granularity in v1.
+
+## Goal And Card Entry (watchOS)
+- Goal scorer entry is player-only.
+  - When the requested side has a usable saved player list, watch shows named player options for that side.
+  - Otherwise the flow falls back to manual player-number entry.
+- Card entry is side-specific.
+  - Player cards use saved starters/substitutes for the requested side when that side has a usable saved player list.
+  - Team-official cards use saved staff/other members for the requested side when that side has usable saved officials, preserve their stored free-text role labels, and still keep generic role fallback available.
+  - Otherwise the flow falls back to the existing generic/manual path for that side.
+- Player selection rows keep shirt numbers visible whenever the watch shows a side list.
+  - Example: `#10 Lionel Messi`
+  - If the number is missing, the row keeps identity as `#? Name`
 
 ## Lifecycle Haptics
 - Natural period boundary emits the `periodBoundaryReached` lifecycle cue exactly once per boundary, after stale-callback guards pass and shared core has entered `PendingPeriodBoundaryDecision`.

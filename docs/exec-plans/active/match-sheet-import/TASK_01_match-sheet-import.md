@@ -2,11 +2,12 @@
 task_id: 01
 plan_id: PLAN_match-sheet-import
 plan_file: ./PLAN_match-sheet-import.md
-title: Document the upcoming-match screenshot import workflow
+title: Supersede the old match-sheet contract in docs and plans
 phase: Docs and intent
 ---
 
-- [x] Update the scheduled match-sheet product spec with the import/review/apply flow.
-- [x] Update iOS and shared-service architecture docs to keep the parser boundary iPhone-only and separate from assistant chat.
-- [x] Update the OpenAI Responses and installation docs with the parser contract and deployment notes.
-- [x] Register the new active plan in the exec-plan index.
+- [x] Rewrite the scheduled match-sheet spec around optional per-side sheets and concrete watch fallback behavior.
+- [x] Update iOS and watchOS architecture docs so they no longer depend on a two-sided `watch-ready` gate.
+- [x] Update the match-timer spec so substitutions, goals, and cards all describe side-specific saved-sheet usage.
+- [x] Re-scope the active `match-sheet-import` plan from preview-only work to the broader simplified optional-sheet implementation.
+- [x] Add a superseding note to the older historical schedule-match-sheets plan.

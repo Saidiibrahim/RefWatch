@@ -8,7 +8,7 @@ phase: Validation
 
 ## Supersession Note
 - The validation evidence below remains historically true for the roster-based phase, but it is no longer the desired product end state for newly authored scheduled matches.
-- `PLAN_schedule-match-sheets` supersedes roster-based participant resolution with frozen schedule-owned match sheets plus explicit safe fallback rules.
+- `docs/exec-plans/active/match-sheet-import/PLAN_match-sheet-import.md` is now the active source of truth for participant resolution, optional-sheet save behavior, and side-specific fallback rules.
 
 - [x] Run `swift test --package-path RefWatchCore`.
 - [x] Build `RefWatch Watch App` for Apple Watch Series 9 (45mm) simulator.
@@ -24,4 +24,4 @@ phase: Validation
 - Watch/iOS simulator test runs for the new sync coverage are still compiling dependencies and were not complete at the time this task file was updated.
 - Existing on-disk SwiftData migration behavior for the new persisted `homeTeamId` and `awayTeamId` fields still needs explicit upgrade validation against older stores.
 - Superseded participant precedence for newly authored schedules is now `ready frozen match sheets -> manual/numeric for explicit incomplete sheets -> roster lookup only for legacy no-sheet schedules`.
-- Current product/source-of-truth docs for substitution participant precedence now live under `PLAN_schedule-match-sheets` and `docs/product-specs/scheduled-match-sheets.md`.
+- Current product/source-of-truth docs for substitution participant precedence now live under `docs/exec-plans/active/match-sheet-import/PLAN_match-sheet-import.md` and `docs/product-specs/scheduled-match-sheets.md`.

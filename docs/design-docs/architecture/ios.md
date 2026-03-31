@@ -24,9 +24,16 @@
 
 ## Scheduled Match Sheets
 - iPhone owns creation and editing of scheduled match sheets for upcoming fixtures.
-- `UpcomingMatchEditorView` is the scheduling surface that chooses source teams, persists explicit draft home/away sheet shells, and owns the explicit create/add/edit actions that seed or mutate schedule-owned snapshots from the library.
-- Newly saved schedules persist explicit draft home/away sheet shells so legacy no-sheet schedules remain distinguishable from schedules authored under the new model.
+- `UpcomingMatchEditorView` is the scheduling surface that keeps home/away team names as free-text schedule data, offers optional saved-library Team Library autofill for the visible name only, and owns all per-side match-sheet actions.
+- Saving the upcoming match is valid without any match sheets. Each side is prepared independently at the save boundary: complete sides persist as internal `ready`, incomplete or empty sides persist as internal `draft`.
+- Newly saved schedules may still persist explicit home/away sheet shells internally so legacy no-sheet schedules remain distinguishable from schedules authored under the new model.
 - Existing schedules need a dedicated pre-kickoff edit route back into `UpcomingMatchEditorView`; the schedule editor, not match setup, owns official match-sheet authoring.
+- `MatchSheetEditorView` edits schedule-owned manual/ad hoc entries plus imported drafts. It preserves existing `sourceTeamId` / `sourceTeamName` already stored on a sheet, but it does not reseed or rewrite sheet provenance from local `TeamRecord` selection.
+- Upcoming-match Team Library autofill does not reintroduce `TeamRecord` editor state. It uses already-saved library teams only, does not materialize reference teams for this flow, updates only `homeName` / `awayName`, and leaves existing stored `homeTeamId` / `awayTeamId` and imported `sourceTeamId` / `sourceTeamName` as preserved pass-through data on edit.
+- iPhone keeps the internal `draft` / `ready` state out of the visible schedule-owned UI:
+  - `UpcomingMatchEditorView` shows optional per-side count summaries only when a side has entries
+  - each side exposes `Add Manually` or `Edit`, `Import Screenshots` or `Replace from Screenshots`, and `Remove Sheet` when that side has saved entries
+  - `MatchSheetEditorView` shows participant sections plus import warnings/review state only; it does not surface `State`, `Mark Ready`, or `Mark Draft` controls
 - Schedule persistence/sync owns the frozen sheet boundary:
   - local SwiftData schedule records store home/away sheet blobs
   - Supabase `scheduled_matches` rows store additive JSON sheet columns
@@ -36,7 +43,7 @@
 - When kickoff starts from a scheduled fixture, the live match must preserve the schedule's home/away team identity alongside the frozen match sheets; changing teams requires going back through the schedule editor first.
 - Watch remains a consumer of the synced frozen schedule data; it does not author official match sheets.
 - The assistant surface is not shared to watchOS; keep all assistant network and Photos attachment handling inside the iOS target.
-- Screenshot import for upcoming matches is iPhone-only as well. `UpcomingMatchEditorView` owns the multi-image Photos picker, transient parse state, and confirm/apply step, while `MatchSheetEditorView` is reused as the review surface for imported drafts.
+- Screenshot import for upcoming matches is iPhone-only as well. `UpcomingMatchEditorView` owns the multi-image Photos picker, transient parse state, and final save boundary, while `MatchSheetEditorView` is reused as the review surface for imported drafts before they replace the selected side inside the parent editor state.
 - The import flow should reuse the assistant's image-normalization approach, but it must not reuse the assistant chat history or streaming response contract.
 
 ## Shared Code Consumption
