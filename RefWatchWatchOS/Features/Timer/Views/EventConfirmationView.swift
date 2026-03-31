@@ -95,16 +95,26 @@ struct EventConfirmationView: View {
   private var detailLine: String? {
     switch self.event.eventType {
     case let .goal(details):
-      if let number = details.playerNumber {
-        return self.formattedPlayer(number: number, name: details.playerName)
+      if let player = self.formattedParticipant(number: details.playerNumber, name: details.playerName) {
+        return player
       }
       return details.goalType == .regular ? nil : details.goalType.rawValue
     case let .card(details):
-      if details.recipientType == .player, let number = details.playerNumber {
-        return self.formattedPlayer(number: number, name: details.playerName)
+      if details.recipientType == .player,
+         let player = self.formattedParticipant(number: details.playerNumber, name: details.playerName)
+      {
+        return player
       }
-      if details.recipientType == .teamOfficial, let role = details.officialRole {
-        return role.rawValue
+      if details.recipientType == .teamOfficial {
+        if let officialName = details.officialName?.trimmingCharacters(in: .whitespacesAndNewlines), officialName.isEmpty == false {
+          if let roleLabel = self.officialRoleDisplayLabel(details) {
+            return "\(officialName) · \(roleLabel)"
+          }
+          return officialName
+        }
+        if let roleLabel = self.officialRoleDisplayLabel(details) {
+          return roleLabel
+        }
       }
       return details.reason
     case let .substitution(details):
@@ -122,19 +132,12 @@ struct EventConfirmationView: View {
       }
     case let .penaltyAttempt(attempt):
       if let number = attempt.playerNumber {
-        return self.formattedPlayer(number: number, name: nil)
+        return self.formattedParticipant(number: number, name: nil)
       }
       return "Round \(attempt.round)"
     default:
       return nil
     }
-  }
-
-  private func formattedPlayer(number: Int, name: String?) -> String {
-    if let name, !name.isEmpty {
-      return "#\(number) · \(name)"
-    }
-    return "#\(number)"
   }
 
   private func formattedParticipant(number: Int?, name: String?) -> String? {
@@ -147,10 +150,18 @@ struct EventConfirmationView: View {
     case let (number?, nil):
       return "#\(number)"
     case let (nil, name?):
-      return name
+      return "#? \(name)"
     case (nil, nil):
       return nil
     }
+  }
+
+  private func officialRoleDisplayLabel(_ details: CardDetails) -> String? {
+    let trimmedLabel = details.officialRoleLabel?.trimmingCharacters(in: .whitespacesAndNewlines)
+    if let trimmedLabel, trimmedLabel.isEmpty == false {
+      return trimmedLabel
+    }
+    return details.officialRole?.rawValue
   }
 }
 

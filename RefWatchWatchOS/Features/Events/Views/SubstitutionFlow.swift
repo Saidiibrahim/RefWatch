@@ -347,7 +347,7 @@ struct SubstitutionSelection: Identifiable, Equatable, Hashable {
   }
 
   var summaryLabel: String {
-    self.number.map(String.init) ?? "?"
+    self.displayLabel
   }
 
   private static func formattedParticipant(number: Int?, name: String?) -> String? {
@@ -358,7 +358,7 @@ struct SubstitutionSelection: Identifiable, Equatable, Hashable {
     case let (number?, nil):
       return "#\(number)"
     case let (nil, name?):
-      return name
+      return "#? \(name)"
     case (nil, nil):
       return nil
     }
@@ -482,11 +482,11 @@ private struct SubstitutionPlayerSelectionView: View {
     let trimmedName = player.name.trimmingCharacters(in: .whitespacesAndNewlines)
     switch (player.number, trimmedName.isEmpty ? nil : trimmedName) {
     case let (number?, name?):
-      return "\(number). \(name)"
+      return "#\(number) \(name)"
     case let (number?, nil):
-      return "\(number). Player"
+      return "#\(number) Player"
     case let (nil, name?):
-      return name
+      return "#? \(name)"
     case (nil, nil):
       return "Player"
     }

@@ -13,7 +13,7 @@ struct SubstitutionFlowSupportTests {
     #expect(summary == "Select player")
   }
 
-  @Test func testSelectionSummary_whenSelectionsExist_returnsCommaSeparatedNumbersOnly() async throws {
+  @Test func testSelectionSummary_whenSelectionsExist_preservesNumbersAndNames() async throws {
     let selections = [
       SubstitutionSelection(number: 12, name: "Alex"),
       SubstitutionSelection(number: 16, name: "Jamie"),
@@ -21,10 +21,10 @@ struct SubstitutionFlowSupportTests {
 
     let summary = SubstitutionFlowSupport.selectionSummary(for: selections)
 
-    #expect(summary == "12, 16")
+    #expect(summary == "#12 Alex, #16 Jamie")
   }
 
-  @Test func testSelectionSummary_whenNumberMissing_usesQuestionMark() async throws {
+  @Test func testSelectionSummary_whenNumberMissing_preservesQuestionMarkAndName() async throws {
     let selections = [
       SubstitutionSelection(number: nil, name: "Alex"),
       SubstitutionSelection(number: 7, name: "Jamie"),
@@ -32,15 +32,15 @@ struct SubstitutionFlowSupportTests {
 
     let summary = SubstitutionFlowSupport.selectionSummary(for: selections)
 
-    #expect(summary == "?, 7")
+    #expect(summary == "#? Alex, #7 Jamie")
   }
 
-  @Test func testConfirmationSummary_whenNamesExist_returnsNumbersOnly() async throws {
+  @Test func testConfirmationSummary_whenNamesExist_preservesNumbersAndNames() async throws {
     let summary = SubstitutionFlowSupport.confirmationSummary(
       playerOff: SubstitutionSelection(number: 2, name: "Alexandria Johnson-Smith"),
       playerOn: SubstitutionSelection(number: 12, name: "Eleanor Whitmore"))
 
-    #expect(summary == "2 -> 12")
+    #expect(summary == "#2 Alexandria Johnson-Smith -> #12 Eleanor Whitmore")
   }
 
   @Test func testConfirmationSummary_whenNumberMissing_usesQuestionMark() async throws {
@@ -48,7 +48,7 @@ struct SubstitutionFlowSupportTests {
       playerOff: SubstitutionSelection(number: nil, name: "Alex"),
       playerOn: SubstitutionSelection(number: 7, name: "Jamie"))
 
-    #expect(summary == "? -> 7")
+    #expect(summary == "#? Alex -> #7 Jamie")
   }
 
   @Test func testAppendManualSelection_whenUnique_appendsInOrder() async throws {

@@ -198,7 +198,7 @@ final class MatchViewModel_EventsAndStoppageTests: XCTestCase {
             details: .substitution(details)
         )
 
-        XCTAssertEqual(event.displayDescription, "Substitution - #4 Alex -> Jamie")
+        XCTAssertEqual(event.displayDescription, "Substitution - #4 Alex -> #? Jamie")
     }
 
     func test_undo_without_events_returns_false() {

@@ -133,6 +133,8 @@ public struct CardDetails: Codable, Equatable {
   public let playerNumber: Int?
   public let playerName: String?
   public let officialRole: TeamOfficialRole?
+  public let officialRoleLabel: String?
+  public let officialName: String?
   public let reason: String
   public let reasonCode: String?
   public let reasonTitle: String?
@@ -143,6 +145,8 @@ public struct CardDetails: Codable, Equatable {
     playerNumber: Int?,
     playerName: String?,
     officialRole: TeamOfficialRole?,
+    officialRoleLabel: String? = nil,
+    officialName: String? = nil,
     reason: String,
     reasonCode: String? = nil,
     reasonTitle: String? = nil)
@@ -152,6 +156,8 @@ public struct CardDetails: Codable, Equatable {
     self.playerNumber = playerNumber
     self.playerName = playerName
     self.officialRole = officialRole
+    self.officialRoleLabel = officialRoleLabel
+    self.officialName = officialName
     self.reason = reason
     self.reasonCode = reasonCode
     self.reasonTitle = reasonTitle
@@ -222,17 +228,27 @@ extension MatchEventRecord {
     switch self.eventType {
     case let .goal(goalDetails):
       let goalTypeText = goalDetails.goalType.rawValue
-      if let playerNum = goalDetails.playerNumber {
-        return "\(goalTypeText) - #\(playerNum)"
+      if let player = self.formattedParticipant(number: goalDetails.playerNumber, name: goalDetails.playerName) {
+        return "\(goalTypeText) - \(player)"
       }
       return goalTypeText
 
     case let .card(cardDetails):
       let cardText = "\(cardDetails.cardType.rawValue) Card"
-      if cardDetails.recipientType == .player, let playerNum = cardDetails.playerNumber {
-        return "\(cardText) - #\(playerNum) (\(cardDetails.reason))"
-      } else if cardDetails.recipientType == .teamOfficial, let role = cardDetails.officialRole {
-        return "\(cardText) - \(role.rawValue) (\(cardDetails.reason))"
+      if cardDetails.recipientType == .player,
+         let player = self.formattedParticipant(number: cardDetails.playerNumber, name: cardDetails.playerName)
+      {
+        return "\(cardText) - \(player) (\(cardDetails.reason))"
+      } else if cardDetails.recipientType == .teamOfficial {
+        if let officialName = cardDetails.officialName?.trimmingCharacters(in: .whitespacesAndNewlines), officialName.isEmpty == false {
+          if let roleLabel = self.officialRoleDisplayLabel(details: cardDetails) {
+            return "\(cardText) - \(officialName) · \(roleLabel) (\(cardDetails.reason))"
+          }
+          return "\(cardText) - \(officialName) (\(cardDetails.reason))"
+        }
+        if let roleLabel = self.officialRoleDisplayLabel(details: cardDetails) {
+          return "\(cardText) - \(roleLabel) (\(cardDetails.reason))"
+        }
       }
       return "\(cardText) - \(cardDetails.reason)"
 
@@ -302,9 +318,17 @@ extension MatchEventRecord {
     case let (number?, nil):
       return "#\(number)"
     case let (nil, name?):
-      return name
+      return "#? \(name)"
     case (nil, nil):
       return nil
     }
+  }
+
+  private func officialRoleDisplayLabel(details: CardDetails) -> String? {
+    let trimmedLabel = details.officialRoleLabel?.trimmingCharacters(in: .whitespacesAndNewlines)
+    if let trimmedLabel, trimmedLabel.isEmpty == false {
+      return trimmedLabel
+    }
+    return details.officialRole?.rawValue
   }
 }

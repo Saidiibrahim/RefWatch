@@ -885,6 +885,8 @@ extension MatchViewModel {
     playerNumber: Int? = nil,
     playerName: String? = nil,
     officialRole: TeamOfficialRole? = nil,
+    officialRoleLabel: String? = nil,
+    officialName: String? = nil,
     reason: String,
     reasonCode: String? = nil,
     reasonTitle: String? = nil)
@@ -895,6 +897,8 @@ extension MatchViewModel {
       playerNumber: playerNumber,
       playerName: playerName,
       officialRole: officialRole,
+      officialRoleLabel: officialRoleLabel,
+      officialName: officialName,
       reason: reason,
       reasonCode: reasonCode,
       reasonTitle: reasonTitle)
