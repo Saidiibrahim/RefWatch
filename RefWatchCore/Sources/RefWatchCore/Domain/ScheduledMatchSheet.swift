@@ -247,6 +247,14 @@ public struct ScheduledMatchSheet: Codable, Hashable, Sendable {
   public var staffCount: Int { self.staff.count }
   public var otherMemberCount: Int { self.otherMembers.count }
 
+  /// Returns the persisted form used when an upcoming match is saved.
+  /// Complete sheets are promoted to `ready`; incomplete or empty sheets remain `draft`.
+  public func preparedForScheduleSave() -> ScheduledMatchSheet {
+    var prepared = self.normalized()
+    prepared.status = prepared.meetsReadyRequirements ? .ready : .draft
+    return prepared.normalized()
+  }
+
   /// Returns a normalized copy with stable ordering, trimmed display fields,
   /// and a status that is automatically demoted to `draft` if requirements are
   /// no longer satisfied.
@@ -374,12 +382,90 @@ public enum MatchParticipantSelectionSource: Equatable, Sendable {
   case manualOnly
 }
 
+public struct MatchSelectablePlayer: Identifiable, Equatable, Sendable {
+  public let participantId: UUID
+  public let displayName: String
+  public let shirtNumber: Int?
+  public let position: String?
+  public let notes: String?
+
+  public var id: UUID { self.participantId }
+
+  public init(
+    participantId: UUID,
+    displayName: String,
+    shirtNumber: Int? = nil,
+    position: String? = nil,
+    notes: String? = nil)
+  {
+    self.participantId = participantId
+    self.displayName = displayName
+    self.shirtNumber = shirtNumber
+    self.position = position
+    self.notes = notes
+  }
+
+  public init(player: MatchLibraryPlayer) {
+    self.init(
+      participantId: player.id,
+      displayName: player.name,
+      shirtNumber: player.number,
+      position: player.position,
+      notes: player.notes)
+  }
+
+  public init(entry: MatchSheetPlayerEntry) {
+    self.init(
+      participantId: entry.entryId,
+      displayName: entry.displayName,
+      shirtNumber: entry.shirtNumber,
+      position: entry.position,
+      notes: entry.notes)
+  }
+}
+
+public struct MatchSelectableOfficial: Identifiable, Equatable, Sendable {
+  public let participantId: UUID
+  public let displayName: String
+  public let roleLabel: String?
+  public let category: MatchSheetStaffCategory
+
+  public var id: UUID { self.participantId }
+
+  public init(participantId: UUID, displayName: String, roleLabel: String?, category: MatchSheetStaffCategory) {
+    self.participantId = participantId
+    self.displayName = displayName
+    self.roleLabel = roleLabel
+    self.category = category
+  }
+
+  public init(entry: MatchSheetStaffEntry) {
+    self.init(
+      participantId: entry.entryId,
+      displayName: entry.displayName,
+      roleLabel: entry.roleLabel,
+      category: entry.category)
+  }
+}
+
+public enum MatchCardPlayerSelectionSource: Equatable, Sendable {
+  case savedSheet(players: [MatchSelectablePlayer])
+  case legacyLibrary(players: [MatchSelectablePlayer])
+  case manualOnly
+}
+
+public enum MatchCardOfficialSelectionSource: Equatable, Sendable {
+  case savedSheet(officials: [MatchSelectableOfficial])
+  case manualOnly
+}
+
 /// Resolves the official participant source for player-selection flows.
 ///
 /// Precedence is:
-/// 1. Ready frozen match sheets on both sides.
-/// 2. Manual-only fallback if any explicit match-sheet model exists but is not watch-ready.
-/// 3. Legacy library roster lookup only when the match has no sheet model at all.
+/// 1. Ready frozen match sheet on the requested side.
+/// 2. Manual-only fallback if that side has an explicit but incomplete sheet,
+///    or if only the opposite side has a saved sheet.
+/// 3. Legacy library roster lookup only when neither side has a saved sheet.
 public enum MatchParticipantSelectionResolver {
   public static func resolve(
     match: Match,
@@ -387,23 +473,55 @@ public enum MatchParticipantSelectionResolver {
     libraryTeams: [MatchLibraryTeam],
     events: [MatchEventRecord]) -> MatchParticipantSelectionSource
   {
-    if match.areMatchSheetsReadyForWatch {
-      let sheet = team == .home ? match.homeMatchSheet : match.awayMatchSheet
-      if let sheet, let lineup = MatchSheetLineupResolver.resolve(sheet: sheet, team: team, events: events) {
+    switch self.selectionScope(match: match, team: team) {
+    case let .savedSheet(sheet):
+      switch MatchSheetLineupResolver.resolve(sheet: sheet, team: team, events: events) {
+      case let .some(lineup):
         return .frozenSheet(lineup: lineup)
+      case .none:
+        return .manualOnly
+      }
+    case .manualOnly:
+      return .manualOnly
+    case .legacyLibrary:
+      if let legacyPlayers = self.resolveLegacyRoster(match: match, team: team, libraryTeams: libraryTeams) {
+        return .legacyLibrary(players: legacyPlayers)
       }
       return .manualOnly
     }
+  }
 
-    if match.hasAnyMatchSheetData {
+  public static func resolveCardPlayers(
+    match: Match,
+    team: TeamSide,
+    libraryTeams: [MatchLibraryTeam],
+    events: [MatchEventRecord]) -> MatchCardPlayerSelectionSource
+  {
+    switch self.selectionScope(match: match, team: team) {
+    case let .savedSheet(sheet):
+      let players = self.resolveSavedCardPlayers(sheet: sheet, team: team, events: events)
+      return players.isEmpty ? .manualOnly : .savedSheet(players: players)
+    case .manualOnly:
+      return .manualOnly
+    case .legacyLibrary:
+      if let legacyPlayers = self.resolveLegacyRoster(match: match, team: team, libraryTeams: libraryTeams) {
+        return .legacyLibrary(players: legacyPlayers.map(MatchSelectablePlayer.init(player:)))
+      }
       return .manualOnly
     }
+  }
 
-    if let legacyPlayers = self.resolveLegacyRoster(match: match, team: team, libraryTeams: libraryTeams) {
-      return .legacyLibrary(players: legacyPlayers)
+  public static func resolveCardOfficials(
+    match: Match,
+    team: TeamSide) -> MatchCardOfficialSelectionSource
+  {
+    switch self.selectionScope(match: match, team: team) {
+    case let .savedSheet(sheet):
+      let officials = (sheet.staff + sheet.otherMembers).map(MatchSelectableOfficial.init(entry:))
+      return officials.isEmpty ? .manualOnly : .savedSheet(officials: officials)
+    case .manualOnly, .legacyLibrary:
+      return .manualOnly
     }
-
-    return .manualOnly
   }
 
   private static func resolveLegacyRoster(
@@ -430,6 +548,51 @@ public enum MatchParticipantSelectionResolver {
     }
     return teamRecord.players
   }
+
+  private static func resolveSavedCardPlayers(
+    sheet: ScheduledMatchSheet,
+    team: TeamSide,
+    events: [MatchEventRecord]) -> [MatchSelectablePlayer]
+  {
+    let normalized = sheet.normalized()
+    guard normalized.isReady else { return [] }
+
+    var players = normalized.starters + normalized.substitutes
+    let dismissalEvents = events
+      .filter { $0.team == team }
+      .sorted { lhs, rhs in
+        if lhs.actualTime != rhs.actualTime {
+          return lhs.actualTime < rhs.actualTime
+        }
+        return lhs.timestamp < rhs.timestamp
+      }
+
+    for event in dismissalEvents {
+      guard case let .card(details) = event.eventType, details.dismissesPlayer else { continue }
+      players.removeAll { $0.matches(number: details.playerNumber, name: details.playerName) }
+    }
+
+    return players.map(MatchSelectablePlayer.init(entry:))
+  }
+
+  private static func selectionScope(match: Match, team: TeamSide) -> MatchSheetSelectionScope {
+    let targetSheet = (team == .home ? match.homeMatchSheet : match.awayMatchSheet)?.normalized()
+    if let targetSheet {
+      return targetSheet.isReady ? .savedSheet(targetSheet) : .manualOnly
+    }
+
+    if match.homeMatchSheet == nil && match.awayMatchSheet == nil {
+      return .legacyLibrary
+    }
+
+    return .manualOnly
+  }
+}
+
+private enum MatchSheetSelectionScope {
+  case savedSheet(ScheduledMatchSheet)
+  case legacyLibrary
+  case manualOnly
 }
 
 private extension MatchSheetPlayerEntry {

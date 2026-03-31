@@ -227,6 +227,108 @@ final class ScheduledMatchSheetTests: XCTestCase {
     XCTAssertEqual(resolved, MatchParticipantSelectionSource.legacyLibrary(players: [legacyPlayer]))
   }
 
+  func testPreparedForScheduleSavePromotesCompleteSideAndKeepsEmptySideDraft() {
+    let completeSheet = ScheduledMatchSheet(
+      sourceTeamName: "Metro FC",
+      status: .draft,
+      starters: [MatchSheetPlayerEntry(displayName: "Starter", shirtNumber: 9, sortOrder: 0)],
+      substitutes: [MatchSheetPlayerEntry(displayName: "Bench", shirtNumber: 14, sortOrder: 0)],
+      staff: [MatchSheetStaffEntry(displayName: "Coach", roleLabel: "Coach", sortOrder: 0, category: .staff)],
+      updatedAt: Date(timeIntervalSince1970: 1_742_001_000))
+
+    let emptySheet = ScheduledMatchSheet(sourceTeamName: "Rivals", status: .ready, updatedAt: Date(timeIntervalSince1970: 1_742_001_001))
+
+    XCTAssertEqual(completeSheet.preparedForScheduleSave().status, .ready)
+    XCTAssertEqual(emptySheet.preparedForScheduleSave().status, .draft)
+  }
+
+  func testSelectionResolverUsesReadySideEvenWhenOppositeSideIsMissing() {
+    let readySheet = ScheduledMatchSheet(
+      status: .ready,
+      starters: [MatchSheetPlayerEntry(displayName: "Frozen Starter", shirtNumber: 9, sortOrder: 0)],
+      updatedAt: Date(timeIntervalSince1970: 1_742_001_100))
+    let match = Match(
+      homeTeam: "Metro FC",
+      awayTeam: "Rivals",
+      duration: 90 * 60,
+      halfTimeLength: 15 * 60,
+      homeMatchSheet: readySheet,
+      awayMatchSheet: nil)
+
+    let resolved = MatchParticipantSelectionResolver.resolve(
+      match: match,
+      team: .home,
+      libraryTeams: [],
+      events: [])
+
+    guard case let .frozenSheet(lineup) = resolved else {
+      return XCTFail("Expected per-side saved sheet precedence")
+    }
+
+    XCTAssertEqual(lineup.onField.map(\.displayName), ["Frozen Starter"])
+  }
+
+  func testSelectionResolverUsesManualFallbackWhenOnlyOppositeSideHasSavedSheet() {
+    let readySheet = ScheduledMatchSheet(
+      status: .ready,
+      starters: [MatchSheetPlayerEntry(displayName: "Frozen Starter", shirtNumber: 9, sortOrder: 0)],
+      updatedAt: Date(timeIntervalSince1970: 1_742_001_200))
+    let match = Match(
+      homeTeam: "Metro FC",
+      awayTeam: "Rivals",
+      duration: 90 * 60,
+      halfTimeLength: 15 * 60,
+      homeMatchSheet: readySheet,
+      awayMatchSheet: nil)
+
+    let resolved = MatchParticipantSelectionResolver.resolve(
+      match: match,
+      team: .away,
+      libraryTeams: [
+        MatchLibraryTeam(id: UUID(), name: "Rivals", players: [MatchLibraryPlayer(id: UUID(), name: "Legacy Player", number: 4)])
+      ],
+      events: [])
+
+    XCTAssertEqual(resolved, .manualOnly)
+  }
+
+  func testCardResolversUsePerSideSavedParticipants() {
+    let readySheet = ScheduledMatchSheet(
+      status: .ready,
+      starters: [MatchSheetPlayerEntry(displayName: "Starter", shirtNumber: 9, sortOrder: 0)],
+      substitutes: [MatchSheetPlayerEntry(displayName: "Bench", shirtNumber: 14, sortOrder: 0)],
+      staff: [MatchSheetStaffEntry(displayName: "Taylor Coach", roleLabel: "Coach", sortOrder: 0, category: .staff)],
+      otherMembers: [MatchSheetStaffEntry(displayName: "Casey Analyst", roleLabel: "Analyst", sortOrder: 0, category: .otherMember)],
+      updatedAt: Date(timeIntervalSince1970: 1_742_001_300))
+    let match = Match(
+      homeTeam: "Metro FC",
+      awayTeam: "Rivals",
+      duration: 90 * 60,
+      halfTimeLength: 15 * 60,
+      homeMatchSheet: readySheet,
+      awayMatchSheet: nil)
+
+    let playerSource = MatchParticipantSelectionResolver.resolveCardPlayers(
+      match: match,
+      team: .home,
+      libraryTeams: [],
+      events: [])
+    let officialSource = MatchParticipantSelectionResolver.resolveCardOfficials(
+      match: match,
+      team: .home)
+
+    guard case let .savedSheet(players) = playerSource else {
+      return XCTFail("Expected saved player source")
+    }
+    guard case let .savedSheet(officials) = officialSource else {
+      return XCTFail("Expected saved official source")
+    }
+
+    XCTAssertEqual(players.map(\.displayName), ["Starter", "Bench"])
+    XCTAssertEqual(players.map(\.shirtNumber), [9, 14])
+    XCTAssertEqual(officials.map(\.displayName), ["Taylor Coach", "Casey Analyst"])
+  }
+
   func testDecodeBackwardCompatibleSheetUsesDefaultsForMissingFieldsAndUnknownEnums() throws {
     let data = """
     {
