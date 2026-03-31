@@ -82,12 +82,11 @@ struct MatchSetupView: View {
         .tabViewStyle(.page)
         .navigationDestination(item: $goalInputContext) { context in
             PlayerNumberInputView(
-                team: context.team,
-                goalType: context.goalType,
-                cardType: nil,
-                context: "goal scorer",
-                onComplete: { number in
-                    recordGoal(teamType: context.team, goalType: context.goalType, playerNumber: number)
+                title: "Goal Scorer",
+                selectionOptions: self.goalSelectionOptions(for: context.team),
+                placeholder: "goal scorer",
+                onComplete: { selection in
+                    recordGoal(teamType: context.team, goalType: context.goalType, playerSelection: selection)
                     goalInputContext = nil
                 }
             )
@@ -120,8 +119,13 @@ struct MatchSetupView: View {
         }
     }
 
-    private func recordGoal(teamType: TeamDetailsView.TeamType, goalType: GoalDetails.GoalType, playerNumber: Int) {
-        print("DEBUG: Recording goal - Type: \(goalType.rawValue), Player: #\(playerNumber), Team: \(teamType)")
+    private func recordGoal(
+        teamType: TeamDetailsView.TeamType,
+        goalType: GoalDetails.GoalType,
+        playerSelection: PlayerSelectionResult)
+    {
+        print(
+            "DEBUG: Recording goal - Type: \(goalType.rawValue), Player: \(String(describing: playerSelection)), Team: \(teamType)")
         let scoringTeam: TeamSide
         switch goalType {
         case .regular, .freeKick, .penalty:
@@ -133,11 +137,30 @@ struct MatchSetupView: View {
         viewModel.matchViewModel.recordGoal(
             team: scoringTeam,
             goalType: goalType,
-            playerNumber: playerNumber
+            playerNumber: playerSelection.number,
+            playerName: playerSelection.name
         )
         print("DEBUG: Goal recording completed successfully using new system")
         print("DEBUG: Navigating to middle screen...")
         viewModel.setSelectedTab(1)
+    }
+
+    private func goalSelectionOptions(for team: TeamDetailsView.TeamType) -> [PlayerSelectionOption] {
+        guard let match = self.viewModel.matchViewModel.currentMatch else { return [] }
+
+        switch MatchParticipantSelectionResolver.resolve(
+            match: match,
+            team: team == .home ? .home : .away,
+            libraryTeams: self.viewModel.matchViewModel.libraryTeams,
+            events: self.viewModel.matchViewModel.matchEvents)
+        {
+        case let .frozenSheet(lineup):
+            return lineup.onField.map(PlayerSelectionOption.init(entry:))
+        case let .legacyLibrary(players):
+            return players.map(PlayerSelectionOption.init(player:))
+        case .manualOnly:
+            return []
+        }
     }
 }
 

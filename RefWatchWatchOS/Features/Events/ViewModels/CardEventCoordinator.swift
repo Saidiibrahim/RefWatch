@@ -16,8 +16,8 @@ import SwiftUI
   var cardType: CardDetails.CardType
   var selectedTeam: TeamDetailsView.TeamType
   var selectedRecipient: CardRecipientType?
-  var selectedPlayerNumber: Int?
-  var selectedOfficialRole: TeamOfficialRole?
+  var selectedPlayer: PlayerSelectionResult?
+  var selectedOfficial: TeamOfficialSelectionResult?
   var selectedReason: MisconductReason?
 
   private let matchViewModel: MatchViewModel
@@ -45,15 +45,15 @@ import SwiftUI
     }
   }
 
-  func handlePlayerNumber(_ number: Int) {
-    print("DEBUG: Selected player number: \(number)")
-    self.selectedPlayerNumber = number
+  func handlePlayerSelection(_ selection: PlayerSelectionResult) {
+    print("DEBUG: Selected player: \(String(describing: selection))")
+    self.selectedPlayer = selection
     self.currentStep = .reason(isTeamOfficial: false)
   }
 
-  func handleTeamOfficial(_ role: TeamOfficialRole) {
-    print("DEBUG: Selected team official role: \(role)")
-    self.selectedOfficialRole = role
+  func handleTeamOfficial(_ selection: TeamOfficialSelectionResult) {
+    print("DEBUG: Selected team official: \(String(describing: selection))")
+    self.selectedOfficial = selection
     print("DEBUG: Moving to reason selection with isTeamOfficial=true")
     self.currentStep = .reason(isTeamOfficial: true)
   }
@@ -74,8 +74,8 @@ import SwiftUI
 
     print(
       "DEBUG: Recording card - Type: \(self.cardType), Reason: \(reason.displayText), " +
-        "Player: \(String(describing: self.selectedPlayerNumber)), " +
-        "Official: \(String(describing: self.selectedOfficialRole))")
+        "Player: \(String(describing: self.selectedPlayer)), " +
+        "Official: \(String(describing: self.selectedOfficial))")
 
     // Use canonical card type directly
     let recipientType: CardRecipientType = self.selectedRecipient ?? .player
@@ -86,8 +86,11 @@ import SwiftUI
       team: team,
       cardType: self.cardType,
       recipientType: recipientType,
-      playerNumber: self.selectedPlayerNumber,
-      officialRole: self.selectedOfficialRole,
+      playerNumber: self.selectedPlayer?.number,
+      playerName: self.selectedPlayer?.name,
+      officialRole: self.selectedOfficial?.officialRole,
+      officialRoleLabel: self.selectedOfficial?.officialRoleLabel,
+      officialName: self.selectedOfficial?.officialName,
       reason: reason.displayText,
       reasonCode: reason.code,
       reasonTitle: reason.title)
@@ -100,8 +103,39 @@ import SwiftUI
   func resetToInitialState() {
     self.currentStep = .recipient
     self.selectedRecipient = nil
-    self.selectedPlayerNumber = nil
-    self.selectedOfficialRole = nil
+    self.selectedPlayer = nil
+    self.selectedOfficial = nil
     self.selectedReason = nil
+  }
+
+  var playerSelectionOptions: [PlayerSelectionOption] {
+    guard let match = self.matchViewModel.currentMatch else { return [] }
+
+    switch MatchParticipantSelectionResolver.resolveCardPlayers(
+      match: match,
+      team: self.teamSide,
+      libraryTeams: self.matchViewModel.libraryTeams,
+      events: self.matchViewModel.matchEvents)
+    {
+    case let .savedSheet(players), let .legacyLibrary(players):
+      return players.map(PlayerSelectionOption.init(player:))
+    case .manualOnly:
+      return []
+    }
+  }
+
+  var officialSelectionOptions: [TeamOfficialSelectionOption] {
+    guard let match = self.matchViewModel.currentMatch else { return [] }
+
+    switch MatchParticipantSelectionResolver.resolveCardOfficials(match: match, team: self.teamSide) {
+    case let .savedSheet(officials):
+      return officials.map(TeamOfficialSelectionOption.init(official:))
+    case .manualOnly:
+      return []
+    }
+  }
+
+  private var teamSide: TeamSide {
+    self.selectedTeam == .home ? .home : .away
   }
 }

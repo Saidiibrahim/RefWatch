@@ -34,20 +34,19 @@ struct CardEventFlow: View {
 
             case .playerNumber:
                 PlayerNumberInputView(
-                    team: coordinator.selectedTeam,
-                    goalType: nil,
-                    cardType: coordinator.cardType,
-                    context: "player #"
-                ) { number in
-                    coordinator.handlePlayerNumber(number)
+                    title: "Select Player",
+                    selectionOptions: coordinator.playerSelectionOptions,
+                    placeholder: "player #"
+                ) { selection in
+                    coordinator.handlePlayerSelection(selection)
                 }
 
             case .teamOfficial:
                 TeamOfficialSelectionView(
-                    team: coordinator.selectedTeam
-                ) { role in
-                    print("DEBUG: Team official selected, handling role")
-                    coordinator.handleTeamOfficial(role)
+                    savedOfficials: coordinator.officialSelectionOptions
+                ) { selection in
+                    print("DEBUG: Team official selected, handling selection")
+                    coordinator.handleTeamOfficial(selection)
                 }
 
             case .reason(let isTeamOfficial):
