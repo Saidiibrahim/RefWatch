@@ -13,7 +13,7 @@ Let referees save upcoming matches on iPhone whether or not they have match shee
 - `Save` in the upcoming-match editor remains available as long as the basic fixture fields are valid.
 - A saved manual or imported sheet is final for that side until the referee edits or replaces it later.
 - iPhone does not expose `Draft`, `Ready`, `Official`, or `Watch Ready` labels in the upcoming editor or match-sheet editor.
-- iPhone may offer Team Library autofill for the home/away name fields, but that picker is limited to already-saved library teams, updates only the visible schedule name string, and does not materialize reference teams, bind `TeamRecord`, mint team IDs, or rewrite stored sheet provenance.
+- iPhone may offer Teams library/catalog autofill for the home/away name fields through the app’s existing team-selection flow. Picker selection updates only the visible schedule name string and does not bind `TeamRecord`, mint team IDs, or rewrite stored sheet provenance.
 - iPhone may still persist explicit empty home/away sheet shells for compatibility, but that is an internal storage detail and not user-facing product language.
 - Existing `sourceTeamId` / `sourceTeamName` remain preserved provenance for older or imported sheets, but iPhone editing does not silently reseed them from the library.
 - Later edits to the library must not silently rewrite saved schedule sheets.
@@ -52,8 +52,8 @@ Let referees save upcoming matches on iPhone whether or not they have match shee
 
 ## iPhone Scheduling UX
 - The upcoming-match editor shows separate `Home Match Sheet` and `Away Match Sheet` sections.
-- Home and away fixture names are free-text schedule fields, with optional Team Library autofill for the visible name only.
-- That autofill is limited to already-saved Team Library teams. Selecting one updates only the chosen text field; it does not bind a library team to the schedule, reseed entries, materialize reference teams, or rewrite stored provenance/IDs.
+- Home and away fixture names are free-text schedule fields, with optional Teams library/catalog autofill for the visible name only.
+- That autofill uses the same saved-team plus reference-catalog browsing flow as Settings > Library > Teams. Selecting one updates only the chosen text field; it does not bind a library team to the schedule, reseed entries, or rewrite stored provenance/IDs.
 - The schedule editor is the source of truth for editing official match sheets.
 - Each side exposes explicit actions:
   - `Add Manually` or `Edit`

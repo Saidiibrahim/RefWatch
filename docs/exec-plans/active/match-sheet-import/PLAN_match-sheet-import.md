@@ -5,7 +5,7 @@ Implement the simplified optional match-sheet contract for upcoming matches:
 - referees can save a fixture without any match sheets
 - imported or manual sheets are per-side optional data
 - iPhone no longer exposes `Draft` / `Ready` UI
-- iPhone keeps home/away names as free-text schedule data, with optional Team Library autofill from already-saved library teams only, changing only the visible name string
+- iPhone keeps home/away names as free-text schedule data, with optional Teams library/catalog autofill from the app’s existing team-selection flow, changing only the visible name string
 - watch consumes saved side-specific participants when available and falls back side-by-side when they are not
 
 ## Context and Orientation
@@ -33,7 +33,7 @@ Implement the simplified optional match-sheet contract for upcoming matches:
 - [x] Shared-core resolver and save-boundary promotion work are in scope for this wave.
 - [x] iPhone editor/save/import simplification is in scope for this wave.
 - [x] Validation outcomes are recorded for shared-core, persistence DTOs, and simulator build.
-- [x] `MatchSheetImportUITests` now completes cleanly after stabilizing the XCTest query/wait strategy.
+- [x] Historical optional-sheet validation reached a clean `MatchSheetImportUITests` xcresult after stabilizing the XCTest query/wait strategy, while the current 2026-03-31 autofill-only reruns remained blocked in the simulator/XCTest harness.
 
 ## Surprises & Discoveries
 - The schedule model already had the right persistence boundary: home/away JSON sheet blobs locally and remotely. No schema change was needed.
@@ -56,8 +56,8 @@ Implement the simplified optional match-sheet contract for upcoming matches:
 - Decision: no schema migration or data backfill is applied in this wave.
 - Rationale: live DB inspection showed nullable `jsonb` columns already support the contract, and the user explicitly rejected backfill.
 - Date/Author: 2026-03-30 / Codex
-- Decision: `UpcomingMatchEditorView` may offer Team Library autofill for the visible home/away name fields, but that picker must use already-saved library teams only and must not materialize reference teams, bind `TeamRecord` to the scheduled match, or rewrite stored provenance.
-- Rationale: the PM asked to restore library-assisted naming without re-coupling scheduled sheets to mutable library identities or adding new library-write side effects.
+- Decision: `UpcomingMatchEditorView` may offer Teams library/catalog autofill for the visible home/away name fields through the app’s existing team-selection flow, but picker selection must not bind `TeamRecord` to the scheduled match or rewrite stored provenance.
+- Rationale: the PM asked to restore library-assisted naming while keeping scheduled sheets decoupled from mutable library identities even if the picker surfaces reference-catalog teams.
 - Date/Author: 2026-03-31 / Codex
 
 ## Testing Approach
@@ -94,7 +94,7 @@ Implement the simplified optional match-sheet contract for upcoming matches:
   - targeted `SwiftDataScheduleStoreTests` and `SupabaseScheduleAPITests` passed in simulator validation
   - iOS simulator build passed
   - `MatchSheetImportUITests` passed cleanly on 2026-03-31 in `/tmp/refwatch-optional-sheet-ui-20260331g.xcresult`
-- The current autofill-only follow-up adds UI coverage that should assert the new autofill buttons render distinctly from the removed source-team-binding controls and exercise local-team autofill using seeded saved-library teams in the signed-in UI-test shell once this wave is rerun.
+- The current autofill-only follow-up adds UI coverage that should assert the new autofill buttons render distinctly from the removed source-team-binding controls and exercise full-catalog autofill, including deterministic reference-catalog rows, in the signed-in UI-test shell once this wave is rerun.
   - 2026-03-31 rerun status: the requested iPhone 15 Pro Max regression slice did not reach product assertions in this wave; the two targeted reruns above stopped in simulator/XCTest harness failures instead of app-side test failures.
   - 2026-03-31 UI rerun status: `MatchSheetImportUITests` reached the updated upcoming-match editor and the new `team-name-autofill-home` control in the runner trace, but the class xcresult at `/tmp/refwatch-teamlibrary-name-autofill/Logs/Test/Test-RefWatchiOS-2026.03.31_12-58-17-+1030.xcresult` ended with `Test crashed with signal kill.`
   - earlier failing UI xcresults did not show an app crash signature; they captured deterministic XCTest-side query/wait issues instead:

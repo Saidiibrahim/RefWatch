@@ -24,12 +24,12 @@
 
 ## Scheduled Match Sheets
 - iPhone owns creation and editing of scheduled match sheets for upcoming fixtures.
-- `UpcomingMatchEditorView` is the scheduling surface that keeps home/away team names as free-text schedule data, offers optional saved-library Team Library autofill for the visible name only, and owns all per-side match-sheet actions.
+- `UpcomingMatchEditorView` is the scheduling surface that keeps home/away team names as free-text schedule data, offers optional Teams library/catalog autofill for the visible name only, and owns all per-side match-sheet actions.
 - Saving the upcoming match is valid without any match sheets. Each side is prepared independently at the save boundary: complete sides persist as internal `ready`, incomplete or empty sides persist as internal `draft`.
 - Newly saved schedules may still persist explicit home/away sheet shells internally so legacy no-sheet schedules remain distinguishable from schedules authored under the new model.
 - Existing schedules need a dedicated pre-kickoff edit route back into `UpcomingMatchEditorView`; the schedule editor, not match setup, owns official match-sheet authoring.
 - `MatchSheetEditorView` edits schedule-owned manual/ad hoc entries plus imported drafts. It preserves existing `sourceTeamId` / `sourceTeamName` already stored on a sheet, but it does not reseed or rewrite sheet provenance from local `TeamRecord` selection.
-- Upcoming-match Team Library autofill does not reintroduce `TeamRecord` editor state. It uses already-saved library teams only, does not materialize reference teams for this flow, updates only `homeName` / `awayName`, and leaves existing stored `homeTeamId` / `awayTeamId` and imported `sourceTeamId` / `sourceTeamName` as preserved pass-through data on edit.
+- Upcoming-match Teams library/catalog autofill does not reintroduce `TeamRecord` editor state. It uses the app’s existing Teams library/catalog flow, updates only `homeName` / `awayName`, and leaves existing stored `homeTeamId` / `awayTeamId` and imported `sourceTeamId` / `sourceTeamName` as preserved pass-through data on edit.
 - iPhone keeps the internal `draft` / `ready` state out of the visible schedule-owned UI:
   - `UpcomingMatchEditorView` shows optional per-side count summaries only when a side has entries
   - each side exposes `Add Manually` or `Edit`, `Import Screenshots` or `Replace from Screenshots`, and `Remove Sheet` when that side has saved entries
