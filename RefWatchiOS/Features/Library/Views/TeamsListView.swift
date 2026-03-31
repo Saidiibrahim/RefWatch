@@ -11,11 +11,17 @@ import SwiftUI
 
 struct TeamsListView: View {
   let teamStore: TeamLibraryStoring
+  let loadReferenceCatalogOnAppear: Bool
 
-  init(teamStore: TeamLibraryStoring, previewReferenceTeams: [ReferenceTeamOption] = []) {
+  init(
+    teamStore: TeamLibraryStoring,
+    previewReferenceTeams: [ReferenceTeamOption] = [],
+    loadReferenceCatalogOnAppear: Bool = true)
+  {
     self.teamStore = teamStore
+    self.loadReferenceCatalogOnAppear = loadReferenceCatalogOnAppear
     self._referenceTeams = State(initialValue: previewReferenceTeams)
-    self._hasLoadedReferences = State(initialValue: !previewReferenceTeams.isEmpty)
+    self._hasLoadedReferences = State(initialValue: !previewReferenceTeams.isEmpty || !loadReferenceCatalogOnAppear)
   }
 
   @State private var teams: [TeamRecord] = []
@@ -143,7 +149,9 @@ struct TeamsListView: View {
     // No nested NavigationStack here; LibraryTabView owns the NavigationStack.
     .onAppear {
       self.refreshLocal()
-      self.loadReferenceCatalog()
+      if self.loadReferenceCatalogOnAppear {
+        self.loadReferenceCatalog()
+      }
     }
     .alert("Unable to Update Teams", isPresented: self.alertBinding) {
       Button("OK", role: .cancel) {
@@ -238,20 +246,15 @@ struct TeamsListView: View {
 }
 
 #Preview("Empty Library") {
-  NavigationStack { TeamsListView(teamStore: InMemoryTeamLibraryStore()) }
+  NavigationStack {
+    TeamsListView(
+      teamStore: InMemoryTeamLibraryStore(),
+      loadReferenceCatalogOnAppear: false)
+  }
 }
 
 #Preview("With Reference Catalog") {
   NavigationStack {
-    TeamsListView(
-      teamStore: InMemoryTeamLibraryStore(),
-      previewReferenceTeams: [
-        ReferenceTeamOption(id: UUID(), referenceKey: "sa-kaizer-chiefs", name: "Kaizer Chiefs", shortName: "CHI", competitionCode: "PSL", competitionName: "Premier Soccer League"),
-        ReferenceTeamOption(id: UUID(), referenceKey: "sa-orlando-pirates", name: "Orlando Pirates", shortName: "PIR", competitionCode: "PSL", competitionName: "Premier Soccer League"),
-        ReferenceTeamOption(id: UUID(), referenceKey: "sa-mamelodi-sundowns", name: "Mamelodi Sundowns", shortName: "SUN", competitionCode: "PSL", competitionName: "Premier Soccer League"),
-        ReferenceTeamOption(id: UUID(), referenceKey: "sa-ts-galaxy", name: "TS Galaxy", shortName: "GAL", competitionCode: "NFD", competitionName: "National First Division"),
-        ReferenceTeamOption(id: UUID(), referenceKey: "sa-mbombela-united", name: "Mbombela United", shortName: "MBU", competitionCode: "NFD", competitionName: "National First Division"),
-      ]
-    )
+    TeamsListView(teamStore: InMemoryTeamLibraryStore())
   }
 }

@@ -135,7 +135,7 @@ struct UpcomingMatchEditorView: View {
       }
     }
     .sheet(item: self.$activeTeamPickerSide) { side in
-      TeamPickerSheet(teamStore: self.teamStore, mode: .libraryOnly) { team in
+      TeamPickerSheet(teamStore: self.teamStore) { team in
         self.applyTeamNameAutofill(team.name, for: side)
       }
     }
@@ -442,9 +442,9 @@ struct UpcomingMatchEditorView: View {
   private func autofillAccessibilityLabel(for side: MatchSheetSide) -> String {
     switch side {
     case .home:
-      return "Autofill Home Team Name from Team Library"
+      return "Autofill Home Team Name from Teams Catalog"
     case .away:
-      return "Autofill Away Team Name from Team Library"
+      return "Autofill Away Team Name from Teams Catalog"
     }
   }
 

@@ -7,14 +7,8 @@
 
 import SwiftUI
 
-enum TeamPickerSheetMode: Equatable {
-    case fullCatalog
-    case libraryOnly
-}
-
 struct TeamPickerSheet: View {
     let teamStore: TeamLibraryStoring
-    let mode: TeamPickerSheetMode
     let onSelect: (TeamRecord) -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -23,19 +17,10 @@ struct TeamPickerSheet: View {
     @State private var searchText: String = ""
     @State private var isLoading = false
     @State private var loadError: String?
+    @State private var selectionError: String?
 
-    private var isSearching: Bool {
-        !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
-
-    private var filteredOptions: [TeamPickerOption] {
-        let options = self.materializedOptions
-        let trimmed = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed.isEmpty == false else { return options }
-        let lowercased = trimmed.lowercased()
-        return options.filter { option in
-            option.searchIndex.contains(lowercased)
-        }
+    private var searchQuery: String {
+        searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     }
 
     private var unmaterializedReferences: [ReferenceTeamOption] {
@@ -47,43 +32,44 @@ struct TeamPickerSheet: View {
         !self.teams.isEmpty || !self.unmaterializedReferences.isEmpty
     }
 
-    private var emptyStateDescription: String {
-        switch self.mode {
-        case .fullCatalog:
-            return "No saved or reference teams were found for your account."
-        case .libraryOnly:
-            return "No saved library teams were found for your account."
-        }
-    }
-
     init(
         teamStore: TeamLibraryStoring,
-        mode: TeamPickerSheetMode = .fullCatalog,
         onSelect: @escaping (TeamRecord) -> Void
     ) {
         self.teamStore = teamStore
-        self.mode = mode
         self.onSelect = onSelect
     }
 
-    private var materializedOptions: [TeamPickerOption] {
-        let local = self.teams.map { TeamPickerOption.local($0) }
-        let references = self.unmaterializedReferences.map { TeamPickerOption.reference($0) }
-        return (local + references)
-            .sorted { lhs, rhs in
-                lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+    private var localTeamsSorted: [TeamRecord] {
+        self.teams
+            .filter { team in
+                self.matchesSearch(
+                    team.name,
+                    team.shortName ?? "",
+                    team.division ?? "")
             }
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 
-    private var localTeamsSorted: [TeamRecord] {
-        self.teams.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    private var filteredReferenceTeams: [ReferenceTeamOption] {
+        self.unmaterializedReferences.filter { reference in
+            self.matchesSearch(
+                reference.name,
+                reference.shortName ?? "",
+                reference.competitionName,
+                reference.competitionCode)
+        }
     }
 
     private var groupedReferenceTeams: [(String, [ReferenceTeamOption])] {
-        let grouped = Dictionary(grouping: self.unmaterializedReferences, by: \.competitionName)
+        let grouped = Dictionary(grouping: self.filteredReferenceTeams, by: \.competitionName)
         return grouped
             .sorted { $0.key.localizedCaseInsensitiveCompare($1.key) == .orderedAscending }
             .map { ($0.key, $0.value.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }) }
+    }
+
+    private var hasVisibleOptions: Bool {
+        !self.localTeamsSorted.isEmpty || !self.groupedReferenceTeams.isEmpty
     }
 
     var body: some View {
@@ -91,7 +77,7 @@ struct TeamPickerSheet: View {
             Group {
                 if isLoading {
                     ProgressView("Loading teams…")
-                } else if let error = loadError {
+                } else if let error = loadError, !self.hasAnyOptions {
                     ContentUnavailableView(
                         "Unable to Load",
                         systemImage: "exclamationmark.triangle",
@@ -101,7 +87,7 @@ struct TeamPickerSheet: View {
                     ContentUnavailableView(
                         "No Teams Available",
                         systemImage: "person.3",
-                        description: Text(self.emptyStateDescription)
+                        description: Text("No saved or reference teams were found for your account.")
                     )
                 } else {
                     teamList
@@ -117,23 +103,23 @@ struct TeamPickerSheet: View {
             .searchable(text: $searchText, prompt: "Search teams")
             .onAppear(perform: loadTeams)
         }
+        .alert("Unable to Select Team", isPresented: self.selectionErrorBinding) {
+            Button("OK", role: .cancel) {
+                self.selectionError = nil
+            }
+        } message: {
+            Text(self.selectionError ?? "We couldn't select that team.")
+        }
     }
 
     private var teamList: some View {
         List {
-            if isSearching {
-                let results = filteredOptions
-                if results.isEmpty {
-                    ContentUnavailableView(
-                        "No Teams Found",
-                        systemImage: "magnifyingglass",
-                        description: Text("Try a different search term")
-                    )
-                } else {
-                    ForEach(results) { option in
-                        teamOptionRow(option)
-                    }
-                }
+            if !self.hasVisibleOptions {
+                ContentUnavailableView(
+                    "No Teams Found",
+                    systemImage: "magnifyingglass",
+                    description: Text("Try a different search term")
+                )
             } else {
                 if !localTeamsSorted.isEmpty {
                     Section("Your Teams") {
@@ -184,12 +170,10 @@ struct TeamPickerSheet: View {
             var loadedReferenceTeams: [ReferenceTeamOption] = []
             var resolvedError: Error?
 
-            if self.mode == .fullCatalog {
-                do {
-                    try await self.teamStore.refreshFromRemote()
-                } catch {
-                    // Continue with local + reference fallback.
-                }
+            do {
+                try await self.teamStore.refreshFromRemote()
+            } catch {
+                // Continue with local + reference fallback.
             }
 
             do {
@@ -198,19 +182,19 @@ struct TeamPickerSheet: View {
                 resolvedError = error
             }
 
-            if self.mode == .fullCatalog {
-                do {
-                    loadedReferenceTeams = try await ReferenceCatalogService.fetchReferenceTeams()
-                } catch {
-                    if loadedTeams.isEmpty {
-                        resolvedError = resolvedError ?? error
-                    }
+            do {
+                loadedReferenceTeams = try await ReferenceCatalogService.fetchReferenceTeams()
+            } catch {
+                if loadedTeams.isEmpty {
+                    resolvedError = resolvedError ?? error
                 }
             }
 
             self.teams = loadedTeams
             self.referenceTeams = loadedReferenceTeams
-            self.loadError = resolvedError?.localizedDescription
+            self.loadError = (!loadedTeams.isEmpty || !loadedReferenceTeams.isEmpty)
+                ? nil
+                : resolvedError?.localizedDescription
             self.isLoading = false
         }
     }
@@ -222,28 +206,32 @@ struct TeamPickerSheet: View {
             case let .local(local):
                 team = local
             case let .reference(reference):
-                guard self.mode == .fullCatalog else {
-                    throw TeamPickerSheetError.referenceSelectionUnavailable
-                }
                 team = try ReferenceCatalogService.materializeReferenceTeam(reference, into: self.teamStore)
                 self.teams = try self.teamStore.loadAllTeams()
             }
             self.onSelect(team)
             self.dismiss()
         } catch {
-            self.loadError = error.localizedDescription
+            self.selectionError = error.localizedDescription
         }
     }
-}
 
-private enum TeamPickerSheetError: LocalizedError {
-    case referenceSelectionUnavailable
+    private func matchesSearch(_ values: String...) -> Bool {
+        guard !self.searchQuery.isEmpty else { return true }
+        return values
+            .joined(separator: " ")
+            .lowercased()
+            .contains(self.searchQuery)
+    }
 
-    var errorDescription: String? {
-        switch self {
-        case .referenceSelectionUnavailable:
-            return "Reference teams are unavailable in this picker."
-        }
+    private var selectionErrorBinding: Binding<Bool> {
+        Binding(
+            get: { self.selectionError != nil },
+            set: { isPresented in
+                if isPresented == false {
+                    self.selectionError = nil
+                }
+            })
     }
 }
 
@@ -284,28 +272,6 @@ private enum TeamPickerOption: Identifiable {
             return team.division
         case let .reference(reference):
             return reference.competitionName
-        }
-    }
-
-    var searchIndex: String {
-        switch self {
-        case let .local(team):
-            return [
-                team.name,
-                team.shortName ?? "",
-                team.division ?? "",
-            ]
-            .joined(separator: " ")
-            .lowercased()
-        case let .reference(reference):
-            return [
-                reference.name,
-                reference.shortName ?? "",
-                reference.competitionName,
-                reference.competitionCode,
-            ]
-            .joined(separator: " ")
-            .lowercased()
         }
     }
 
