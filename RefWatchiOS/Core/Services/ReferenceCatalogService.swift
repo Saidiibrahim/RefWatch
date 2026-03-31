@@ -185,11 +185,91 @@ enum ReferenceCatalogService {
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .lowercased()
     }
+
+    #if DEBUG
+    static var previewReferenceTeams: [ReferenceTeamOption] {
+        let competitions = fixtureCompetitionRows()
+        let competitionsById = Dictionary(uniqueKeysWithValues: competitions.map { ($0.id, $0) })
+        return fixtureTeamRows().compactMap { row in
+            guard let competition = competitionsById[row.competitionId] else { return nil }
+            return ReferenceTeamOption(
+                id: row.id,
+                referenceKey: row.referenceKey,
+                name: row.name,
+                shortName: row.shortName,
+                competitionCode: competition.code,
+                competitionName: competition.name
+            )
+        }
+    }
+
+    static func fixtureCompetitionRows(seasonYear: Int = seasonYear) -> [ReferenceCompetitionRowDTO] {
+        guard seasonYear == self.seasonYear else { return [] }
+        return [
+            ReferenceCompetitionRowDTO(
+                id: UUID(uuidString: "4A111111-1111-4111-8111-111111111111")!,
+                code: "PSL",
+                name: "Premier Soccer League",
+                seasonYear: seasonYear),
+            ReferenceCompetitionRowDTO(
+                id: UUID(uuidString: "4A222222-2222-4222-8222-222222222222")!,
+                code: "NFD",
+                name: "National First Division",
+                seasonYear: seasonYear),
+        ]
+    }
+
+    static func fixtureTeamRows(seasonYear: Int = seasonYear) -> [ReferenceTeamRowDTO] {
+        let competitionRows = fixtureCompetitionRows(seasonYear: seasonYear)
+        guard
+            let pslId = competitionRows.first(where: { $0.code == "PSL" })?.id,
+            let nfdId = competitionRows.first(where: { $0.code == "NFD" })?.id
+        else { return [] }
+
+        return [
+            ReferenceTeamRowDTO(
+                id: UUID(uuidString: "5B111111-1111-4111-8111-111111111111")!,
+                competitionId: pslId,
+                name: "Kaizer Chiefs",
+                shortName: "CHI",
+                referenceKey: "sa-kaizer-chiefs",
+                seasonYear: seasonYear),
+            ReferenceTeamRowDTO(
+                id: UUID(uuidString: "5B222222-2222-4222-8222-222222222222")!,
+                competitionId: pslId,
+                name: "Orlando Pirates",
+                shortName: "PIR",
+                referenceKey: "sa-orlando-pirates",
+                seasonYear: seasonYear),
+            ReferenceTeamRowDTO(
+                id: UUID(uuidString: "5B333333-3333-4333-8333-333333333333")!,
+                competitionId: pslId,
+                name: "Mamelodi Sundowns",
+                shortName: "SUN",
+                referenceKey: "sa-mamelodi-sundowns",
+                seasonYear: seasonYear),
+            ReferenceTeamRowDTO(
+                id: UUID(uuidString: "5B444444-4444-4444-8444-444444444444")!,
+                competitionId: nfdId,
+                name: "TS Galaxy",
+                shortName: "GAL",
+                referenceKey: "sa-ts-galaxy",
+                seasonYear: seasonYear),
+            ReferenceTeamRowDTO(
+                id: UUID(uuidString: "5B555555-5555-4555-8555-555555555555")!,
+                competitionId: nfdId,
+                name: "Mbombela United",
+                shortName: "MBU",
+                referenceKey: "sa-mbombela-united",
+                seasonYear: seasonYear),
+        ]
+    }
+    #endif
 }
 
 // MARK: - Internal DTOs (Supabase row shapes)
 
-struct ReferenceCompetitionRowDTO: Decodable {
+struct ReferenceCompetitionRowDTO: Codable {
     let id: UUID
     let code: String
     let name: String
@@ -203,7 +283,7 @@ struct ReferenceCompetitionRowDTO: Decodable {
     }
 }
 
-struct ReferenceTeamRowDTO: Decodable {
+struct ReferenceTeamRowDTO: Codable {
     let id: UUID
     let competitionId: UUID
     let name: String

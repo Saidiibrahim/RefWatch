@@ -28,6 +28,10 @@ enum TestEnvironment {
     self.isRunningTests && self.isRunningUnitTests == false
   }
 
+  static var isRunningPreviews: Bool {
+    ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1"
+  }
+
   static var launchesSignedInUITestShell: Bool {
     #if DEBUG
       ProcessInfo.processInfo.environment[self.uiTestAuthStateKey] == "signed_in"

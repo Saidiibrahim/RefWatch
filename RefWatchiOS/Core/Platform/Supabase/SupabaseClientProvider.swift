@@ -117,7 +117,26 @@ private final class TestSupabaseClient: SupabaseClientRepresenting, @unchecked S
   let functionsClient: SupabaseFunctionsClientRepresenting = TestSupabaseFunctionsClient()
 
   func fetchRows<T: Decodable>(_ request: SupabaseFetchRequest) async throws -> [T] {
-    []
+    #if DEBUG
+      switch request.table {
+      case "reference_competitions":
+        let seasonYear = self.scalarFilterValue(for: "season_year", in: request.filters)
+        let rows = ReferenceCatalogService.fixtureCompetitionRows(
+          seasonYear: Int(seasonYear ?? "") ?? ReferenceCatalogService.seasonYear)
+        return try self.decodeFixtureRows(rows, decoder: request.decoder)
+      case "reference_teams":
+        let seasonYear = Int(self.scalarFilterValue(for: "season_year", in: request.filters) ?? "")
+          ?? ReferenceCatalogService.seasonYear
+        let allowedCompetitionIds = Set(self.collectionFilterValue(for: "competition_id", in: request.filters) ?? [])
+        let rows = ReferenceCatalogService.fixtureTeamRows(seasonYear: seasonYear)
+          .filter { allowedCompetitionIds.isEmpty || allowedCompetitionIds.contains($0.competitionId.uuidString) }
+        return try self.decodeFixtureRows(rows, decoder: request.decoder)
+      default:
+        return []
+      }
+    #else
+      return []
+    #endif
   }
 
   func callRPC<Response: Decodable>(
@@ -137,6 +156,30 @@ private final class TestSupabaseClient: SupabaseClientRepresenting, @unchecked S
   {
     throw SupabaseTestClientError.unavailable
   }
+
+  #if DEBUG
+    private func scalarFilterValue(for column: String, in filters: [SupabaseQueryFilter]) -> String? {
+      filters.first(where: { $0.column == column }).flatMap { filter in
+        guard case let .scalar(value) = filter.value else { return nil }
+        return value
+      }
+    }
+
+    private func collectionFilterValue(for column: String, in filters: [SupabaseQueryFilter]) -> [String]? {
+      filters.first(where: { $0.column == column }).flatMap { filter in
+        guard case let .collection(values) = filter.value else { return nil }
+        return values
+      }
+    }
+
+    private func decodeFixtureRows<T: Decodable, Rows: Encodable>(
+      _ rows: Rows,
+      decoder: JSONDecoder
+    ) throws -> [T] {
+      let data = try JSONEncoder().encode(rows)
+      return try decoder.decode([T].self, from: data)
+    }
+  #endif
 }
 
 // The SDK types are now Sendable by default in modern Supabase SDK versions
@@ -375,6 +418,13 @@ final class SupabaseClientProvider: SupabaseClientProviding {
 
     if let cachedClient {
       return cachedClient
+    }
+
+    if TestEnvironment.launchesSignedInUITestShell || TestEnvironment.isRunningPreviews {
+      let testClient = TestSupabaseClient()
+      AppLog.supabase.info("Using deterministic test Supabase client for signed-in UI-test shell/previews")
+      cachedClient = testClient
+      return testClient
     }
 
     AppLog.supabase.info("Creating new Supabase client...")
