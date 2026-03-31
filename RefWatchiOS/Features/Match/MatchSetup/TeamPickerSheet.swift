@@ -100,7 +100,10 @@ struct TeamPickerSheet: View {
                     SheetDismissButton { dismiss() }
                 }
             }
-            .searchable(text: $searchText, prompt: "Search teams")
+            .searchable(
+                text: $searchText,
+                placement: .navigationBarDrawer(displayMode: .always),
+                prompt: "Search teams")
             .onAppear(perform: loadTeams)
         }
         .alert("Unable to Select Team", isPresented: self.selectionErrorBinding) {

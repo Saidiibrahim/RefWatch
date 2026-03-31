@@ -117,7 +117,10 @@ struct TeamsListView: View {
       }
     }
     .navigationTitle("Teams")
-    .searchable(text: self.$search)
+    .searchable(
+      text: self.$search,
+      placement: .navigationBarDrawer(displayMode: .always),
+      prompt: "Search teams")
     .onChange(of: self.search) { _, _ in self.refreshLocal() }
     .toolbar {
       ToolbarItem(placement: .topBarTrailing) {

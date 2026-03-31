@@ -162,9 +162,14 @@ final class MatchSheetImportUITests: XCTestCase {
     let kaizerChiefs = self.app.buttons["team-picker-reference-sa-kaizer-chiefs"]
     XCTAssertTrue(kaizerChiefs.waitForExistence(timeout: 5))
 
+    let orlandoPirates = self.app.buttons["team-picker-reference-sa-orlando-pirates"]
+    XCTAssertTrue(orlandoPirates.waitForExistence(timeout: 5))
+
     self.searchTeamPicker("Kaizer")
 
     XCTAssertTrue(kaizerChiefs.waitForExistence(timeout: 5))
+    XCTAssertTrue(self.waitForNonExistence(metroLibraryTeam, timeout: 5))
+    XCTAssertTrue(self.waitForNonExistence(orlandoPirates, timeout: 5))
     kaizerChiefs.tap()
 
     XCTAssertEqual(homeField.value as? String, "Kaizer Chiefs")
@@ -176,12 +181,19 @@ final class MatchSheetImportUITests: XCTestCase {
     XCTAssertTrue(awayAutofillButton.waitForExistence(timeout: 5))
     awayAutofillButton.tap()
 
-    let orlandoPirates = self.app.buttons["team-picker-reference-sa-orlando-pirates"]
     XCTAssertTrue(orlandoPirates.waitForExistence(timeout: 5))
+
+    let metroLibraryTeamInAwayPicker = self.app.buttons["team-picker-local-metro-library-fc"]
+    XCTAssertTrue(metroLibraryTeamInAwayPicker.waitForExistence(timeout: 5))
+
+    let mamelodiSundowns = self.app.buttons["team-picker-reference-sa-mamelodi-sundowns"]
+    XCTAssertTrue(mamelodiSundowns.waitForExistence(timeout: 5))
 
     self.searchTeamPicker("Orlando")
 
     XCTAssertTrue(orlandoPirates.waitForExistence(timeout: 5))
+    XCTAssertTrue(self.waitForNonExistence(metroLibraryTeamInAwayPicker, timeout: 5))
+    XCTAssertTrue(self.waitForNonExistence(mamelodiSundowns, timeout: 5))
     orlandoPirates.tap()
 
     XCTAssertEqual(homeField.value as? String, "Kaizer Chiefs")
@@ -267,15 +279,33 @@ private extension MatchSheetImportUITests {
     return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
   }
 
+  func waitForNonExistence(_ element: XCUIElement, timeout: TimeInterval) -> Bool {
+    let expectation = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "exists == false"),
+      object: element)
+    return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
+  }
+
   func waitForUITestAttachment() {
     XCTAssertTrue(self.app.staticTexts["ui-test-match-sheet.jpg"].waitForExistence(timeout: 20))
   }
 
   func searchTeamPicker(_ query: String) {
     let searchField = self.app.searchFields["Search teams"]
-    XCTAssertTrue(searchField.waitForExistence(timeout: 5))
-    searchField.tap()
-    searchField.typeText(query)
+    if searchField.exists == false {
+      let teamList = self.app.tables.firstMatch
+      if teamList.waitForExistence(timeout: 2) {
+        teamList.swipeDown()
+        if searchField.exists == false {
+          teamList.swipeDown()
+        }
+      }
+    }
+
+    let resolvedSearchField = searchField.exists ? searchField : self.app.searchFields.firstMatch
+    XCTAssertTrue(resolvedSearchField.waitForExistence(timeout: 5))
+    resolvedSearchField.tap()
+    resolvedSearchField.typeText(query)
   }
 
   func scrollUpUntilExists(_ element: XCUIElement, maxSwipes: Int = 5) -> Bool {
