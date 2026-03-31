@@ -141,4 +141,65 @@ final class SupabaseScheduleAPITests: XCTestCase {
     XCTAssertEqual(row.homeMatchSheet?.staff.first?.category, .staff)
     XCTAssertEqual(row.homeMatchSheet?.otherMembers.first?.category, .otherMember)
   }
+
+  func testScheduledMatchRowDTODecodesOnePreparedSideAndOneEmptySide() throws {
+    let decoder = SupabaseScheduleAPI.makeDecoder()
+    let data = Data(
+      """
+      {
+        "id": "\(UUID())",
+        "owner_id": "\(UUID())",
+        "home_team_name": "Metro FC",
+        "away_team_name": "Rivals FC",
+        "home_match_sheet": {
+          "sourceTeamName": "Metro FC",
+          "status": "ready",
+          "starters": [
+            {
+              "displayName": "Alex Starter",
+              "shirtNumber": 9,
+              "sortOrder": 0
+            }
+          ],
+          "substitutes": [
+            {
+              "displayName": "Riley Bench",
+              "shirtNumber": 14,
+              "sortOrder": 0
+            }
+          ],
+          "staff": [
+            {
+              "displayName": "Taylor Coach",
+              "roleLabel": "Coach",
+              "category": "staff",
+              "sortOrder": 0
+            }
+          ],
+          "otherMembers": [],
+          "updatedAt": "2025-03-01T10:00:00Z"
+        },
+        "away_match_sheet": {
+          "sourceTeamName": "Rivals FC",
+          "status": "draft",
+          "starters": [],
+          "substitutes": [],
+          "staff": [],
+          "otherMembers": [],
+          "updatedAt": "2025-03-01T10:00:00Z"
+        },
+        "kickoff_at": "2025-03-01T11:00:00Z",
+        "status": "scheduled",
+        "created_at": "2025-03-01T09:00:00Z",
+        "updated_at": "2025-03-01T09:30:00Z"
+      }
+      """.utf8)
+
+    let row = try decoder.decode(ScheduledMatchRowDTO.self, from: data)
+
+    XCTAssertEqual(row.homeMatchSheet?.status, .ready)
+    XCTAssertEqual(row.homeMatchSheet?.starterCount, 1)
+    XCTAssertEqual(row.awayMatchSheet?.status, .draft)
+    XCTAssertEqual(row.awayMatchSheet?.hasAnyEntries, false)
+  }
 }

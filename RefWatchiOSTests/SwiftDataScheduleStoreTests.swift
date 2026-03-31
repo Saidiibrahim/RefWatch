@@ -35,6 +35,62 @@ final class SwiftDataScheduleStoreTests: XCTestCase {
     XCTAssertEqual(saved.awayTeamId, awayTeamId)
   }
 
+  func testUpcomingMatchEditorSavePayloadPreservesExistingTeamIdsAndImportedProvenance() {
+    let preservedHomeTeamId = UUID()
+    let preservedAwayTeamId = UUID()
+    let preservedSourceTeamId = UUID()
+    let kickoff = Date(timeIntervalSince1970: 1_742_000_900)
+    let savedAt = Date(timeIntervalSince1970: 1_742_000_901)
+    let existingMatch = ScheduledMatch(
+      id: UUID(),
+      homeTeam: "Original Home",
+      awayTeam: "Original Away",
+      homeTeamId: preservedHomeTeamId,
+      awayTeamId: preservedAwayTeamId,
+      homeMatchSheet: MatchSheetDraftFactory.emptyDraft(teamName: "Original Home"),
+      awayMatchSheet: MatchSheetDraftFactory.emptyDraft(teamName: "Original Away"),
+      kickoff: kickoff)
+
+    let item = UpcomingMatchEditorView.scheduledMatchForSave(
+      existingMatch: existingMatch,
+      homeName: "Metro FC",
+      awayName: "Rivals FC",
+      kickoff: kickoff,
+      homeMatchSheet: ScheduledMatchSheet(
+        sourceTeamId: preservedSourceTeamId,
+        sourceTeamName: "Imported Metro",
+        status: .draft,
+        starters: [MatchSheetPlayerEntry(displayName: "Starter", shirtNumber: 9, sortOrder: 3)],
+        updatedAt: Date(timeIntervalSince1970: 1_742_000_800)),
+      awayMatchSheet: MatchSheetDraftFactory.emptyDraft(teamName: "Rivals FC"),
+      now: savedAt)
+
+    XCTAssertEqual(item.homeTeamId, preservedHomeTeamId)
+    XCTAssertEqual(item.awayTeamId, preservedAwayTeamId)
+    XCTAssertEqual(item.homeMatchSheet?.sourceTeamId, preservedSourceTeamId)
+    XCTAssertEqual(item.homeMatchSheet?.sourceTeamName, "Imported Metro")
+    XCTAssertEqual(item.lastModifiedAt, savedAt)
+  }
+
+  func testUpcomingMatchEditorSavePayloadDoesNotMintTeamIdsForNewMatches() {
+    let kickoff = Date(timeIntervalSince1970: 1_742_000_902)
+    let item = UpcomingMatchEditorView.scheduledMatchForSave(
+      existingMatch: nil,
+      homeName: "Metro FC",
+      awayName: "Rivals FC",
+      kickoff: kickoff,
+      homeMatchSheet: MatchSheetDraftFactory.emptyDraft(teamName: "Metro FC"),
+      awayMatchSheet: MatchSheetDraftFactory.emptyDraft(teamName: "Rivals FC"),
+      now: Date(timeIntervalSince1970: 1_742_000_903))
+
+    XCTAssertNil(item.homeTeamId)
+    XCTAssertNil(item.awayTeamId)
+    XCTAssertNil(item.homeMatchSheet?.sourceTeamId)
+    XCTAssertNil(item.awayMatchSheet?.sourceTeamId)
+    XCTAssertEqual(item.homeMatchSheet?.sourceTeamName, "Metro FC")
+    XCTAssertEqual(item.awayMatchSheet?.sourceTeamName, "Rivals FC")
+  }
+
   func testUpsertFromAggregatePreservesTeamIdsInSnapshot() throws {
     let container = try self.makeContainer()
     let store = SwiftDataScheduleStore(
@@ -114,7 +170,6 @@ final class SwiftDataScheduleStoreTests: XCTestCase {
           MatchSheetStaffEntry(displayName: "Medic", sortOrder: Int.max, category: .otherMember)
         ],
         updatedAt: Date(timeIntervalSince1970: 1_742_000_710)),
-      sourceTeam: nil,
       fallbackTeamName: "Home",
       updatedAt: Date(timeIntervalSince1970: 1_742_000_711))
 
@@ -210,6 +265,38 @@ final class SwiftDataScheduleStoreTests: XCTestCase {
     XCTAssertEqual(saved.otherMembers.first?.category, .otherMember)
   }
 
+  func testSaveAndLoadPreservesPreparedSideStatusesForOptionalSheets() throws {
+    let container = try self.makeContainer()
+    let store = SwiftDataScheduleStore(
+      container: container,
+      auth: SignedInAuth(userId: UUID().uuidString))
+
+    let preparedHome = ScheduledMatchSheet(
+      sourceTeamName: "Metro FC",
+      status: .draft,
+      starters: [MatchSheetPlayerEntry(displayName: "Alex Starter", shirtNumber: 9, sortOrder: 0)],
+      substitutes: [MatchSheetPlayerEntry(displayName: "Riley Bench", shirtNumber: 14, sortOrder: 0)],
+      staff: [MatchSheetStaffEntry(displayName: "Taylor Coach", roleLabel: "Coach", sortOrder: 0, category: .staff)],
+      updatedAt: Date(timeIntervalSince1970: 1_742_000_810))
+      .preparedForScheduleSave()
+
+    let preparedAway = MatchSheetDraftFactory.emptyDraft(teamName: "Rivals FC")
+      .preparedForScheduleSave()
+
+    try store.save(
+      ScheduledMatch(
+        homeTeam: "Metro FC",
+        awayTeam: "Rivals FC",
+        homeMatchSheet: preparedHome,
+        awayMatchSheet: preparedAway,
+        kickoff: Date()))
+
+    let saved = try XCTUnwrap(store.loadAll().first)
+    XCTAssertEqual(saved.homeMatchSheet?.status, .ready)
+    XCTAssertEqual(saved.awayMatchSheet?.status, .draft)
+    XCTAssertEqual(saved.awayMatchSheet?.hasAnyEntries, false)
+  }
+
   func testMatchSheetEditorStatePreservesSourceTeamWhenLocalTeamIsMissing() {
     let sourceTeamId = UUID()
     let normalized = MatchSheetEditorState.normalizedSheet(
@@ -219,7 +306,6 @@ final class SwiftDataScheduleStoreTests: XCTestCase {
         status: .draft,
         starters: [MatchSheetPlayerEntry(displayName: "Starter", shirtNumber: 9, sortOrder: 4)],
         updatedAt: Date(timeIntervalSince1970: 1_742_000_700)),
-      sourceTeam: nil,
       fallbackTeamName: "Home Fixture",
       updatedAt: Date(timeIntervalSince1970: 1_742_000_701))
 
@@ -234,7 +320,6 @@ final class SwiftDataScheduleStoreTests: XCTestCase {
         status: .draft,
         starters: [MatchSheetPlayerEntry(displayName: "Starter", shirtNumber: 9, sortOrder: 2)],
         updatedAt: Date(timeIntervalSince1970: 1_742_000_702)),
-      sourceTeam: nil,
       fallbackTeamName: "Home Fixture",
       updatedAt: Date(timeIntervalSince1970: 1_742_000_703))
 
@@ -262,7 +347,6 @@ final class SwiftDataScheduleStoreTests: XCTestCase {
           MatchSheetStaffEntry(displayName: "Medic", sortOrder: Int.max, category: .otherMember)
         ],
         updatedAt: Date(timeIntervalSince1970: 1_742_000_704)),
-      sourceTeam: nil,
       fallbackTeamName: "Home",
       updatedAt: Date(timeIntervalSince1970: 1_742_000_705))
 

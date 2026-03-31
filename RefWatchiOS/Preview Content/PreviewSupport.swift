@@ -144,11 +144,14 @@ enum MatchSheetImportPreviewSupport {
     ]
   }
 
-  nonisolated static func importedHomeSheet(sourceTeam: TeamRecord? = nil) -> ScheduledMatchSheet {
-    let teamName = sourceTeam?.name ?? self.homeTeamName
+  nonisolated static func importedHomeSheet(
+    sourceTeamId: UUID? = nil,
+    teamName: String? = nil) -> ScheduledMatchSheet
+  {
+    let resolvedTeamName = teamName ?? self.homeTeamName
     return ScheduledMatchSheet(
-      sourceTeamId: sourceTeam?.id,
-      sourceTeamName: teamName,
+      sourceTeamId: sourceTeamId,
+      sourceTeamName: resolvedTeamName,
       status: .draft,
       starters: [
         MatchSheetPlayerEntry(displayName: "Alex Starter", shirtNumber: 9, position: "FW", notes: nil, sortOrder: 0),
@@ -167,11 +170,14 @@ enum MatchSheetImportPreviewSupport {
       updatedAt: self.canonicalKickoff).normalized()
   }
 
-  nonisolated static func cleanImportedSheet(sourceTeam: TeamRecord? = nil) -> ScheduledMatchSheet {
-    let teamName = sourceTeam?.name ?? self.homeTeamName
+  nonisolated static func cleanImportedSheet(
+    sourceTeamId: UUID? = nil,
+    teamName: String? = nil) -> ScheduledMatchSheet
+  {
+    let resolvedTeamName = teamName ?? self.homeTeamName
     return ScheduledMatchSheet(
-      sourceTeamId: sourceTeam?.id,
-      sourceTeamName: teamName,
+      sourceTeamId: sourceTeamId,
+      sourceTeamName: resolvedTeamName,
       status: .draft,
       starters: [
         MatchSheetPlayerEntry(displayName: "Alex Starter", shirtNumber: 9, position: "FW", notes: nil, sortOrder: 0),
@@ -197,17 +203,9 @@ enum MatchSheetImportPreviewSupport {
       existingMatch: nil,
       homeName: teams.homeTeam.name,
       awayName: teams.awayTeam.name,
-      selectedHomeTeam: teams.homeTeam,
-      selectedAwayTeam: teams.awayTeam,
       kickoff: self.canonicalKickoff,
-      homeMatchSheet: MatchSheetDraftFactory.emptyDraft(
-        sourceTeam: teams.homeTeam,
-        fallbackTeamName: teams.homeTeam.name),
-      awayMatchSheet: MatchSheetDraftFactory.emptyDraft(
-        sourceTeam: teams.awayTeam,
-        fallbackTeamName: teams.awayTeam.name),
-      teams: teams.teams,
-      hasLoadedTeams: true)
+      homeMatchSheet: MatchSheetDraftFactory.emptyDraft(teamName: teams.homeTeam.name),
+      awayMatchSheet: MatchSheetDraftFactory.emptyDraft(teamName: teams.awayTeam.name))
   }
 
   @MainActor
@@ -220,15 +218,11 @@ enum MatchSheetImportPreviewSupport {
       existingMatch: nil,
       homeName: teams.homeTeam.name,
       awayName: teams.awayTeam.name,
-      selectedHomeTeam: teams.homeTeam,
-      selectedAwayTeam: teams.awayTeam,
       kickoff: self.canonicalKickoff,
-      homeMatchSheet: self.importedHomeSheet(sourceTeam: teams.homeTeam),
-      awayMatchSheet: MatchSheetDraftFactory.emptyDraft(
-        sourceTeam: teams.awayTeam,
-        fallbackTeamName: teams.awayTeam.name),
-      teams: teams.teams,
-      hasLoadedTeams: true)
+      homeMatchSheet: self.importedHomeSheet(
+        sourceTeamId: teams.homeTeam.id,
+        teamName: teams.homeTeam.name),
+      awayMatchSheet: MatchSheetDraftFactory.emptyDraft(teamName: teams.awayTeam.name))
   }
 
   @MainActor
@@ -239,10 +233,11 @@ enum MatchSheetImportPreviewSupport {
       awayTeam: teams.awayTeam.name,
       homeTeamId: teams.homeTeam.id,
       awayTeamId: teams.awayTeam.id,
-      homeMatchSheet: self.importedHomeSheet(sourceTeam: teams.homeTeam),
-      awayMatchSheet: MatchSheetDraftFactory.emptyDraft(
-        sourceTeam: teams.awayTeam,
-        fallbackTeamName: teams.awayTeam.name),
+      homeMatchSheet: self.importedHomeSheet(
+        sourceTeamId: teams.homeTeam.id,
+        teamName: teams.homeTeam.name)
+        .preparedForScheduleSave(),
+      awayMatchSheet: MatchSheetDraftFactory.emptyDraft(teamName: teams.awayTeam.name),
       kickoff: self.canonicalKickoff,
       status: .scheduled)
     let scheduleStore = InMemoryScheduleStore(initial: [savedMatch])

@@ -99,6 +99,20 @@ struct RefWatchiOSApp: App {
       let teamStore: TeamLibraryStoring = InMemoryTeamLibraryStore()
       let competitionStore: CompetitionLibraryStoring = InMemoryCompetitionLibraryStore()
       let venueStore: VenueLibraryStoring = InMemoryVenueLibraryStore()
+
+      if TestEnvironment.launchesSignedInUITestShell,
+         let inMemoryTeamStore = teamStore as? InMemoryTeamLibraryStore
+      {
+        _ = try? inMemoryTeamStore.createTeam(
+          name: "Metro Library FC",
+          shortName: "MLF",
+          division: "UI Test")
+        _ = try? inMemoryTeamStore.createTeam(
+          name: "Rivals Library FC",
+          shortName: "RLF",
+          division: "UI Test")
+      }
+
       let matchViewModel = MatchViewModel(
         history: historyRepo,
         haptics: NoopHaptics(),
