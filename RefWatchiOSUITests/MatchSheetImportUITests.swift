@@ -137,7 +137,7 @@ final class MatchSheetImportUITests: XCTestCase {
     XCTAssertTrue(self.app.buttons["match-sheet-import-apply"].waitForExistence(timeout: 5))
   }
 
-  func testTeamLibraryAutofillUpdatesOnlySelectedNameField() throws {
+  func testTeamLibraryAutofillUsesFullCatalogAndUpdatesOnlySelectedNameField() throws {
     self.launchApp(importMode: "success")
 
     try self.openUpcomingMatchEditor()
@@ -158,10 +158,16 @@ final class MatchSheetImportUITests: XCTestCase {
 
     let metroLibraryTeam = self.app.buttons["team-picker-local-metro-library-fc"]
     XCTAssertTrue(metroLibraryTeam.waitForExistence(timeout: 5))
-    XCTAssertEqual(metroLibraryTeam.label, "Metro Library FC")
-    metroLibraryTeam.tap()
 
-    XCTAssertEqual(homeField.value as? String, "Metro Library FC")
+    let kaizerChiefs = self.app.buttons["team-picker-reference-sa-kaizer-chiefs"]
+    XCTAssertTrue(kaizerChiefs.waitForExistence(timeout: 5))
+
+    self.searchTeamPicker("Kaizer")
+
+    XCTAssertTrue(kaizerChiefs.waitForExistence(timeout: 5))
+    kaizerChiefs.tap()
+
+    XCTAssertEqual(homeField.value as? String, "Kaizer Chiefs")
     XCTAssertEqual(awayField.value as? String, "Custom Away")
     XCTAssertFalse(self.app.buttons["match-sheet-remove-home"].exists)
     XCTAssertFalse(self.app.buttons["match-sheet-remove-away"].exists)
@@ -170,15 +176,19 @@ final class MatchSheetImportUITests: XCTestCase {
     XCTAssertTrue(awayAutofillButton.waitForExistence(timeout: 5))
     awayAutofillButton.tap()
 
-    let rivalsLibraryTeam = self.app.buttons["team-picker-local-rivals-library-fc"]
-    XCTAssertTrue(rivalsLibraryTeam.waitForExistence(timeout: 5))
-    XCTAssertEqual(rivalsLibraryTeam.label, "Rivals Library FC")
-    rivalsLibraryTeam.tap()
+    let orlandoPirates = self.app.buttons["team-picker-reference-sa-orlando-pirates"]
+    XCTAssertTrue(orlandoPirates.waitForExistence(timeout: 5))
 
-    XCTAssertEqual(homeField.value as? String, "Metro Library FC")
-    XCTAssertEqual(awayField.value as? String, "Rivals Library FC")
+    self.searchTeamPicker("Orlando")
+
+    XCTAssertTrue(orlandoPirates.waitForExistence(timeout: 5))
+    orlandoPirates.tap()
+
+    XCTAssertEqual(homeField.value as? String, "Kaizer Chiefs")
+    XCTAssertEqual(awayField.value as? String, "Orlando Pirates")
     XCTAssertFalse(self.app.buttons["match-sheet-remove-home"].exists)
     XCTAssertFalse(self.app.buttons["match-sheet-remove-away"].exists)
+    self.assertLegacySourceTeamUIAbsent()
   }
 }
 
@@ -225,11 +235,11 @@ private extension MatchSheetImportUITests {
   func assertNameAutofillButtonsVisible() {
     let homeAutofillButton = self.app.buttons["team-name-autofill-home"]
     XCTAssertTrue(homeAutofillButton.waitForExistence(timeout: 5))
-    XCTAssertTrue(homeAutofillButton.label.contains("Autofill Home Team Name from Team Library"))
+    XCTAssertTrue(homeAutofillButton.label.contains("Autofill Home Team Name from Teams Catalog"))
 
     let awayAutofillButton = self.app.buttons["team-name-autofill-away"]
     XCTAssertTrue(awayAutofillButton.waitForExistence(timeout: 5))
-    XCTAssertTrue(awayAutofillButton.label.contains("Autofill Away Team Name from Team Library"))
+    XCTAssertTrue(awayAutofillButton.label.contains("Autofill Away Team Name from Teams Catalog"))
   }
 
   func assertLegacyStatusUIAbsent() {
@@ -259,6 +269,13 @@ private extension MatchSheetImportUITests {
 
   func waitForUITestAttachment() {
     XCTAssertTrue(self.app.staticTexts["ui-test-match-sheet.jpg"].waitForExistence(timeout: 20))
+  }
+
+  func searchTeamPicker(_ query: String) {
+    let searchField = self.app.searchFields["Search teams"]
+    XCTAssertTrue(searchField.waitForExistence(timeout: 5))
+    searchField.tap()
+    searchField.typeText(query)
   }
 
   func scrollUpUntilExists(_ element: XCUIElement, maxSwipes: Int = 5) -> Bool {
