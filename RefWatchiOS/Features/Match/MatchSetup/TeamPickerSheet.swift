@@ -7,8 +7,14 @@
 
 import SwiftUI
 
+enum TeamPickerSheetMode: Equatable {
+    case fullCatalog
+    case libraryOnly
+}
+
 struct TeamPickerSheet: View {
     let teamStore: TeamLibraryStoring
+    let mode: TeamPickerSheetMode
     let onSelect: (TeamRecord) -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -39,6 +45,25 @@ struct TeamPickerSheet: View {
 
     private var hasAnyOptions: Bool {
         !self.teams.isEmpty || !self.unmaterializedReferences.isEmpty
+    }
+
+    private var emptyStateDescription: String {
+        switch self.mode {
+        case .fullCatalog:
+            return "No saved or reference teams were found for your account."
+        case .libraryOnly:
+            return "No saved library teams were found for your account."
+        }
+    }
+
+    init(
+        teamStore: TeamLibraryStoring,
+        mode: TeamPickerSheetMode = .fullCatalog,
+        onSelect: @escaping (TeamRecord) -> Void
+    ) {
+        self.teamStore = teamStore
+        self.mode = mode
+        self.onSelect = onSelect
     }
 
     private var materializedOptions: [TeamPickerOption] {
@@ -76,7 +101,7 @@ struct TeamPickerSheet: View {
                     ContentUnavailableView(
                         "No Teams Available",
                         systemImage: "person.3",
-                        description: Text("No saved or reference teams were found for your account.")
+                        description: Text(self.emptyStateDescription)
                     )
                 } else {
                     teamList
@@ -146,6 +171,8 @@ struct TeamPickerSheet: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(option.name)
+        .accessibilityIdentifier(option.accessibilityIdentifier)
     }
 
     private func loadTeams() {
@@ -157,10 +184,12 @@ struct TeamPickerSheet: View {
             var loadedReferenceTeams: [ReferenceTeamOption] = []
             var resolvedError: Error?
 
-            do {
-                try await self.teamStore.refreshFromRemote()
-            } catch {
-                // Continue with local + reference fallback.
+            if self.mode == .fullCatalog {
+                do {
+                    try await self.teamStore.refreshFromRemote()
+                } catch {
+                    // Continue with local + reference fallback.
+                }
             }
 
             do {
@@ -169,11 +198,13 @@ struct TeamPickerSheet: View {
                 resolvedError = error
             }
 
-            do {
-                loadedReferenceTeams = try await ReferenceCatalogService.fetchReferenceTeams()
-            } catch {
-                if loadedTeams.isEmpty {
-                    resolvedError = resolvedError ?? error
+            if self.mode == .fullCatalog {
+                do {
+                    loadedReferenceTeams = try await ReferenceCatalogService.fetchReferenceTeams()
+                } catch {
+                    if loadedTeams.isEmpty {
+                        resolvedError = resolvedError ?? error
+                    }
                 }
             }
 
@@ -191,6 +222,9 @@ struct TeamPickerSheet: View {
             case let .local(local):
                 team = local
             case let .reference(reference):
+                guard self.mode == .fullCatalog else {
+                    throw TeamPickerSheetError.referenceSelectionUnavailable
+                }
                 team = try ReferenceCatalogService.materializeReferenceTeam(reference, into: self.teamStore)
                 self.teams = try self.teamStore.loadAllTeams()
             }
@@ -198,6 +232,17 @@ struct TeamPickerSheet: View {
             self.dismiss()
         } catch {
             self.loadError = error.localizedDescription
+        }
+    }
+}
+
+private enum TeamPickerSheetError: LocalizedError {
+    case referenceSelectionUnavailable
+
+    var errorDescription: String? {
+        switch self {
+        case .referenceSelectionUnavailable:
+            return "Reference teams are unavailable in this picker."
         }
     }
 }
@@ -221,6 +266,15 @@ private enum TeamPickerOption: Identifiable {
             return team.name
         case let .reference(reference):
             return reference.name
+        }
+    }
+
+    var accessibilityIdentifier: String {
+        switch self {
+        case let .local(team):
+            return "team-picker-local-\(Self.identifierComponent(for: team.name))"
+        case let .reference(reference):
+            return "team-picker-reference-\(reference.referenceKey)"
         }
     }
 
@@ -253,6 +307,14 @@ private enum TeamPickerOption: Identifiable {
             .joined(separator: " ")
             .lowercased()
         }
+    }
+
+    private static func identifierComponent(for value: String) -> String {
+        value
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .filter { $0.isEmpty == false }
+            .joined(separator: "-")
+            .lowercased()
     }
 }
 

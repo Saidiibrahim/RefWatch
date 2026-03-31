@@ -9,71 +9,15 @@ import RefWatchCore
 import SwiftUI
 
 enum MatchSheetDraftFactory {
-  static func emptyDraft(sourceTeam: TeamRecord?, fallbackTeamName: String) -> ScheduledMatchSheet {
-    ScheduledMatchSheet(
-      sourceTeamId: sourceTeam?.id,
-      sourceTeamName: sourceTeam?.name ?? fallbackTeamName,
+  static func emptyDraft(teamName: String) -> ScheduledMatchSheet {
+    let normalizedTeamName = teamName.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+    return ScheduledMatchSheet(
+      sourceTeamId: nil,
+      sourceTeamName: normalizedTeamName,
       status: .draft,
       starters: [],
       substitutes: [],
       staff: [],
-      otherMembers: [],
-      updatedAt: Date()).normalized()
-  }
-
-  static func seededDraft(sourceTeam: TeamRecord?, fallbackTeamName: String) -> ScheduledMatchSheet {
-    guard let sourceTeam else {
-      return self.emptyDraft(sourceTeam: nil, fallbackTeamName: fallbackTeamName)
-    }
-
-    let orderedPlayers = sourceTeam.players.sorted { lhs, rhs in
-      let lhsNumber = lhs.number ?? Int.max
-      let rhsNumber = rhs.number ?? Int.max
-      if lhsNumber != rhsNumber {
-        return lhsNumber < rhsNumber
-      }
-      return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
-    }
-
-    let starters = orderedPlayers.prefix(11).enumerated().map { index, player in
-      MatchSheetPlayerEntry(
-        sourcePlayerId: player.id,
-        displayName: player.name,
-        shirtNumber: player.number,
-        position: player.position,
-        notes: player.notes,
-        sortOrder: index)
-    }
-
-    let substitutes = orderedPlayers.dropFirst(11).enumerated().map { index, player in
-      MatchSheetPlayerEntry(
-        sourcePlayerId: player.id,
-        displayName: player.name,
-        shirtNumber: player.number,
-        position: player.position,
-        notes: player.notes,
-        sortOrder: index)
-    }
-
-    let staff = sourceTeam.officials.sorted { lhs, rhs in
-      lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
-    }.enumerated().map { index, official in
-      MatchSheetStaffEntry(
-        sourceOfficialId: official.id,
-        displayName: official.name,
-        roleLabel: official.roleRaw,
-        notes: nil,
-        sortOrder: index,
-        category: .staff)
-    }
-
-    return ScheduledMatchSheet(
-      sourceTeamId: sourceTeam.id,
-      sourceTeamName: sourceTeam.name,
-      status: .draft,
-      starters: starters,
-      substitutes: substitutes,
-      staff: staff,
       otherMembers: [],
       updatedAt: Date()).normalized()
   }
@@ -82,29 +26,10 @@ enum MatchSheetDraftFactory {
 enum MatchSheetEditorMode: Equatable {
   case standard
   case importReview(warnings: [MatchSheetImportWarning], extractedTeamName: String?)
-
-  var allowsSourceReseed: Bool {
-    switch self {
-    case .standard:
-      return true
-    case .importReview:
-      return false
-    }
-  }
-
-  var allowsReadyStateChanges: Bool {
-    switch self {
-    case .standard:
-      return true
-    case .importReview:
-      return false
-    }
-  }
 }
 
 struct MatchSheetEditorView: View {
   let sideTitle: String
-  let sourceTeam: TeamRecord?
   let fallbackTeamName: String
   @Binding var sheet: ScheduledMatchSheet
   let mode: MatchSheetEditorMode
@@ -119,7 +44,6 @@ struct MatchSheetEditorView: View {
 
   init(
     sideTitle: String,
-    sourceTeam: TeamRecord?,
     fallbackTeamName: String,
     sheet: Binding<ScheduledMatchSheet>,
     mode: MatchSheetEditorMode = .standard,
@@ -128,7 +52,6 @@ struct MatchSheetEditorView: View {
     replaceConfirmationMessage: String? = nil)
   {
     self.sideTitle = sideTitle
-    self.sourceTeam = sourceTeam
     self.fallbackTeamName = fallbackTeamName
     self._sheet = sheet
     self.mode = mode
@@ -140,22 +63,14 @@ struct MatchSheetEditorView: View {
   var body: some View {
     NavigationStack {
       Form {
-        Section("Status") {
-          LabeledContent("Source Team") {
-            Text(self.sheet.sourceTeamName ?? self.fallbackTeamName)
-              .foregroundStyle(.secondary)
-          }
-          LabeledContent("State") {
-            Text(self.sheet.isReady ? "Ready" : "Draft")
-              .foregroundStyle(self.sheet.isReady ? .green : .secondary)
-          }
+        Section("Summary") {
           LabeledContent("Starters") { Text("\(self.sheet.starterCount)") }
           LabeledContent("Substitutes") { Text("\(self.sheet.substituteCount)") }
           LabeledContent("Staff") { Text("\(self.sheet.staffCount)") }
           LabeledContent("Other Members") { Text("\(self.sheet.otherMemberCount)") }
 
-          if self.sheet.meetsReadyRequirements == false {
-            Text("Needs at least one starter with valid display data before the sheet can be marked ready.")
+          if self.sheet.hasAnyEntries == false {
+            Text("No entries added yet.")
               .font(.footnote)
               .foregroundStyle(.secondary)
           }
@@ -163,6 +78,10 @@ struct MatchSheetEditorView: View {
 
         if case let .importReview(warnings, extractedTeamName) = self.mode {
           Section("Import Review") {
+            Text("Review the imported entries below. Using this import updates this side in the upcoming match editor. Save the match afterwards to keep the change.")
+              .font(.footnote)
+              .foregroundStyle(.secondary)
+
             if let extractedTeamName {
               LabeledContent("Detected Team") {
                 Text(extractedTeamName)
@@ -179,17 +98,6 @@ struct MatchSheetEditorView: View {
                   .foregroundStyle(.orange)
               }
             }
-          }
-        }
-
-        if self.mode.allowsSourceReseed {
-          Section("Source Actions") {
-            Button("Reseed from Source Team") {
-              self.sheet = MatchSheetDraftFactory.seededDraft(
-                sourceTeam: self.sourceTeam,
-                fallbackTeamName: self.fallbackTeamName)
-            }
-            .disabled(self.sourceTeam == nil)
           }
         }
 
@@ -229,24 +137,6 @@ struct MatchSheetEditorView: View {
           }
         }
 
-        if self.mode.allowsReadyStateChanges {
-          Section {
-            if self.sheet.isReady {
-              Button("Mark Draft") {
-                self.sheet.status = .draft
-                self.sheet = self.normalizedSheet()
-              }
-              .foregroundStyle(.orange)
-            } else {
-              Button("Mark Ready") {
-                var updated = self.normalizedSheet()
-                updated.status = .ready
-                self.sheet = updated.normalized()
-              }
-              .disabled(self.normalizedSheet().meetsReadyRequirements == false)
-            }
-          }
-        }
       }
       .navigationTitle("\(self.sideTitle) Match Sheet")
       .toolbar {
@@ -265,7 +155,7 @@ struct MatchSheetEditorView: View {
             }
           }
           ToolbarItem(placement: .confirmationAction) {
-            Button("Apply Import") {
+            Button("Use Import") {
               if self.replaceConfirmationMessage == nil {
                 self.applyImport()
               } else {
@@ -416,7 +306,6 @@ struct MatchSheetEditorView: View {
   private func normalizedSheet() -> ScheduledMatchSheet {
     MatchSheetEditorState.normalizedSheet(
       self.sheet,
-      sourceTeam: self.sourceTeam,
       fallbackTeamName: self.fallbackTeamName)
   }
 
@@ -429,13 +318,17 @@ struct MatchSheetEditorView: View {
   }
 
   private func playerTitle(_ entry: MatchSheetPlayerEntry) -> String {
-    switch (entry.shirtNumber, entry.displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) {
-    case let (shirtNumber?, false):
-      return "#\(shirtNumber) \(entry.displayName)"
-    case let (shirtNumber?, true):
+    let trimmedName = entry.displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+
+    switch (entry.shirtNumber, trimmedName.isEmpty ? nil : trimmedName) {
+    case let (shirtNumber?, name?):
+      return "#\(shirtNumber) \(name)"
+    case let (shirtNumber?, nil):
       return "#\(shirtNumber)"
-    default:
-      return entry.displayName
+    case let (nil, name?):
+      return "#? \(name)"
+    case (nil, nil):
+      return "Player"
     }
   }
 
@@ -463,7 +356,6 @@ struct MatchSheetEditorView: View {
 #if DEBUG
 private struct MatchSheetEditorPreviewHost: View {
   let sideTitle: String
-  let sourceTeam: TeamRecord?
   let fallbackTeamName: String
   let mode: MatchSheetEditorMode
   let initialSheet: ScheduledMatchSheet
@@ -473,14 +365,12 @@ private struct MatchSheetEditorPreviewHost: View {
 
   init(
     sideTitle: String,
-    sourceTeam: TeamRecord?,
     fallbackTeamName: String,
     mode: MatchSheetEditorMode,
     initialSheet: ScheduledMatchSheet,
     replaceConfirmationMessage: String? = nil)
   {
     self.sideTitle = sideTitle
-    self.sourceTeam = sourceTeam
     self.fallbackTeamName = fallbackTeamName
     self.mode = mode
     self.initialSheet = initialSheet
@@ -491,7 +381,6 @@ private struct MatchSheetEditorPreviewHost: View {
   var body: some View {
     MatchSheetEditorView(
       sideTitle: self.sideTitle,
-      sourceTeam: self.sourceTeam,
       fallbackTeamName: self.fallbackTeamName,
       sheet: self.$sheet,
       mode: self.mode,
@@ -505,24 +394,26 @@ private struct MatchSheetEditorPreviewHost: View {
   let teams = MatchSheetImportPreviewSupport.makeTeamContext()
   return MatchSheetEditorPreviewHost(
     sideTitle: MatchSheetSide.home.title,
-    sourceTeam: teams.homeTeam,
     fallbackTeamName: teams.homeTeam.name,
     mode: .importReview(
       warnings: MatchSheetImportPreviewSupport.sampleWarnings(),
       extractedTeamName: MatchSheetImportPreviewSupport.homeTeamName),
-    initialSheet: MatchSheetImportPreviewSupport.importedHomeSheet(sourceTeam: teams.homeTeam))
+    initialSheet: MatchSheetImportPreviewSupport.importedHomeSheet(
+      sourceTeamId: teams.homeTeam.id,
+      teamName: teams.homeTeam.name))
 }
 
 #Preview("Match Sheet Review - Clean Parse") {
   let teams = MatchSheetImportPreviewSupport.makeTeamContext()
   return MatchSheetEditorPreviewHost(
     sideTitle: MatchSheetSide.home.title,
-    sourceTeam: teams.homeTeam,
     fallbackTeamName: teams.homeTeam.name,
     mode: .importReview(
       warnings: [],
       extractedTeamName: MatchSheetImportPreviewSupport.homeTeamName),
-    initialSheet: MatchSheetImportPreviewSupport.cleanImportedSheet(sourceTeam: teams.homeTeam))
+    initialSheet: MatchSheetImportPreviewSupport.cleanImportedSheet(
+      sourceTeamId: teams.homeTeam.id,
+      teamName: teams.homeTeam.name))
 }
 #endif
 
@@ -695,20 +586,13 @@ private struct MatchSheetStaffEntryEditor: View {
 enum MatchSheetEditorState {
   static func normalizedSheet(
     _ sheet: ScheduledMatchSheet,
-    sourceTeam: TeamRecord?,
     fallbackTeamName: String,
     updatedAt: Date = Date()) -> ScheduledMatchSheet
   {
     var updated = sheet
-
-    if let sourceTeam {
-      updated.sourceTeamId = sourceTeam.id
-      updated.sourceTeamName = sourceTeam.name
-    } else {
-      updated.sourceTeamName = updated.sourceTeamName?
-        .trimmingCharacters(in: .whitespacesAndNewlines)
-        .nilIfEmpty ?? fallbackTeamName.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
-    }
+    updated.sourceTeamName = updated.sourceTeamName?
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+      .nilIfEmpty ?? fallbackTeamName.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
 
     updated.starters = self.reindexedPlayers(updated.starters)
     updated.substitutes = self.reindexedPlayers(updated.substitutes)

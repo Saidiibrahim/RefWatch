@@ -72,11 +72,11 @@ struct ScheduledMatch: Identifiable, Codable, Hashable {
     }
 
     var hasAnyMatchSheetData: Bool {
-        self.homeMatchSheet != nil || self.awayMatchSheet != nil
+        self.homeMatchSheet?.hasAnyEntries == true || self.awayMatchSheet?.hasAnyEntries == true
     }
 
     var areMatchSheetsReadyForWatch: Bool {
-        self.homeMatchSheet?.isReady == true && self.awayMatchSheet?.isReady == true
+        self.homeMatchSheet?.isReady == true || self.awayMatchSheet?.isReady == true
     }
 }
 

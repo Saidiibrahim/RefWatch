@@ -60,7 +60,7 @@ struct MatchSheetImportPickerSheet: View {
     NavigationStack {
       Form {
         Section("Import") {
-          Text("Add one or more screenshots for the \(self.side.title.lowercased()) team. The parser keeps results as a draft until you confirm them.")
+          Text("Add one or more screenshots for the \(self.side.title.lowercased()) team. Review and edit the imported entries next, then save the upcoming match to keep them.")
             .font(.footnote)
             .foregroundStyle(.secondary)
 
