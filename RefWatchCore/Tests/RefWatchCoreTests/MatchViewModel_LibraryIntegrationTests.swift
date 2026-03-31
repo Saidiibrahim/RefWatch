@@ -77,10 +77,7 @@ final class MatchViewModel_LibraryIntegrationTests: XCTestCase {
         )
         let awaySheet = ScheduledMatchSheet(
             sourceTeamName: "Team B",
-            status: .ready,
-            starters: [
-                MatchSheetPlayerEntry(displayName: "Opponent", shirtNumber: 5, sortOrder: 1)
-            ],
+            status: .draft,
             updatedAt: Date(timeIntervalSince1970: 1_742_000_301)
         )
 
@@ -100,7 +97,9 @@ final class MatchViewModel_LibraryIntegrationTests: XCTestCase {
         XCTAssertEqual(viewModel.savedMatches.count, 1)
         XCTAssertEqual(viewModel.savedMatches.first?.homeMatchSheet, homeSheet.normalized())
         XCTAssertEqual(viewModel.savedMatches.first?.awayMatchSheet, awaySheet.normalized())
+        XCTAssertTrue(viewModel.savedMatches.first?.hasAnyMatchSheetData == true)
         XCTAssertTrue(viewModel.savedMatches.first?.areMatchSheetsReadyForWatch == true)
+        XCTAssertFalse(viewModel.savedMatches.first?.awayMatchSheet?.hasAnyEntries ?? true)
     }
 }
 

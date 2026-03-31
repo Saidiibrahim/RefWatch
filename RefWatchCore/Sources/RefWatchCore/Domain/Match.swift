@@ -94,10 +94,10 @@ public struct Match: Identifiable, Codable {
     }
 
     public var hasAnyMatchSheetData: Bool {
-        self.homeMatchSheet != nil || self.awayMatchSheet != nil
+        self.homeMatchSheet?.hasAnyEntries == true || self.awayMatchSheet?.hasAnyEntries == true
     }
 
     public var areMatchSheetsReadyForWatch: Bool {
-        self.homeMatchSheet?.isReady == true && self.awayMatchSheet?.isReady == true
+        self.homeMatchSheet?.isReady == true || self.awayMatchSheet?.isReady == true
     }
 }

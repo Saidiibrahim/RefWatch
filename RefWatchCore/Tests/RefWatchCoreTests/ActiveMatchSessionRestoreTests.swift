@@ -138,16 +138,17 @@ final class ActiveMatchSessionRestoreTests: XCTestCase {
         updatedAt: Date(timeIntervalSince1970: 1_742_000_400)),
       awayMatchSheet: ScheduledMatchSheet(
         sourceTeamName: "Away",
-        status: .ready,
-        starters: [MatchSheetPlayerEntry(displayName: "Opponent", shirtNumber: 4, sortOrder: 1)],
+        status: .draft,
         updatedAt: Date(timeIntervalSince1970: 1_742_000_401)))
     viewModel.startMatch()
 
     let restored = self.makeViewModel(store: store)
     XCTAssertTrue(restored.restorePersistedActiveMatchSessionIfAvailable())
     XCTAssertEqual(restored.currentMatch?.homeMatchSheet?.starters.first?.displayName, "Starter")
-    XCTAssertEqual(restored.currentMatch?.awayMatchSheet?.starters.first?.displayName, "Opponent")
+    XCTAssertEqual(restored.currentMatch?.awayMatchSheet?.sourceTeamName, "Away")
+    XCTAssertTrue(restored.currentMatch?.hasAnyMatchSheetData == true)
     XCTAssertTrue(restored.currentMatch?.areMatchSheetsReadyForWatch == true)
+    XCTAssertFalse(restored.currentMatch?.awayMatchSheet?.hasAnyEntries ?? true)
   }
 
   private func makeViewModel(store: InMemoryActiveMatchSessionStore) -> MatchViewModel {
