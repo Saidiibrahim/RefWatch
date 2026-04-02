@@ -91,6 +91,7 @@ struct AlwaysOnTimerView: View {
     }
 }
 
+#if DEBUG
 #Preview("Always-On Timer - Running") {
     AlwaysOnTimerView(model: MatchViewModel.previewRunningRegulation(), scale: 1)
         .watchFacePreviewSurface()
@@ -115,3 +116,4 @@ struct AlwaysOnTimerView: View {
     AlwaysOnTimerView(model: MatchViewModel.previewHalfTimeActive(), scale: 1)
         .watchFacePreviewSurface()
 }
+#endif

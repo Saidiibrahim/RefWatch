@@ -138,6 +138,7 @@ public struct GlanceTimerFace: View {
     }
 }
 
+#if DEBUG
 #Preview("Glance Face - Running") {
     GlanceTimerFace(model: MatchViewModel.previewRunningRegulation())
         .watchFacePreviewSurface()
@@ -162,3 +163,4 @@ public struct GlanceTimerFace: View {
     GlanceTimerFace(model: MatchViewModel.previewHalfTimeActive())
         .watchFacePreviewSurface()
 }
+#endif

@@ -326,6 +326,7 @@ private extension MatchRootView {
 
 // MARK: - Preview
 
+#if DEBUG
 #Preview("Match Root - Idle") {
   MatchRootView(previewConfiguration: .idle())
     .environmentObject(WatchPreviewSupport.makeAggregateEnvironment())
@@ -346,6 +347,7 @@ private extension MatchRootView {
     .defaultAppStorage(WatchPreviewSupport.makeDefaults(suiteName: "RefWatch.watchPreview.root.halftime"))
     .watchPreviewChrome()
 }
+#endif
 
 extension MatchRootView {
   @ViewBuilder

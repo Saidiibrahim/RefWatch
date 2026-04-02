@@ -78,6 +78,7 @@ struct LifecycleAlertOverlayView: View {
   }
 }
 
+#if DEBUG
 #Preview("Lifecycle Alert - End of Half") {
   LifecycleAlertOverlayView(alert: WatchLifecycleAlert(cue: .periodBoundaryReached(.firstHalf))) {}
     .watchPreviewChrome()
@@ -107,3 +108,4 @@ struct LifecycleAlertOverlayView: View {
   LifecycleAlertOverlayView(alert: WatchLifecycleAlert(cue: .periodBoundaryReached(.firstHalf))) {}
     .watchPreviewChrome(layout: WatchPreviewSupport.compactLayout)
 }
+#endif

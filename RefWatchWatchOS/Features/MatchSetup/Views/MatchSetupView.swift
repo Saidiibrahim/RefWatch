@@ -164,6 +164,7 @@ struct MatchSetupView: View {
     }
 }
 
+#if DEBUG
 #Preview("Match Setup - Alert Presented") {
     MatchSetupView(
         matchViewModel: MatchViewModel.previewExpiredBoundary(),
@@ -175,6 +176,7 @@ struct MatchSetupView: View {
     .defaultAppStorage(WatchPreviewSupport.makeDefaults(suiteName: "RefWatch.watchPreview.setup.alert"))
     .watchPreviewChrome()
 }
+#endif
 
 // MARK: - Navigation Helpers
 

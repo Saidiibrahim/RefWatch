@@ -77,10 +77,11 @@ struct CountdownView: View {
   }
 }
 
+#if DEBUG
 #Preview("Countdown View - First Half") {
   let viewModel = MatchViewModel.previewRunningRegulation()
 
-  return CountdownView(
+  CountdownView(
     matchViewModel: viewModel,
     lifecycle: MatchLifecycleCoordinator(),
     kickoffType: .firstHalf,
@@ -102,3 +103,4 @@ struct CountdownView: View {
   .defaultAppStorage(WatchPreviewSupport.makeDefaults(suiteName: "RefWatch.watchPreview.countdown.second-half"))
   .watchPreviewChrome(layout: WatchPreviewSupport.compactLayout)
 }
+#endif

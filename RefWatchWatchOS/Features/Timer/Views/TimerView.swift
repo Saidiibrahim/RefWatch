@@ -329,6 +329,7 @@ extension TimerView {
 
 // MARK: - Supporting Views
 
+#if DEBUG
 @MainActor
 private func makePausedTimerPreviewModel() -> MatchViewModel {
   let model = MatchViewModel.previewRunningRegulation()
@@ -434,3 +435,4 @@ private func makePausedTimerPreviewModel() -> MatchViewModel {
       suiteName: "RefWatch.watchPreview.timer.running.expanded"))
   .watchPreviewChrome(layout: WatchPreviewSupport.expandedLayout)
 }
+#endif

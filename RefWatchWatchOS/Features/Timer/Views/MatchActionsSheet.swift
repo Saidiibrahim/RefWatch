@@ -121,6 +121,7 @@ struct MatchActionsSheet: View {
   }
 }
 
+#if DEBUG
 #Preview("Match Actions - First Half Expired") {
   MatchActionsSheet(
     matchViewModel: MatchViewModel.previewExpiredBoundary(),
@@ -141,6 +142,7 @@ struct MatchActionsSheet: View {
     lifecycle: MatchLifecycleCoordinator())
     .watchPreviewChrome()
 }
+#endif
 
 extension MatchActionsSheet {
   @ViewBuilder

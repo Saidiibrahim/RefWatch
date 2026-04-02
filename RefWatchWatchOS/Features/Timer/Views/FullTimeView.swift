@@ -361,6 +361,7 @@ extension FullTimeView {
   }
 }
 
+#if DEBUG
 #Preview("Full Time – 41mm") {
   FullTimeView(
     matchViewModel: MatchViewModel.previewFullTimePendingCompletion(),
@@ -389,3 +390,4 @@ extension FullTimeView {
     lifecycle: MatchLifecycleCoordinator())
     .watchPreviewChrome(layout: WatchPreviewSupport.expandedLayout)
 }
+#endif

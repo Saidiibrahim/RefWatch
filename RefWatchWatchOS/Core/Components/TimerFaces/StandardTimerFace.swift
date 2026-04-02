@@ -150,6 +150,7 @@ public struct StandardTimerFace: View {
     }
 }
 
+#if DEBUG
 #Preview("Standard Face - Running") {
     StandardTimerFace(model: MatchViewModel.previewRunningRegulation())
         .watchFacePreviewSurface()
@@ -174,3 +175,4 @@ public struct StandardTimerFace: View {
     StandardTimerFace(model: MatchViewModel.previewHalfTimeActive())
         .watchFacePreviewSurface()
 }
+#endif

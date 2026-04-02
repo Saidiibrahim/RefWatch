@@ -454,6 +454,7 @@ struct MatchKickOffView: View {
   }
 }
 
+#if DEBUG
 @MainActor
 private func makeKickoffPreviewViewModel() -> MatchViewModel {
   let viewModel = MatchViewModel.previewRunningRegulation()
@@ -488,3 +489,4 @@ private func makeKickoffPreviewViewModel() -> MatchViewModel {
     .defaultAppStorage(WatchPreviewSupport.makeDefaults(suiteName: "RefWatch.watchPreview.kickoff.second-half"))
     .watchPreviewChrome(layout: WatchPreviewSupport.compactLayout)
 }
+#endif

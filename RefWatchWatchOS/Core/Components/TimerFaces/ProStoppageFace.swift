@@ -181,6 +181,7 @@ public struct ProStoppageFace: View {
     }
 }
 
+#if DEBUG
 #Preview("Pro Stoppage Face - Running") {
     ProStoppageFace(model: MatchViewModel.previewRunningRegulation())
         .watchFacePreviewSurface()
@@ -205,3 +206,4 @@ public struct ProStoppageFace: View {
     ProStoppageFace(model: MatchViewModel.previewHalfTimeActive())
         .watchFacePreviewSurface()
 }
+#endif
