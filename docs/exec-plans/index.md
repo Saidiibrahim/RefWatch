@@ -9,6 +9,7 @@ Execution plans and granular task files are the canonical workflow tracker for n
 
 ## Active Plans
 - `active/assistant-multimodal-refresh/PLAN_assistant-multimodal-refresh.md`
+- `active/match-records-confirmation/PLAN_match-records-confirmation.md`
 - `active/match-sheet-import/PLAN_match-sheet-import.md`
 - `active/match-timer-ux/PLAN_match-timer-ux.md`
 - `active/match-lifecycle-haptics/PLAN_match-lifecycle-haptics.md`
