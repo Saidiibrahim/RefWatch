@@ -10,31 +10,34 @@ final class SettingsTimerFaceUITests: XCTestCase {
     @MainActor
     func testSettings_TimerFaceRow_NavigatesToPicker() throws {
         let app = XCUIApplication()
-        app.launch()
+        app.launchRefWatch()
 
         // Open Settings from home
-        if app.buttons["Settings"].exists {
-            app.buttons["Settings"].tap()
-        } else if app.staticTexts["Settings"].exists {
-            app.staticTexts["Settings"].tap()
+        let settingsRow = app.buttons["settingsRow"]
+        let list = app.collectionViews.firstMatch
+        XCTAssertTrue(list.waitForExistence(timeout: 10), "Expected the idle navigation list")
+        for _ in 0..<6 where settingsRow.exists == false {
+            list.swipeUp()
         }
+        XCTAssertTrue(settingsRow.waitForExistence(timeout: 10), "Expected Settings on the idle surface")
+        XCTAssertTrue(settingsRow.isHittable, "Expected Settings to be hittable after scrolling")
+        settingsRow.tap()
 
         // Tap the Timer Face row
-        if app.otherElements["timerFaceRow"].waitForExistence(timeout: 3) {
-            app.otherElements["timerFaceRow"].tap()
-        } else if app.buttons["Timer Face"].exists {
-            app.buttons["Timer Face"].tap()
-        } else if app.staticTexts["Timer Face"].exists {
-            app.staticTexts["Timer Face"].tap()
-        } else {
-            XCTFail("Timer Face row not found")
+        let timerFaceRow = app.buttons["timerFaceRow"]
+        let settingsList = app.collectionViews.firstMatch
+        XCTAssertTrue(settingsList.waitForExistence(timeout: 10), "Expected the Settings list")
+        for _ in 0..<6 where timerFaceRow.exists == false {
+            settingsList.swipeUp()
         }
+        XCTAssertTrue(timerFaceRow.waitForExistence(timeout: 10), "Expected the Timer Face settings row")
+        XCTAssertTrue(timerFaceRow.isHittable, "Expected Timer Face to be hittable after scrolling")
+        timerFaceRow.tap()
 
         // Assert the picker appears on the next screen
         let picker = app.otherElements["timerFacePicker"]
         let title = app.staticTexts["Timer Face"]
-        XCTAssertTrue(picker.waitForExistence(timeout: 3) || title.waitForExistence(timeout: 3),
+        XCTAssertTrue(picker.waitForExistence(timeout: 10) || title.waitForExistence(timeout: 3),
                       "Expected Timer Face picker or title to be visible")
     }
 }
-

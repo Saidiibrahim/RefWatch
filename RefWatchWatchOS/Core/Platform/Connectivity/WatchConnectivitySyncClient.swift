@@ -89,7 +89,7 @@ final class WatchConnectivitySyncClient: NSObject, ConnectivitySyncProvidingExte
         session.transferUserInfo(payload)
         NotificationCenter.default.post(
           name: .syncFallbackOccurred,
-          object: nil,
+          object: self,
           userInfo: ["context": "watch.completedMatch.sendMessageFallback"])
       }
 

@@ -221,7 +221,10 @@ public final class PenaltyManager: PenaltyManaging {
     let homeRem = max(0, initialRounds - self.homeTaken)
     let awayRem = max(0, initialRounds - self.awayTaken)
 
-    if self.homeTaken <= self.initialRounds || self.awayTaken <= self.initialRounds {
+    // Initial-round early-decision math only applies while both teams are still
+    // completing that phase. Once either side starts sudden death, the other
+    // side must be allowed its matching attempt before a winner is declared.
+    if self.homeTaken <= self.initialRounds && self.awayTaken <= self.initialRounds {
       if self.homeScored > self.awayScored + awayRem { self.decide(.home); return }
       if self.awayScored > self.homeScored + homeRem { self.decide(.away); return }
     }

@@ -369,8 +369,12 @@ final class BackgroundRuntimeSessionController: NSObject {
   /// test runs can exercise lifecycle logic without creating real workout
   /// sessions.
   static func makeForCurrentEnvironment() -> BackgroundRuntimeSessionController {
-    if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
-      || ProcessInfo.processInfo.environment["REFWATCH_DISABLE_MATCH_RUNTIME"] == "1"
+    let process = ProcessInfo.processInfo
+    let isExplicitUITestProcess = process.environment["REFWATCH_UI_TEST_PROCESS"] == "1"
+      && process.arguments.contains("--refwatch-ui-testing")
+    if process.environment["XCTestConfigurationFilePath"] != nil
+      || process.environment["REFWATCH_DISABLE_MATCH_RUNTIME"] == "1"
+      || isExplicitUITestProcess
     {
       return BackgroundRuntimeSessionController(provider: UITestMatchRuntimeSessionProvider())
     }

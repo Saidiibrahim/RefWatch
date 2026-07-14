@@ -37,7 +37,7 @@ struct WatchConnectivitySyncClientTests {
     var observed = false
     let token = NotificationCenter.default.addObserver(
       forName: .syncFallbackOccurred,
-      object: nil,
+      object: client,
       queue: .main)
     { _ in
       observed = true
@@ -62,7 +62,7 @@ struct WatchConnectivitySyncClientTests {
     var observed = false
     let token = NotificationCenter.default.addObserver(
       forName: .syncFallbackOccurred,
-      object: nil,
+      object: client,
       queue: .main)
     { _ in
       observed = true

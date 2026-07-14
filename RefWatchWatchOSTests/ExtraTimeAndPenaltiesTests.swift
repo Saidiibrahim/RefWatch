@@ -155,7 +155,8 @@ struct ExtraTimeAndPenaltiesTests {
     // Default first kicker is home
     #expect(vm.nextPenaltyTeam == .home)
 
-    // Sequence: H score, A miss, H score, A miss, H score, A miss, H score -> early decision for Home
+    // Sequence: H score, A miss repeated three times. At 3-0 after three
+    // attempts each, Away has only two remaining kicks and cannot draw level.
     vm.recordPenaltyAttempt(team: .home, result: .scored)
     #expect(vm.nextPenaltyTeam == .away)
     vm.recordPenaltyAttempt(team: .away, result: .missed)
@@ -164,11 +165,7 @@ struct ExtraTimeAndPenaltiesTests {
     vm.recordPenaltyAttempt(team: .away, result: .missed)
     vm.recordPenaltyAttempt(team: .home, result: .scored)
     vm.recordPenaltyAttempt(team: .away, result: .missed)
-    // Before last home kick, not decided yet (away could still tie)
-    #expect(vm.isPenaltyShootoutDecided == false)
-    vm.recordPenaltyAttempt(team: .home, result: .scored)
-
-    // Now Home has 4, Away has 0 with 2 remaining -> early decision
+    // Home is already the mathematical winner; no fourth kick is required.
     #expect(vm.isPenaltyShootoutDecided == true)
     #expect(vm.penaltyWinner == .home)
   }

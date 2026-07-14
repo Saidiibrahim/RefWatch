@@ -252,6 +252,7 @@ private struct PenaltyTeamPanel: View {
                 .stroke(isActive ? theme.colors.matchPositive : .clear, lineWidth: 2)
         )
         .contentShape(RoundedRectangle(cornerRadius: theme.components.cardCornerRadius, style: .continuous))
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier(side == .home ? "homePenaltyPanel" : "awayPenaltyPanel")
         .simultaneousGesture(longPressGesture)
     }

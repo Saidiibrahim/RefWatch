@@ -124,8 +124,8 @@ final class ExtraTimeAndPenaltiesTests: XCTestCase {
     XCTAssertEqual(vm.awayPenaltyResults.count, 1)
     XCTAssertEqual(vm.awayPenaltyResults.first, .missed)
 
-    // penaltiesStart was recorded at beginPenaltiesIfNeeded(); expect +2
-    XCTAssertEqual(vm.matchEvents.count, priorCount + 2)
+    // The first attempt lazily records penaltiesStart, then both attempts are logged.
+    XCTAssertEqual(vm.matchEvents.count, priorCount + 3)
 
     vm.endPenaltiesAndProceed()
     XCTAssertFalse(vm.penaltyShootoutActive)
@@ -163,7 +163,6 @@ final class ExtraTimeAndPenaltiesTests: XCTestCase {
   }
 
   func test_penalties_next_team_and_early_win_detection() async throws {
-    throw XCTSkip("Early decision thresholds under initial rounds vary; keeping in app target tests")
     let vm = MatchViewModel()
     vm.configureMatch(duration: 45, periods: 2, halfTimeLength: 15, hasExtraTime: true, hasPenalties: true)
     vm.beginPenaltiesIfNeeded()
@@ -178,19 +177,12 @@ final class ExtraTimeAndPenaltiesTests: XCTestCase {
     vm.recordPenaltyAttempt(team: .away, result: .missed)
     vm.recordPenaltyAttempt(team: .home, result: .scored)
     vm.recordPenaltyAttempt(team: .away, result: .missed)
-    if vm.isPenaltyShootoutDecided {
-      XCTExpectFailure("Early decision thresholds may mark 3-0 as decided")
-    } else {
-      XCTAssertFalse(vm.isPenaltyShootoutDecided)
-    }
-    vm.recordPenaltyAttempt(team: .home, result: .scored)
-
+    // At 3-0 after three attempts each, Away's two remaining kicks cannot tie.
     XCTAssertTrue(vm.isPenaltyShootoutDecided)
     XCTAssertEqual(vm.penaltyWinner, .home)
   }
 
   func test_sudden_death_decision_after_equal_attempts() async throws {
-    throw XCTSkip("Sudden-death equal-attempt decision depends on precise manager rules; keep in app target tests")
     let vm = MatchViewModel()
     vm.configureMatch(duration: 45, periods: 2, halfTimeLength: 15, hasExtraTime: true, hasPenalties: true)
     vm.beginPenaltiesIfNeeded()
@@ -210,11 +202,7 @@ final class ExtraTimeAndPenaltiesTests: XCTestCase {
     XCTAssertFalse(vm.isPenaltyShootoutDecided)
 
     vm.recordPenaltyAttempt(team: .home, result: .scored)
-    if vm.isPenaltyShootoutDecided {
-      XCTExpectFailure("Decision flagged before equal attempts in sudden death")
-    } else {
-      XCTAssertFalse(vm.isPenaltyShootoutDecided)
-    }
+    XCTAssertFalse(vm.isPenaltyShootoutDecided)
     vm.recordPenaltyAttempt(team: .away, result: .missed)
     XCTAssertTrue(vm.isPenaltyShootoutDecided)
     XCTAssertEqual(vm.penaltyWinner, .home)

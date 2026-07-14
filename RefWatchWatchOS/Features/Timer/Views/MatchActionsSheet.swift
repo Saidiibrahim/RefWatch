@@ -214,6 +214,7 @@ extension MatchActionsSheet {
           showBackground: false)
         {
           self.matchViewModel.endHalfTimeManually()
+          self.lifecycle?.goToKickoffSecond()
           self.dismiss()
         }
         .frame(width: cellWidth)
@@ -291,6 +292,7 @@ extension MatchActionsSheet {
             width: cellWidth)
           {
             self.matchViewModel.endHalfTimeManually()
+            self.lifecycle?.goToKickoffSecond()
             self.dismiss()
           }
         } else {
