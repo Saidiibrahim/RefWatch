@@ -125,7 +125,9 @@ final class AggregateSyncPayloadTests: XCTestCase {
             entity: .team,
             action: .update,
             payload: payloadData,
-            modifiedAt: Date(),
+            // The wire contract intentionally serializes ISO-8601 milliseconds;
+            // use a representable instant for exact Equatable round-trip coverage.
+            modifiedAt: Date(timeIntervalSince1970: 1_735_000_000),
             origin: .watch,
             dependencies: [UUID()],
             requiresSnapshotRefresh: true

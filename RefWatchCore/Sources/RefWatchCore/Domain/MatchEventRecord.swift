@@ -16,6 +16,8 @@ public struct MatchEventRecord: Identifiable, Codable, Equatable {
   public let period: Int // Which half/period (1, 2, 3, 4 for extra time)
   public let eventType: MatchEventType
   public let team: TeamSide? // Optional for general match events
+  public let teamId: UUID?
+  public let teamMemberId: UUID?
   public let details: EventDetails
 
   public init(
@@ -23,6 +25,8 @@ public struct MatchEventRecord: Identifiable, Codable, Equatable {
     period: Int,
     eventType: MatchEventType,
     team: TeamSide? = nil,
+    teamId: UUID? = nil,
+    teamMemberId: UUID? = nil,
     details: EventDetails)
   {
     self.id = UUID()
@@ -33,6 +37,8 @@ public struct MatchEventRecord: Identifiable, Codable, Equatable {
     self.period = period
     self.eventType = eventType
     self.team = team
+    self.teamId = teamId
+    self.teamMemberId = teamMemberId
     self.details = details
   }
 
@@ -46,6 +52,8 @@ public struct MatchEventRecord: Identifiable, Codable, Equatable {
     period: Int,
     eventType: MatchEventType,
     team: TeamSide?,
+    teamId: UUID? = nil,
+    teamMemberId: UUID? = nil,
     details: EventDetails)
   {
     self.id = id
@@ -55,6 +63,8 @@ public struct MatchEventRecord: Identifiable, Codable, Equatable {
     self.period = period
     self.eventType = eventType
     self.team = team
+    self.teamId = teamId
+    self.teamMemberId = teamMemberId
     self.details = details
   }
 }
