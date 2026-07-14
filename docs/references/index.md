@@ -14,6 +14,7 @@ Operational runbooks, onboarding material, and supporting references live here.
 
 ## Technical References
 - `testing/strategy.md`
+- `backend-migration-cutover.md`
 - `openai_responses_api.md`
 - `glossary.md`
 - `project-rename.md`

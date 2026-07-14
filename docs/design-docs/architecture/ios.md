@@ -10,9 +10,10 @@
 - `Platform` adapters implement watch-shared protocols, e.g.:
   - `IOSHaptics` for tactile feedback.
   - `ConnectivityClient` (placeholder) for syncing with watch.
-  - `SupabaseAuthController` for authentication flows.
-  - `AssistantProviding` / `OpenAIAssistantService` for the server-backed multimodal assistant proxy.
-  - `MatchSheetImportProviding` / `OpenAIMatchSheetImportService` for the iPhone-only screenshot-to-match-sheet import flow.
+  - `AuthenticationProviding`, `AuthStateProviding`, and `SessionTokenProviding` keep authentication vendor-neutral; `ClerkAuthController` is the target implementation.
+  - `BackendAPIClient` attaches Clerk bearer tokens and provides typed JSON and streaming transport to the Worker.
+  - `BackendReferenceCatalogService` reads the global reference-team and competition catalog through authenticated Worker routes; no feature view reaches Supabase directly.
+  - `AssistantProviding` and `MatchSheetImportProviding` keep feature code independent of the server transport.
 
 ## Feature Modules
 - `Matches`: watch match history, continue sessions, and manage saved data.
@@ -36,13 +37,14 @@
   - `MatchSheetEditorView` shows participant sections plus import warnings/review state only; it does not surface `State`, `Mark Ready`, or `Mark Draft` controls
 - Schedule persistence/sync owns the frozen sheet boundary:
   - local SwiftData schedule records store home/away sheet blobs
-  - Supabase `scheduled_matches` rows store additive JSON sheet columns
+  - the backend `scheduled_matches` rows store additive JSON sheet columns in PlanetScale Postgres
   - aggregate snapshot export ships the frozen sheets to watch
 - iPhone is responsible for freezing the scheduled sheets onto the live `Match` before kickoff so later library edits do not rewrite in-progress participant choices.
 - This freeze guarantee applies when the schedule carries match-sheet data; legacy no-sheet schedules still rely on the older backward-compatible library lookup path on watch.
 - When kickoff starts from a scheduled fixture, the live match must preserve the schedule's home/away team identity alongside the frozen match sheets; changing teams requires going back through the schedule editor first.
 - Watch remains a consumer of the synced frozen schedule data; it does not author official match sheets.
 - The assistant surface is not shared to watchOS; keep all assistant network and Photos attachment handling inside the iOS target.
+- The iOS client treats the Clerk subject and internal app-user ID as different identifiers. It never assumes a Clerk ID is a UUID and never supplies an authoritative `owner_id`.
 - Screenshot import for upcoming matches is iPhone-only as well. `UpcomingMatchEditorView` owns the multi-image Photos picker, transient parse state, and final save boundary, while `MatchSheetEditorView` is reused as the review surface for imported drafts before they replace the selected side inside the parent editor state.
 - The import flow should reuse the assistant's image-normalization approach, but it must not reuse the assistant chat history or streaming response contract.
 
@@ -53,3 +55,4 @@
 ## Testing Notes
 - Unit tests should exercise shared services inside the iOS context where behavior diverges (e.g., networking).
 - Snapshot/UI tests can validate tab navigation once the UI test target is configured.
+- Backend tests must prove bearer attachment/error mapping and repository behavior with non-UUID Clerk subjects; Worker tests must prove tenant isolation independently.

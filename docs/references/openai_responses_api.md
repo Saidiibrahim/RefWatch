@@ -1,12 +1,12 @@
 # OpenAI Responses API Integration
 
-This document captures the RefWatch assistant path after the move to a server-backed multimodal Responses flow. The iOS app now sends draft turns to a Supabase Edge Function, and that function forwards the request to OpenAI's Responses API.
+This document captures the RefWatch assistant path through a server-backed multimodal Responses flow. The active target proxy is the authenticated Hono route in `api/`; legacy Supabase Edge Function code remains a contract reference during migration.
 
 ## Overview
 
-- **Primary iOS client**: `RefWatchiOS/Core/Platform/AI/OpenAIAssistantService.swift`
+- **Target iOS transport**: `RefWatchiOS/Core/Platform/Backend/BackendAssistantAPI.swift`
 - **Protocol**: `AssistantProviding`
-- **Proxy transport**: authenticated Supabase Edge Function
+- **Proxy transport**: authenticated Cloudflare Worker route `POST /api/assistant/responses`
 - **Upstream endpoint**: `POST https://api.openai.com/v1/responses`
 - **Transport**: Server-Sent Events with `stream: true`
 - **Model tier**: `gpt-5.4-mini`
@@ -25,7 +25,7 @@ The upcoming-match screenshot import flow uses the same Responses API family, bu
 
 ## Request Construction
 
-The edge function forwards multimodal turns using the Responses `input` array. Local Photos attachments are normalized to JPEG and encoded as a base64 data URL before the request is sent upstream.
+The Worker route forwards multimodal turns using the Responses `input` array. Local Photos attachments are normalized to JPEG and encoded as a base64 data URL before the request is sent upstream.
 
 ```jsonc
 {
@@ -89,7 +89,7 @@ When running `xcodebuild test`, use an available iOS simulator runtime for the R
 ## Troubleshooting Checklist
 
 1. **No streaming text** → Verify the proxy forwards `response.output_text.delta` and that the parser flushes each SSE event frame.
-2. **HTTP 401/403** → Confirm the Supabase JWT and server-side OpenAI secret are configured; the iOS bundle no longer carries an OpenAI key.
+2. **HTTP 401/403** → Confirm the Clerk session token and Worker-side OpenAI secret are configured; the iOS bundle never carries an OpenAI key.
 3. **UI stuck on stub messaging** → Ensure the server-backed assistant path is enabled and `StubAssistantService` is only being used as the fallback.
 4. **Rate limits or server errors** → Surface the upstream `response.failed` payload in logs before changing the client-side parser.
 
@@ -100,4 +100,4 @@ When running `xcodebuild test`, use an available iOS simulator runtime for the R
 - Add tool/function calling once the assistant contract stabilizes.
 - Consider a Files API upload path only if image sizes or retention requirements outgrow the current data URL approach.
 
-_Last updated: 2026-03-26_
+_Last updated: 2026-07-14. Active backend routing and local match-sheet normalizer parity are implemented; authenticated deployed fixture proof and production provider deployment remain pending._

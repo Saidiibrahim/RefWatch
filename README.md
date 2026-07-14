@@ -4,10 +4,10 @@
 [![Platform](https://img.shields.io/badge/platform-watchOS%20%7C%20iOS-blue.svg)](https://developer.apple.com/watchos/)
 [![Swift](https://img.shields.io/badge/Swift-5.9-orange.svg)](https://swift.org/)
 [![Xcode](https://img.shields.io/badge/Xcode-26.2-147EFB.svg?logo=xcode&logoColor=white)](https://developer.apple.com/xcode/)
-[![Supabase](https://img.shields.io/badge/Supabase-Backend-3ECF8E.svg?logo=supabase&logoColor=white)](https://supabase.com)
-[![Supabase Auth](https://img.shields.io/badge/Supabase-Auth-3ECF8E.svg?logo=supabase&logoColor=white)](https://supabase.com/docs/guides/auth)
+[![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-F38020.svg?logo=cloudflare&logoColor=white)](https://developers.cloudflare.com/workers/)
+[![Clerk](https://img.shields.io/badge/Clerk-Authentication-6C47FF.svg)](https://clerk.com/docs)
+[![PlanetScale](https://img.shields.io/badge/PlanetScale-Postgres-000000.svg?logo=planetscale&logoColor=white)](https://planetscale.com/docs/postgres)
 [![OpenAI](https://img.shields.io/badge/OpenAI-Responses_API-412991.svg?logo=openai&logoColor=white)](https://platform.openai.com/docs/api-reference/responses)
-[![Google Sign-In](https://img.shields.io/badge/Google-Sign--In-4285F4.svg?logo=google&logoColor=white)](https://developers.google.com/identity/sign-in/ios)
 
 <table align="center">
   <tr>
@@ -72,11 +72,14 @@ A watchOS-first app designed for football/soccer referees to manage matches effi
 |-------|-----------|---------|
 | UI Framework | SwiftUI | Declarative UI for watchOS and iOS |
 | Local Storage | SwiftData | On-device persistence |
-| Cloud Database | [Supabase](https://supabase.com) (PostgreSQL) | Match sync, team library, user data |
-| Authentication | Supabase Auth + [Google Sign-In SDK](https://github.com/google/GoogleSignIn-iOS) | Apple Sign-In, Google OAuth |
+| Backend API | [Cloudflare Workers](https://developers.cloudflare.com/workers/) + Hono | Authenticated sync and server-side integrations |
+| Cloud Database | [PlanetScale Postgres](https://planetscale.com/docs/postgres) via Hyperdrive | Match sync, team library, user data |
+| Authentication | [Clerk](https://clerk.com/docs) | Native iOS sign-in and session tokens |
 | AI Assistant | [OpenAI Responses API](https://platform.openai.com) | Match analysis and referee assistance |
 
-The app works fully offline using SwiftData. When connected, data syncs to Supabase with automatic retry for failed uploads.
+The watch-first match runtime and local SwiftData stores remain offline-first. When cloud sync is enabled, iOS obtains a Clerk session token and calls the Worker with `Authorization: Bearer <clerk-session-token>`. Only the Worker can access PlanetScale or OpenAI.
+
+> Migration status (2026-07-14): the active iOS composition builds and routes cloud-backed features, including reference-catalog reads, through Clerk and `BackendAPIClient`. Staging Worker/Hyperdrive readiness and disposable 5/54 catalog readback passed. Production provider deployment, Supabase data/account import, production application/readback of the bundled PlanetScale reference-catalog seed, full iOS test acceptance, and Supabase compatibility cleanup are not complete. Legacy Supabase-named repositories/types may remain compiled until the active exec plan closes; the Supabase SDK package is removed. See [Backend migration and cutover](docs/references/backend-migration-cutover.md).
 
 ## Quick Start
 
@@ -84,19 +87,20 @@ The app works fully offline using SwiftData. When connected, data syncs to Supab
 
 - Run `./scripts/setup.sh` to generate `RefWatchiOS/Config/Config.xcconfig` with your Team ID, bundle prefix, app group, and URL scheme (local-only, gitignored).
 - Optional: copy `RefWatchiOS/Config/Secrets.example.xcconfig` to `RefWatchiOS/Config/Secrets.xcconfig` and add local app-facing values.
-- Optional: configure Google Sign-In credentials in `Secrets.xcconfig` (see setup step 5).
+- Configure the public Clerk key and Worker base URL in `Secrets.xcconfig` when exercising the migrating cloud path.
 
 ### Prerequisites
 
-- **Xcode 15.4+** (Swift 5.9)
+- **Xcode 16+** minimum for the iOS 18/watchOS 11 SDKs; the badge above records the newer repository-validated toolchain
 - **Apple Developer Account** (for device deployment)
 - **watchOS 11.0+** target device or simulator
 - **iOS 17.0+** for companion app (optional)
 
-**Optional cloud services:**
-- [Supabase](https://supabase.com/dashboard) — Cloud sync and authentication
-- [OpenAI](https://platform.openai.com) — AI assistant (uses gpt-5.4-mini)
-- [Google Cloud Console](https://console.cloud.google.com) — OAuth client ID for Google Sign-In
+**Cloud services for the target backend:**
+- [Clerk](https://dashboard.clerk.com) — native authentication
+- [Cloudflare Workers](https://dash.cloudflare.com) — Hono API and OpenAI proxy
+- [PlanetScale Postgres](https://app.planetscale.com) — cloud persistence
+- [OpenAI](https://platform.openai.com) — server-side assistant and match-sheet parsing
 
 ### Setup
 
@@ -146,26 +150,29 @@ The app works fully offline using SwiftData. When connected, data syncs to Supab
 
    | Variable | Service | Description |
    |----------|---------|-------------|
-   | `SUPABASE_URL` | Supabase | Your project URL |
-   | `SUPABASE_PUBLISHABLE_KEY` | Supabase | Public/anon key |
-   | `GID_CLIENT_ID` | Google | OAuth client ID |
-   | `GID_REVERSED_CLIENT_ID` | Google | Reversed client ID for URL scheme |
+   | `BACKEND_API_BASE_URL` | Cloudflare | Deployed Worker origin, with no trailing slash |
+   | `CLERK_PUBLISHABLE_KEY` | Clerk | Public native-app key; safe to embed |
+   | `CLERK_FRONTEND_API_HOST` | Clerk | Frontend API host used by the associated-domain capability |
 
-   The assistant and match-sheet import flows no longer read `OPENAI_API_KEY` from the iOS app bundle or `Secrets.xcconfig`. OpenAI access is server-side only via Supabase edge functions.
+   Never add `CLERK_SECRET_KEY`, `CLERK_JWT_KEY`, `CLERK_WEBHOOK_SIGNING_SECRET`, `DATABASE_URL`, PlanetScale credentials, or `OPENAI_API_KEY` to iOS configuration.
 
-5. **Deploy the AI edge functions** (required for live assistant replies and screenshot import)
+5. **Configure and run the Worker API**
    ```bash
-   supabase functions deploy assistant-responses --project-ref <project-ref>
-   supabase functions deploy match-sheet-parse --project-ref <project-ref>
-   supabase secrets set OPENAI_API_KEY=<server-side-openai-key> --project-ref <project-ref>
+   cd api
+   npm install
+   cp .dev.vars.example .dev.vars
+   npm run typecheck
+   npm test
+   npm run dev
    ```
-   Keep `OPENAI_API_KEY` in Supabase secrets only. Do not add it to the iOS project xcconfig files or Info.plist. The same secret is used by both `assistant-responses` and `match-sheet-parse`.
+   For deployment, provision Clerk, PlanetScale Postgres, and Cloudflare Hyperdrive first, configure the `HYPERDRIVE` binding, and store the following with `wrangler secret put`: `CLERK_SECRET_KEY`, `CLERK_PUBLISHABLE_KEY`, `CLERK_JWT_KEY`, `CLERK_WEBHOOK_SIGNING_SECRET`, and `OPENAI_API_KEY`. Use `DATABASE_URL` only for local runtime fallback; use a separate migration-role `DATABASE_URL` with Drizzle tooling.
 
-6. **Google Sign-In setup** (optional)
-   - Create an OAuth 2.0 Client ID at [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
-   - Select "iOS" as the application type and enter your bundle identifier
-   - Add the client ID to `GID_CLIENT_ID` in `Secrets.xcconfig`
-   - Add the reversed client ID (e.g., `com.googleusercontent.apps.YOUR_ID`) to `GID_REVERSED_CLIENT_ID`
+6. **Clerk native-app setup**
+   - Create or select the RefWatch Clerk application and enable the desired sign-in methods.
+   - Add the iOS bundle identifier/native application in Clerk.
+   - Put only the publishable key and Frontend API host in `Secrets.xcconfig`.
+   - Configure `webcredentials:<CLERK_FRONTEND_API_HOST>` in the iOS associated-domains capability.
+   - Create a Clerk webhook for the deployed `/webhooks/clerk` endpoint and keep its signing secret in Worker secrets.
 
 7. **Build and run**
    ```bash
@@ -188,6 +195,7 @@ RefWatch follows a feature-first MVVM architecture with clear separation between
 
 ```
 RefWatch/
+├── api/                 # Cloudflare Worker/Hono API and Drizzle schema
 ├── RefWatchWatchOS/     # watchOS app (production-first)
 │   ├── App/             # App entry point, navigation
 │   ├── Core/            # Shared services, components
@@ -200,19 +208,20 @@ RefWatch/
 └── docs/                # Documentation
 ```
 
-See [Architecture Overview](docs/architecture/overview.md) for detailed documentation.
+See [Architecture Overview](docs/design-docs/architecture/overview.md) for detailed documentation.
 
 ## Documentation
 
-- [Installation & Tooling](docs/getting-started/installation.md)
-- [Running the App](docs/getting-started/running.md)
-- [Architecture Overview](docs/architecture/overview.md)
-- [Testing Strategy](docs/testing/strategy.md)
-- [Contributing Guide](docs/process/contributing.md)
+- [Installation & Tooling](docs/references/getting-started/installation.md)
+- [Running the App](docs/references/getting-started/running.md)
+- [Architecture Overview](docs/design-docs/architecture/overview.md)
+- [Backend migration and cutover](docs/references/backend-migration-cutover.md)
+- [Testing Strategy](docs/references/testing/strategy.md)
+- [Contributing Guide](docs/references/process/contributing.md)
 
 ## Contributing
 
-We welcome contributions! Please see our [Contributing Guide](docs/process/contributing.md) for details on:
+We welcome contributions! Please see our [Contributing Guide](docs/references/process/contributing.md) for details on:
 
 - Branch naming conventions
 - Development workflow
@@ -223,7 +232,7 @@ Before contributing, please read our [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Security
 
-For security vulnerabilities, please see our [Security Policy](SECURITY.md) for responsible disclosure guidelines.
+For security architecture and the current migration risk register, see [docs/SECURITY.md](docs/SECURITY.md). For responsible disclosure, see [SECURITY.md](SECURITY.md).
 
 ## License
 

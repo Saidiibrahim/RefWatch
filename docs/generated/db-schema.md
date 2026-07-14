@@ -1,13 +1,63 @@
 # Database Schema Snapshot
 
-Intended source of truth: `refwatch-database` MCP server.
+Preliminary source-of-truth inventory for migration planning: live Supabase MCP readback on `2026-07-14` (not repository migration parsing). It is not the final cutover snapshot.
 
-This snapshot was generated from live MCP-backed SQL introspection (not migration parsing).
-
-- Preferred source of truth: `refwatch-database` MCP server output
-- MCP access mode used: direct MCP tools (`execute_sql`, `list_tables`)
-- Generated on: `2026-02-24`
+- Provider: the live RefWatch Supabase project
+- Evidence method: MCP-backed schema/column, row-count, and RLS introspection
+- Read back on: `2026-07-14`
 - Schema: `public`
+
+Repository SQL migrations are historical intent and may not match the live provider. The most important confirmed drift is identity: live `public.users` has an internal UUID `id`, but it does **not** have a `clerk_user_id` column. A Clerk-subject-to-internal-ID mapping therefore has to be created and backfilled during migration; existing internal UUIDs must be preserved.
+
+## Cutover-critical live evidence
+
+All preliminary live row counts were captured in one SQL statement on 2026-07-14. The
+cutover-critical non-zero counts are:
+
+| Table | Rows |
+| --- | ---: |
+| `users` | 42 |
+| `matches` | 62 |
+| `match_periods` | 119 |
+| `match_events` | 579 |
+| `match_metrics` | 62 |
+| `match_assessments` | 6 |
+| `scheduled_matches` | 38 |
+| `teams` | 77 |
+| `competitions` | 3 |
+| `venues` | 3 |
+| `pages` | 2 |
+| `reference_competitions` | 5 |
+| `reference_teams` | 54 |
+| `reference_disciplinary_codes` | 30 |
+| `reference_disciplinary_rules` | 3 |
+| `workout_presets` | 20 |
+| `workout_sessions` | 1 |
+
+The remaining 22 public tables were empty. Supabase Auth contained 43 users,
+so one auth identity had no `public.users` profile. Its migration disposition
+and every Clerk-subject mapping remain explicit production gates.
+
+Nine live public tables had RLS disabled:
+
+- `match_officials`
+- `match_assessments`
+- `trend_snapshots`
+- `workout_session_metrics`
+- `workout_intensity_profile`
+- `workout_segments`
+- `coaches`
+- `feedback_attachments`
+- `ai_usage_daily`
+
+This is an active security risk while any client can still reach Supabase directly. It must not be treated as authorization evidence for the target system. PlanetScale has no Supabase RLS boundary; the Worker must enforce user ownership on every query and mutation using the internal app-user ID resolved from the verified Clerk token.
+
+## Reference catalog
+
+The four `reference_*` tables are present in the live Supabase source. The
+PlanetScale/Drizzle target currently ports all four and seeds the competition
+and team catalog idempotently. The catalog remains global and read-only through
+authenticated Worker endpoints.
 
 ## Public Enums
 - `ai_message_role`
@@ -49,6 +99,10 @@ This snapshot was generated from live MCP-backed SQL introspection (not migratio
 - `match_reports`
 - `matches`
 - `pages`
+- `reference_competitions`
+- `reference_disciplinary_codes`
+- `reference_disciplinary_rules`
+- `reference_teams`
 - `resource_shares`
 - `scheduled_matches`
 - `team_members`
@@ -68,7 +122,7 @@ This snapshot was generated from live MCP-backed SQL introspection (not migratio
 - `workout_sessions`
 
 ## Regeneration
-Preferred (MCP-first):
+Preferred while Supabase remains the migration source:
 
 1. Use `refwatch-database` MCP `execute_sql` to introspect current live schema objects:
 
@@ -89,9 +143,9 @@ where table_schema = 'public'
 order by table_name;
 ```
 
-2. Regenerate this file from MCP query results, keeping both lists sorted.
+2. Also read back `public.users` columns, core table counts, and `pg_class.relrowsecurity` for every public table. Regenerate this file from the same live evidence session, keeping lists sorted and timestamping the result.
 
-Secondary fallback (only if MCP is unavailable): migration-derived parsing from repository root:
+Secondary fallback (only if MCP is unavailable): migration-derived parsing from repository root. Label fallback output as unverified; do not use it for a production cutover decision.
 
 ```bash
 # Enumerations
@@ -105,3 +159,25 @@ rg --no-filename -o -i "create table if not exists public\.[a-z0-9_]+" RefWatchi
   | tr '[:upper:]' '[:lower:]' \
   | sort -u
 ```
+
+## PlanetScale target status
+
+- Target dialect: PlanetScale Postgres, not MySQL/Vitess.
+- Target schema definition: `api/src/db/schema.ts`.
+- Generated target migration: `api/src/db/migrations/`.
+- Runtime access path: Cloudflare Hyperdrive binding; direct `DATABASE_URL` is reserved for local fallback and migration tooling.
+- Authorization replacement: API-level owner filtering derived from Clerk authentication; no client-supplied owner is authoritative.
+- Disposable rehearsal branch: `cutover-rehearsal-20260714` in PlanetScale
+  database `refwatch`; all six migrations applied and provider readback found
+  26 public tables, five required legacy/reference tables, five reference
+  competitions, and 54 reference teams.
+- Staging Worker/Hyperdrive reaches that disposable branch and passes `select 1`;
+  this is target connectivity, not source-schema or production proof. Global
+  rehearsal hashes match for the 5/54 reference catalog business columns, 30
+  disciplinary codes, 3 rules, and 20 creator-free workout presets.
+- Production `main` was not changed. Remaining data import, identity mapping,
+  full referential/count checks, production Hyperdrive/Worker deployment, and
+  cutover are not complete.
+- A fresh `REPEATABLE READ, READ ONLY` Supabase snapshot and final delta export
+  are mandatory immediately before production import; this preliminary document
+  cannot satisfy that gate.

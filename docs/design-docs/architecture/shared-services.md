@@ -12,6 +12,9 @@
 - `ConnectivityProviding`: abstract layer for future watch ↔︎ iPhone sync.
 - `AssistantProviding`: wraps the iOS assistant transport so feature views can consume it without coupling to the server proxy.
 - `MatchSheetImportProviding`: wraps the iPhone screenshot-to-match-sheet parser so upcoming-match views can import Photos screenshots without coupling to the OpenAI transport.
+- `AuthenticationProviding` / `AuthStateProviding`: expose vendor-neutral signed-in state.
+- `SessionTokenProviding`: supplies a short-lived Clerk session token to the backend transport without exposing Clerk SDK types to repositories.
+- `AuthenticatedIdentityProviding`: resolves the Clerk subject to the Worker-owned internal app-user ID returned by `/api/me`.
 
 ## Dependency Injection
 - Services are instantiated in feature ViewModels; rely on protocols for testing.
@@ -22,7 +25,7 @@
 ## Persistence & Sync
 - Short-term storage stays local on watch for responsiveness.
 - Unfinished-match persistence stores lifecycle decision state needed to restore referee-controlled continuation after a natural period boundary, but it does not persist foreground repeating-alert playback for automatic replay.
-- Planned enhancements include Supabase-backed sync triggered via connectivity adapters.
+- iOS sync remains local-first and is moving behind Cloudflare Worker API adapters. The Worker owns PlanetScale access and authorization; watchOS never calls the cloud database directly.
 
 ## Testing Strategy
 - Provide protocol-based mocks per service.

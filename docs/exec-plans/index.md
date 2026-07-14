@@ -8,6 +8,7 @@ Execution plans and granular task files are the canonical workflow tracker for n
 - Tech debt ledger: `tech-debt-tracker.md`
 
 ## Active Plans
+- `active/backend-platform-migration/PLAN_backend-platform-migration.md` — active iOS backend routing, API remediation, local parser-contract parity, and focused real-Postgres match proof are in place; broader CRUD plus Clerk/Hyperdrive authenticated deployed proof, iOS acceptance, compatibility cleanup, provider deployment/import, and full cutover evidence remain.
 - `active/assistant-multimodal-refresh/PLAN_assistant-multimodal-refresh.md`
 - `active/match-records-confirmation/PLAN_match-records-confirmation.md`
 - `active/match-sheet-import/PLAN_match-sheet-import.md`

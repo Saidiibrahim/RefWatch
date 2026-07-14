@@ -1,19 +1,19 @@
 # Assistant Feature Guide
 
 ## Overview
-The Assistant tab is RefWatch's iOS-only multimodal assistant. Users can send text, attach one Photos-library image per turn, and receive streamed answers through a Supabase Edge Function proxy that forwards to OpenAI's Responses API.
+The Assistant tab is RefWatch's iOS-only multimodal assistant. Users can send text, attach one Photos-library image per turn, and receive streamed answers through the authenticated Cloudflare Workers/Hono API, which forwards to OpenAI's Responses API.
 
 ## Key Components
 - `AssistantTabView`: SwiftUI entry point for chat, attachment picker, and send controls.
 - `OpenAIAssistantService`: iOS transport adapter that streams assistant responses through the server proxy.
 - `AssistantProviding`: protocol boundary used by the view model.
-- `SupabaseAuthController`: authenticates the user before AI usage.
+- `ClerkAuthController`: supplies the Clerk session used to authenticate the Worker request.
 - `ChatMessage`: multimodal message model that supports text plus one optional image attachment on user turns.
 
 ## Data Flow
 1. User drafts a text prompt and optionally attaches one image from Photos.
-2. The view model packages the current turn and sends it through `AssistantProviding` to the Supabase Edge Function.
-3. The edge function authenticates the request, applies the repo-selected `gpt-5.4-mini` model, sets `store: false`, and forwards the multimodal payload to OpenAI's Responses API.
+2. The view model packages the current turn and sends it through `AssistantProviding` to the Hono Worker with a Clerk bearer token.
+3. The Worker verifies the Clerk session, applies the repo-selected `gpt-5.4-mini` model, sets `store: false`, enforces request bounds, and forwards the multimodal payload to OpenAI's Responses API using its server-side key.
 4. Responses stream back as SSE text deltas and terminal events; the app updates the feed as chunks arrive.
 5. The assistant conversation remains ephemeral/local in this wave. No app-bundle OpenAI key is used and no new transcript persistence is introduced.
 
