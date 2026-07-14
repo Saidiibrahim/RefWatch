@@ -1,0 +1,35 @@
+{
+  "name": "@refwatch/api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:db": "bash scripts/run-database-integration.sh",
+    "test:watch": "vitest",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "dry-run": "wrangler deploy --dry-run",
+    "cutover:validate": "node scripts/validate-cutover-bundle.mjs",
+    "rollback:validate": "node scripts/validate-rollback-packet.mjs"
+  },
+  "dependencies": {
+    "@clerk/backend": "^3.11.4",
+    "drizzle-orm": "^0.45.2",
+    "hono": "^4.12.30",
+    "pg": "^8.16.3",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.18.4",
+    "@cloudflare/workers-types": "^5.20260713.1",
+    "@types/node": "^24.3.1",
+    "@types/pg": "^8.15.5",
+    "drizzle-kit": "^0.31.10",
+    "typescript": "^5.9.2",
+    "vitest": "^4.1.10",
+    "wrangler": "^4.110.0"
+  }
+}

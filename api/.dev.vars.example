@@ -1,0 +1,7 @@
+CLERK_SECRET_KEY=sk_test_replace_me
+CLERK_PUBLISHABLE_KEY=pk_test_replace_me
+CLERK_JWT_KEY="-----BEGIN PUBLIC KEY-----\nreplace-me\n-----END PUBLIC KEY-----"
+CLERK_WEBHOOK_SIGNING_SECRET=whsec_replace_me
+DATABASE_URL=postgresql://user:password@localhost:5432/refwatch
+OPENAI_API_KEY=replace_me
+REFWATCH_ENV=local

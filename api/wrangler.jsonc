@@ -1,0 +1,28 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "refwatch-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-14",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  "placement": { "mode": "smart" },
+  "vars": {
+    "REFWATCH_ENV": "development"
+  },
+  "env": {
+    "staging": {
+      "name": "refwatch-api-staging",
+      "vars": {
+        "REFWATCH_ENV": "staging",
+        "ALLOW_UNMAPPED_CLERK_USERS": "false",
+        "WRITE_MODE": "enabled"
+      },
+      "hyperdrive": [
+        {
+          "binding": "HYPERDRIVE",
+          "id": "80a6607d3cab47a68cdfef01ea4cbb19"
+        }
+      ]
+    }
+  }
+}
