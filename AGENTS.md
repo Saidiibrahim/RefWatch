@@ -29,3 +29,13 @@
 - Physical iOS target: iPhone 15 Pro Max.
 - Physical watchOS target: Apple Watch Series 9 (45mm).
 - When validating UX, performance, and reliability, prioritize these devices before other hardware.
+
+<!-- stripe-projects-cli managed:agents-md:start -->
+## Stripe Projects CLI
+
+This repository is initialized for the Stripe project "refwatch".
+
+## Tools used
+
+- [Stripe CLI](https://docs.stripe.com/stripe-cli) with the `projects` plugin to manage third-party services, credentials, and deployments for this project. Use the stripe-projects-cli to manage deploying and access to third party services.
+<!-- stripe-projects-cli managed:agents-md:end -->

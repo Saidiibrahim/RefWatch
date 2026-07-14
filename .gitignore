@@ -96,16 +96,25 @@ DerivedData/
 # Internal development artifacts (not for public release)
 .agent
 .cursor/
+.codex/
 .claude/
 .codesnapshot.json
 .todo
 .cursorrules
 .venv/
 pyproject.toml
-.env.local
 
 # VS Code
 .vscode/
 
 ## Codex
 .codex/config.toml
+
+
+# Access-controlled backend cutover exports and identity maps
+.cutover/
+api/.cutover/
+
+.projects/
+.env
+.env.local
