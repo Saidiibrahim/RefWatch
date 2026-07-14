@@ -1,5 +1,5 @@
 //
-//  SupabaseScheduleRepository.swift
+//  BackendScheduleRepository.swift
 //  RefWatchiOS
 //
 //  Wraps the SwiftData schedule store with Supabase-aware synchronisation. The
@@ -15,11 +15,11 @@ import RefWatchCore
 import SwiftData
 
 @MainActor
-final class SupabaseScheduleRepository: ScheduleStoring {
+final class BackendScheduleRepository: ScheduleStoring {
   private let store: SwiftDataScheduleStore
   private let metadataPersistor: ScheduleMetadataPersisting
-  private let api: SupabaseScheduleServing
-  private let authStateProvider: SupabaseAuthStateProviding
+  private let api: ScheduleRemoteServing
+  private let authStateProvider: AuthStateProviding
   private let backlog: ScheduleSyncBacklogStoring
   private let dateProvider: () -> Date
   private let log = AppLog.supabase
@@ -35,8 +35,8 @@ final class SupabaseScheduleRepository: ScheduleStoring {
 
   init(
     store: SwiftDataScheduleStore,
-    authStateProvider: SupabaseAuthStateProviding,
-    api: SupabaseScheduleServing,
+    authStateProvider: AuthStateProviding,
+    api: ScheduleRemoteServing,
     backlog: ScheduleSyncBacklogStoring,
     metadataPersistor: ScheduleMetadataPersisting? = nil,
     dateProvider: @escaping () -> Date = Date.init,
@@ -136,7 +136,7 @@ final class SupabaseScheduleRepository: ScheduleStoring {
 
 // MARK: - Identity Handling
 
-extension SupabaseScheduleRepository {
+extension BackendScheduleRepository {
   private func handleAuthState(_ state: AuthState) async {
     switch state {
     case .signedOut:
@@ -206,7 +206,7 @@ extension SupabaseScheduleRepository {
 
 // MARK: - Queue Processing
 
-extension SupabaseScheduleRepository {
+extension BackendScheduleRepository {
   fileprivate enum SyncOperation {
     case push(UUID)
     case delete(UUID)
@@ -258,7 +258,7 @@ extension SupabaseScheduleRepository {
 
 // MARK: - Remote Operations
 
-extension SupabaseScheduleRepository {
+extension BackendScheduleRepository {
   private func flushPendingDeletions() async throws {
     guard self.ownerUUID != nil else { return }
     while let deletionId = pendingDeletions.popFirst() {
@@ -322,7 +322,22 @@ extension SupabaseScheduleRepository {
   private func pullRemoteUpdates(for ownerUUID: UUID) async throws {
     let remote = try await api.fetchScheduledMatches(ownerId: ownerUUID, updatedAfter: self.remoteCursor)
     guard remote.isEmpty == false else { return }
-    let filtered = remote.filter { !self.pendingDeletions.contains($0.id) }
+    var didDelete = false
+    for tombstone in remote where tombstone.deletedAt != nil && !self.pendingDeletions.contains(tombstone.id) {
+      if try self.store.record(id: tombstone.id) != nil {
+        try self.store.delete(id: tombstone.id)
+        self.pendingPushes.remove(tombstone.id)
+        didDelete = true
+      }
+    }
+    if didDelete {
+      try self.store.context.save()
+      self.metadataPersistor.publishSnapshot()
+    }
+    let filtered = remote.filter { $0.deletedAt == nil && !self.pendingDeletions.contains($0.id) }
+    if let maxDate = remote.map(\.updatedAt).max() {
+      self.remoteCursor = max(self.remoteCursor ?? maxDate, maxDate)
+    }
     guard filtered.isEmpty == false else { return }
     let appliedMaxDate = try mergeRemoteMatches(filtered, ownerUUID: ownerUUID)
     if let maxDate = appliedMaxDate {
@@ -334,9 +349,9 @@ extension SupabaseScheduleRepository {
 
 // MARK: - Local Merge Helpers
 
-extension SupabaseScheduleRepository {
+extension BackendScheduleRepository {
   private func mergeRemoteMatches(
-    _ remoteMatches: [SupabaseScheduleAPI.RemoteScheduledMatch],
+    _ remoteMatches: [ScheduleRemoteContract.RemoteScheduledMatch],
     ownerUUID: UUID) throws -> Date?
   {
     var didChange = false
@@ -369,7 +384,7 @@ extension SupabaseScheduleRepository {
     return appliedMaxDate
   }
 
-  private func insertRemoteMatch(_ remote: SupabaseScheduleAPI.RemoteScheduledMatch, ownerUUID: UUID) throws {
+  private func insertRemoteMatch(_ remote: ScheduleRemoteContract.RemoteScheduledMatch, ownerUUID: UUID) throws {
     let record = ScheduledMatchRecord(
       id: remote.id,
       kickoff: remote.kickoffAt,
@@ -391,7 +406,7 @@ extension SupabaseScheduleRepository {
   }
 
   private func apply(
-    remote: SupabaseScheduleAPI.RemoteScheduledMatch,
+    remote: ScheduleRemoteContract.RemoteScheduledMatch,
     to record: ScheduledMatchRecord,
     ownerUUID: UUID)
   {
@@ -413,9 +428,9 @@ extension SupabaseScheduleRepository {
       synchronizedAt: self.dateProvider())
   }
 
-  private func makeUpsertRequest(for record: ScheduledMatchRecord, ownerUUID: UUID) -> SupabaseScheduleAPI
+  private func makeUpsertRequest(for record: ScheduledMatchRecord, ownerUUID: UUID) -> ScheduleRemoteContract
   .UpsertRequest {
-    SupabaseScheduleAPI.UpsertRequest(
+    ScheduleRemoteContract.UpsertRequest(
       id: record.id,
       ownerId: ownerUUID,
       homeTeamName: record.homeName,
@@ -463,7 +478,7 @@ extension SupabaseScheduleRepository {
   }
 }
 
-extension SupabaseScheduleRepository: AggregateScheduleApplying {
+extension BackendScheduleRepository: AggregateScheduleApplying {
   func upsertSchedule(from aggregate: AggregateSnapshotPayload.Schedule) throws {
     let ownerUUID = try requireOwnerUUID(operation: "aggregate schedule upsert")
     let record = try store.upsertFromAggregate(aggregate, ownerSupabaseId: ownerUUID.uuidString)

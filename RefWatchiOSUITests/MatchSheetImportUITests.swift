@@ -206,9 +206,8 @@ final class MatchSheetImportUITests: XCTestCase {
 
 private extension MatchSheetImportUITests {
   func launchApp(importMode: String) {
-    self.app.launchEnvironment["REFWATCH_UI_TEST_AUTH_STATE"] = "signed_in"
     self.app.launchEnvironment["REFWATCH_UI_TEST_MATCH_SHEET_IMPORT_MODE"] = importMode
-    self.app.launch()
+    self.app.launchRefWatch()
   }
 
   func openUpcomingMatchEditor() throws {
@@ -231,6 +230,9 @@ private extension MatchSheetImportUITests {
     XCTAssertTrue(homeField.waitForExistence(timeout: 5))
     homeField.tap()
     homeField.typeText(home)
+    if self.app.keyboards.firstMatch.exists {
+      self.app.keyboards.buttons["Return"].tap()
+    }
 
     let awayField = self.app.textFields["Away Team"]
     XCTAssertTrue(awayField.waitForExistence(timeout: 5))
@@ -324,6 +326,9 @@ private extension MatchSheetImportUITests {
   }
 
   func tapSaveButton() {
+    if self.app.keyboards.firstMatch.exists {
+      self.app.keyboards.buttons["Return"].tap()
+    }
     let saveButton = self.app.buttons["Save"]
 
     if saveButton.exists == false {

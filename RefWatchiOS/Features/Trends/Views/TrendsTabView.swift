@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct TrendsTabView: View {
-  @EnvironmentObject private var authController: SupabaseAuthController
+  @EnvironmentObject private var authController: ClerkAuthController
 
   var body: some View {
     NavigationStack {

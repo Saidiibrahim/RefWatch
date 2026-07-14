@@ -28,19 +28,13 @@
 				<string>$(URL_SCHEME)</string>
 			</array>
 		</dict>
-		<dict>
-			<key>CFBundleTypeRole</key>
-			<string>Editor</string>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>$(GID_REVERSED_CLIENT_ID)</string>
-			</array>
-		</dict>
 	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
-	<key>GIDClientID</key>
-	<string>$(GID_CLIENT_ID)</string>
+	<key>BACKEND_API_BASE_URL</key>
+	<string>$(BACKEND_API_BASE_URL)</string>
+	<key>CLERK_PUBLISHABLE_KEY</key>
+	<string>$(CLERK_PUBLISHABLE_KEY)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>ITSAppUsesNonExemptEncryption</key>
@@ -51,12 +45,6 @@
 	<string>RefWatch reads workout metrics like heart rate, distance, and energy to power live officiating insights and history.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>RefWatch saves the workouts you record during matches so they appear in the Health app.</string>
-	<key>SUPABASE_ANON_KEY</key>
-	<string>$(SUPABASE_ANON_KEY)</string>
-	<key>SUPABASE_PUBLISHABLE_KEY</key>
-	<string>$(SUPABASE_PUBLISHABLE_KEY)</string>
-	<key>SUPABASE_URL</key>
-	<string>$(SUPABASE_URL)</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

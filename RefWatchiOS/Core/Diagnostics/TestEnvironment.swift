@@ -10,6 +10,8 @@ import Foundation
 enum TestEnvironment {
   private static let uiTestAuthStateKey = "REFWATCH_UI_TEST_AUTH_STATE"
   private static let matchSheetImportModeKey = "REFWATCH_UI_TEST_MATCH_SHEET_IMPORT_MODE"
+  private static let uiTestProcessKey = "REFWATCH_UI_TEST_PROCESS"
+  private static let uiTestLaunchArgument = "--refwatch-ui-testing"
 
   static var isRunningTests: Bool {
     let env = ProcessInfo.processInfo.environment
@@ -18,14 +20,15 @@ enum TestEnvironment {
   }
 
   static var isRunningUnitTests: Bool {
-    guard self.isRunningTests else { return false }
-    return Bundle.allBundles.contains { bundle in
-      bundle.bundleURL.pathExtension == "xctest"
-    }
+    // The host app is initialized before XCTest loads the test bundle, so inspecting
+    // Bundle.allBundles here misclassifies the first test in each runner as production.
+    self.isRunningTests && self.isRunningUITests == false
   }
 
   static var isRunningUITests: Bool {
-    self.isRunningTests && self.isRunningUnitTests == false
+    let processInfo = ProcessInfo.processInfo
+    return processInfo.environment[self.uiTestProcessKey] == "1"
+      && processInfo.arguments.contains(self.uiTestLaunchArgument)
   }
 
   static var isRunningPreviews: Bool {
@@ -34,7 +37,18 @@ enum TestEnvironment {
 
   static var launchesSignedInUITestShell: Bool {
     #if DEBUG
-      ProcessInfo.processInfo.environment[self.uiTestAuthStateKey] == "signed_in"
+      self.isRunningUITests
+        && ProcessInfo.processInfo.environment[self.uiTestAuthStateKey] == "signed_in"
+    #else
+      false
+    #endif
+  }
+
+  static var launchesUITestShell: Bool {
+    #if DEBUG
+      guard self.isRunningUITests else { return false }
+      let value = ProcessInfo.processInfo.environment[self.uiTestAuthStateKey]
+      return value == "signed_in" || value == "signed_out"
     #else
       false
     #endif
@@ -42,6 +56,7 @@ enum TestEnvironment {
 
   static var matchSheetImportUITestMode: MatchSheetImportUITestMode? {
     #if DEBUG
+      guard self.isRunningUITests else { return nil }
       return MatchSheetImportUITestMode(
         rawValue: ProcessInfo.processInfo.environment[self.matchSheetImportModeKey] ?? "")
     #else

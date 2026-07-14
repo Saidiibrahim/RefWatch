@@ -3,14 +3,14 @@
 //  RefWatchiOS
 //
 //  Shared helpers for fetching and materializing reference teams and competitions
-//  from the Supabase catalog. Used by picker sheets and library list views.
+//  from the authenticated backend catalog. Used by picker sheets and library list views.
 //
 
 import Foundation
 
 // MARK: - DTOs
 
-struct ReferenceTeamOption: Identifiable {
+struct ReferenceTeamOption: Identifiable, Equatable, Sendable {
     let id: UUID
     let referenceKey: String
     let name: String
@@ -19,7 +19,7 @@ struct ReferenceTeamOption: Identifiable {
     let competitionName: String
 }
 
-struct ReferenceCompetitionOption: Identifiable {
+struct ReferenceCompetitionOption: Identifiable, Equatable, Sendable {
     let id: UUID
     let code: String
     let name: String
@@ -34,52 +34,10 @@ enum ReferenceCatalogService {
     // MARK: - Teams
 
     static func fetchReferenceTeams(seasonYear: Int = seasonYear) async throws -> [ReferenceTeamOption] {
-        let client = try await SupabaseClientProvider.shared.authorizedClient()
-        let decoder = SupabaseJSONDecoderFactory.makeDecoder()
-
-        let competitions: [ReferenceCompetitionRowDTO] = try await client.fetchRows(
-            SupabaseFetchRequest(
-                table: "reference_competitions",
-                columns: "id, code, name, season_year",
-                filters: [.equals("season_year", value: String(seasonYear))],
-                orderBy: "name",
-                ascending: true,
-                limit: 0,
-                decoder: decoder
-            )
-        )
-
-        guard competitions.isEmpty == false else { return [] }
-
-        let competitionsById = Dictionary(uniqueKeysWithValues: competitions.map { ($0.id, $0) })
-        let competitionIds = competitions.map { $0.id.uuidString }
-
-        let teamRows: [ReferenceTeamRowDTO] = try await client.fetchRows(
-            SupabaseFetchRequest(
-                table: "reference_teams",
-                columns: "id, competition_id, name, short_name, reference_key, season_year",
-                filters: [
-                    .equals("season_year", value: String(seasonYear)),
-                    .in("competition_id", values: competitionIds),
-                ],
-                orderBy: "name",
-                ascending: true,
-                limit: 0,
-                decoder: decoder
-            )
-        )
-
-        return teamRows.compactMap { row in
-            guard let competition = competitionsById[row.competitionId] else { return nil }
-            return ReferenceTeamOption(
-                id: row.id,
-                referenceKey: row.referenceKey,
-                name: row.name,
-                shortName: row.shortName,
-                competitionCode: competition.code,
-                competitionName: competition.name
-            )
+        guard let service = BackendServiceRegistry.referenceCatalog else {
+            throw ReferenceCatalogServiceError.backendUnavailable
         }
+        return try await service.fetchReferenceTeams(seasonYear: seasonYear)
     }
 
     @MainActor
@@ -120,28 +78,10 @@ enum ReferenceCatalogService {
     // MARK: - Competitions
 
     static func fetchReferenceCompetitions(seasonYear: Int = seasonYear) async throws -> [ReferenceCompetitionOption] {
-        let client = try await SupabaseClientProvider.shared.authorizedClient()
-        let decoder = SupabaseJSONDecoderFactory.makeDecoder()
-
-        let rows: [ReferenceCompetitionRowDTO] = try await client.fetchRows(
-            SupabaseFetchRequest(
-                table: "reference_competitions",
-                columns: "id, code, name, season_year",
-                filters: [.equals("season_year", value: String(seasonYear))],
-                orderBy: "name",
-                ascending: true,
-                limit: 0,
-                decoder: decoder
-            )
-        )
-
-        return rows.map { row in
-            ReferenceCompetitionOption(
-                id: row.id,
-                code: row.code,
-                name: row.name
-            )
+        guard let service = BackendServiceRegistry.referenceCatalog else {
+            throw ReferenceCatalogServiceError.backendUnavailable
         }
+        return try await service.fetchReferenceCompetitions(seasonYear: seasonYear)
     }
 
     static func materializeReferenceCompetition(
@@ -267,7 +207,7 @@ enum ReferenceCatalogService {
     #endif
 }
 
-// MARK: - Internal DTOs (Supabase row shapes)
+// MARK: - Internal fixture row shapes
 
 struct ReferenceCompetitionRowDTO: Codable {
     let id: UUID

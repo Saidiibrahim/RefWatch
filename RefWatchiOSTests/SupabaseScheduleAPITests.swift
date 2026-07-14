@@ -2,9 +2,9 @@ import XCTest
 @testable import RefWatchiOS
 import RefWatchCore
 
-final class SupabaseScheduleAPITests: XCTestCase {
+final class ScheduleRemoteContractTests: XCTestCase {
   func testScheduledMatchRowDTODecodesMatchSheets() throws {
-    let decoder = SupabaseScheduleAPI.makeDecoder()
+    let decoder = ScheduleRemoteContract.makeDecoder()
     let entryId = UUID()
     let data = Data(
       """
@@ -46,7 +46,7 @@ final class SupabaseScheduleAPITests: XCTestCase {
   }
 
   func testDecodeUpsertResponseHandlesWrappedRepresentationWithMatchSheets() throws {
-    let decoder = SupabaseScheduleAPI.makeDecoder()
+    let decoder = ScheduleRemoteContract.makeDecoder()
     let data = Data(
       """
       {
@@ -74,14 +74,14 @@ final class SupabaseScheduleAPITests: XCTestCase {
       }
       """.utf8)
 
-    let rows = try SupabaseScheduleAPI.decodeUpsertResponse(data: data, decoder: decoder)
+    let rows = try ScheduleRemoteContract.decodeUpsertResponse(data: data, decoder: decoder)
 
     XCTAssertEqual(rows.count, 1)
     XCTAssertEqual(rows.first?.homeMatchSheet?.status, .draft)
   }
 
   func testScheduledMatchRowDTODecodesImportedDraftFields() throws {
-    let decoder = SupabaseScheduleAPI.makeDecoder()
+    let decoder = ScheduleRemoteContract.makeDecoder()
     let data = Data(
       """
       {
@@ -143,7 +143,7 @@ final class SupabaseScheduleAPITests: XCTestCase {
   }
 
   func testScheduledMatchRowDTODecodesOnePreparedSideAndOneEmptySide() throws {
-    let decoder = SupabaseScheduleAPI.makeDecoder()
+    let decoder = ScheduleRemoteContract.makeDecoder()
     let data = Data(
       """
       {

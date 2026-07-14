@@ -160,8 +160,7 @@ extension Collection {
 #if DEBUG
 #Preview {
   WelcomeView()
-    .environmentObject(AuthenticationCoordinator(authController: SupabaseAuthController(
-      clientProvider: SupabaseClientProvider.shared)))
+    .environmentObject(AuthenticationCoordinator(authController: ClerkAuthController.previewSignedOut()))
     .theme(DefaultTheme())
 }
 #endif

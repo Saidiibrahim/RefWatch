@@ -18,7 +18,7 @@ struct MainTabView: View {
     let teamStore: TeamLibraryStoring
     let competitionStore: CompetitionLibraryStoring
     let venueStore: VenueLibraryStoring
-    let authController: SupabaseAuthController
+    let authController: ClerkAuthController
     let connectivityController: ConnectivitySyncController?
 
     var body: some View {
@@ -62,8 +62,7 @@ struct MainTabView: View {
 
 #if DEBUG
 #Preview {
-    let clientProvider = SupabaseClientProvider.shared
-    let synchronizer = SupabaseUserProfileSynchronizer(clientProvider: clientProvider)
+    let authController = ClerkAuthController.previewSignedIn()
     MainTabView(
         matchViewModel: MatchViewModel(haptics: NoopHaptics()),
         historyStore: MatchHistoryService(),
@@ -72,10 +71,7 @@ struct MainTabView: View {
         teamStore: InMemoryTeamLibraryStore(),
         competitionStore: InMemoryCompetitionLibraryStore(),
         venueStore: InMemoryVenueLibraryStore(),
-        authController: SupabaseAuthController(
-            clientProvider: clientProvider,
-            profileSynchronizer: synchronizer
-        ),
+        authController: authController,
         connectivityController: nil
     )
         .environmentObject(AppRouter.preview())

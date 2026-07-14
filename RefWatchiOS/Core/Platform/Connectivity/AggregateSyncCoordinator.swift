@@ -16,7 +16,7 @@ final class AggregateSyncCoordinator {
   private let venueStore: VenueLibraryStoring
   private let scheduleStore: ScheduleStoring
   private let historyStore: MatchHistoryStoring
-  private let auth: SupabaseAuthStateProviding
+  private let auth: AuthStateProviding
   private let client: IOSConnectivitySyncClient
   private let builder: AggregateSnapshotBuilder
 
@@ -36,7 +36,7 @@ final class AggregateSyncCoordinator {
     venueStore: VenueLibraryStoring,
     scheduleStore: ScheduleStoring,
     historyStore: MatchHistoryStoring,
-    auth: SupabaseAuthStateProviding,
+    auth: AuthStateProviding,
     client: IOSConnectivitySyncClient,
     builder: AggregateSnapshotBuilder,
     acknowledgedChangeIdsProvider: @escaping () -> [UUID] = { [] })

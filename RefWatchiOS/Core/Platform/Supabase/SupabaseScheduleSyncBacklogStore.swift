@@ -1,5 +1,5 @@
 //
-//  SupabaseScheduleSyncBacklogStore.swift
+//  BackendScheduleSyncBacklogStore.swift
 //  RefWatchiOS
 //
 //  Persists pending scheduled match deletion identifiers so the repository can
@@ -15,7 +15,7 @@ protocol ScheduleSyncBacklogStoring: AnyObject {
   func clearAll()
 }
 
-final class SupabaseScheduleSyncBacklogStore: ScheduleSyncBacklogStoring {
+final class BackendScheduleSyncBacklogStore: ScheduleSyncBacklogStoring {
   private let defaults: UserDefaults
   private let key = "com.refzone.supabase.schedule.pendingdeletes"
   private let queue = DispatchQueue(label: "com.refzone.supabase.schedule.backlog")

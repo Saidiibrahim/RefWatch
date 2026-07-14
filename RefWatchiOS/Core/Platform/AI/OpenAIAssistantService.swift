@@ -1,61 +1,30 @@
 //
-//  OpenAIAssistantService.swift
+//  AssistantProxyContract.swift
 //  RefWatchiOS
 //
-//  Streams assistant responses through the authenticated Supabase edge proxy.
+//  Streams assistant responses through the authenticated backend Worker.
 //
 
 import Foundation
-import Supabase
 
-final class OpenAIAssistantService: AssistantProviding {
-  private static let defaultRequestTimeout: TimeInterval = 60
-  private static let functionName = "assistant-responses"
+enum AssistantProxyContract {
   private static let defaultModel = "gpt-5.4-mini"
 
-  private let clientProvider: SupabaseClientProviding
-  private let environmentLoader: () throws -> SupabaseEnvironment
-  private let systemPrompt: String
-
-  init(
-    clientProvider: SupabaseClientProviding = SupabaseClientProvider.shared,
-    environmentLoader: @escaping () throws -> SupabaseEnvironment = { try SupabaseEnvironment.load() },
-    systemPrompt: String = "You are RefWatch's helpful football referee assistant on iOS. Answer concisely using text and images when provided.")
-  {
-    self.clientProvider = clientProvider
-    self.environmentLoader = environmentLoader
-    self.systemPrompt = systemPrompt
-  }
-
-  static func fromBundleIfAvailable() -> OpenAIAssistantService? {
-    guard TestEnvironment.isRunningTests == false else {
-      return nil
-    }
-    guard Secrets.assistantProxyIsConfigured else {
-      return nil
-    }
-    return OpenAIAssistantService()
-  }
-
-  func streamResponse(for messages: [ChatMessage]) async throws -> AssistantResponseStream {
-    let payload = try Self.buildProxyPayload(
-      model: Self.defaultModel,
-      systemPrompt: self.systemPrompt,
-      messages: messages)
-    let request = try await self.makeRequest(payload: payload)
-    return Self.makeStreamingResponse(for: request)
+  static func fromBundleIfAvailable() -> (any AssistantProviding)? {
+    guard TestEnvironment.isRunningTests == false else { return nil }
+    guard let client = BackendServiceRegistry.client else { return nil }
+    return BackendAssistantService(client: client)
   }
 }
-
 #if DEBUG
-extension OpenAIAssistantService {
+extension AssistantProxyContract {
   enum Testing {
     static func buildPayload(
       systemPrompt: String,
       messages: [ChatMessage]) throws -> AssistantProxyPayload
     {
       try buildProxyPayload(
-        model: OpenAIAssistantService.defaultModel,
+        model: AssistantProxyContract.defaultModel,
         systemPrompt: systemPrompt,
         messages: messages)
     }
@@ -94,7 +63,7 @@ extension OpenAIAssistantService {
 
 // MARK: - Request Building
 
-extension OpenAIAssistantService {
+extension AssistantProxyContract {
   static func buildProxyPayload(
     model: String,
     systemPrompt: String,
@@ -133,33 +102,6 @@ extension OpenAIAssistantService {
       messages: inputMessages)
   }
 
-  func makeRequest(payload: AssistantProxyPayload) async throws -> URLRequest {
-    let environment = try self.environmentLoader()
-    let client = try await self.clientProvider.authorizedClient()
-    guard let supabaseClient = client as? SupabaseClient else {
-      throw AssistantServiceError.unsupportedClient
-    }
-
-    let session: Session
-    do {
-      session = try await supabaseClient.auth.session
-    } catch {
-      throw AssistantServiceError.sessionUnavailable
-    }
-
-    return try Self.buildRequest(
-      environment: environment,
-      accessToken: session.accessToken,
-      payload: payload)
-  }
-
-  static func edgeFunctionURL(for supabaseURL: URL) -> URL {
-    supabaseURL
-      .appendingPathComponent("functions")
-      .appendingPathComponent("v1")
-      .appendingPathComponent(Self.functionName)
-  }
-
   static func jsonEncoder() -> JSONEncoder {
     let encoder = JSONEncoder()
     encoder.outputFormatting = [.withoutEscapingSlashes]
@@ -178,312 +120,11 @@ extension OpenAIAssistantService {
     #endif
   }
 
-  static func buildRequest(
-    environment: SupabaseEnvironment,
-    accessToken: String,
-    payload: AssistantProxyPayload) throws -> URLRequest
-  {
-    var request = URLRequest(url: Self.edgeFunctionURL(for: environment.url))
-    request.httpMethod = "POST"
-    request.timeoutInterval = Self.defaultRequestTimeout
-    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-    request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
-    request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
-    request.setValue(environment.anonKey, forHTTPHeaderField: "apikey")
-    request.setValue("ios", forHTTPHeaderField: "X-RefWatch-Client")
-    request.httpBody = try Self.jsonEncoder().encode(payload)
-    return request
-  }
-}
-
-// MARK: - Streaming Pipeline
-
-extension OpenAIAssistantService {
-  static func makeStreamingResponse(for request: URLRequest) -> AssistantResponseStream {
-    let relay = ResponsesURLSessionStreamRelay(request: request)
-    relay.start()
-    return AssistantResponseStream(
-      stream: relay.stream,
-      cancelHandler: {
-        relay.cancel()
-      })
-  }
-
-  private final class ResponsesURLSessionStreamRelay: NSObject, URLSessionDataDelegate, URLSessionTaskDelegate, @unchecked Sendable {
-    private let request: URLRequest
-    private let lock = NSLock()
-    private let continuation: AsyncThrowingStream<String, Error>.Continuation
-
-    let stream: AsyncThrowingStream<String, Error>
-
-    private var parser = ResponsesStreamParser()
-    private var lineBuffer = SSELineBuffer()
-    private var errorBody = Data()
-    private var statusCode: Int?
-    private var session: URLSession?
-    private var task: URLSessionDataTask?
-    private var finished = false
-    private var cancelled = false
-
-    init(request: URLRequest) {
-      self.request = request
-      let streamPair = Self.makeStream()
-      self.stream = streamPair.stream
-      self.continuation = streamPair.continuation
-      super.init()
-    }
-
-    func start() {
-      let session = URLSession(configuration: .ephemeral, delegate: self, delegateQueue: nil)
-      let task = session.dataTask(with: self.request)
-
-      self.lock.lock()
-      self.session = session
-      self.task = task
-      self.lock.unlock()
-
-      task.resume()
-    }
-
-    func cancel() {
-      let task: URLSessionDataTask?
-      let session: URLSession?
-
-      self.lock.lock()
-      guard self.finished == false else {
-        self.lock.unlock()
-        return
-      }
-      self.cancelled = true
-      task = self.task
-      session = self.session
-      self.lock.unlock()
-
-      self.completeIfNeeded()
-      task?.cancel()
-      session?.invalidateAndCancel()
-    }
-
-    func urlSession(
-      _ session: URLSession,
-      dataTask: URLSessionDataTask,
-      didReceive response: URLResponse,
-      completionHandler: @escaping (URLSession.ResponseDisposition) -> Void)
-    {
-      guard let httpResponse = response as? HTTPURLResponse else {
-        self.completeIfNeeded(throwing: AssistantServiceError.invalidResponse)
-        completionHandler(.cancel)
-        return
-      }
-
-      self.lock.lock()
-      self.statusCode = httpResponse.statusCode
-      let shouldAllow = self.finished == false
-      self.lock.unlock()
-
-      completionHandler(shouldAllow ? .allow : .cancel)
-    }
-
-    func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
-      var lines: [String] = []
-      var shouldIgnore = false
-      var bufferError: AssistantServiceError?
-      var task: URLSessionDataTask?
-      var sessionToCancel: URLSession?
-
-      self.lock.lock()
-      if self.finished {
-        shouldIgnore = true
-      } else if let statusCode = self.statusCode, (200...299).contains(statusCode) == false {
-        self.errorBody.append(data)
-      } else {
-        do {
-          lines = try self.lineBuffer.append(data)
-        } catch let error as AssistantServiceError {
-          bufferError = error
-          task = self.task
-          sessionToCancel = self.session
-        } catch {
-          bufferError = .invalidResponse
-          task = self.task
-          sessionToCancel = self.session
-        }
-      }
-      self.lock.unlock()
-
-      if shouldIgnore {
-        return
-      }
-
-      if let bufferError {
-        self.completeIfNeeded(throwing: bufferError)
-        task?.cancel()
-        sessionToCancel?.invalidateAndCancel()
-        return
-      }
-
-      for line in lines {
-        self.process(line: line)
-      }
-    }
-
-    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-      var statusCode: Int?
-      var parserTerminalError: AssistantServiceError?
-      var emittedChunks: [String] = []
-      var body: String?
-      var finished = false
-      var cancelled = false
-      var bufferError: AssistantServiceError?
-      var bufferedLines: [String] = []
-
-      self.lock.lock()
-      statusCode = self.statusCode
-      finished = self.finished
-      cancelled = self.cancelled
-
-      if finished == false, let statusCode, (200...299).contains(statusCode) {
-        do {
-          bufferedLines = try self.lineBuffer.finish()
-        } catch let error as AssistantServiceError {
-          bufferError = error
-        } catch {
-          bufferError = .invalidResponse
-        }
-      }
-
-      if self.errorBody.isEmpty == false {
-        body = String(data: self.errorBody, encoding: .utf8)
-      }
-      self.lock.unlock()
-
-      for line in bufferedLines {
-        self.process(line: line)
-      }
-
-      if self.isFinished {
-        return
-      }
-
-      if let bufferError {
-        self.completeIfNeeded(throwing: bufferError)
-        return
-      }
-
-      self.lock.lock()
-      if self.finished == false, let statusCode, (200...299).contains(statusCode) {
-        self.parser.finishIfNeeded { emittedChunks.append($0) }
-        parserTerminalError = self.parser.terminalError
-      }
-      self.lock.unlock()
-
-      emittedChunks.forEach { self.continuation.yield($0) }
-
-      if self.isFinished {
-        return
-      }
-
-      guard finished == false else { return }
-      guard cancelled == false else {
-        self.completeIfNeeded()
-        return
-      }
-
-      guard let statusCode else {
-        self.completeIfNeeded(throwing: AssistantServiceError.invalidResponse)
-        return
-      }
-
-      if (200...299).contains(statusCode) == false {
-        self.completeIfNeeded(throwing: AssistantServiceError.http(status: statusCode, body: body))
-        return
-      }
-
-      if let parserTerminalError {
-        self.completeIfNeeded(throwing: parserTerminalError)
-        return
-      }
-
-      if let error = error as NSError? {
-        if error.domain == NSURLErrorDomain, error.code == NSURLErrorCancelled {
-          self.completeIfNeeded()
-        } else {
-          self.completeIfNeeded(throwing: error)
-        }
-        return
-      }
-
-      self.completeIfNeeded()
-    }
-
-    private func process(line: String) {
-      var emittedChunks: [String] = []
-      var shouldTerminate = false
-      var terminalError: AssistantServiceError?
-
-      self.lock.lock()
-      guard self.finished == false else {
-        self.lock.unlock()
-        return
-      }
-
-      self.parser.handle(line: line) { emittedChunks.append($0) }
-      shouldTerminate = self.parser.shouldTerminate
-      terminalError = self.parser.terminalError
-      self.lock.unlock()
-
-      emittedChunks.forEach { self.continuation.yield($0) }
-
-      guard shouldTerminate else { return }
-
-      if let terminalError {
-        self.completeIfNeeded(throwing: terminalError)
-      } else {
-        self.completeIfNeeded()
-      }
-
-      self.task?.cancel()
-      self.session?.invalidateAndCancel()
-    }
-
-    private func completeIfNeeded(throwing error: Error? = nil) {
-      self.lock.lock()
-      guard self.finished == false else {
-        self.lock.unlock()
-        return
-      }
-      self.finished = true
-      self.lock.unlock()
-
-      if let error {
-        self.continuation.finish(throwing: error)
-      } else {
-        self.continuation.finish()
-      }
-    }
-
-    private var isFinished: Bool {
-      self.lock.lock()
-      defer { self.lock.unlock() }
-      return self.finished
-    }
-
-    private static func makeStream() -> (
-      stream: AsyncThrowingStream<String, Error>,
-      continuation: AsyncThrowingStream<String, Error>.Continuation)
-    {
-      var capturedContinuation: AsyncThrowingStream<String, Error>.Continuation!
-      let stream = AsyncThrowingStream<String, Error> { continuation in
-        capturedContinuation = continuation
-      }
-      return (stream, capturedContinuation)
-    }
-  }
 }
 
 // MARK: - Types
 
-extension OpenAIAssistantService {
+extension AssistantProxyContract {
   struct AssistantProxyPayload: Encodable, Equatable {
     let model: String
     let stream: Bool
@@ -680,7 +321,7 @@ extension OpenAIAssistantService {
 
     private mutating func handle(event: String, payload: String, yield: (String) -> Void) {
       guard let data = payload.data(using: .utf8) else { return }
-      let decoder = OpenAIAssistantService.jsonDecoder()
+      let decoder = AssistantProxyContract.jsonDecoder()
 
       switch event {
       case "response.output_text.delta":
@@ -723,7 +364,7 @@ extension OpenAIAssistantService {
         self.shouldTerminate = true
 
       default:
-        OpenAIAssistantService.log("Ignoring SSE event: \(event)")
+        AssistantProxyContract.log("Ignoring SSE event: \(event)")
       }
     }
 

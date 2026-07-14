@@ -6,9 +6,9 @@
 //
 
 import Combine
+import ClerkKit
 import OSLog
 import RefWatchCore
-import Supabase
 import SwiftData
 import SwiftUI
 import UIKit
@@ -18,8 +18,9 @@ import UIKit
 struct RefWatchiOSApp: App {
   @StateObject private var router = AppRouter()
   @StateObject private var themeManager = ThemeManager()
-  @StateObject private var authController: SupabaseAuthController
+  @StateObject private var authController: ClerkAuthController
   @StateObject private var authCoordinator: AuthenticationCoordinator
+  private let repositoryAuthProvider: AnyObject
   // Built once during app init to avoid lazy/self init ordering issues
   private let modelContainer: ModelContainer
   private let historyStore: MatchHistoryStoring
@@ -45,7 +46,7 @@ struct RefWatchiOSApp: App {
     // 1) On-disk SwiftData (preferred): full persistence, query performance, and indexing.
     // 2) In-memory SwiftData: avoids startup crash if persistent container fails while keeping
     //    the app usable.
-    // JSON persistence is no longer used now that Supabase auth is required on iPhone.
+    // JSON persistence is no longer used now that authenticated cloud sync is required on iPhone.
     let schema = Schema([
       CompletedMatchRecord.self,
       JournalEntryRecord.self,
@@ -62,38 +63,39 @@ struct RefWatchiOSApp: App {
     ])
     let usesInMemoryTestStack =
       TestEnvironment.isRunningUnitTests
-      || TestEnvironment.launchesSignedInUITestShell
+      || TestEnvironment.launchesUITestShell
 
     if usesInMemoryTestStack {
-      let clientProvider = SupabaseClientProvider.shared
-      let authController = SupabaseAuthController(
-        clientProvider: clientProvider,
-        profileSynchronizer: UnitTestProfileSynchronizer(),
-        bootstrapSessionOnInit: false,
-        observeChangesOnInit: false)
+      // ClerkKitUI reads Clerk.shared from SwiftUI's environment in the UI shell.
+      // Unit tests never render Clerk UI, so leave the SDK entirely unconfigured there.
+      if TestEnvironment.launchesUITestShell {
+        Clerk.configure(publishableKey: "pk_test_bW9jay5jbGVyay5hY2NvdW50cy5kZXYk")
+      }
+      let authController = TestEnvironment.launchesSignedInUITestShell
+        ? ClerkAuthController.previewSignedIn(
+          userId: "user_ui_test",
+          email: "ui-tests@example.com",
+          displayName: "UI Tests")
+        : ClerkAuthController.previewSignedOut()
       _authController = StateObject(wrappedValue: authController)
       _authCoordinator = StateObject(wrappedValue: AuthenticationCoordinator(authController: authController))
-
-      if TestEnvironment.launchesSignedInUITestShell {
-        authController.forceStateForUITests(
-          .signedIn(
-            userId: "ui-test-user",
-            email: "ui-tests@example.com",
-            displayName: "UI Tests"))
-      }
+      self.repositoryAuthProvider = authController
 
       let containerResult: (ModelContainer, SwiftDataMatchHistoryStore)
       do {
         containerResult = try ModelContainerFactory.makeStore(
           builder: Self.containerBuilder,
           schema: schema,
-          auth: NoopAuth())
+          auth: authController)
       } catch {
         fatalError("Failed to create in-memory SwiftData container for unit tests: \(error)")
       }
 
       let container = containerResult.0
       let historyRepo: MatchHistoryStoring = containerResult.1
+      if TestEnvironment.launchesUITestShell {
+        try? historyRepo.wipeAll()
+      }
       let journalStore: JournalEntryStoring = InMemoryJournalStore()
       let scheduleStore: ScheduleStoring = InMemoryScheduleStore()
       let teamStore: TeamLibraryStoring = InMemoryTeamLibraryStore()
@@ -103,6 +105,7 @@ struct RefWatchiOSApp: App {
       if TestEnvironment.launchesSignedInUITestShell,
          let inMemoryTeamStore = teamStore as? InMemoryTeamLibraryStore
       {
+        BackendServiceRegistry.referenceCatalog = UITestReferenceCatalogService()
         _ = try? inMemoryTeamStore.createTeam(
           name: "Metro Library FC",
           shortName: "MLF",
@@ -131,20 +134,31 @@ struct RefWatchiOSApp: App {
       return
     }
 
-    let clientProvider = SupabaseClientProvider.shared
-    let synchronizer = SupabaseUserProfileSynchronizer(clientProvider: clientProvider)
-    let authController = SupabaseAuthController(
-      clientProvider: clientProvider,
-      profileSynchronizer: synchronizer)
+    let environment: BackendEnvironment
+    do {
+      environment = try BackendEnvironment.load()
+    } catch {
+      fatalError("Invalid backend configuration: \(error.localizedDescription)")
+    }
+    Clerk.configure(publishableKey: environment.clerkPublishableKey)
+    let authController = ClerkAuthController()
     _authController = StateObject(wrappedValue: authController)
     _authCoordinator = StateObject(wrappedValue: AuthenticationCoordinator(authController: authController))
+    let backendClient = BackendAPIClient(baseURL: environment.baseURL, tokenProvider: authController)
+    BackendServiceRegistry.client = backendClient
+    BackendServiceRegistry.referenceCatalog = BackendReferenceCatalogService(client: backendClient)
+    let identityProvider = BackendIdentityProvider(client: backendClient)
+    let repositoryAuth = BackendAuthStateProvider(
+      clerkStateProvider: authController,
+      identityProvider: identityProvider)
+    self.repositoryAuthProvider = repositoryAuth
 
     let containerResult: (ModelContainer, SwiftDataMatchHistoryStore)
     do {
       containerResult = try ModelContainerFactory.makeStore(
         builder: Self.containerBuilder,
         schema: schema,
-        auth: authController)
+        auth: repositoryAuth)
     } catch {
       fatalError("Failed to create SwiftData container: \(error)")
     }
@@ -152,46 +166,46 @@ struct RefWatchiOSApp: App {
     let container = containerResult.0
     let swiftHistoryStore = containerResult.1
 
-    let matchRepo = SupabaseMatchHistoryRepository(
+    let matchRepo = BackendMatchHistoryRepository(
       store: swiftHistoryStore,
-      authStateProvider: authController,
-      api: SupabaseMatchIngestService(),
-      backlog: SupabaseMatchSyncBacklogStore(),
+      authStateProvider: repositoryAuth,
+      api: BackendMatchRepositoryAPI(client: backendClient),
+      backlog: BackendMatchSyncBacklogStore(),
       deviceIdProvider: { UIDevice.current.identifierForVendor?.uuidString })
     let historyRepo: MatchHistoryStoring = matchRepo
     let matchSyncController: MatchHistorySyncControlling? = matchRepo
 
-    let jStore: JournalEntryStoring = SupabaseJournalRepository(
-      authStateProvider: authController,
-      api: SupabaseJournalAPI())
+    let jStore: JournalEntryStoring = BackendJournalRepository(
+      authStateProvider: repositoryAuth,
+      api: BackendJournalRepositoryAPI(client: backendClient))
 
-    let swiftScheduleStore = SwiftDataScheduleStore(container: container, auth: authController)
-    let schedStore: ScheduleStoring = SupabaseScheduleRepository(
+    let swiftScheduleStore = SwiftDataScheduleStore(container: container, auth: repositoryAuth)
+    let schedStore: ScheduleStoring = BackendScheduleRepository(
       store: swiftScheduleStore,
-      authStateProvider: authController,
-      api: SupabaseScheduleAPI(),
-      backlog: SupabaseScheduleSyncBacklogStore())
+      authStateProvider: repositoryAuth,
+      api: BackendScheduleRepositoryAPI(client: backendClient),
+      backlog: BackendScheduleSyncBacklogStore())
 
-    let swiftTeamStore = SwiftDataTeamLibraryStore(container: container, auth: authController)
-    let tStore: TeamLibraryStoring = SupabaseTeamLibraryRepository(
+    let swiftTeamStore = SwiftDataTeamLibraryStore(container: container, auth: repositoryAuth)
+    let tStore: TeamLibraryStoring = BackendTeamLibraryRepository(
       store: swiftTeamStore,
-      authStateProvider: authController,
-      api: SupabaseTeamLibraryAPI(),
-      backlog: SupabaseTeamSyncBacklogStore())
+      authStateProvider: repositoryAuth,
+      api: BackendTeamRepositoryAPI(client: backendClient),
+      backlog: BackendTeamSyncBacklogStore())
 
-    let swiftCompetitionStore = SwiftDataCompetitionLibraryStore(container: container, auth: authController)
-    let cStore: CompetitionLibraryStoring = SupabaseCompetitionLibraryRepository(
+    let swiftCompetitionStore = SwiftDataCompetitionLibraryStore(container: container, auth: repositoryAuth)
+    let cStore: CompetitionLibraryStoring = BackendCompetitionLibraryRepository(
       store: swiftCompetitionStore,
-      authStateProvider: authController,
-      api: SupabaseCompetitionLibraryAPI(),
-      backlog: SupabaseCompetitionSyncBacklogStore())
+      authStateProvider: repositoryAuth,
+      api: BackendCompetitionRepositoryAPI(client: backendClient),
+      backlog: BackendCompetitionSyncBacklogStore())
 
-    let swiftVenueStore = SwiftDataVenueLibraryStore(container: container, auth: authController)
-    let vStore: VenueLibraryStoring = SupabaseVenueLibraryRepository(
+    let swiftVenueStore = SwiftDataVenueLibraryStore(container: container, auth: repositoryAuth)
+    let vStore: VenueLibraryStoring = BackendVenueLibraryRepository(
       store: swiftVenueStore,
-      authStateProvider: authController,
-      api: SupabaseVenueLibraryAPI(),
-      backlog: SupabaseVenueSyncBacklogStore())
+      authStateProvider: repositoryAuth,
+      api: BackendVenueRepositoryAPI(client: backendClient),
+      backlog: BackendVenueSyncBacklogStore())
 
     let scheduleUpdater = MatchScheduleStatusUpdater(scheduleStore: schedStore)
     let vm = MatchViewModel(
@@ -201,7 +215,7 @@ struct RefWatchiOSApp: App {
       scheduleStatusUpdater: scheduleUpdater)
     let controller = ConnectivitySyncController(
       history: historyRepo,
-      auth: authController,
+      auth: repositoryAuth,
       teamStore: tStore,
       competitionStore: cStore,
       venueStore: vStore,
@@ -260,7 +274,7 @@ struct RefWatchiOSApp: App {
       .environment(\.journalStore, self.journalStore)
       .theme(self.themeManager.theme)
       .task {
-        if TestEnvironment.launchesSignedInUITestShell {
+        if TestEnvironment.launchesUITestShell {
           return
         }
         await self.authController.restoreSessionIfAvailable()
@@ -286,7 +300,7 @@ struct RefWatchiOSApp: App {
         self.authCoordinator.activeScreen = screen
         self.router.authenticationRequest = nil
       }
-      .onChange(of: self.scenePhase) { _, phase in
+      .onChange(of: self.scenePhase) { phase in
         // Keep WCSession alive while signed in, even when backgrounded.
         // Only stop on explicit sign-out (handled in auth state onChange).
         // This ensures the watch can sync library data and completed matches
@@ -305,7 +319,7 @@ struct RefWatchiOSApp: App {
           break
         }
       }
-      .onChange(of: self.authController.state) { _, state in
+      .onChange(of: self.authController.state) { state in
         switch state {
         case .signedIn:
           if self.scenePhase == .active { self.syncController?.start() }
@@ -316,8 +330,24 @@ struct RefWatchiOSApp: App {
       }
       .fullScreenCover(item: self.authScreenBinding, content: self.authScreenView)
       .animation(.easeInOut(duration: 0.25), value: self.authController.state)
+      .environment(Clerk.shared)
   }
 }
+
+#if DEBUG
+private final class UITestReferenceCatalogService: ReferenceCatalogServing {
+  func fetchReferenceTeams(seasonYear: Int) async throws -> [ReferenceTeamOption] {
+    guard seasonYear == ReferenceCatalogService.seasonYear else { return [] }
+    return ReferenceCatalogService.previewReferenceTeams
+  }
+
+  func fetchReferenceCompetitions(seasonYear: Int) async throws -> [ReferenceCompetitionOption] {
+    ReferenceCatalogService.fixtureCompetitionRows(seasonYear: seasonYear).map {
+      ReferenceCompetitionOption(id: $0.id, code: $0.code, name: $0.name)
+    }
+  }
+}
+#endif
 
 extension RefWatchiOSApp {
   private var authScreenBinding: Binding<AuthenticationCoordinator.Screen?> {
@@ -333,10 +363,10 @@ extension RefWatchiOSApp {
       WelcomeView()
         .environmentObject(self.authCoordinator)
     case .signIn:
-      SignInView(authController: self.authController)
+      SignInView()
         .environmentObject(self.authCoordinator)
     case .signUp:
-      SignUpView(authController: self.authController)
+      SignUpView()
         .environmentObject(self.authCoordinator)
     }
   }
@@ -351,7 +381,7 @@ extension RefWatchiOSApp {
   }
 
   private func performLogoutCleanup() {
-    AppLog.supabase.notice("Performing logout cleanup for local caches")
+    AppLog.auth.notice("Performing logout cleanup for local caches")
     let scheduleUpdater = MatchScheduleStatusUpdater(scheduleStore: scheduleStore)
     self.matchVM = MatchViewModel(
       history: self.historyStore,
@@ -360,17 +390,13 @@ extension RefWatchiOSApp {
       scheduleStatusUpdater: scheduleUpdater)
     Task { @MainActor in
       do {
-        if let supabaseStore = journalStore as? SupabaseJournalRepository {
-          try await supabaseStore.wipeAllForLogout()
+        if let backendStore = journalStore as? BackendJournalRepository {
+          try await backendStore.wipeAllForLogout()
         }
       } catch {
-        AppLog.supabase
+        AppLog.backend
           .error("Failed to wipe journal entries on sign-out: \(error.localizedDescription, privacy: .public)")
       }
     }
   }
-}
-
-private struct UnitTestProfileSynchronizer: SupabaseUserProfileSynchronizing {
-  func syncIfNeeded(session: Session?) async throws {}
 }

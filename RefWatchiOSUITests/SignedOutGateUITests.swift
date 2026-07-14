@@ -7,11 +7,10 @@ final class SignedOutGateUITests: XCTestCase {
 
   func testGate_whenSignedOut_showsBlockingExperience() {
     let app = XCUIApplication()
-    app.launch()
+    app.launchRefWatch(authState: "signed_out")
 
     XCTAssertTrue(app.staticTexts["Sign in to continue"].waitForExistence(timeout: 5))
-    let message = "RefWatch on iPhone now requires a Supabase account. " +
-      "Sign in to access match tools, schedules, trends, and team management."
+    let message = "Sign in to keep your matches, timers, and teams in sync across your devices."
     XCTAssertTrue(app.staticTexts[message].exists)
     XCTAssertTrue(app.buttons["Create Account"].exists)
   }

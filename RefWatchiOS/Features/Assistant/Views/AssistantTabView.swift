@@ -10,14 +10,14 @@ import UIKit
 import SwiftUI
 
 struct AssistantTabView: View {
-  @EnvironmentObject private var authController: SupabaseAuthController
+  @EnvironmentObject private var authController: ClerkAuthController
   @State private var usingStub = false
   @State private var selectedPhotoItem: PhotosPickerItem?
   @State private var selectedPhotoLoadID = 0
   @State private var viewModel: AssistantViewModel
 
   init() {
-    if let service = OpenAIAssistantService.fromBundleIfAvailable() {
+    if let service = AssistantProxyContract.fromBundleIfAvailable() {
       _viewModel = State(initialValue: AssistantViewModel(service: service))
       _usingStub = State(initialValue: false)
     } else {
@@ -135,17 +135,27 @@ struct AssistantTabView: View {
 
     return HStack(spacing: 10) {
       PhotosPicker(selection: self.photoSelectionBinding, matching: .images, photoLibrary: .shared()) {
-        Circle()
-          .fill(Color(.systemGray5))
-          .frame(width: 34, height: 34)
-          .overlay(Image(systemName: "plus").foregroundStyle(.primary))
+        ZStack {
+          Circle()
+            .fill(Color(.systemGray5))
+            .frame(width: 34, height: 34)
+          Image(systemName: "plus")
+            .foregroundStyle(.primary)
+            .accessibilityHidden(true)
+        }
+        .frame(width: 44, height: 44)
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Attach image")
+        .accessibilityIdentifier("assistant.attachImage")
       }
       .disabled(self.viewModel.isPreparingAttachment)
-      .accessibilityLabel("Attach image")
 
       HStack(spacing: 8) {
         TextField("Ask anything", text: self.$viewModel.input, axis: .vertical)
           .textFieldStyle(.plain)
+          .accessibilityLabel("Ask anything")
+          .accessibilityIdentifier("assistant.prompt")
         if self.viewModel.isStreaming {
           Button(action: self.viewModel.stopStreaming) {
             Image(systemName: "stop.circle.fill")
@@ -168,6 +178,7 @@ struct AssistantTabView: View {
               .contentShape(Rectangle())
           }
           .accessibilityLabel("Send")
+          .accessibilityIdentifier("assistant.send")
           .transition(.opacity.combined(with: .scale))
           .buttonStyle(PressBounceStyle())
         } else if self.viewModel.isPreparingAttachment {
@@ -390,6 +401,6 @@ private struct PressBounceStyle: ButtonStyle {
 #if DEBUG
 #Preview {
   AssistantTabView()
-    .environmentObject(SupabaseAuthController(clientProvider: SupabaseClientProvider.shared))
+    .environmentObject(ClerkAuthController.previewSignedIn())
 }
 #endif

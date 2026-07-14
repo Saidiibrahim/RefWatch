@@ -1,5 +1,5 @@
 //
-//  SupabaseTeamLibraryRepository.swift
+//  BackendTeamLibraryRepository.swift
 //  RefWatchiOS
 //
 //  Wraps the SwiftData team store with Supabase sync behaviour. Local changes
@@ -14,10 +14,10 @@ import RefWatchCore
 import SwiftData
 
 @MainActor
-final class SupabaseTeamLibraryRepository: TeamLibraryStoring, TeamLibraryReferenceImporting {
+final class BackendTeamLibraryRepository: TeamLibraryStoring, TeamLibraryReferenceImporting {
   private let store: SwiftDataTeamLibraryStore
-  private let api: SupabaseTeamLibraryServing
-  private let authStateProvider: SupabaseAuthStateProviding
+  private let api: TeamRemoteServing
+  private let authStateProvider: AuthStateProviding
   private let backlog: TeamLibrarySyncBacklogStoring
   private let metadataPersistor: TeamLibraryMetadataPersisting
   private let log = AppLog.supabase
@@ -36,8 +36,8 @@ final class SupabaseTeamLibraryRepository: TeamLibraryStoring, TeamLibraryRefere
 
   init(
     store: SwiftDataTeamLibraryStore,
-    authStateProvider: SupabaseAuthStateProviding,
-    api: SupabaseTeamLibraryServing,
+    authStateProvider: AuthStateProviding,
+    api: TeamRemoteServing,
     backlog: TeamLibrarySyncBacklogStoring,
     metadataPersistor: TeamLibraryMetadataPersisting? = nil,
     dateProvider: @escaping () -> Date = Date.init)
@@ -179,7 +179,7 @@ final class SupabaseTeamLibraryRepository: TeamLibraryStoring, TeamLibraryRefere
 
 // MARK: - Identity Handling & Sync Scheduling
 
-extension SupabaseTeamLibraryRepository {
+extension BackendTeamLibraryRepository {
   private func handleAuthState(_ state: AuthState) async {
     switch state {
     case .signedOut:
@@ -275,7 +275,7 @@ extension SupabaseTeamLibraryRepository {
   }
 }
 
-extension SupabaseTeamLibraryRepository: AggregateTeamApplying {
+extension BackendTeamLibraryRepository: AggregateTeamApplying {
   func upsertTeam(from aggregate: AggregateSnapshotPayload.Team) throws {
     let ownerUUID = try requireOwnerUUIDForAggregate(operation: "aggregate team upsert")
     let record = try store.upsertFromAggregate(aggregate, ownerSupabaseId: ownerUUID.uuidString)
@@ -300,7 +300,7 @@ extension SupabaseTeamLibraryRepository: AggregateTeamApplying {
 
 // MARK: - Remote Operations
 
-extension SupabaseTeamLibraryRepository {
+extension BackendTeamLibraryRepository {
   private func flushPendingDeletions() async throws {
     guard self.ownerUUID != nil else { return }
     while let deletionId = pendingDeletions.popFirst() {
@@ -365,7 +365,26 @@ extension SupabaseTeamLibraryRepository {
   private func pullRemoteUpdates(for ownerUUID: UUID) async throws {
     let remoteTeams = try await api.fetchTeams(ownerId: ownerUUID, updatedAfter: self.remoteCursor)
     guard remoteTeams.isEmpty == false else { return }
-    let filtered = remoteTeams.filter { !self.pendingDeletions.contains($0.team.id) }
+    var didDelete = false
+    for tombstone in remoteTeams
+      where tombstone.team.deletedAt != nil && !self.pendingDeletions.contains(tombstone.team.id)
+    {
+      if let existing = try fetchTeam(with: tombstone.team.id) {
+        try self.store.deleteTeam(existing)
+        self.pendingPushes.remove(tombstone.team.id)
+        didDelete = true
+      }
+    }
+    if didDelete {
+      try self.store.context.save()
+      self.store.publishChanges()
+    }
+    let filtered = remoteTeams.filter {
+      $0.team.deletedAt == nil && !self.pendingDeletions.contains($0.team.id)
+    }
+    if let maxDate = remoteTeams.map(\.team.updatedAt).max() {
+      self.remoteCursor = max(self.remoteCursor ?? maxDate, maxDate)
+    }
     guard filtered.isEmpty == false else { return }
     try mergeRemoteTeams(filtered, ownerUUID: ownerUUID)
     if let maxDate = filtered.map(\.team.updatedAt).max() {
@@ -377,7 +396,7 @@ extension SupabaseTeamLibraryRepository {
 
 // MARK: - Local Merge Helpers
 
-extension SupabaseTeamLibraryRepository {
+extension BackendTeamLibraryRepository {
   private func fetchTeam(with id: UUID) throws -> TeamRecord? {
     let descriptor = FetchDescriptor<TeamRecord>(predicate: #Predicate { $0.id == id })
     return try self.store.context.fetch(descriptor).first
@@ -390,7 +409,7 @@ extension SupabaseTeamLibraryRepository {
     return ownerUUID
   }
 
-  private func mergeRemoteTeams(_ remoteTeams: [SupabaseTeamLibraryAPI.RemoteTeam], ownerUUID: UUID) throws {
+  private func mergeRemoteTeams(_ remoteTeams: [TeamRemoteContract.RemoteTeam], ownerUUID: UUID) throws {
     var didChange = false
     for remote in remoteTeams {
       if let existing = try fetchTeam(with: remote.team.id) {
@@ -412,7 +431,7 @@ extension SupabaseTeamLibraryRepository {
     }
   }
 
-  private func insertRemoteTeam(_ remote: SupabaseTeamLibraryAPI.RemoteTeam, ownerUUID: UUID) throws {
+  private func insertRemoteTeam(_ remote: TeamRemoteContract.RemoteTeam, ownerUUID: UUID) throws {
     let team = TeamRecord(
       id: remote.team.id,
       name: remote.team.name,
@@ -453,7 +472,7 @@ extension SupabaseTeamLibraryRepository {
     self.store.context.insert(team)
   }
 
-  private func apply(remote: SupabaseTeamLibraryAPI.RemoteTeam, to team: TeamRecord, ownerUUID: UUID) {
+  private func apply(remote: TeamRemoteContract.RemoteTeam, to team: TeamRecord, ownerUUID: UUID) {
     team.name = remote.team.name
     team.shortName = remote.team.shortName
     team.division = remote.team.division
@@ -547,8 +566,8 @@ extension SupabaseTeamLibraryRepository {
     }
   }
 
-  private func makeBundleRequest(for team: TeamRecord, ownerUUID: UUID) -> SupabaseTeamLibraryAPI.TeamBundleRequest {
-    let teamInput = SupabaseTeamLibraryAPI.TeamInput(
+  private func makeBundleRequest(for team: TeamRecord, ownerUUID: UUID) -> TeamRemoteContract.TeamBundleRequest {
+    let teamInput = TeamRemoteContract.TeamInput(
       id: team.id,
       ownerId: ownerUUID,
       name: team.name,
@@ -558,8 +577,8 @@ extension SupabaseTeamLibraryRepository {
       secondaryColorHex: team.secondaryColorHex,
       referenceKey: team.referenceKey)
 
-    let memberInputs: [SupabaseTeamLibraryAPI.MemberInput] = team.players.map { player in
-      SupabaseTeamLibraryAPI.MemberInput(
+    let memberInputs: [TeamRemoteContract.MemberInput] = team.players.map { player in
+      TeamRemoteContract.MemberInput(
         id: player.id,
         teamId: team.id,
         displayName: player.name,
@@ -570,8 +589,8 @@ extension SupabaseTeamLibraryRepository {
         createdAt: nil)
     }
 
-    let officialInputs: [SupabaseTeamLibraryAPI.OfficialInput] = team.officials.map { official in
-      SupabaseTeamLibraryAPI.OfficialInput(
+    let officialInputs: [TeamRemoteContract.OfficialInput] = team.officials.map { official in
+      TeamRemoteContract.OfficialInput(
         id: official.id,
         teamId: team.id,
         displayName: official.name,
@@ -581,7 +600,7 @@ extension SupabaseTeamLibraryRepository {
         createdAt: nil)
     }
 
-    return SupabaseTeamLibraryAPI.TeamBundleRequest(
+    return TeamRemoteContract.TeamBundleRequest(
       team: teamInput,
       members: memberInputs,
       officials: officialInputs,

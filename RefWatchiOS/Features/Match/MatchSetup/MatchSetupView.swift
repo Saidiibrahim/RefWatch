@@ -123,7 +123,7 @@ struct MatchSetupView: View {
       penaltyRounds: initialPenaltyRounds))
   }
 
-  @EnvironmentObject private var authController: SupabaseAuthController
+  @EnvironmentObject private var authController: ClerkAuthController
 
   var body: some View {
     Group {

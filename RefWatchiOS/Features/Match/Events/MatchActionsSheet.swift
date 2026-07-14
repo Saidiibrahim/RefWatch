@@ -140,7 +140,12 @@ extension MatchActionsSheet {
   private func endPeriodConfirmationActions() -> some View {
     Button("Yes") {
       let isFinalReg = self.isFinalRegulationEnd
-      self.matchViewModel.endCurrentPeriod()
+      if let onEndPeriod {
+        onEndPeriod()
+        self.dismiss()
+      } else {
+        self.matchViewModel.endCurrentPeriod()
+      }
       if isFinalReg {
         // When this ends the match in regulation, the timer will present Full Time
       }
@@ -206,12 +211,7 @@ extension MatchActionsSheet {
   private var periodButtons: some View {
     if self.matchViewModel.isMatchInProgress {
       Button(role: .destructive) {
-        if let onEndPeriod {
-          onEndPeriod()
-          self.dismiss()
-        } else {
-          self.showEndPeriodConfirm = true
-        }
+        self.showEndPeriodConfirm = true
       } label: { Label("End Current Period", systemImage: "stop.circle") }
     } else if self.matchViewModel.waitingForHalfTimeStart
       || self.matchViewModel.waitingForSecondHalfStart

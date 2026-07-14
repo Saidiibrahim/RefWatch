@@ -1,5 +1,5 @@
 //
-//  SupabaseMatchHistoryRepository.swift
+//  BackendMatchHistoryRepository.swift
 //  RefWatchiOS
 //
 //  Wraps the SwiftData match history store with Supabase synchronisation.
@@ -14,10 +14,10 @@ import RefWatchCore
 import SwiftData
 
 @MainActor
-final class SupabaseMatchHistoryRepository: MatchHistoryStoring, MatchHistorySyncControlling {
+final class BackendMatchHistoryRepository: MatchHistoryStoring, MatchHistorySyncControlling {
   private let store: SwiftDataMatchHistoryStore
-  private let api: SupabaseMatchIngestServing
-  private let authStateProvider: SupabaseAuthStateProviding
+  private let api: MatchRemoteServing
+  private let authStateProvider: AuthStateProviding
   private let backlog: MatchSyncBacklogStoring
   private let dateProvider: () -> Date
   private let deviceIdProvider: () -> String?
@@ -37,8 +37,8 @@ final class SupabaseMatchHistoryRepository: MatchHistoryStoring, MatchHistorySyn
 
   init(
     store: SwiftDataMatchHistoryStore,
-    authStateProvider: SupabaseAuthStateProviding,
-    api: SupabaseMatchIngestServing,
+    authStateProvider: AuthStateProviding,
+    api: MatchRemoteServing,
     backlog: MatchSyncBacklogStoring,
     dateProvider: @escaping () -> Date = Date.init,
     deviceIdProvider: @escaping () -> String? = { nil },
@@ -150,7 +150,7 @@ final class SupabaseMatchHistoryRepository: MatchHistoryStoring, MatchHistorySyn
 
 // MARK: - Identity Handling
 
-extension SupabaseMatchHistoryRepository {
+extension BackendMatchHistoryRepository {
   private func handleAuthState(_ state: AuthState) async {
     switch state {
     case .signedOut:
@@ -219,7 +219,7 @@ extension SupabaseMatchHistoryRepository {
 
 // MARK: - Queue Processing
 
-extension SupabaseMatchHistoryRepository {
+extension BackendMatchHistoryRepository {
   fileprivate enum SyncOperation {
     case push(UUID)
     case delete(UUID)
@@ -268,7 +268,7 @@ extension SupabaseMatchHistoryRepository {
   }
 }
 
-extension SupabaseMatchHistoryRepository {
+extension BackendMatchHistoryRepository {
   private func ensurePushMetadata(for matchId: UUID, initialDelay: TimeInterval) {
     if self.pushMetadata[matchId] != nil { return }
     let nextAttempt = self.dateProvider().addingTimeInterval(initialDelay)
@@ -316,7 +316,7 @@ extension SupabaseMatchHistoryRepository {
 
 // MARK: - Remote Operations
 
-extension SupabaseMatchHistoryRepository {
+extension BackendMatchHistoryRepository {
   private func flushPendingDeletions() async throws {
     while let deletionId = pendingDeletions.popFirst() {
       await self.performRemoteDeletion(id: deletionId)
@@ -424,6 +424,15 @@ extension SupabaseMatchHistoryRepository {
       if self.pendingDeletions.contains(bundle.match.id) {
         continue
       }
+      if bundle.match.deletedAt != nil {
+        if try store.fetchRecord(id: bundle.match.id) != nil {
+          try store.delete(id: bundle.match.id)
+          self.pendingPushes.remove(bundle.match.id)
+          self.clearPushMetadata(for: bundle.match.id)
+          didChange = true
+        }
+        continue
+      }
       if let record = try store.fetchRecord(id: bundle.match.id) {
         let localDirty = record.needsRemoteSync
         let localRemoteDate = record.remoteUpdatedAt ?? .distantPast
@@ -479,7 +488,7 @@ extension SupabaseMatchHistoryRepository {
 
 // MARK: - Helpers
 
-extension SupabaseMatchHistoryRepository {
+extension BackendMatchHistoryRepository {
   fileprivate enum MatchSyncFailureContext { case push, delete }
 
   private func reportMatchSyncFailure(_ error: Error, context: MatchSyncFailureContext, matchId: UUID) {
@@ -573,10 +582,10 @@ extension SupabaseMatchHistoryRepository {
   private func makeMatchBundleRequest(
     for record: CompletedMatchRecord,
     snapshot: CompletedMatch,
-    ownerUUID: UUID) -> SupabaseMatchIngestService.MatchBundleRequest?
+    ownerUUID: UUID) -> MatchRemoteContract.MatchBundleRequest?
   {
     let match = snapshot.match
-    let matchPayload = SupabaseMatchIngestService.MatchBundleRequest.MatchPayload(
+    let matchPayload = MatchRemoteContract.MatchBundleRequest.MatchPayload(
       id: snapshot.id,
       ownerId: ownerUUID,
       status: "completed",
@@ -610,21 +619,21 @@ extension SupabaseMatchHistoryRepository {
       finalHome: match.homeScore,
       finalAway: match.awayScore)
     let periods = periodSummaries.map { summary in
-      SupabaseMatchIngestService.MatchBundleRequest.PeriodPayload(
+      MatchRemoteContract.MatchBundleRequest.PeriodPayload(
         id: UUID(),
         matchId: snapshot.id,
         index: summary.index,
         regulationSeconds: summary.regulationSeconds,
         addedTimeSeconds: summary.addedTimeSeconds,
         result: summary.partialScore.map { score in
-          SupabaseMatchIngestService.MatchBundleRequest.PeriodResultPayload(
+          MatchRemoteContract.MatchBundleRequest.PeriodResultPayload(
             homeScore: score.home,
             awayScore: score.away)
         })
     }
 
     let events = snapshot.events.map { event in
-      SupabaseMatchIngestService.MatchBundleRequest.EventPayload(
+      MatchRemoteContract.MatchBundleRequest.EventPayload(
         id: event.id,
         matchId: snapshot.id,
         occurredAt: event.actualTime,
@@ -633,7 +642,9 @@ extension SupabaseMatchHistoryRepository {
         matchTimeLabel: event.matchTime,
         eventType: supabaseEventType(for: event),
         payload: event,
-        teamSide: supabaseTeamSide(for: event.team))
+        teamSide: supabaseTeamSide(for: event.team),
+        teamId: event.teamId,
+        teamMemberId: event.teamMemberId)
     }
 
     let metrics = self.makeMetricsPayload(
@@ -643,7 +654,7 @@ extension SupabaseMatchHistoryRepository {
       periodSummaries: periodSummaries,
       events: snapshot.events)
 
-    return SupabaseMatchIngestService.MatchBundleRequest(
+    return MatchRemoteContract.MatchBundleRequest(
       match: matchPayload,
       periods: periods,
       events: events,
@@ -652,10 +663,10 @@ extension SupabaseMatchHistoryRepository {
 
   private func makeMetricsPayload(
     ownerId: UUID,
-    matchPayload: SupabaseMatchIngestService.MatchBundleRequest.MatchPayload,
+    matchPayload: MatchRemoteContract.MatchBundleRequest.MatchPayload,
     match: Match,
     periodSummaries: [PeriodSummary],
-    events: [MatchEventRecord]) -> SupabaseMatchIngestService.MatchBundleRequest.MetricsPayload
+    events: [MatchEventRecord]) -> MatchRemoteContract.MatchBundleRequest.MetricsPayload
   {
     let finalScore = matchPayload.finalScore
     let homeYellow = finalScore?.homeYellowCards ?? match.homeYellowCards
@@ -671,7 +682,7 @@ extension SupabaseMatchHistoryRepository {
     let avgAddedSeconds = averageAddedTime(in: periodSummaries)
     let extraTimeMinutes = matchPayload.extraTimeHalfMinutes.map { $0 * 2 }
 
-    return SupabaseMatchIngestService.MatchBundleRequest.MetricsPayload(
+    return MatchRemoteContract.MatchBundleRequest.MetricsPayload(
       matchId: matchPayload.id,
       ownerId: ownerId,
       regulationMinutes: matchPayload.regulationMinutes,
@@ -692,9 +703,9 @@ extension SupabaseMatchHistoryRepository {
       avgAddedTimeSeconds: avgAddedSeconds)
   }
 
-  private func makeFinalScorePayload(from match: Match) -> SupabaseMatchIngestService.MatchBundleRequest
+  private func makeFinalScorePayload(from match: Match) -> MatchRemoteContract.MatchBundleRequest
   .FinalScorePayload {
-    SupabaseMatchIngestService.MatchBundleRequest.FinalScorePayload(
+    MatchRemoteContract.MatchBundleRequest.FinalScorePayload(
       home: match.homeScore,
       away: match.awayScore,
       homeYellowCards: match.homeYellowCards,
@@ -751,7 +762,7 @@ extension SupabaseMatchHistoryRepository {
   }
 
   private func insertRemote(
-    _ bundle: SupabaseMatchIngestService.RemoteMatchBundle,
+    _ bundle: MatchRemoteContract.RemoteMatchBundle,
     ownerUUID: UUID) throws -> CompletedMatchRecord?
   {
     guard let snapshot = makeCompletedMatch(from: bundle) else { return nil }
@@ -779,14 +790,14 @@ extension SupabaseMatchHistoryRepository {
   }
 
   private func merge(
-    remote bundle: SupabaseMatchIngestService.RemoteMatchBundle,
+    remote bundle: MatchRemoteContract.RemoteMatchBundle,
     into record: CompletedMatchRecord) throws -> Data?
   {
     guard let snapshot = makeCompletedMatch(from: bundle) else { return nil }
     return try SwiftDataMatchHistoryStore.encode(snapshot)
   }
 
-  private func makeCompletedMatch(from bundle: SupabaseMatchIngestService.RemoteMatchBundle) -> CompletedMatch? {
+  private func makeCompletedMatch(from bundle: MatchRemoteContract.RemoteMatchBundle) -> CompletedMatch? {
     let remote = bundle.match
     var match = Match(
       id: remote.id,
@@ -836,7 +847,7 @@ extension SupabaseMatchHistoryRepository {
       ownerId: remote.ownerId.uuidString)
   }
 
-  private func makeEvent(from remote: SupabaseMatchIngestService.RemoteEvent) -> MatchEventRecord? {
+  private func makeEvent(from remote: MatchRemoteContract.RemoteEvent) -> MatchEventRecord? {
     if let payload = remote.payload {
       return MatchEventRecord(
         id: remote.id,
@@ -846,6 +857,8 @@ extension SupabaseMatchHistoryRepository {
         period: remote.periodIndex,
         eventType: payload.eventType,
         team: remote.teamSide.flatMap(domainTeamSide) ?? payload.team,
+        teamId: remote.teamId ?? payload.teamId,
+        teamMemberId: remote.teamMemberId ?? payload.teamMemberId,
         details: payload.details)
     }
 
@@ -858,13 +871,15 @@ extension SupabaseMatchHistoryRepository {
       period: remote.periodIndex,
       eventType: eventType,
       team: remote.teamSide.flatMap(domainTeamSide),
+      teamId: remote.teamId,
+      teamMemberId: remote.teamMemberId,
       details: .general)
   }
 }
 
 // MARK: - Derived Helpers
 
-extension SupabaseMatchHistoryRepository {
+extension BackendMatchHistoryRepository {
   fileprivate struct PeriodSummary {
     let index: Int
     let regulationSeconds: Int
@@ -887,7 +902,7 @@ extension SupabaseMatchHistoryRepository {
     let missed: Int
   }
 
-  private func deriveStats(from events: [SupabaseMatchIngestService.RemoteEvent]) -> DerivedStats {
+  private func deriveStats(from events: [MatchRemoteContract.RemoteEvent]) -> DerivedStats {
     var homeYellow = 0
     var awayYellow = 0
     var homeRed = 0

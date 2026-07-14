@@ -24,7 +24,7 @@ final class ConnectivitySyncController: ObservableObject {
 
     init(
         history: MatchHistoryStoring,
-        auth: SupabaseAuthStateProviding,
+        auth: AuthStateProviding,
         teamStore: TeamLibraryStoring,
         competitionStore: CompetitionLibraryStoring,
         venueStore: VenueLibraryStoring,

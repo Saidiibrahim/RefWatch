@@ -12,7 +12,7 @@ import SwiftUI
 
 struct MatchesTabView: View {
   @EnvironmentObject private var router: AppRouter
-  @EnvironmentObject private var authController: SupabaseAuthController
+  @EnvironmentObject private var authController: ClerkAuthController
   @Environment(\.journalStore) private var journalStore
   let matchViewModel: MatchViewModel
   let historyStore: MatchHistoryStoring
@@ -38,7 +38,7 @@ struct MatchesTabView: View {
           self.signedInContent
         } else {
           SignedOutFeaturePlaceholder(
-            description: "Sign in with your Supabase account to start matches, " +
+            description: "Sign in with your RefWatch account to start matches, " +
               "review history, and manage schedules on iPhone.")
         }
       }

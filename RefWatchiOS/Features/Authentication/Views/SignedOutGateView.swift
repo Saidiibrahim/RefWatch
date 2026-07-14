@@ -59,7 +59,7 @@ struct SignedOutGateColors {
 /// while routing users into the authentication flow.
 struct SignedOutGateView: View {
   @EnvironmentObject private var coordinator: AuthenticationCoordinator
-  @EnvironmentObject private var authController: SupabaseAuthController
+  @EnvironmentObject private var authController: ClerkAuthController
   @Environment(\.theme) private var theme
   @Environment(\.colorScheme) private var colorScheme
 
@@ -197,9 +197,8 @@ extension SignedOutGateView {
 #Preview {
   SignedOutGateView()
     .environmentObject(
-      AuthenticationCoordinator(
-        authController: SupabaseAuthController(clientProvider: SupabaseClientProvider.shared)))
-    .environmentObject(SupabaseAuthController(clientProvider: SupabaseClientProvider.shared))
+      AuthenticationCoordinator(authController: ClerkAuthController.previewSignedOut()))
+    .environmentObject(ClerkAuthController.previewSignedOut())
     .theme(DefaultTheme())
 }
 #endif

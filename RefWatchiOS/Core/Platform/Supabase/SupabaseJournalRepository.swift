@@ -1,5 +1,5 @@
 //
-//  SupabaseJournalRepository.swift
+//  BackendJournalRepository.swift
 //  RefWatchiOS
 //
 //  Supabase-backed implementation of JournalEntryStoring that keeps an
@@ -12,9 +12,9 @@ import OSLog
 import RefWatchCore
 
 @MainActor
-final class SupabaseJournalRepository: JournalEntryStoring {
-    private let api: SupabaseJournalServing
-    private let authStateProvider: SupabaseAuthStateProviding
+final class BackendJournalRepository: JournalEntryStoring {
+    private let api: JournalRemoteServing
+    private let authStateProvider: AuthStateProviding
     private let dateProvider: () -> Date
     private let log = AppLog.supabase
 
@@ -25,8 +25,8 @@ final class SupabaseJournalRepository: JournalEntryStoring {
     private var entriesByMatch: [UUID: [JournalEntry]] = [:]
 
     init(
-        authStateProvider: SupabaseAuthStateProviding,
-        api: SupabaseJournalServing,
+        authStateProvider: AuthStateProviding,
+        api: JournalRemoteServing,
         dateProvider: @escaping () -> Date = Date.init
     ) {
         self.api = api
@@ -82,7 +82,7 @@ final class SupabaseJournalRepository: JournalEntryStoring {
         requestEntry.ownerId = owner.uuidString
         requestEntry.updatedAt = now
 
-        let request = SupabaseJournalAPI.AssessmentRequest(
+        let request = JournalRemoteContract.AssessmentRequest(
             id: requestEntry.id,
             matchId: requestEntry.matchId,
             ownerId: owner,
@@ -122,7 +122,7 @@ final class SupabaseJournalRepository: JournalEntryStoring {
             toImprove: toImprove
         )
 
-        let request = SupabaseJournalAPI.AssessmentRequest(
+        let request = JournalRemoteContract.AssessmentRequest(
             id: entry.id,
             matchId: entry.matchId,
             ownerId: owner,
@@ -166,7 +166,7 @@ final class SupabaseJournalRepository: JournalEntryStoring {
 
 // MARK: - Auth Handling
 
-private extension SupabaseJournalRepository {
+private extension BackendJournalRepository {
     func handleAuthState(_ state: AuthState) async {
         switch state {
         case .signedOut:
@@ -188,7 +188,7 @@ private extension SupabaseJournalRepository {
 
 // MARK: - Remote Fetching
 
-private extension SupabaseJournalRepository {
+private extension BackendJournalRepository {
     func triggerPull(force: Bool = false) {
         guard ownerUUID != nil else { return }
         if !force, pullTask != nil { return }
@@ -226,7 +226,7 @@ private extension SupabaseJournalRepository {
 
 // MARK: - Cache Management
 
-private extension SupabaseJournalRepository {
+private extension BackendJournalRepository {
     func cache(entry: JournalEntry) {
         var list = entriesByMatch[entry.matchId] ?? []
         if let idx = list.firstIndex(where: { $0.id == entry.id }) {
@@ -267,7 +267,7 @@ private extension SupabaseJournalRepository {
 
 // MARK: - Helpers
 
-private extension SupabaseJournalRepository {
+private extension BackendJournalRepository {
     func requireOwnerUUID(operation: String) throws -> UUID {
         guard let userId = authStateProvider.currentUserId,
               let uuid = UUID(uuidString: userId) else {

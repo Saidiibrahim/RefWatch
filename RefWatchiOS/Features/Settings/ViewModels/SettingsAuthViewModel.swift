@@ -14,10 +14,10 @@ final class SettingsAuthViewModel: ObservableObject {
   @Published var isPerformingAction: Bool = false
   @Published var alertMessage: String?
 
-  private let auth: SupabaseAuthController
+  private let auth: ClerkAuthController
   private var cancellables = Set<AnyCancellable>()
 
-  init(auth: SupabaseAuthController) {
+  init(auth: ClerkAuthController) {
     self.auth = auth
 
     auth.$lastError
@@ -44,8 +44,8 @@ final class SettingsAuthViewModel: ObservableObject {
       try await action()
       alertMessage = nil
     } catch {
-      let mapped = SupabaseAuthError.map(error)
-      AppLog.supabase.error("Account action failed: \(error.localizedDescription, privacy: .public)")
+      let mapped = ClerkAuthError.map(error)
+      AppLog.auth.error("Account action failed: \(error.localizedDescription, privacy: .public)")
       alertMessage = mapped.errorDescription
     }
   }

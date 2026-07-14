@@ -49,7 +49,6 @@ struct SignedOutFeaturePlaceholder: View {
   SignedOutFeaturePlaceholder(
     description: "Sign in to manage matches on your iPhone.")
     .environmentObject(
-      AuthenticationCoordinator(
-        authController: SupabaseAuthController(clientProvider: SupabaseClientProvider.shared)))
+      AuthenticationCoordinator(authController: ClerkAuthController.previewSignedOut()))
 }
 #endif

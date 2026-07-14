@@ -1,5 +1,5 @@
 //
-//  SupabaseVenueLibraryRepository.swift
+//  BackendVenueLibraryRepository.swift
 //  RefWatchiOS
 //
 //  Wraps the SwiftData venue store with Supabase sync behavior. Local changes
@@ -14,10 +14,10 @@ import RefWatchCore
 import SwiftData
 
 @MainActor
-final class SupabaseVenueLibraryRepository: VenueLibraryStoring {
+final class BackendVenueLibraryRepository: VenueLibraryStoring {
   private let store: SwiftDataVenueLibraryStore
-  private let api: SupabaseVenueLibraryServing
-  private let authStateProvider: SupabaseAuthStateProviding
+  private let api: VenueRemoteServing
+  private let authStateProvider: AuthStateProviding
   private let backlog: VenueLibrarySyncBacklogStoring
   private let log = AppLog.supabase
   private let dateProvider: () -> Date
@@ -36,8 +36,8 @@ final class SupabaseVenueLibraryRepository: VenueLibraryStoring {
 
   init(
     store: SwiftDataVenueLibraryStore,
-    authStateProvider: SupabaseAuthStateProviding,
-    api: SupabaseVenueLibraryServing,
+    authStateProvider: AuthStateProviding,
+    api: VenueRemoteServing,
     backlog: VenueLibrarySyncBacklogStoring,
     dateProvider: @escaping () -> Date = Date.init)
   {
@@ -125,7 +125,7 @@ final class SupabaseVenueLibraryRepository: VenueLibraryStoring {
 
 // MARK: - Identity Handling & Sync Scheduling
 
-extension SupabaseVenueLibraryRepository {
+extension BackendVenueLibraryRepository {
   private func handleAuthState(_ state: AuthState) async {
     switch state {
     case .signedOut:
@@ -196,7 +196,7 @@ extension SupabaseVenueLibraryRepository {
 
 // MARK: - Queue Processing
 
-extension SupabaseVenueLibraryRepository {
+extension BackendVenueLibraryRepository {
   fileprivate enum SyncOperation {
     case push(UUID)
     case delete(UUID)
@@ -246,7 +246,7 @@ extension SupabaseVenueLibraryRepository {
 
 // MARK: - Remote Operations
 
-extension SupabaseVenueLibraryRepository {
+extension BackendVenueLibraryRepository {
   private func flushPendingDeletions() async throws {
     while let deletionId = pendingDeletions.popFirst() {
       await self.performRemoteDeletion(id: deletionId)
@@ -296,7 +296,7 @@ extension SupabaseVenueLibraryRepository {
       return
     }
 
-    let request = SupabaseVenueLibraryAPI.VenueRequest(
+    let request = VenueRemoteContract.VenueRequest(
       id: record.id,
       ownerId: ownerUUID,
       name: record.name,
@@ -351,6 +351,15 @@ extension SupabaseVenueLibraryRepository {
       for remote in remoteVenues {
         if self.pendingDeletions.contains(remote.id) {
           skippedPendingDeletion += 1
+          continue
+        }
+
+        if remote.deletedAt != nil {
+          if let existing = existingById.removeValue(forKey: remote.id) {
+            try self.store.delete(existing)
+            self.pendingPushes.remove(remote.id)
+            updatedCount += 1
+          }
           continue
         }
 
@@ -413,7 +422,7 @@ extension SupabaseVenueLibraryRepository {
 
 // MARK: - Helpers
 
-extension SupabaseVenueLibraryRepository {
+extension BackendVenueLibraryRepository {
   private func publishSyncStatus() {
     let info: [String: Any] = [
       "component": "venue_library",
@@ -466,7 +475,7 @@ extension SupabaseVenueLibraryRepository {
   }
 }
 
-extension SupabaseVenueLibraryRepository: AggregateVenueApplying {
+extension BackendVenueLibraryRepository: AggregateVenueApplying {
   func upsertVenue(from aggregate: AggregateSnapshotPayload.Venue) throws {
     let ownerUUID = try requireOwnerUUIDForAggregate(operation: "aggregate venue upsert")
     let record = try store.upsertFromAggregate(aggregate, ownerSupabaseId: ownerUUID.uuidString)

@@ -20,7 +20,7 @@ enum PersistenceAuthError: LocalizedError {
     var recoverySuggestion: String? {
         switch self {
         case .signedOut:
-            return "Authenticate with your Supabase account on iPhone to continue."
+            return "Sign in to your RefWatch account on iPhone to continue."
         }
     }
 }

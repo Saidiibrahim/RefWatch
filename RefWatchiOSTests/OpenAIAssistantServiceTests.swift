@@ -1,7 +1,7 @@
 import XCTest
 @testable import RefWatchiOS
 
-final class OpenAIAssistantServiceTests: XCTestCase {
+final class AssistantProxyContractTests: XCTestCase {
   func testBuildPayload_whenMessagesProvided_mapsToProxySchema() throws {
     let attachment = AssistantImageAttachment(
       filename: "frame.jpg",
@@ -16,7 +16,7 @@ final class OpenAIAssistantServiceTests: XCTestCase {
       ChatMessage(role: .user, text: "Need substitution guidance."),
     ]
 
-    let payload = try OpenAIAssistantService.Testing.buildPayload(
+    let payload = try AssistantProxyContract.Testing.buildPayload(
       systemPrompt: "System prompt",
       messages: messages)
 
@@ -34,7 +34,7 @@ final class OpenAIAssistantServiceTests: XCTestCase {
     XCTAssertEqual(second.content.first?.type, "output_text")
     XCTAssertEqual(second.content.first?.text, "Hi ref!")
 
-    let encoded = try OpenAIAssistantService.Testing.encodePayload(payload)
+    let encoded = try AssistantProxyContract.Testing.encodePayload(payload)
     let json = try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
     XCTAssertEqual(json["instructions"] as? String, "System prompt")
     let messagesArray = try XCTUnwrap(json["messages"] as? [[String: Any]])
@@ -51,7 +51,7 @@ final class OpenAIAssistantServiceTests: XCTestCase {
       detail: .auto,
       pixelWidth: 60,
       pixelHeight: 60)
-    let payload = try OpenAIAssistantService.Testing.buildPayload(
+    let payload = try AssistantProxyContract.Testing.buildPayload(
       systemPrompt: "System prompt",
       messages: [ChatMessage(role: .user, text: " ", imageAttachment: attachment)])
 
@@ -63,35 +63,11 @@ final class OpenAIAssistantServiceTests: XCTestCase {
   func testBuildPayload_whenNoUsableMessages_throws() {
     let emptyMessages = [ChatMessage(role: .user, text: "   ")]
     XCTAssertThrowsError(
-      try OpenAIAssistantService.Testing.buildPayload(
+      try AssistantProxyContract.Testing.buildPayload(
         systemPrompt: "System prompt",
         messages: emptyMessages)) { error in
           XCTAssertEqual(error as? AssistantServiceError, .emptyConversation)
         }
-  }
-
-  func testBuildRequest_includesSupabaseGatewayHeaders() throws {
-    let payload = try OpenAIAssistantService.Testing.buildPayload(
-      systemPrompt: "System prompt",
-      messages: [ChatMessage(role: .user, text: "Explain this image")])
-    let environment = SupabaseEnvironment(
-      url: try XCTUnwrap(URL(string: "https://muwuzfbtmqwvwacqnofc.supabase.co")),
-      anonKey: "sb_publishable_test")
-
-    let request = try OpenAIAssistantService.buildRequest(
-      environment: environment,
-      accessToken: "session-token",
-      payload: payload)
-
-    XCTAssertEqual(
-      request.url?.absoluteString,
-      "https://muwuzfbtmqwvwacqnofc.supabase.co/functions/v1/assistant-responses")
-    XCTAssertEqual(request.value(forHTTPHeaderField: "Content-Type"), "application/json")
-    XCTAssertEqual(request.value(forHTTPHeaderField: "Accept"), "text/event-stream")
-    XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer session-token")
-    XCTAssertEqual(request.value(forHTTPHeaderField: "apikey"), "sb_publishable_test")
-    XCTAssertEqual(request.value(forHTTPHeaderField: "X-RefWatch-Client"), "ios")
-    XCTAssertNotNil(request.httpBody)
   }
 
   func testParseStream_whenReceivingCompletedEvent_emitsChunksAndUsage() {
@@ -111,7 +87,7 @@ final class OpenAIAssistantServiceTests: XCTestCase {
       "",
     ]
 
-    let result = OpenAIAssistantService.Testing.parseStream(lines: lines)
+    let result = AssistantProxyContract.Testing.parseStream(lines: lines)
 
     XCTAssertEqual(result.chunks, ["Hello", " world"])
     XCTAssertTrue(result.shouldTerminate)
@@ -134,7 +110,7 @@ final class OpenAIAssistantServiceTests: XCTestCase {
       "",
     ]
 
-    let result = OpenAIAssistantService.Testing.parseStream(lines: lines)
+    let result = AssistantProxyContract.Testing.parseStream(lines: lines)
 
     XCTAssertEqual(result.chunks, ["Partial answer"])
     XCTAssertTrue(result.shouldTerminate)
@@ -155,7 +131,7 @@ final class OpenAIAssistantServiceTests: XCTestCase {
       "",
     ]
 
-    let result = OpenAIAssistantService.Testing.parseStream(lines: lines)
+    let result = AssistantProxyContract.Testing.parseStream(lines: lines)
 
     XCTAssertEqual(result.chunks, ["Hello"])
     XCTAssertTrue(result.shouldTerminate)
@@ -170,7 +146,7 @@ final class OpenAIAssistantServiceTests: XCTestCase {
       "",
     ]
 
-    let result = OpenAIAssistantService.Testing.parseStream(lines: lines)
+    let result = AssistantProxyContract.Testing.parseStream(lines: lines)
 
     XCTAssertTrue(result.shouldTerminate)
     XCTAssertTrue(result.chunks.isEmpty)
@@ -187,7 +163,7 @@ final class OpenAIAssistantServiceTests: XCTestCase {
       "",
     ]
 
-    let result = OpenAIAssistantService.Testing.parseStream(lines: lines)
+    let result = AssistantProxyContract.Testing.parseStream(lines: lines)
 
     XCTAssertEqual(result.chunks, ["Partial answer"])
     XCTAssertTrue(result.shouldTerminate)
@@ -199,14 +175,14 @@ final class OpenAIAssistantServiceTests: XCTestCase {
     let secondChunk = Data([0xA9]) + Data("\"}\n\n".utf8)
 
     XCTAssertEqual(
-      try OpenAIAssistantService.Testing.decodeStreamLines(chunks: [firstChunk, secondChunk]),
+      try AssistantProxyContract.Testing.decodeStreamLines(chunks: [firstChunk, secondChunk]),
       ["data: {\"delta\":\"café\"}", ""]
     )
   }
 
   func testDecodeStreamLines_whenStreamEndsWithoutTrailingNewline_returnsRemainingLine() throws {
     XCTAssertEqual(
-      try OpenAIAssistantService.Testing.decodeStreamLines(chunks: [
+      try AssistantProxyContract.Testing.decodeStreamLines(chunks: [
         Data("event: response.completed\n".utf8),
         Data("data: {\"type\":\"response.completed\"}".utf8),
       ]),
@@ -216,7 +192,7 @@ final class OpenAIAssistantServiceTests: XCTestCase {
 
   func testDecodeStreamLines_whenUTF8IsInvalid_throwsInvalidResponse() {
     XCTAssertThrowsError(
-      try OpenAIAssistantService.Testing.decodeStreamLines(chunks: [
+      try AssistantProxyContract.Testing.decodeStreamLines(chunks: [
         Data([0xC3, 0x28, 0x0A]),
       ])
     ) { error in

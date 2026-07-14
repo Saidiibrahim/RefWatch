@@ -1,5 +1,5 @@
 //
-//  SupabaseCompetitionSyncBacklogStore.swift
+//  BackendCompetitionSyncBacklogStore.swift
 //  RefWatchiOS
 //
 //  Persists pending competition deletion identifiers so the repository can retry
@@ -24,7 +24,7 @@ protocol CompetitionLibrarySyncBacklogStoring: AnyObject {
 }
 
 /// UserDefaults-backed implementation of competition sync backlog storage
-final class SupabaseCompetitionSyncBacklogStore: CompetitionLibrarySyncBacklogStoring {
+final class BackendCompetitionSyncBacklogStore: CompetitionLibrarySyncBacklogStoring {
     private let defaults: UserDefaults
     private let key = "com.refzone.supabase.competitionlibrary.pendingdeletes"
     private let queue = DispatchQueue(label: "com.refzone.supabase.competitionlibrary.backlog")

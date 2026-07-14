@@ -1,5 +1,5 @@
 //
-//  SupabaseVenueSyncBacklogStore.swift
+//  BackendVenueSyncBacklogStore.swift
 //  RefWatchiOS
 //
 //  Persists pending venue deletion identifiers so the repository can retry
@@ -24,7 +24,7 @@ protocol VenueLibrarySyncBacklogStoring: AnyObject {
 }
 
 /// UserDefaults-backed implementation of venue sync backlog storage
-final class SupabaseVenueSyncBacklogStore: VenueLibrarySyncBacklogStoring {
+final class BackendVenueSyncBacklogStore: VenueLibrarySyncBacklogStoring {
     private let defaults: UserDefaults
     private let key = "com.refzone.supabase.venuelibrary.pendingdeletes"
     private let queue = DispatchQueue(label: "com.refzone.supabase.venuelibrary.backlog")

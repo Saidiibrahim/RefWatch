@@ -1,88 +1,25 @@
 //
-//  OpenAIMatchSheetImportService.swift
+//  MatchSheetParseContract.swift
 //  RefWatchiOS
 //
-//  Calls the authenticated Supabase edge parser for screenshot-driven match-sheet import.
+//  Portable request contract for screenshot-driven backend parsing.
 //
 
 import Foundation
 import RefWatchCore
-import Supabase
 import UIKit
 
-final class OpenAIMatchSheetImportService: MatchSheetImportProviding {
-  private static let defaultRequestTimeout: TimeInterval = 90
-  private static let functionName = "match-sheet-parse"
-
-  private let clientProvider: SupabaseClientProviding
-  private let environmentLoader: () throws -> SupabaseEnvironment
-  private let session: URLSession
-
-  init(
-    clientProvider: SupabaseClientProviding = SupabaseClientProvider.shared,
-    environmentLoader: @escaping () throws -> SupabaseEnvironment = { try SupabaseEnvironment.load() },
-    session: URLSession = .shared)
-  {
-    self.clientProvider = clientProvider
-    self.environmentLoader = environmentLoader
-    self.session = session
-  }
-
-  static func fromBundleIfAvailable() -> OpenAIMatchSheetImportService? {
-    guard TestEnvironment.isRunningTests == false else {
-      return nil
-    }
-    guard Secrets.assistantProxyIsConfigured else {
-      return nil
-    }
-    return OpenAIMatchSheetImportService()
-  }
-
-  func parseMatchSheet(
-    side: MatchSheetSide,
-    expectedTeamName: String?,
-    images: [AssistantImageAttachment]) async throws -> MatchSheetImportResult
-  {
-    guard images.isEmpty == false else {
-      throw MatchSheetImportServiceError.emptySelection
-    }
-
-    let payload = Self.buildPayload(
-      side: side,
-      expectedTeamName: expectedTeamName,
-      images: images)
-    let request = try await self.makeRequest(payload: payload)
-    let (data, response) = try await self.session.data(for: request)
-    guard let httpResponse = response as? HTTPURLResponse else {
-      throw MatchSheetImportServiceError.invalidResponse
-    }
-
-    guard (200...299).contains(httpResponse.statusCode) else {
-      throw MatchSheetImportServiceError.http(
-        status: httpResponse.statusCode,
-        body: Self.extractErrorMessage(from: data))
-    }
-
-    do {
-      var result = try Self.jsonDecoder().decode(MatchSheetImportResult.self, from: data)
-      result.parsedSheet.status = .draft
-      result.parsedSheet = result.parsedSheet.normalized()
-      return result
-    } catch {
-      throw MatchSheetImportServiceError.invalidResponse
-    }
-  }
-}
+enum MatchSheetParseContract {}
 
 #if DEBUG
-extension OpenAIMatchSheetImportService {
+extension MatchSheetParseContract {
   enum Testing {
     static func buildPayload(
       side: MatchSheetSide,
       expectedTeamName: String?,
       images: [AssistantImageAttachment]) -> MatchSheetImportPayload
     {
-      OpenAIMatchSheetImportService.buildPayload(
+      MatchSheetParseContract.buildPayload(
         side: side,
         expectedTeamName: expectedTeamName,
         images: images)
@@ -95,7 +32,7 @@ extension OpenAIMatchSheetImportService {
 }
 #endif
 
-extension OpenAIMatchSheetImportService {
+extension MatchSheetParseContract {
   struct MatchSheetImportPayload: Encodable, Equatable {
     struct ImagePart: Encodable, Equatable {
       let type = "input_image"
@@ -138,54 +75,10 @@ extension OpenAIMatchSheetImportService {
       })
   }
 
-  func makeRequest(payload: MatchSheetImportPayload) async throws -> URLRequest {
-    let environment = try self.environmentLoader()
-    let client = try await self.clientProvider.authorizedClient()
-    guard let supabaseClient = client as? SupabaseClient else {
-      throw MatchSheetImportServiceError.unsupportedClient
-    }
-
-    let session: Session
-    do {
-      session = try await supabaseClient.auth.session
-    } catch {
-      throw MatchSheetImportServiceError.sessionUnavailable
-    }
-
-    return try Self.buildRequest(
-      environment: environment,
-      accessToken: session.accessToken,
-      payload: payload)
-  }
-
-  static func edgeFunctionURL(for supabaseURL: URL) -> URL {
-    supabaseURL
-      .appendingPathComponent("functions")
-      .appendingPathComponent("v1")
-      .appendingPathComponent(Self.functionName)
-  }
-
   static func jsonEncoder() -> JSONEncoder {
     let encoder = JSONEncoder()
     encoder.outputFormatting = [.withoutEscapingSlashes]
     return encoder
-  }
-
-  static func buildRequest(
-    environment: SupabaseEnvironment,
-    accessToken: String,
-    payload: MatchSheetImportPayload) throws -> URLRequest
-  {
-    var request = URLRequest(url: Self.edgeFunctionURL(for: environment.url))
-    request.httpMethod = "POST"
-    request.timeoutInterval = Self.defaultRequestTimeout
-    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-    request.setValue("application/json", forHTTPHeaderField: "Accept")
-    request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
-    request.setValue(environment.anonKey, forHTTPHeaderField: "apikey")
-    request.setValue("ios", forHTTPHeaderField: "X-RefWatch-Client")
-    request.httpBody = try Self.jsonEncoder().encode(payload)
-    return request
   }
 
   static func jsonDecoder() -> JSONDecoder {
@@ -226,7 +119,8 @@ enum MatchSheetImportServiceFactory {
     if let uiTestMode = TestEnvironment.matchSheetImportUITestMode {
       return UITestMatchSheetImportService(mode: uiTestMode)
     }
-    return OpenAIMatchSheetImportService.fromBundleIfAvailable()
+    guard let client = BackendServiceRegistry.client else { return nil }
+    return BackendMatchSheetImportService(client: client)
   }
 }
 

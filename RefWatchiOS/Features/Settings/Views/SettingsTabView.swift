@@ -21,7 +21,7 @@ struct SettingsTabView: View {
   var venueStore: VenueLibraryStoring?
   var connectivityController: ConnectivitySyncController?
 
-  @ObservedObject private var auth: SupabaseAuthController
+  @ObservedObject private var auth: ClerkAuthController
   @EnvironmentObject private var syncDiagnostics: SyncDiagnosticsCenter
   @EnvironmentObject private var authCoordinator: AuthenticationCoordinator
 
@@ -41,7 +41,7 @@ struct SettingsTabView: View {
     competitionStore: CompetitionLibraryStoring? = nil,
     venueStore: VenueLibraryStoring? = nil,
     connectivityController: ConnectivitySyncController? = nil,
-    authController: SupabaseAuthController)
+    authController: ClerkAuthController)
   {
     self.historyStore = historyStore
     self.matchSyncController = matchSyncController
@@ -57,6 +57,11 @@ struct SettingsTabView: View {
   var body: some View {
     NavigationStack {
       Form {
+        #if DEBUG
+        if TestEnvironment.launchesSignedInUITestShell {
+          uiTestSection
+        }
+        #endif
         accountSection
         librarySection
         diagnosticsSection
@@ -244,6 +249,37 @@ extension SettingsTabView {
     }
   }
 
+  #if DEBUG
+  private var uiTestSection: some View {
+    Section("UI Test Fixtures") {
+      Button("Seed Demo History", action: self.seedDemoHistory)
+    }
+  }
+
+  private func seedDemoHistory() {
+    let batch = ((try? self.historyStore.loadAll().count) ?? 0) / 5 + 1
+    let samples = [
+      ("Leeds United", "Newcastle United", 2, 1),
+      ("Arsenal", "Chelsea", 1, 1),
+      ("Barcelona", "Real Madrid", 3, 2),
+      ("Bayern", "Dortmund", 0, 0),
+      ("Inter", "Milan", 4, 3),
+    ]
+    for (index, sample) in samples.enumerated() {
+      var match = Match(
+        homeTeam: "\(sample.0) \(batch)",
+        awayTeam: "\(sample.1) \(batch)")
+      match.homeScore = sample.2
+      match.awayScore = sample.3
+      try? self.historyStore.save(
+        CompletedMatch(
+          completedAt: Date().addingTimeInterval(TimeInterval(-index)),
+          match: match,
+          events: []))
+    }
+  }
+  #endif
+
   private func signOut() {
     Task { await self.authViewModel.signOut() }
   }
@@ -405,7 +441,7 @@ private final class PreviewMatchHistoryStore: MatchHistoryStoring {
 }
 
 #Preview("Settings") {
-  let authController = SupabaseAuthController(clientProvider: SupabaseClientProvider.shared)
+  let authController = ClerkAuthController.previewSignedIn()
   let diagnostics = SyncDiagnosticsCenter()
   let coordinator = AuthenticationCoordinator(authController: authController)
 

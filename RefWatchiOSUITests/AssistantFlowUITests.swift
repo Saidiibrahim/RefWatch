@@ -7,8 +7,7 @@ final class AssistantFlowUITests: XCTestCase {
     super.setUp()
     continueAfterFailure = false
     app = XCUIApplication()
-    app.launchEnvironment["REFWATCH_UI_TEST_AUTH_STATE"] = "signed_in"
-    app.launch()
+    app.launchRefWatch()
   }
 
   func testAssistantTabNavigationAndStubReply() throws {
@@ -25,14 +24,14 @@ final class AssistantFlowUITests: XCTestCase {
       fallbackBanner.waitForExistence(timeout: 5),
       "Current simulator builds should surface the stub banner until a server-backed assistant session is available.")
 
-    let prompt = app.textFields["Ask anything"]
+    let prompt = app.descendants(matching: .any)["assistant.prompt"]
     XCTAssertTrue(prompt.waitForExistence(timeout: 5))
-    XCTAssertFalse(app.buttons["Send"].exists)
+    XCTAssertFalse(app.buttons["assistant.send"].exists)
 
     prompt.tap()
     prompt.typeText("What do you see?")
 
-    let sendButton = app.buttons["Send"]
+    let sendButton = app.buttons["assistant.send"]
     XCTAssertTrue(sendButton.waitForExistence(timeout: 5))
     sendButton.tap()
 
@@ -42,7 +41,7 @@ final class AssistantFlowUITests: XCTestCase {
         .firstMatch
         .waitForExistence(timeout: 10),
       "The stub assistant should render a streamed reply after send.")
-    XCTAssertFalse(app.buttons["Send"].waitForExistence(timeout: 2))
+    XCTAssertFalse(app.buttons["assistant.send"].waitForExistence(timeout: 2))
   }
 
   func testAssistantSendStateTogglesWithTextInput() throws {
@@ -51,20 +50,20 @@ final class AssistantFlowUITests: XCTestCase {
     app.tabBars.buttons["Assistant"].tap()
     XCTAssertTrue(app.navigationBars["Assistant"].waitForExistence(timeout: 5))
 
-    let prompt = app.textFields["Ask anything"]
+    let prompt = app.descendants(matching: .any)["assistant.prompt"]
     XCTAssertTrue(prompt.waitForExistence(timeout: 5))
 
-    XCTAssertFalse(app.buttons["Send"].exists)
+    XCTAssertFalse(app.buttons["assistant.send"].exists)
 
     prompt.tap()
     prompt.typeText("Send-state check")
 
-    let sendButton = app.buttons["Send"]
+    let sendButton = app.buttons["assistant.send"]
     XCTAssertTrue(sendButton.waitForExistence(timeout: 5))
     sendButton.tap()
 
     XCTAssertTrue(app.staticTexts["Send-state check"].waitForExistence(timeout: 5))
-    XCTAssertFalse(app.buttons["Send"].waitForExistence(timeout: 2))
+    XCTAssertFalse(app.buttons["assistant.send"].waitForExistence(timeout: 2))
   }
 
   func testAssistantAttachmentEntryPointReportsCurrentSimulatorLimitation() throws {
@@ -73,10 +72,10 @@ final class AssistantFlowUITests: XCTestCase {
     app.tabBars.buttons["Assistant"].tap()
     XCTAssertTrue(app.navigationBars["Assistant"].waitForExistence(timeout: 5))
 
-    let plusButton = app.buttons["Attach image"]
-    guard plusButton.waitForExistence(timeout: 5) else {
-      throw XCTSkip("The assistant attachment entry point is not accessible in the current simulator UI.")
-    }
+    let plusButton = app.buttons["assistant.attachImage"]
+    XCTAssertTrue(
+      plusButton.waitForExistence(timeout: 5),
+      "The assistant attachment entry point must remain accessible by its stable identifier.")
 
     plusButton.tap()
 

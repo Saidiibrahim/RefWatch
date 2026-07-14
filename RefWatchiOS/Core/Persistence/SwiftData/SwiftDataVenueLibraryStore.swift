@@ -16,7 +16,7 @@ import SwiftData
 @MainActor
 final class SwiftDataVenueLibraryStore: VenueLibraryStoring {
   private let container: ModelContainer
-  private let auth: SupabaseAuthStateProviding
+  private let auth: AuthStateProviding
   private let log = AppLog.supabase
   private let changesSubject = PassthroughSubject<[VenueRecord], Never>()
 
@@ -29,7 +29,7 @@ final class SwiftDataVenueLibraryStore: VenueLibraryStoring {
     self.changesSubject.eraseToAnyPublisher()
   }
 
-  init(container: ModelContainer, auth: SupabaseAuthStateProviding) {
+  init(container: ModelContainer, auth: AuthStateProviding) {
     self.container = container
     self.auth = auth
   }

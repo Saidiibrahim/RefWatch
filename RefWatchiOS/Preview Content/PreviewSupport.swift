@@ -59,8 +59,8 @@ enum MatchSheetImportPreviewSupport {
   }
 
   @MainActor
-  static func authController() -> SupabaseAuthController {
-    SupabaseAuthController.previewSignedIn()
+  static func authController() -> ClerkAuthController {
+    ClerkAuthController.previewSignedIn()
   }
 
   nonisolated static var canonicalKickoff: Date {

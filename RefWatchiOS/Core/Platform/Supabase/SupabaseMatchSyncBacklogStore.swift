@@ -1,5 +1,5 @@
 //
-//  SupabaseMatchSyncBacklogStore.swift
+//  BackendMatchSyncBacklogStore.swift
 //  RefWatchiOS
 //
 //  Persists pending match sync operations (deletions + push retry metadata)
@@ -26,7 +26,7 @@ protocol MatchSyncBacklogStoring: AnyObject {
   func clearAll()
 }
 
-final class SupabaseMatchSyncBacklogStore: MatchSyncBacklogStoring {
+final class BackendMatchSyncBacklogStore: MatchSyncBacklogStoring {
   private let defaults: UserDefaults
   private let deletionKey = "com.refzone.supabase.matches.pendingdeletes"
   private let pushKey = "com.refzone.supabase.matches.pendingpushes"

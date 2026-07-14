@@ -17,6 +17,8 @@ enum AppLog {
     static let schedule = Logger(subsystem: subsystem, category: "Schedule")
     static let library = Logger(subsystem: subsystem, category: "Library")
     static let connectivity = Logger(subsystem: subsystem, category: "Connectivity")
+    static let auth = Logger(subsystem: subsystem, category: "Authentication")
+    static let backend = Logger(subsystem: subsystem, category: "Backend")
     static let supabase = Logger(subsystem: subsystem, category: "Supabase")
 #else
     // Fallback no-op stubs when OSLog is unavailable
@@ -29,6 +31,8 @@ enum AppLog {
     static let schedule = NoopLogger()
     static let library = NoopLogger()
     static let connectivity = NoopLogger()
+    static let auth = NoopLogger()
+    static let backend = NoopLogger()
     static let supabase = NoopLogger()
 #endif
 }

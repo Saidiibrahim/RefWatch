@@ -16,7 +16,7 @@ import SwiftData
 @MainActor
 final class SwiftDataCompetitionLibraryStore: CompetitionLibraryStoring {
   private let container: ModelContainer
-  private let auth: SupabaseAuthStateProviding
+  private let auth: AuthStateProviding
   private let log = AppLog.supabase
   private let changesSubject = PassthroughSubject<[CompetitionRecord], Never>()
 
@@ -29,7 +29,7 @@ final class SwiftDataCompetitionLibraryStore: CompetitionLibraryStoring {
     self.changesSubject.eraseToAnyPublisher()
   }
 
-  init(container: ModelContainer, auth: SupabaseAuthStateProviding) {
+  init(container: ModelContainer, auth: AuthStateProviding) {
     self.container = container
     self.auth = auth
   }

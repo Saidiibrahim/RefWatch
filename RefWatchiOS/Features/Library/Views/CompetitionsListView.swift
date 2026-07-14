@@ -3,7 +3,7 @@
 //  RefWatchiOS
 //
 //  List view for browsing and managing competitions in the library.
-//  Shows reference catalog competitions from Supabase for authenticated users.
+//  Shows backend reference-catalog competitions for authenticated users.
 //
 
 import SwiftUI

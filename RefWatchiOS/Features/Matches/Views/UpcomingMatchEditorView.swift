@@ -17,7 +17,7 @@ struct UpcomingMatchEditorView: View {
   var onSaved: (() -> Void)?
 
   @Environment(\.dismiss) private var dismiss
-  @EnvironmentObject private var authController: SupabaseAuthController
+  @EnvironmentObject private var authController: ClerkAuthController
   @State private var homeName: String
   @State private var awayName: String
   @State private var kickoff: Date

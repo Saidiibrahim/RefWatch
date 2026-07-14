@@ -1,5 +1,5 @@
 //
-//  SupabaseTeamSyncBacklogStore.swift
+//  BackendTeamSyncBacklogStore.swift
 //  RefWatchiOS
 //
 //  Persists pending team deletion identifiers so the repository can retry
@@ -15,7 +15,7 @@ protocol TeamLibrarySyncBacklogStoring: AnyObject {
   func clearAll()
 }
 
-final class SupabaseTeamSyncBacklogStore: TeamLibrarySyncBacklogStoring {
+final class BackendTeamSyncBacklogStore: TeamLibrarySyncBacklogStoring {
   private let defaults: UserDefaults
   private let key = "com.refzone.supabase.teamlibrary.pendingdeletes"
   private let queue = DispatchQueue(label: "com.refzone.supabase.teamlibrary.backlog")

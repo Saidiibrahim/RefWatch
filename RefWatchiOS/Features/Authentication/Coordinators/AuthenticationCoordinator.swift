@@ -46,10 +46,10 @@ final class AuthenticationCoordinator: ObservableObject {
     @AppStorage("has_completed_onboarding") private var hasCompletedOnboarding: Bool = false
     @Published var activeScreen: Screen?
 
-    private let authController: SupabaseAuthController
+    private let authController: ClerkAuthController
     private var stateCancellable: AnyCancellable?
 
-    init(authController: SupabaseAuthController) {
+    init(authController: ClerkAuthController) {
         self.authController = authController
         stateCancellable = authController.$state
             .removeDuplicates()

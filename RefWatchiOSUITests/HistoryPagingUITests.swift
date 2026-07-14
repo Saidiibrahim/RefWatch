@@ -8,65 +8,61 @@ final class HistoryPagingUITests: XCTestCase {
 
   func testInfiniteScrollLoadsMore_afterSeeding() {
     let app = XCUIApplication()
-    app.launch()
+    app.launchRefWatch()
 
     // Ensure we have more than one page of history by seeding in DEBUG
     let settingsTab = app.tabBars.buttons["Settings"]
     if settingsTab.exists { settingsTab.tap() }
-    self.seedDemoHistory(app, times: 3) // ~15 items
+    self.seedDemoHistory(app, times: 12) // 60 items, exceeding the 50-row page size.
 
-    let matchesTab = app.tabBars.buttons["Matches"]
-    matchesTab.tap()
-    app.buttons["History"].tap()
+    self.openHistory(app)
 
-    let table = app.tables.firstMatch
+    let table = app.collectionViews.firstMatch
     XCTAssertTrue(table.waitForExistence(timeout: 3))
-    let initialCount = table.cells.count
-
     // Scroll to trigger load more
     if table.cells.firstMatch.exists {
-      table.swipeUp()
-      table.swipeUp()
+      for _ in 0..<12 {
+        table.swipeUp()
+      }
     }
     // Wait briefly for async load
     sleep(1)
 
-    let afterCount = table.cells.count
-    XCTAssertGreaterThan(afterCount, initialCount)
+    XCTAssertTrue(
+      app.staticTexts["Inter 1 vs Milan 1"].waitForExistence(timeout: 5),
+      "Scrolling to the paging footer should load the oldest seeded page.")
   }
 
   func testRefreshUpdatesList_afterSeedingNewItems() {
     let app = XCUIApplication()
-    app.launch()
+    app.launchRefWatch()
 
     // Open history first
-    app.tabBars.buttons["Matches"].tap()
-    app.buttons["History"].tap()
-    let table = app.tables.firstMatch
+    self.openHistory(app)
+    let table = app.collectionViews.firstMatch
     XCTAssertTrue(table.waitForExistence(timeout: 3))
-    let countBefore = table.cells.count
-
     // Seed new items
     app.tabBars.buttons["Settings"].tap()
     self.seedDemoHistory(app, times: 1)
 
     // Return and pull to refresh
-    app.tabBars.buttons["Matches"].tap()
-    app.buttons["History"].tap()
-    let table2 = app.tables.firstMatch
+    self.openHistory(app)
+    let table2 = app.collectionViews.firstMatch
     XCTAssertTrue(table2.waitForExistence(timeout: 3))
     if table2.exists { table2.swipeDown() }
     sleep(1)
-    let countAfter = table2.cells.count
-    XCTAssertGreaterThan(countAfter, countBefore)
+    XCTAssertTrue(
+      app.staticTexts["Leeds United 1 vs Newcastle United 1"].waitForExistence(timeout: 5),
+      "Refresh should expose history written while another tab was active.")
   }
 
   func testDeleteRemovesRow() {
     let app = XCUIApplication()
-    app.launch()
-    app.tabBars.buttons["Matches"].tap()
-    app.buttons["History"].tap()
-    let table = app.tables.firstMatch
+    app.launchRefWatch()
+    app.tabBars.buttons["Settings"].tap()
+    self.seedDemoHistory(app, times: 1)
+    self.openHistory(app)
+    let table = app.collectionViews.firstMatch
     XCTAssertTrue(table.waitForExistence(timeout: 3))
     guard table.cells.firstMatch.exists else { return }
     let firstCell = table.cells.element(boundBy: 0)
@@ -87,6 +83,19 @@ final class HistoryPagingUITests: XCTestCase {
     for _ in 0..<times {
       seedButton.tap()
     }
+  }
+
+  private func openHistory(_ app: XCUIApplication) {
+    app.tabBars.buttons["Matches"].tap()
+    if app.navigationBars["History"].exists == false {
+      let historyButton = app.buttons["See All History"]
+      if historyButton.waitForExistence(timeout: 3) {
+        historyButton.tap()
+      } else {
+        app.buttons["History"].tap()
+      }
+    }
+    XCTAssertTrue(app.navigationBars["History"].waitForExistence(timeout: 5))
   }
 }
 

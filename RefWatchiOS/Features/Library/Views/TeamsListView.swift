@@ -3,7 +3,7 @@
 //  RefWatchiOS
 //
 //  Lists teams with search and create; navigates to TeamEditorView.
-//  Shows reference catalog teams from Supabase for authenticated users.
+//  Shows backend reference-catalog teams for authenticated users.
 //
 
 import OSLog

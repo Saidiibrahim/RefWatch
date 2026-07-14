@@ -1,5 +1,5 @@
 //
-//  SupabaseCompetitionLibraryRepository.swift
+//  BackendCompetitionLibraryRepository.swift
 //  RefWatchiOS
 //
 //  Wraps the SwiftData competition store with Supabase sync behavior. Local changes
@@ -14,10 +14,10 @@ import RefWatchCore
 import SwiftData
 
 @MainActor
-final class SupabaseCompetitionLibraryRepository: CompetitionLibraryStoring {
+final class BackendCompetitionLibraryRepository: CompetitionLibraryStoring {
   private let store: SwiftDataCompetitionLibraryStore
-  private let api: SupabaseCompetitionLibraryServing
-  private let authStateProvider: SupabaseAuthStateProviding
+  private let api: CompetitionRemoteServing
+  private let authStateProvider: AuthStateProviding
   private let backlog: CompetitionLibrarySyncBacklogStoring
   private let log = AppLog.supabase
   private let dateProvider: () -> Date
@@ -36,8 +36,8 @@ final class SupabaseCompetitionLibraryRepository: CompetitionLibraryStoring {
 
   init(
     store: SwiftDataCompetitionLibraryStore,
-    authStateProvider: SupabaseAuthStateProviding,
-    api: SupabaseCompetitionLibraryServing,
+    authStateProvider: AuthStateProviding,
+    api: CompetitionRemoteServing,
     backlog: CompetitionLibrarySyncBacklogStoring,
     dateProvider: @escaping () -> Date = Date.init)
   {
@@ -125,7 +125,7 @@ final class SupabaseCompetitionLibraryRepository: CompetitionLibraryStoring {
 
 // MARK: - Identity Handling & Sync Scheduling
 
-extension SupabaseCompetitionLibraryRepository {
+extension BackendCompetitionLibraryRepository {
   private func handleAuthState(_ state: AuthState) async {
     switch state {
     case .signedOut:
@@ -196,7 +196,7 @@ extension SupabaseCompetitionLibraryRepository {
 
 // MARK: - Queue Processing
 
-extension SupabaseCompetitionLibraryRepository {
+extension BackendCompetitionLibraryRepository {
   fileprivate enum SyncOperation {
     case push(UUID)
     case delete(UUID)
@@ -246,7 +246,7 @@ extension SupabaseCompetitionLibraryRepository {
 
 // MARK: - Remote Operations
 
-extension SupabaseCompetitionLibraryRepository {
+extension BackendCompetitionLibraryRepository {
   private func flushPendingDeletions() async throws {
     while let deletionId = pendingDeletions.popFirst() {
       await self.performRemoteDeletion(id: deletionId)
@@ -296,7 +296,7 @@ extension SupabaseCompetitionLibraryRepository {
       return
     }
 
-    let request = SupabaseCompetitionLibraryAPI.CompetitionRequest(
+    let request = CompetitionRemoteContract.CompetitionRequest(
       id: record.id,
       ownerId: ownerUUID,
       name: record.name,
@@ -348,6 +348,15 @@ extension SupabaseCompetitionLibraryRepository {
       for remote in remoteCompetitions {
         if self.pendingDeletions.contains(remote.id) {
           skippedPendingDeletion += 1
+          continue
+        }
+
+        if remote.deletedAt != nil {
+          if let existing = existingById.removeValue(forKey: remote.id) {
+            try self.store.delete(existing)
+            self.pendingPushes.remove(remote.id)
+            updatedCount += 1
+          }
           continue
         }
 
@@ -404,7 +413,7 @@ extension SupabaseCompetitionLibraryRepository {
 
 // MARK: - Helpers
 
-extension SupabaseCompetitionLibraryRepository {
+extension BackendCompetitionLibraryRepository {
   private func publishSyncStatus() {
     let info: [String: Any] = [
       "component": "competition_library",
@@ -457,7 +466,7 @@ extension SupabaseCompetitionLibraryRepository {
   }
 }
 
-extension SupabaseCompetitionLibraryRepository: AggregateCompetitionApplying {
+extension BackendCompetitionLibraryRepository: AggregateCompetitionApplying {
   func upsertCompetition(from aggregate: AggregateSnapshotPayload.Competition) throws {
     let ownerUUID = try requireOwnerUUIDForAggregate(operation: "aggregate competition upsert")
     let record = try store.upsertFromAggregate(aggregate, ownerSupabaseId: ownerUUID.uuidString)

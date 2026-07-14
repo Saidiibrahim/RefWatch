@@ -4,7 +4,7 @@ import XCTest
 final class MatchesFlowUITests: XCTestCase {
     func test_add_upcoming_shows_in_list() throws {
         let app = XCUIApplication()
-        app.launch()
+        app.launchRefWatch()
 
         // Ensure we are on Matches
         XCTAssertTrue(app.navigationBars["Matches"].waitForExistence(timeout: 5))
@@ -34,4 +34,3 @@ final class MatchesFlowUITests: XCTestCase {
 }
 
 #endif
-

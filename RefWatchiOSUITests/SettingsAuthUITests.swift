@@ -5,15 +5,11 @@ final class SettingsAuthUITests: XCTestCase {
         continueAfterFailure = false
     }
 
-    func testSettings_showsSignInWhenSignedOut() {
+    func testSignedOutShell_showsSignInAction() {
         let app = XCUIApplication()
-        app.launch()
+        app.launchRefWatch(authState: "signed_out")
 
-        // Navigate to Settings tab
-        app.tabBars.buttons["Settings"].tap()
-
-        // Expect the Sign in button to be visible when no user session exists
-        XCTAssertTrue(app.buttons["Sign in"].waitForExistence(timeout: 5))
+        // Signed-out users are blocked at the authentication gate.
+        XCTAssertTrue(app.buttons["Sign In"].waitForExistence(timeout: 5))
     }
 }
-
