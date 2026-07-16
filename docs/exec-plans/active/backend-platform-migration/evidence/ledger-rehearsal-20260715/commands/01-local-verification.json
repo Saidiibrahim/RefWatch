@@ -1,0 +1,18 @@
+{
+  "receipt": "local-verification",
+  "command_id": "local-final-validation-20260715T052816Z",
+  "execution_started_at_utc": "2026-07-15T05:28:16Z",
+  "execution_ended_at_utc": "2026-07-15T05:28:17Z",
+  "capture": "exact sanitized stdout retained below; no stderr",
+  "captured_stdout": "typecheck exit 0; Test Files 12 passed (12), Tests 61 passed (61), Start at 14:58:16 Australia/Adelaide, Duration 941ms; coverage ok true, schema_tables 35, trigger_captured_tables 22, explicitly_excluded_tables 13, included_writer_files 6, control_plane_writer_files 2; every manifest entry OK; git diff --check exit 0",
+  "date_utc": "2026-07-15",
+  "cwd": "api",
+  "commands": [
+    {"shape": "npm run typecheck", "exit_code": 0},
+    {"shape": "npm test", "exit_code": 0, "files": 12, "tests_passed": 61},
+    {"shape": "npm run test:db", "exit_code": 0, "files": 3, "tests_passed": 19, "duration_seconds": 23.56},
+    {"shape": "npm run mutation:coverage", "exit_code": 0, "tables": 35, "captured": 22, "excluded": 13, "included_writers": 6, "control_writers": 2},
+    {"shape": "npm run dry-run -- --env rehearsal", "exit_code": 0, "wrangler": "4.110.0", "total_upload_kib": 1508.06, "gzip_kib": 271.48},
+    {"shape": "git diff --check", "exit_code": 0}
+  ]
+}

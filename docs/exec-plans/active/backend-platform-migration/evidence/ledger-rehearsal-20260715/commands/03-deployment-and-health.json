@@ -1,0 +1,28 @@
+{
+  "receipt": "rehearsal-deployment-and-health",
+  "command_id": "cf-rehearsal-deploy-b745554c",
+  "execution_started_at_utc": null,
+  "execution_ended_at_utc": "2026-07-15T05:05:43.533583Z",
+  "timestamp_limitation": "Provider deployment completion time is exact; shell start time was not retained.",
+  "capture": "full sanitized deployment, binding, health, and readiness result published below; raw API response omitted",
+  "command_shape": "wrangler deploy --env rehearsal followed by version, deployment, binding, health, and cache-busted readiness readbacks",
+  "exit_code": 0,
+  "wrangler": "4.110.0",
+  "worker_version_id": "b745554c-a4e7-4d58-90f8-36bdedd94e7d",
+  "deployment_id": "9c43008b-e2d0-4388-a589-c0ad124493d9",
+  "deployed_at_utc": "2026-07-15T05:05:43.533583Z",
+  "traffic_percent": 100,
+  "script_etag": "c7fe13feeaec6962e56ee072a7479b1ea022b21ded00bf2d21a04d4d5477ccc4",
+  "binding_readback": {
+    "hyperdrive_id": "c374273a5bb040d4b4950c28c6012ec5",
+    "d1_database_id": "d6fd2757-0cfa-4468-97bc-c543de824917",
+    "database_marker_exact": true,
+    "branch_id_exact": true,
+    "runtime_role_id_exact": true,
+    "rehearsal_write_enabled": true,
+    "encryption_secret_present": true,
+    "encryption_key_id": "rehearsal-20260715-v2"
+  },
+  "health": {"status": "ok", "environment": "rehearsal"},
+  "readiness": {"status": "ready", "database": "reachable", "database_identity": "verified"}
+}

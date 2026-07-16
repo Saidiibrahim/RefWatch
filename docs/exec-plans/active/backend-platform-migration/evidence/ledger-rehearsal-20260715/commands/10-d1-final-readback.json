@@ -1,0 +1,22 @@
+{
+  "receipt": "remote-d1-final-readback",
+  "command_id": "d1-final-group-and-dlq-readback",
+  "execution_started_at_utc": null,
+  "execution_ended_at_utc": null,
+  "timestamp_limitation": "Wrangler execution boundaries were not retained; complete sanitized grouped counts and all three DLQ rows are published below.",
+  "capture": "complete sanitized query result; ciphertext-bearing event columns were not selected",
+  "command_shape": "wrangler d1 execute refwatch-mutation-ledger-rehearsal-20260715 --remote --env rehearsal --command <grouped read-only query>",
+  "exit_code": 0,
+  "wrangler": "4.110.0",
+  "database_id": "d6fd2757-0cfa-4468-97bc-c543de824917",
+  "served_by_primary": true,
+  "rows_written": 0,
+  "events": 34,
+  "epochs_present": 16,
+  "epoch_counts_by_first_sequence": [3,3,3,1,3,3,3,1,1,1,3,3,1,1,3,1],
+  "dead_letters": [
+    {"dead_letter_id":"5c05bbe97836d3371dd8597a5483c36c","event_id":"c362db5b-c44f-4b2b-9597-f2d09a7f14bd","lease_generation":1,"dlq_consumer_attempt":1,"disposition":"quarantined","received_at_utc":"2026-07-15T03:52:28.092Z"},
+    {"dead_letter_id":"c01a2a6de8e51f49d8b1a9f67801f4c1","event_id":"106b2fd6-6cf1-42b2-81ba-5f829739d43a","lease_generation":1,"dlq_consumer_attempt":1,"disposition":"quarantined","received_at_utc":"2026-07-15T04:30:30.741Z"},
+    {"dead_letter_id":"44c07a824abe6774d93e0b837543d7e5","event_id":"9f055164-9a70-476f-a552-0308fe287596","lease_generation":1,"dlq_consumer_attempt":1,"disposition":"quarantined","received_at_utc":"2026-07-15T05:13:30.530Z"}
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "receipt": "two-local-restores",
+  "command_id": "ledger-v6-local-restores-55436-55437",
+  "execution_started_at_utc": null,
+  "execution_ended_at_utc": null,
+  "timestamp_limitation": "Per-command UTC boundaries were not retained; exact procedure durations and target identities are retained.",
+  "capture": "full sanitized replay results published below; encrypted export and decryption keyring omitted",
+  "tool": "Node.js v25.8.2 and local PostgreSQL",
+  "command_shape": "REFWATCH_ALLOW_DESTRUCTIVE_LEDGER_REPLAY=1 node scripts/replay-ledger-rehearsal.mjs",
+  "exit_code": 0,
+  "source_verifier_role_id": "psf6epuvymjt",
+  "source_transaction_read_only": true,
+  "schema_sha256": "148ed9bb0a3d0cd2c6d2caeae23104f8b9a2408c73e976957a27acac7ce1ea68",
+  "targets": [
+    {"kind": "same_schema", "local_port": 55436, "expected": 3, "replayed": 3, "missing": 0, "unexpected": 0, "mismatched": 0, "final_digest": "8bd4f1dd6dcbe48b887ec4e183f8d927f55b3a853381454304d6858e6d99c4f5", "procedure_seconds": 1.647, "stopped_afterward": true},
+    {"kind": "second_same_contract", "local_port": 55437, "expected": 3, "replayed": 3, "missing": 0, "unexpected": 0, "mismatched": 0, "final_digest": "8bd4f1dd6dcbe48b887ec4e183f8d927f55b3a853381454304d6858e6d99c4f5", "procedure_seconds": 1.563, "stopped_afterward": true}
+  ]
+}

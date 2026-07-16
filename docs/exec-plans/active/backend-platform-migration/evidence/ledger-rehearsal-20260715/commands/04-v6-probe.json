@@ -1,0 +1,23 @@
+{
+  "receipt": "v6-synthetic-probe",
+  "command_id": "ledger-v6-probe-9d9c48ec",
+  "execution_started_at_utc": "2026-07-15T05:08:39.240Z",
+  "execution_ended_at_utc": null,
+  "timestamp_limitation": "Exact epoch baseline/open time is retained; shell end time was not retained.",
+  "capture": "full sanitized script result published below; plaintext baseline and ciphertext omitted",
+  "tool": "Node.js v25.8.2 plus Worker b745554c-a4e7-4d58-90f8-36bdedd94e7d",
+  "command_shape": "REFWATCH_ALLOW_LEDGER_REHEARSAL_PROBE=1 node scripts/create-ledger-rehearsal-probe.mjs",
+  "exit_code": 0,
+  "worker_version_id": "b745554c-a4e7-4d58-90f8-36bdedd94e7d",
+  "epoch_id": "9d9c48ec-fde4-4df8-b967-ea9b890036b7",
+  "baseline_snapshot_id": "planetscale:ng9tgmy4pyi5:2026-07-15T05:08:39.240Z",
+  "schema_sha256": "148ed9bb0a3d0cd2c6d2caeae23104f8b9a2408c73e976957a27acac7ce1ea68",
+  "baseline_data_sha256": "b8b76e7856a654e4c936eb07095860c81ade0b543feb946a448e3843b08ebf88",
+  "request_id": "ledger-probe-7d45e47d-9f6c-4568-b097-de5d91253df7",
+  "events": [
+    {"sequence": 70, "event_id": "01632415-38f9-4159-9ebf-691bf4f1e9e6", "table": "app_users", "operation": "insert"},
+    {"sequence": 71, "event_id": "817b3247-8c30-48aa-85bd-aa08f442d83c", "table": "teams", "operation": "insert"},
+    {"sequence": 72, "event_id": "32a7204d-aec3-4d1f-9d08-533a2656ef9e", "table": "teams", "operation": "update"}
+  ],
+  "delivery": {"expected": 3, "delivered": 3, "active_leases": 0}
+}

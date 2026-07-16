@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RefWatch migration operator actions</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #07100d;
+      --panel: #101c18;
+      --panel-2: #16251f;
+      --line: #294239;
+      --text: #f0f7f3;
+      --muted: #a4b9af;
+      --green: #59e69c;
+      --amber: #ffc766;
+      --red: #ff8d8d;
+      --blue: #8bc7ff;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font: 16px/1.55 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 85% 0%, rgba(89, 230, 156, .13), transparent 32rem),
+        linear-gradient(180deg, #08130f 0%, var(--bg) 100%);
+    }
+
+    main { width: min(980px, calc(100% - 32px)); margin: 0 auto; padding: 48px 0 72px; }
+    header { margin-bottom: 28px; }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { max-width: 760px; margin-bottom: 12px; font-size: clamp(2.1rem, 6vw, 4.5rem); line-height: .98; letter-spacing: -.055em; }
+    h2 { margin-bottom: 8px; font-size: 1.35rem; }
+    h3 { margin-bottom: 8px; color: var(--muted); font-size: .88rem; letter-spacing: .08em; text-transform: uppercase; }
+    a { color: var(--blue); }
+    code { color: #c7ffe0; font: .92em ui-monospace, SFMono-Regular, Menlo, monospace; }
+    pre { overflow-x: auto; margin: 12px 0 0; padding: 14px; border: 1px solid var(--line); border-radius: 12px; color: #d8e9e0; background: #09130f; font-size: .84rem; }
+
+    .eyebrow { margin-bottom: 12px; color: var(--green); font-weight: 800; letter-spacing: .11em; text-transform: uppercase; }
+    .lede { max-width: 760px; color: var(--muted); font-size: 1.08rem; }
+    .summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 28px 0; }
+    .metric { padding: 18px; border: 1px solid var(--line); border-radius: 16px; background: rgba(16, 28, 24, .88); }
+    .metric strong { display: block; margin-bottom: 4px; font-size: 1.5rem; }
+    .metric span { color: var(--muted); }
+
+    .stack { display: grid; gap: 16px; }
+    .card { padding: 24px; border: 1px solid var(--line); border-radius: 20px; background: linear-gradient(145deg, rgba(22, 37, 31, .98), rgba(13, 25, 20, .98)); box-shadow: 0 18px 60px rgba(0, 0, 0, .2); }
+    .card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+    .tag { flex: 0 0 auto; padding: 5px 10px; border-radius: 999px; font-size: .78rem; font-weight: 800; }
+    .now { color: #06120c; background: var(--green); }
+    .later { color: #211500; background: var(--amber); }
+    .done { color: #06120c; background: var(--green); }
+    .hold { color: #2a0606; background: var(--red); }
+    .done { color: #061526; background: var(--blue); }
+
+    .checklist { display: grid; gap: 10px; margin: 18px 0 0; padding: 0; list-style: none; }
+    .checklist label { display: grid; grid-template-columns: 22px 1fr; gap: 10px; align-items: start; cursor: pointer; }
+    input[type="checkbox"] { width: 18px; height: 18px; margin-top: 3px; accent-color: var(--green); }
+    .note { margin-top: 16px; padding: 14px 16px; border-left: 3px solid var(--amber); border-radius: 8px; color: #eadfc7; background: rgba(255, 199, 102, .08); }
+    .success { border-left-color: var(--green); color: #d8f8e6; background: rgba(89, 230, 156, .08); }
+    .danger { border-left-color: var(--red); color: #ffe0e0; background: rgba(255, 141, 141, .08); }
+
+    .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+    button, .button {
+      appearance: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 42px;
+      padding: 0 15px;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      color: var(--text);
+      background: #20352c;
+      font: inherit;
+      font-weight: 750;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    button:hover, .button:hover { border-color: var(--green); }
+    .primary { color: #04110a; border-color: var(--green); background: var(--green); }
+    .response { margin-top: 14px; padding: 14px; border: 1px dashed #46685a; border-radius: 12px; color: #d9e8e0; background: rgba(7, 16, 13, .7); }
+    .status { min-height: 1.5em; margin: 10px 0 0; color: var(--green); }
+    footer { margin-top: 28px; color: var(--muted); font-size: .9rem; }
+
+    @media (max-width: 700px) {
+      main { padding-top: 28px; }
+      .summary { grid-template-columns: 1fr; }
+      .card-head { display: block; }
+      .tag { display: inline-block; margin: 4px 0 12px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <p class="eyebrow">RefWatch · migration handoff</p>
+      <h1>External actions needed from you</h1>
+      <p class="lede">
+        This page is for access and operational tasks—not approvals. The two
+        production-foundation approvals are already recorded and the Clerk
+        production-domain lane is complete. The amber actions are needed later.
+      </p>
+    </header>
+
+    <section class="summary" aria-label="Current action summary">
+      <div class="metric"><strong>0</strong><span>decisions needed now</span></div>
+      <div class="metric"><strong>3</strong><span>later operator gates</span></div>
+      <div class="metric"><strong>0</strong><span>domain approvals pending</span></div>
+    </section>
+
+    <div class="stack">
+      <section class="card" aria-labelledby="domain-control-title">
+        <div class="card-head">
+          <div>
+            <h3>Completed 2026-07-17</h3>
+            <h2 id="domain-control-title">Owned replacement domain verified</h2>
+            <p>RefWatch production Clerk now uses the owned secondary domain <code>refwatch.ibby.ai</code>.</p>
+          </div>
+          <span class="tag done">Complete</span>
+        </div>
+
+        <p>The prior <code>auth.refwatch.com</code> decision and records remain retired unexercised. The live domain, five DNS-only CNAMEs, certificates, regenerated Worker publishable key, and issuer refresh are complete. The Worker remains unrouted, onboarding-disabled, and write-disabled.</p>
+        <ol>
+          <li>Clerk reports DNS, SSL, and email DNS complete with zero pending records.</li>
+          <li>Cloudflare records are DNS-only under <code>refwatch.ibby.ai</code>.</li>
+          <li>No further domain action is needed from the operator.</li>
+        </ol>
+        <div class="actions">
+          <a class="button" href="CLERK_DASHBOARD_ACTIONS.html">Open Clerk dashboard instructions</a>
+        </div>
+        <p class="response" id="replacement-domain">DOMAIN COMPLETE — refwatch.ibby.ai is verified for RefWatch production Clerk. DNS, SSL, email DNS, Worker publishable key, and issuer coordination are complete.</p>
+      </section>
+
+      <section class="card" aria-labelledby="clerk-access-title">
+        <div class="card-head">
+          <div>
+            <h3>Completed 2026-07-17</h3>
+            <h2 id="clerk-access-title">Clerk CLI access restored</h2>
+            <p>The operator authenticated Clerk's official CLI, which completed the production-domain verification without manual dashboard mutation.</p>
+          </div>
+          <span class="tag done">Complete</span>
+        </div>
+
+        <ol>
+          <li>Clerk CLI is linked to production instance <code>ins_3GWFGUd1rI6hx5lWlUxMYAkxdac</code>.</li>
+          <li>The official deploy-status check completed DNS, SSL, and email-DNS verification.</li>
+          <li>No additional Clerk access action is currently required.</li>
+        </ol>
+
+        <p class="note success">
+          CLI authentication is complete. Do not create or import users manually;
+          identity mutation and remaining provider setup stay separately gated.
+        </p>
+
+        <div class="actions">
+          <a class="button primary" href="https://dashboard.clerk.com/" target="_blank" rel="noreferrer">Open Clerk dashboard</a>
+        </div>
+        <p class="response" id="clerk-ready">CLERK ACCESS COMPLETE — Official CLI authentication and production-domain verification succeeded.</p>
+      </section>
+
+      <section class="card" aria-labelledby="clerk-checklist-title">
+        <div class="card-head">
+          <div>
+            <h3>Clerk configuration</h3>
+            <h2 id="clerk-checklist-title">Remaining Clerk work after domain completion</h2>
+            <p>These steps are shown for visibility. You do not need to perform them unless Codex asks you to take over manually.</p>
+          </div>
+          <span class="tag later">Remaining phases gated</span>
+        </div>
+
+        <ul class="checklist">
+          <li><label><input type="checkbox" checked disabled><span>Production domain and all five DNS-only Clerk CNAMEs verified.</span></label></li>
+          <li><label><input type="checkbox" checked disabled><span>Clerk DNS, SSL, and email DNS complete with zero pending records.</span></label></li>
+          <li><label><input type="checkbox" data-state="native"><span>Register the verified native iOS Bundle ID and Apple App ID Prefix against the production instance; do not reuse an inferred identifier.</span></label></li>
+          <li><label><input type="checkbox" data-state="auth"><span>Configure email/password, Apple, and Google credentials while keeping both sign-up and sign-in unavailable until the identity-cutover approval.</span></label></li>
+          <li><label><input type="checkbox" data-state="webhook"><span>Create the reviewed signed lifecycle webhook only when Codex provides the exact reachable endpoint; subscribe only to <code>user.created</code>, <code>user.updated</code>, and <code>user.deleted</code>.</span></label></li>
+        </ul>
+
+        <h3 style="margin-top:22px">Completed DNS-only CNAMEs</h3>
+        <pre>clerk.refwatch.ibby.ai            → frontend-api.clerk.services
+accounts.refwatch.ibby.ai         → accounts.clerk.services
+clkmail.refwatch.ibby.ai          → mail.5510u3rpvrex.clerk.services
+clk._domainkey.refwatch.ibby.ai   → dkim1.5510u3rpvrex.clerk.services
+clk2._domainkey.refwatch.ibby.ai  → dkim2.5510u3rpvrex.clerk.services</pre>
+        <p>The old five <code>auth.refwatch.com</code> records remain retired and must not be applied.</p>
+      </section>
+
+      <section class="card" aria-labelledby="escrow-title">
+        <div class="card-head">
+          <div>
+            <h3>Before production writes</h3>
+            <h2 id="escrow-title">Choose the organizational recovery vault</h2>
+            <p>The production ledger key exists in Worker secret custody and the local login Keychain, but a shared organizational recovery copy is still required.</p>
+          </div>
+          <span class="tag later">Needed later</span>
+        </div>
+
+        <p>Select an access-controlled shared destination with at least one recovery operator besides the local machine—for example Cloudflare Secrets Store, an organizational KMS, or a shared 1Password vault. Do not paste the key into chat.</p>
+        <div class="actions">
+          <button type="button" data-copy="escrow-response">Copy escrow response</button>
+        </div>
+        <p class="response" id="escrow-response">ESCROW TARGET: [Cloudflare Secrets Store / organizational KMS / shared 1Password vault]. Recovery operator(s): [names or roles]. Codex may stream the existing production ledger key into this destination without displaying it and may run a non-disclosing recovery check.</p>
+      </section>
+
+      <section class="card" aria-labelledby="devices-title">
+        <div class="card-head">
+          <div>
+            <h3>Final acceptance</h3>
+            <h2 id="devices-title">Bring the physical devices online</h2>
+            <p>Needed after the authenticated production route and migrated identities/data are ready.</p>
+          </div>
+          <span class="tag later">Needed later</span>
+        </div>
+
+        <ul>
+          <li>iPhone 15 Pro Max: powered on, unlocked, trusted, and connected to this Mac.</li>
+          <li>Apple Watch Series 9 (45mm): powered on, unlocked, paired, and reachable through the iPhone/Xcode device workflow.</li>
+        </ul>
+        <p class="response" id="devices-response">PHYSICAL DEVICES READY — iPhone 15 Pro Max and Apple Watch Series 9 are powered on, unlocked, trusted/paired, and available for RefWatch production acceptance.</p>
+        <div class="actions"><button type="button" data-copy="devices-response">Copy device-ready message</button></div>
+      </section>
+
+      <section class="card" aria-labelledby="forbidden-title">
+        <div class="card-head">
+          <div>
+            <h3>Boundary</h3>
+            <h2 id="forbidden-title">Do not perform these actions yet</h2>
+          </div>
+          <span class="tag hold">Hold</span>
+        </div>
+
+        <p class="note danger">
+          Do not enable Clerk sign-up or sign-in; create/import/update/merge/delete
+          Clerk users; stop or delete Supabase; export/import final rows; activate
+          mappings; add public API traffic; enable production writes; activate the
+          production mutation ledger; or rotate/revoke source OAuth credentials.
+          Those remain under later cutover gates and approvals.
+        </p>
+      </section>
+    </div>
+
+    <footer>
+      Last synchronized 2026-07-17. Approval history remains in
+      <a href="MIGRATION_APPROVALS.html">MIGRATION_APPROVALS.html</a>.
+      This page stores checklist ticks only in this browser's local storage.
+      <p class="status" id="copy-status" role="status" aria-live="polite"></p>
+    </footer>
+  </main>
+
+  <script>
+    const status = document.querySelector('#copy-status');
+
+    document.querySelectorAll('[data-copy]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const source = document.getElementById(button.dataset.copy);
+        try {
+          await navigator.clipboard.writeText(source.textContent.trim());
+          status.textContent = 'Message copied. Paste it into the Codex chat.';
+        } catch {
+          status.textContent = 'Clipboard access was unavailable. Select and copy the message manually.';
+        }
+      });
+    });
+
+    document.querySelectorAll('[data-state]').forEach((checkbox) => {
+      const key = `refwatch-operator-${checkbox.dataset.state}`;
+      checkbox.checked = localStorage.getItem(key) === 'true';
+      checkbox.addEventListener('change', () => localStorage.setItem(key, String(checkbox.checked)));
+    });
+  </script>
+</body>
+</html>

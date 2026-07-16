@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>RefWatch production-foundation approvals</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --surface-muted: #f1f5f9;
+      --text: #172033;
+      --muted: #526077;
+      --border: #cbd5e1;
+      --primary: #1d4ed8;
+      --primary-hover: #1e40af;
+      --safe: #166534;
+      --safe-bg: #f0fdf4;
+      --warning: #9a3412;
+      --warning-bg: #fff7ed;
+      --focus: #f97316;
+      --shadow: 0 16px 48px rgba(15, 23, 42, 0.08);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0f172a;
+        --surface: #182235;
+        --surface-muted: #222e43;
+        --text: #f8fafc;
+        --muted: #cbd5e1;
+        --border: #475569;
+        --primary: #60a5fa;
+        --primary-hover: #93c5fd;
+        --safe: #86efac;
+        --safe-bg: #143524;
+        --warning: #fdba74;
+        --warning-bg: #42230f;
+        --focus: #fb923c;
+        --shadow: 0 16px 48px rgba(0, 0, 0, 0.28);
+      }
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 16px;
+      line-height: 1.6;
+    }
+
+    main {
+      width: min(100% - 32px, 960px);
+      margin: 0 auto;
+      padding: 56px 0 80px;
+    }
+
+    header { max-width: 760px; margin-bottom: 32px; }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      color: var(--primary);
+      font-size: 0.78rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2rem, 6vw, 3.5rem);
+      line-height: 1.08;
+      letter-spacing: -0.045em;
+    }
+
+    h2 { margin: 0; font-size: 1.35rem; line-height: 1.25; }
+    h3 { margin: 24px 0 8px; font-size: 1rem; }
+    p { margin: 12px 0 0; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
+    .lede { margin-top: 18px; color: var(--muted); font-size: 1.08rem; }
+
+    .boundary {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin: 28px 0 32px;
+    }
+
+    .boundary > div {
+      min-height: 100%;
+      padding: 16px 18px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+
+    .boundary strong { display: block; margin-bottom: 4px; }
+    .allowed { background: var(--safe-bg); color: var(--safe); }
+    .forbidden { background: var(--warning-bg); color: var(--warning); }
+
+    .stack { display: grid; gap: 18px; }
+
+    .card {
+      padding: clamp(20px, 4vw, 30px);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    .card-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 20px;
+    }
+
+    .tag {
+      flex: none;
+      padding: 4px 10px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      color: var(--muted);
+      font-size: 0.76rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    ul { margin: 14px 0 0; padding-left: 22px; }
+    li + li { margin-top: 6px; }
+
+    pre {
+      overflow-x: auto;
+      margin: 14px 0 0;
+      padding: 14px 16px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface-muted);
+      color: var(--text);
+      font-size: 0.82rem;
+      line-height: 1.55;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    details { margin-top: 18px; }
+    summary { cursor: pointer; font-weight: 700; }
+    summary:hover { color: var(--primary); }
+
+    a { color: var(--primary); font-weight: 700; text-underline-offset: 3px; }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    button {
+      min-height: 48px;
+      padding: 11px 18px;
+      border: 2px solid var(--primary);
+      border-radius: 10px;
+      background: var(--primary);
+      color: var(--bg);
+      cursor: pointer;
+      font: inherit;
+      font-weight: 800;
+      transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease;
+      touch-action: manipulation;
+    }
+
+    button:hover { background: var(--primary-hover); border-color: var(--primary-hover); }
+    button.secondary { background: transparent; color: var(--primary); }
+    button.secondary:hover { background: var(--surface-muted); }
+    button:focus-visible, summary:focus-visible, a:focus-visible {
+      outline: 3px solid var(--focus);
+      outline-offset: 3px;
+    }
+
+    .approval {
+      margin-top: 18px;
+      padding: 16px;
+      border-left: 4px solid var(--primary);
+      background: var(--surface-muted);
+      overflow-wrap: anywhere;
+    }
+
+    .status {
+      min-height: 1.6em;
+      margin-top: 12px;
+      color: var(--safe);
+      font-weight: 700;
+    }
+
+    footer { margin-top: 28px; color: var(--muted); }
+
+    @media (max-width: 680px) {
+      main { width: min(100% - 24px, 960px); padding-top: 32px; }
+      .boundary { grid-template-columns: 1fr; }
+      .card-head { display: block; }
+      .tag { display: inline-block; margin-top: 12px; }
+      button { width: 100%; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <p class="eyebrow">RefWatch · operator approval gate</p>
+      <h1>Production foundation approvals</h1>
+      <p class="lede">
+        The isolated rehearsal approval is fully consumed. Both bounded
+        production-foundation actions were approved on 2026-07-15. Action 1
+        remains applied. Action 2's original <code>auth.refwatch.com</code>
+        scope is retired unexercised; the separately authorized owned
+        replacement-domain batch completed on 2026-07-17. No domain approval
+        remains actionable. Neither batch cuts over users, data, writes, or
+        traffic.
+      </p>
+    </header>
+
+    <section class="boundary" aria-label="Approval scope boundary">
+      <div class="allowed">
+        <strong>No approval requested now</strong>
+        Action 1's safe scope is applied. The old Action 2 remains historical
+        evidence and cannot be exercised. The separately authorized
+        <code>refwatch.ibby.ai</code> domain, five DNS-only CNAMEs, certificates,
+        regenerated Worker publishable key, and issuer refresh are complete.
+      </div>
+      <div class="forbidden">
+        <strong>Still forbidden</strong>
+        Creating or modifying user identities; stopping Supabase writes; final
+        row export/import; activating mappings; public API/DNS traffic cutover;
+        enabling production writes; deleting or archiving Supabase; changing
+        production user/application data. Action 1's exact 5-competition and
+        54-team global reference seed is the sole data exception.
+      </div>
+    </section>
+
+    <div class="stack">
+      <section class="card" aria-labelledby="foundation-title">
+        <div class="card-head">
+          <div>
+            <h2 id="foundation-title">Action 1 — database and Worker foundation</h2>
+            <p>Production resources, but no traffic and no writable application</p>
+          </div>
+          <span class="tag">Approved · safe scope applied</span>
+        </div>
+        <ul>
+          <li>Re-read PlanetScale <code>main</code>; proceed only if it is still the empty production branch.</li>
+          <li>Apply the reviewed PostgreSQL migrations <code>0000</code>–<code>0015</code> to <code>main</code>, then perform sanitized schema/trigger/reference readbacks.</li>
+          <li>Migration <code>0002</code>'s deterministic global seed of exactly 5 reference competitions and 54 reference teams is authorized; no user-owned/application row is.</li>
+          <li>Create production Hyperdrive, Queue, DLQ, D1 ledger, restricted database roles, and encryption-key custody required by the rollback design.</li>
+          <li>Install production Worker secrets without printing them and deploy <code>refwatch-api</code> with <code>WRITE_MODE=disabled</code>, onboarding disabled, and no public route or traffic switch.</li>
+          <li>Run health, database-readiness, write-denial, ledger, and sanitized configuration probes.</li>
+          <li>Stop immediately on any branch mismatch, unexpected table/data, migration-hash mismatch, writable probe, or failed control-plane receipt.</li>
+        </ul>
+        <h3>Migration manifest binding</h3>
+        <pre>Files     api/src/db/migrations/0000_*.sql through 0015_*.sql
+Manifest f0ed5af74e5fdde61eb84619c8f3514c647af29634606a8d38e0e3745535172f
+0015     6230b4e6f9986142166073c22f7522eca2b4a369d8a4975af6a0b7bbd8d6106a
+0002     134add3ba57288f2b0089791b1a77979ed004ef0a3fe52b1b3a3842376c0d78b (5/54 global reference seed)
+Target   PlanetScale main (w3g1f8vcbg34), only if empty on immediate readback
+Worker   refwatch-api production, WRITE_MODE=disabled, no public route</pre>
+        <p class="approval" id="approval-one">APPROVE RefWatch production-foundation action 1 only: after an immediate empty-branch readback, apply the reviewed migrations 0000–0015 bound to manifest SHA-256 f0ed5af74e5fdde61eb84619c8f3514c647af29634606a8d38e0e3745535172f to PlanetScale main branch w3g1f8vcbg34, including only migration 0002's deterministic 5-competition/54-team global reference seed bound to SHA-256 134add3ba57288f2b0089791b1a77979ed004ef0a3fe52b1b3a3842376c0d78b; provision the production Hyperdrive, restricted roles, Queue, DLQ, D1 ledger, and encryption-key custody; install production Worker secrets without disclosure; deploy refwatch-api with WRITE_MODE=disabled and onboarding disabled, without a public route or traffic switch; and run only sanitized readiness, write-denial, ledger, schema, trigger, and reference readbacks. User identities, Supabase writes/lifecycle, row export/import, mapping activation, all other production user/application data changes, public traffic, and write enablement remain forbidden.</p>
+        <p class="status">Applied: migrations 0000–0015, exact 5/54 seed, read-only runtime/verifier roles, Hyperdrive, Queue/DLQ/D1, local key custody, securely installed production Clerk/OpenAI keys, and unrouted write-disabled Worker <code>e966d6df-b5ff-4288-832c-c8d91e00ce48</code> with verified <code>refwatch.ibby.ai</code> issuer/publishable-key pins. Localhost production-config/runtime-role readiness and write-denial probes passed. No repeat approval is needed for the completed Action 1 infrastructure. Organizational escrow/recovery and a later functional production ledger probe/activation remain separately gated. Production cron and Queue consumers are absent.</p>
+      </section>
+
+      <section class="card" aria-labelledby="clerk-title">
+        <div class="card-head">
+          <div>
+            <h2 id="clerk-title">Action 2 — Clerk production edge</h2>
+            <p>Domain and signed delivery setup, with identity mutation forbidden</p>
+          </div>
+          <span class="tag">Historical scope retired · replacement complete</span>
+        </div>
+        <p class="status">Archived audit summary: the 2026-07-15 approval covered a proposed <code>auth.refwatch.com</code> domain phase plus later native-app, authentication-strategy, and signed-webhook setup while identity mutation, data migration, traffic cutover, and production writes remained forbidden. The domain phase was never exercised and cannot be reused because the operator does not own <code>refwatch.com</code>.</p>
+        <p class="status">Historical scope retired unexercised: do not apply the old <code>auth.refwatch.com</code> CNAMEs. Separately authorized replacement work completed on 2026-07-17 for owned secondary domain <code>refwatch.ibby.ai</code>: exact five DNS-only CNAMEs, DNS/SSL/email-DNS verification, regenerated Worker publishable key, and issuer refresh. Native iOS registration/configuration, Google OAuth, lifecycle webhook, identities, application data, traffic, onboarding, ledger activation, and writes remain pending and separately gated.</p>
+      </section>
+
+      <section class="card" aria-labelledby="both-title">
+        <div class="card-head">
+          <div>
+            <h2 id="both-title">Historical combined approval</h2>
+            <p>Retained for audit; it is not actionable approval text</p>
+          </div>
+          <span class="tag">Historical approval recorded</span>
+        </div>
+        <p class="status">Archived audit summary: the combined 2026-07-15 approval authorized the now-applied, write-disabled production foundation and a proposed Clerk edge phase. The proposed <code>auth.refwatch.com</code> portion was retired unexercised; the later <code>refwatch.ibby.ai</code> domain work was separately authorized and completed. This section records history only and grants no current authority.</p>
+      </section>
+    </div>
+
+    <footer>
+      <p>The previous rehearsal approval is consumed, Action 1 remains applied, and the separately authorized replacement-domain batch is consumed. Action 2 is retained only as historical approval text; its old domain scope is retired unexercised. Current operator tasks are tracked in <a href="MIGRATION_OPERATOR_ACTIONS.html">MIGRATION_OPERATOR_ACTIONS.html</a>, with remaining manual Clerk guidance in <a href="CLERK_DASHBOARD_ACTIONS.html">CLERK_DASHBOARD_ACTIONS.html</a>. Native/OAuth/webhook work and the final identity/data/traffic/write cutover remain separately gated.</p>
+    </footer>
+  </main>
+</body>
+</html>

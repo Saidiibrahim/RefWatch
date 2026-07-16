@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RefWatch Clerk dashboard actions</title>
+  <style>
+    :root { color-scheme: dark; --bg:#0a0d12; --panel:#121823; --line:#293345; --text:#f4f7fb; --muted:#aab5c5; --green:#63d7a4; --amber:#f4c56a; --red:#ff817a; --blue:#8bb8ff; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:radial-gradient(circle at top left,#17243a 0,var(--bg) 42%); color:var(--text); font:16px/1.55 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    main { width:min(980px,calc(100% - 32px)); margin:auto; padding:48px 0 72px; }
+    header,.card,.summary { border:1px solid var(--line); background:rgba(18,24,35,.94); border-radius:18px; box-shadow:0 18px 50px rgba(0,0,0,.24); }
+    header,.card { padding:26px; }
+    header { margin-bottom:18px; }
+    h1,h2,h3,p { margin-top:0; }
+    h1 { font-size:clamp(2rem,5vw,3.7rem); line-height:1.02; max-width:780px; }
+    h2 { font-size:1.35rem; }
+    h3,.eyebrow { color:var(--blue); font-size:.78rem; letter-spacing:.12em; text-transform:uppercase; }
+    .lede,.muted { color:var(--muted); }
+    .summary { display:grid; grid-template-columns:repeat(3,1fr); margin-bottom:18px; overflow:hidden; }
+    .metric { padding:20px; border-right:1px solid var(--line); }
+    .metric:last-child { border-right:0; }
+    .metric strong { display:block; font-size:1.8rem; }
+    .metric span { color:var(--muted); }
+    .stack { display:grid; gap:16px; }
+    .card-head { display:flex; justify-content:space-between; gap:18px; }
+    .tag { white-space:nowrap; align-self:flex-start; border:1px solid currentColor; border-radius:999px; padding:5px 10px; font-size:.78rem; color:var(--amber); }
+    .safe { color:var(--green); }
+    .hold { color:var(--red); }
+    .note,.response { border-left:3px solid var(--amber); background:#0d131d; padding:14px 16px; border-radius:8px; }
+    .danger { border-left-color:var(--red); }
+    code,pre { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+    code { color:#d8e7ff; }
+    ol,ul { padding-left:1.35rem; }
+    li + li { margin-top:8px; }
+    a,button { color:var(--text); }
+    .actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:16px; }
+    .button,button { appearance:none; border:1px solid #42618f; background:#1b3150; border-radius:10px; padding:10px 14px; text-decoration:none; cursor:pointer; font:inherit; }
+    input { width:100%; margin:8px 0 4px; border:1px solid var(--line); border-radius:9px; padding:12px; background:#090d14; color:var(--text); font:inherit; }
+    footer { margin-top:24px; color:var(--muted); }
+    @media(max-width:700px){ .summary{grid-template-columns:1fr}.metric{border-right:0;border-bottom:1px solid var(--line)}.card-head{display:block}.tag{display:inline-block;margin-bottom:12px} }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <p class="eyebrow">RefWatch · Clerk production handoff</p>
+      <h1>Clerk dashboard instructions</h1>
+      <p class="lede">The production domain is complete. This page now lists only the remaining native-app, OAuth, and webhook phases, and never asks you to paste credentials into chat.</p>
+    </header>
+
+    <section class="summary" aria-label="Clerk handoff status">
+      <div class="metric"><strong>0</strong><span>safe Clerk mutations now</span></div>
+      <div class="metric"><strong>0</strong><span>domain decisions needed</span></div>
+      <div class="metric"><strong>3</strong><span>manual phases later</span></div>
+    </section>
+
+    <div class="stack">
+      <section class="card" aria-labelledby="secret-title">
+        <div class="card-head"><div><h3>Automation</h3><h2 id="secret-title">Do not fetch another general Clerk secret</h2></div><span class="tag safe">Existing key is enough</span></div>
+        <p>The project already has the production <code>sk_live_…</code> Backend API key in secure custody. It completed the approved domain operation without disclosure. Never paste that key into chat, this HTML, a shell command, or the repository.</p>
+        <p class="note">Clerk, DNS, certificates, and Worker <code>CLERK_PUBLISHABLE_KEY</code>/<code>CLERK_ISSUER</code> are coordinated for <code>refwatch.ibby.ai</code>. iOS public configuration remains pending because no local/release <code>Secrets.xcconfig</code> exists.</p>
+      </section>
+
+      <section class="card" aria-labelledby="domain-title">
+        <div class="card-head"><div><h3>Completed 2026-07-17</h3><h2 id="domain-title">Production domain verified</h2></div><span class="tag safe">Complete</span></div>
+        <p>Production instance <code>ins_3GWFGUd1rI6hx5lWlUxMYAkxdac</code> uses secondary domain <code>refwatch.ibby.ai</code>. Clerk reports DNS, SSL, and email DNS complete with zero pending records.</p>
+        <p class="response" id="domain-response">DOMAIN COMPLETE — refwatch.ibby.ai, its five DNS-only CNAMEs, certificates, Worker publishable key, and issuer are coordinated.</p>
+      </section>
+
+      <section class="card" aria-labelledby="native-title">
+        <div class="card-head"><div><h3>Later phase 1</h3><h2 id="native-title">Register the native iOS application</h2></div><span class="tag hold">Wait for Codex go-ahead</span></div>
+        <ol>
+          <li>In Clerk, select the RefWatch application and switch to production instance <code>ins_3GWFGUd1rI6hx5lWlUxMYAkxdac</code>.</li>
+          <li>The replacement domain, certificates, and new publishable key are ready. Open <strong>Native applications</strong> only after Codex confirms the authoritative Apple identifiers and exact redirect URL.</li>
+          <li>Retrieve the actual <strong>App ID Prefix</strong> from the Apple Developer portal and the signed production <strong>Bundle ID</strong> from Xcode/Apple identifiers.</li>
+          <li>Add those exact identifiers. The repository currently expresses the bundle as <code>$(BUNDLE_ID_PREFIX).RefWatch</code> and does not prove a resolved production value, so do not enter <code>com.IbrahimSaidi.RefWatch</code> merely because it appeared in an earlier draft.</li>
+          <li>Do not add a redirect URL until Codex supplies the reviewed exact URL. Clerk normally uses <code>{bundleIdentifier}://callback</code>, but the final value must match the signed app.</li>
+        </ol>
+      </section>
+
+      <section class="card" aria-labelledby="oauth-title">
+        <div class="card-head"><div><h3>Later phase 2</h3><h2 id="oauth-title">Configure authentication strategies</h2></div><span class="tag hold">Keep unavailable</span></div>
+        <ol>
+          <li>Keep both production sign-up and sign-in unavailable until the later identity-import/cutover approval.</li>
+          <li>Do not create test users, invitations, impersonation sessions, or manual identities.</li>
+          <li>When Codex provides the exact provider handoff, enter separately custodied production Apple and Google OAuth credentials directly into Clerk. Do not print, rotate, revoke, export, or paste source credentials into chat.</li>
+          <li>Configure email/password without opening registration or authentication traffic.</li>
+        </ol>
+      </section>
+
+      <section class="card" aria-labelledby="webhook-title">
+        <div class="card-head"><div><h3>Later phase 3</h3><h2 id="webhook-title">Create the signed lifecycle webhook</h2></div><span class="tag hold">Endpoint not routable yet</span></div>
+        <ol>
+          <li>Wait until Codex supplies the exact public HTTPS Worker URL and confirms <code>WRITE_MODE=disabled</code>.</li>
+          <li>In <strong>Webhooks</strong>, add exactly that URL plus <code>/webhooks/clerk</code>.</li>
+          <li>Subscribe only to <code>user.created</code>, <code>user.updated</code>, and <code>user.deleted</code>.</li>
+          <li>Reveal the endpoint signing secret only when Codex provides a secure, non-echoing installation prompt. Never paste it into chat or save it in this page.</li>
+          <li>Do not send a sample event until Codex confirms the non-mutating provenance/signature probe is ready; the Worker must return a write-disabled response and must not mutate identities.</li>
+        </ol>
+      </section>
+
+      <section class="card" aria-labelledby="boundary-title">
+        <div class="card-head"><div><h3>Boundary</h3><h2 id="boundary-title">Do not do these yet</h2></div><span class="tag hold">Forbidden</span></div>
+        <p class="note danger">Do not make further Clerk domain/DNS/certificate/Worker-key changes, install unreviewed iOS keys, enable sign-up/sign-in, create/import/update/merge/delete users, create invitations, send webhook examples, change Supabase, import rows, activate mappings, route public traffic, activate the production ledger, or enable writes without the next exact approval/handoff.</p>
+      </section>
+    </div>
+
+    <footer>
+      <p>Return to <a href="MIGRATION_OPERATOR_ACTIONS.html">MIGRATION_OPERATOR_ACTIONS.html</a> for all operator gates or <a href="MIGRATION_APPROVALS.html">MIGRATION_APPROVALS.html</a> for historical approvals.</p>
+      <p>Official Clerk references: <a href="https://clerk.com/docs/guides/development/deployment/changing-domains" target="_blank" rel="noreferrer">change production domain</a>, <a href="https://clerk.com/docs/guides/development/deployment/production" target="_blank" rel="noreferrer">production deployment</a>, <a href="https://clerk.com/docs/ios/getting-started/quickstart" target="_blank" rel="noreferrer">iOS native setup</a>, and <a href="https://clerk.com/docs/guides/development/webhooks/overview" target="_blank" rel="noreferrer">webhooks</a>.</p>
+      <p id="copy-status" role="status" aria-live="polite"></p>
+    </footer>
+  </main>
+</body>
+</html>

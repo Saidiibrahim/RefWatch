@@ -1,0 +1,17 @@
+{
+  "receipt": "remote-d1-immutability-negative-tests",
+  "command_id": "d1-four-immutability-negative-tests-final",
+  "execution_started_at_utc": null,
+  "execution_ended_at_utc": null,
+  "timestamp_limitation": "The four shell start/end timestamps were not retained.",
+  "capture": "complete sanitized stderr classification for all four commands is published in expected_failures; raw ANSI-formatted Wrangler output omitted",
+  "command_shape": "wrangler d1 execute ... --remote --env rehearsal --command <guarded mutation>",
+  "wrangler": "4.110.0",
+  "expected_failures": [
+    {"target": "mutation_ledger_events", "operation": "update", "exit_code": 1, "error_code": "SQLITE_CONSTRAINT_TRIGGER", "message": "mutation ledger events are immutable"},
+    {"target": "mutation_ledger_events", "operation": "delete", "exit_code": 1, "error_code": "SQLITE_CONSTRAINT_TRIGGER", "message": "mutation ledger events are immutable"},
+    {"target": "mutation_ledger_dead_letters", "operation": "update", "exit_code": 1, "error_code": "SQLITE_CONSTRAINT_TRIGGER", "message": "mutation ledger dead letters are immutable"},
+    {"target": "mutation_ledger_dead_letters", "operation": "delete", "exit_code": 1, "error_code": "SQLITE_CONSTRAINT_TRIGGER", "message": "mutation ledger dead letters are immutable"}
+  ],
+  "unexpected_successes": 0
+}

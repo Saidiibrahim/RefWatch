@@ -1,0 +1,21 @@
+{
+  "receipt": "guarded-poison-proof",
+  "command_id": "ledger-poison-b9edcf73",
+  "execution_started_at_utc": "2026-07-15T05:12:40.234Z",
+  "execution_ended_at_utc": "2026-07-15T05:13:30.530Z",
+  "capture": "full sanitized script and final provider readback published below; raw D1 stdout omitted and its previously retained eight-character prefixes are not presented as full hashes",
+  "tool": "Node.js v25.8.2 and Wrangler 4.110.0",
+  "command_shape": "REFWATCH_ALLOW_LEDGER_POISON_PROBE=1 REFWATCH_LEDGER_REHEARSAL_DATABASE_URL=<secret> REFWATCH_LEDGER_WORKER_VERSION_ID=<deployed UUID> REFWATCH_LEDGER_D1_DATABASE=refwatch-mutation-ledger-rehearsal-20260715 REFWATCH_LEDGER_D1_DATABASE_ID=d6fd2757-0cfa-4468-97bc-c543de824917 npm run mutation:poison-rehearsal",
+  "exit_code": 0,
+  "epoch_id": "b9edcf73-aa08-459e-8584-001e866822f2",
+  "event_id": "9f055164-9a70-476f-a552-0308fe287596",
+  "sequence": 73,
+  "group_id": "46a8c623-45e3-4adf-8726-e4cd3118a4f4",
+  "request_id": "ledger-poison-37560416-798f-4809-bb20-c425b741bb1c",
+  "worker_version_id": "b745554c-a4e7-4d58-90f8-36bdedd94e7d",
+  "intentional_conflict": {"field": "worker_version_id", "value": "intentional-poison-conflict"},
+  "d1_read_served_by_primary": true,
+  "postgres_delivery": {"state": "quarantined", "attempt_count": 1, "lease_generation": 1, "active_lease": false, "last_error": "queue_attempt=6; code=d1_metadata_conflict"},
+  "dlq_receipt": {"dead_letter_id": "44c07a824abe6774d93e0b837543d7e5", "lease_generation": 1, "consumer_attempt": 1, "disposition": "quarantined", "received_at_utc": "2026-07-15T05:13:30.530Z", "served_by_primary": true},
+  "epoch_archived": true
+}

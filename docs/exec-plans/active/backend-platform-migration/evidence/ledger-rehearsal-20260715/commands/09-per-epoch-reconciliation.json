@@ -1,0 +1,33 @@
+{
+  "receipt": "per-epoch-reconciliation",
+  "command_id": "planetscale-primary-per-epoch-final-readback",
+  "execution_started_at_utc": null,
+  "execution_ended_at_utc": null,
+  "timestamp_limitation": "Session tool UTC boundaries were not retained; the exact sanitized 19-row result is published below.",
+  "capture": "complete sanitized primary PlanetScale result plus D1 counts; credentials and connector wrapper omitted",
+  "tool": "PlanetScale MCP primary read query",
+  "readback_date_utc": "2026-07-15",
+  "postgres_aggregate": {"epochs": 19, "archived": 19, "open": 0, "events": 63, "delivered": 48, "quarantined": 9, "pending": 3, "expired_leased": 3, "active_leases": 0},
+  "d1_aggregate": {"epochs_present": 16, "events": 34, "dead_letter_receipts": 3, "served_by_primary": true},
+  "epochs": [
+    {"epoch_id":"d967effe-a99d-4898-9c4a-5598f8150255","kind":"integration_fake_d1","pg":{"events":3,"delivered":3,"quarantined":0,"pending":0,"leased":0,"sequence":"1-4"},"d1_events":3,"acceptance":"excluded synthetic fixture"},
+    {"epoch_id":"b671099a-e2f2-4aab-af3e-d58d2946add4","kind":"integration_fake_d1","pg":{"events":3,"delivered":3,"quarantined":0,"pending":0,"leased":0,"sequence":"5-8"},"d1_events":3,"acceptance":"excluded synthetic fixture"},
+    {"epoch_id":"e8bdac12-d899-4364-a303-a1400bc61d2a","kind":"integration_fake_d1","pg":{"events":3,"delivered":3,"quarantined":0,"pending":0,"leased":0,"sequence":"9-12"},"d1_events":3,"acceptance":"excluded synthetic fixture"},
+    {"epoch_id":"a948c9cf-ec03-467f-ab7d-c15e035d6e82","kind":"integration_fake_d1","pg":{"events":3,"delivered":3,"quarantined":0,"pending":0,"leased":0,"sequence":"13-16"},"d1_events":1,"acceptance":"excluded synthetic fixture; historical scheduler race"},
+    {"epoch_id":"e9a6ed4d-7d97-4e0e-a259-4f5810a605e6","kind":"provider_replay_v1","pg":{"events":3,"delivered":3,"quarantined":0,"pending":0,"leased":0,"sequence":"17-19"},"d1_events":3,"acceptance":"superseded provider proof"},
+    {"epoch_id":"a64dc42c-3c12-4053-8e13-f031c1e46f1c","kind":"provider_replay_v2","pg":{"events":3,"delivered":3,"quarantined":0,"pending":0,"leased":0,"sequence":"20-22"},"d1_events":3,"acceptance":"superseded provider proof"},
+    {"epoch_id":"ce4a8c39-e735-42c3-afc7-449e9ce58831","kind":"provider_replay_v3","pg":{"events":3,"delivered":3,"quarantined":0,"pending":0,"leased":0,"sequence":"23-25"},"d1_events":3,"acceptance":"superseded provider proof"},
+    {"epoch_id":"d9d17e29-27a1-42ee-b95c-ea9b95a812d5","kind":"integration_fake_d1","pg":{"events":4,"delivered":3,"quarantined":1,"pending":0,"leased":0,"sequence":"26-30"},"d1_events":1,"acceptance":"excluded synthetic poison fixture"},
+    {"epoch_id":"0500e3c4-1b49-4e1b-b510-6c8bb51dbb05","kind":"poison_v1","pg":{"events":1,"delivered":0,"quarantined":1,"pending":0,"leased":0,"sequence":"31"},"d1_events":1,"acceptance":"superseded poison proof"},
+    {"epoch_id":"fefc7658-55a0-4621-9dee-13e2b3eaa643","kind":"integration_fake_d1","pg":{"events":5,"delivered":4,"quarantined":1,"pending":0,"leased":0,"sequence":"32-37"},"d1_events":1,"acceptance":"excluded synthetic poison fixture"},
+    {"epoch_id":"5296f730-e709-45cb-864d-fe2c4ae1181d","kind":"provider_replay_v4","pg":{"events":3,"delivered":3,"quarantined":0,"pending":0,"leased":0,"sequence":"38-40"},"d1_events":3,"acceptance":"superseded catalog normalization proof"},
+    {"epoch_id":"4403298e-3354-46e8-8121-16466844fd2a","kind":"provider_replay_v5","pg":{"events":3,"delivered":3,"quarantined":0,"pending":0,"leased":0,"sequence":"41-43"},"d1_events":3,"acceptance":"superseded by final deployed runtime"},
+    {"epoch_id":"737fb6d1-21b2-414f-a04a-ba15ab61fa05","kind":"poison_v2","pg":{"events":1,"delivered":0,"quarantined":1,"pending":0,"leased":0,"sequence":"44"},"d1_events":1,"acceptance":"superseded poison proof; DLQ receipt retained"},
+    {"epoch_id":"b918f445-7316-475c-be80-244d0620a120","kind":"integration_fake_d1","pg":{"events":5,"delivered":4,"quarantined":1,"pending":0,"leased":0,"sequence":"45-50"},"d1_events":1,"acceptance":"excluded synthetic poison fixture"},
+    {"epoch_id":"032aa418-f36c-441b-958e-378dbd3c2eab","kind":"integration_fake_d1_failed_run","pg":{"events":5,"delivered":3,"quarantined":1,"pending":1,"leased":0,"sequence":"51-56"},"d1_events":0,"acceptance":"excluded archived synthetic fixture"},
+    {"epoch_id":"2b7daee1-e366-4093-a91d-7b95afcb483d","kind":"integration_fake_d1_failed_run","pg":{"events":6,"delivered":1,"quarantined":1,"pending":1,"leased":3,"sequence":"57-63"},"d1_events":0,"acceptance":"excluded archived synthetic fixture; leases expired and inactive"},
+    {"epoch_id":"4f3ddcfc-e311-4954-87df-c7a76a31509b","kind":"integration_fake_d1_final_run","pg":{"events":5,"delivered":3,"quarantined":1,"pending":1,"leased":0,"sequence":"64-69"},"d1_events":0,"acceptance":"excluded archived synthetic fixture"},
+    {"epoch_id":"9d9c48ec-fde4-4df8-b967-ea9b890036b7","kind":"provider_replay_v6","pg":{"events":3,"delivered":3,"quarantined":0,"pending":0,"leased":0,"sequence":"70-72"},"d1_events":3,"acceptance":"final replay proof passed"},
+    {"epoch_id":"b9edcf73-aa08-459e-8584-001e866822f2","kind":"final_guarded_poison","pg":{"events":1,"delivered":0,"quarantined":1,"pending":0,"leased":0,"sequence":"73"},"d1_events":1,"acceptance":"final poison proof passed; DLQ receipt retained"}
+  ]
+}

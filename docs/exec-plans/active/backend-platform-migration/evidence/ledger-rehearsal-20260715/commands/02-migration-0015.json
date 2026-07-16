@@ -1,0 +1,23 @@
+{
+  "receipt": "planetscale-migration-0015",
+  "command_id": "ps-migrate-0015-ledger-rehearsal-20260715",
+  "execution_started_at_utc": null,
+  "execution_ended_at_utc": null,
+  "provider_journal_identity_time_utc": "2026-07-15T04:51:23Z",
+  "timestamp_limitation": "The shell start/end timestamps were not retained; the provider journal identity time is not represented as command duration.",
+  "capture": "full sanitized migration and readback result published in this receipt; raw credential-bearing process output omitted",
+  "tool": "Drizzle migrator through Node.js v25.8.2 and PlanetScale Postgres",
+  "target": "refwatch/ledger-rehearsal-20260715",
+  "target_branch_id": "ng9tgmy4pyi5",
+  "command_shape": "npm run db:migrate using the approved durable schema-owner role",
+  "exit_code": 0,
+  "migration_sha256": "6230b4e6f9986142166073c22f7522eca2b4a369d8a4975af6a0b7bbd8d6106a",
+  "readback": {
+    "migration_count": 16,
+    "latest_journal_created_at": 1784091083000,
+    "latest_hash_matches_approval": true,
+    "function_owner_role_id": "ys90863xh73y",
+    "bounded_capture_function_count": 1
+  },
+  "credentials_omitted": true
+}

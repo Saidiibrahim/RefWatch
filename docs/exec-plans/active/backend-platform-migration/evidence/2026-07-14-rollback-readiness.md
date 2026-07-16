@@ -105,3 +105,17 @@ This is tested local rollback-control preparation, not executable production
 rollback readiness. The production environment, transactional external ledger
 and probe, provider-verified versions/guard behavior, final owner/window/
 thresholds, populated packet, and distributable recovery build remain required.
+
+## 2026-07-15 supersession note
+
+The statements above that the Worker does not emit an external ledger describe
+the 2026-07-14 state and are preserved as historical evidence. A later isolated
+rehearsal implemented and provider-proved transactional PlanetScale capture with
+asynchronous idempotent Queue-to-D1 materialization, guarded replay into two
+disposable same-contract PostgreSQL targets, and generation-bound DLQ handling.
+See `2026-07-15-mutation-ledger-rehearsal.md` and its tracked receipt bundle.
+
+That later proof does not change this packet's production disposition. No
+production Worker, Hyperdrive, Queue, D1, DLQ, encryption key, ledger probe,
+guard version, populated rollback packet, or reverse-import procedure has been
+created or proved. Production rollback readiness therefore remains pending.
