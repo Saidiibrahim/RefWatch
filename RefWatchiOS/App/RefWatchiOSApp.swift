@@ -102,19 +102,21 @@ struct RefWatchiOSApp: App {
       let competitionStore: CompetitionLibraryStoring = InMemoryCompetitionLibraryStore()
       let venueStore: VenueLibraryStoring = InMemoryVenueLibraryStore()
 
-      if TestEnvironment.launchesSignedInUITestShell,
-         let inMemoryTeamStore = teamStore as? InMemoryTeamLibraryStore
-      {
-        BackendServiceRegistry.referenceCatalog = UITestReferenceCatalogService()
-        _ = try? inMemoryTeamStore.createTeam(
-          name: "Metro Library FC",
-          shortName: "MLF",
-          division: "UI Test")
-        _ = try? inMemoryTeamStore.createTeam(
-          name: "Rivals Library FC",
-          shortName: "RLF",
-          division: "UI Test")
-      }
+      #if DEBUG
+        if TestEnvironment.launchesSignedInUITestShell,
+           let inMemoryTeamStore = teamStore as? InMemoryTeamLibraryStore
+        {
+          BackendServiceRegistry.referenceCatalog = UITestReferenceCatalogService()
+          _ = try? inMemoryTeamStore.createTeam(
+            name: "Metro Library FC",
+            shortName: "MLF",
+            division: "UI Test")
+          _ = try? inMemoryTeamStore.createTeam(
+            name: "Rivals Library FC",
+            shortName: "RLF",
+            division: "UI Test")
+        }
+      #endif
 
       let matchViewModel = MatchViewModel(
         history: historyRepo,
