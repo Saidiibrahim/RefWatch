@@ -5,6 +5,8 @@ import { competitions, idempotencyKeys, matchEvents, matchMetrics, matchPeriods,
 import type { Env, Variables } from "../types";
 import { parseISODate } from "../utils/dates";
 import { snakeCaseJSON } from "../utils/json";
+import { httpMutationContext } from "../services/mutationContext";
+import { withMutation } from "../services/mutationLedger";
 
 const uuid = z.uuid();
 const matchInput = z.object({
@@ -57,7 +59,7 @@ matchRoutes.post("/ingest", async (c) => {
   const invalidEventReference = await findInvalidEventReference(c.get("db"), ownerId, bundle.match, bundle.events);
   if (invalidEventReference) return c.json({ error: "forbidden_reference", field: invalidEventReference }, 403);
 
-  const result = await c.get("db").transaction(async (tx) => {
+  const result = await withMutation(c.get("db"), httpMutationContext(c, "/api/matches/ingest"), async (tx) => {
     if (key) {
       await tx.delete(idempotencyKeys).where(and(
         eq(idempotencyKeys.ownerId, ownerId), eq(idempotencyKeys.key, key), lt(idempotencyKeys.expiresAt, new Date()),
@@ -111,7 +113,7 @@ matchRoutes.post("/ingest", async (c) => {
 
 matchRoutes.delete("/:id", async (c) => {
   const id = uuid.safeParse(c.req.param("id")); if (!id.success) return c.json({ error: "invalid_id" }, 422);
-  const result = await c.get("db").update(matches).set({ deletedAt: new Date(), updatedAt: new Date() }).where(and(eq(matches.id, id.data), eq(matches.ownerId, c.get("auth").appUserId), isNull(matches.deletedAt))).returning({ id: matches.id });
+  const result = await withMutation(c.get("db"), httpMutationContext(c, "/api/matches/:id"), (tx) => tx.update(matches).set({ deletedAt: new Date(), updatedAt: new Date() }).where(and(eq(matches.id, id.data), eq(matches.ownerId, c.get("auth").appUserId), isNull(matches.deletedAt))).returning({ id: matches.id }));
   return result.length ? c.body(null, 204) : c.json({ error: "not_found" }, 404);
 });
 

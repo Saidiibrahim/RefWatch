@@ -5,6 +5,8 @@ import { competitions, scheduledMatches, teams, venues } from "../db/schema";
 import type { Env, Variables } from "../types";
 import { snakeCaseJSON } from "../utils/json";
 import { parseISODate } from "../utils/dates";
+import { httpMutationContext } from "../services/mutationContext";
+import { withMutation } from "../services/mutationLedger";
 
 const input = z.object({
   id: z.uuid(), owner_id: z.string().optional(), home_team_name: z.string().min(1), away_team_name: z.string().min(1),
@@ -42,7 +44,10 @@ scheduledMatchRoutes.post("/", async (c) => {
   };
   const [existing] = await c.get("db").select({ ownerId: scheduledMatches.ownerId }).from(scheduledMatches).where(eq(scheduledMatches.id, p.id)).limit(1);
   if (existing && existing.ownerId !== ownerId) return c.json({ error: "forbidden" }, 403);
-  const [row] = await c.get("db").insert(scheduledMatches).values(values).onConflictDoUpdate({ target: scheduledMatches.id, set: values }).returning();
+  const row = await withMutation(c.get("db"), httpMutationContext(c, "/api/scheduled-matches"), async (tx) => {
+    const [saved] = await tx.insert(scheduledMatches).values(values).onConflictDoUpdate({ target: scheduledMatches.id, set: values }).returning();
+    return saved;
+  });
   return c.json(snakeCaseJSON(row), 200);
 });
 
@@ -65,8 +70,8 @@ async function findForeignScheduleReference(db: Variables["db"], ownerId: string
 
 scheduledMatchRoutes.delete("/:id", async (c) => {
   const id = z.uuid().safeParse(c.req.param("id")); if (!id.success) return c.json({ error: "invalid_id" }, 422);
-  const rows = await c.get("db").update(scheduledMatches).set({ deletedAt: new Date(), updatedAt: new Date() }).where(and(
+  const rows = await withMutation(c.get("db"), httpMutationContext(c, "/api/scheduled-matches/:id"), (tx) => tx.update(scheduledMatches).set({ deletedAt: new Date(), updatedAt: new Date() }).where(and(
     eq(scheduledMatches.id, id.data), eq(scheduledMatches.ownerId, c.get("auth").appUserId), isNull(scheduledMatches.deletedAt),
-  )).returning({ id: scheduledMatches.id });
+  )).returning({ id: scheduledMatches.id }));
   return rows.length ? c.body(null, 204) : c.json({ error: "not_found" }, 404);
 });

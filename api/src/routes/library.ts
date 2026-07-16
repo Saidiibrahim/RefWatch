@@ -5,6 +5,8 @@ import { competitions, teamMembers, teamOfficials, teams, teamTags, venues } fro
 import type { Env, Variables } from "../types";
 import { parseISODate } from "../utils/dates";
 import { snakeCaseJSON } from "../utils/json";
+import { httpMutationContext } from "../services/mutationContext";
+import { withMutation } from "../services/mutationLedger";
 
 const member = z.object({ id: z.uuid(), team_id: z.uuid(), display_name: z.string().min(1), jersey_number: z.string().nullable().optional(), role: z.string().nullable().optional(), position: z.string().nullable().optional(), notes: z.string().nullable().optional(), created_at: z.iso.datetime().optional() });
 const official = z.object({ id: z.uuid(), team_id: z.uuid(), display_name: z.string().min(1), role: z.string().min(1), phone: z.string().nullable().optional(), email: z.string().nullable().optional(), created_at: z.iso.datetime().optional() });
@@ -38,7 +40,7 @@ libraryRoutes.post("/teams", async (c) => {
   if ([...p.members, ...p.officials].some((x) => x.team_id !== teamId)) return c.json({ error: "nested_team_mismatch" }, 422);
   const [existing] = await c.get("db").select({ ownerId: teams.ownerId }).from(teams).where(eq(teams.id, teamId)).limit(1);
   if (existing && existing.ownerId !== ownerId) return c.json({ error: "forbidden" }, 403);
-  const row = await c.get("db").transaction(async (tx) => {
+  const row = await withMutation(c.get("db"), httpMutationContext(c, "/api/teams"), async (tx) => {
     const values = { id: teamId, ownerId, name: p.team.name, shortName: p.team.short_name ?? null, division: p.team.division ?? null, colorPrimary: p.team.color_primary ?? null, colorSecondary: p.team.color_secondary ?? null, referenceKey: p.team.reference_key ?? null, deletedAt: null, updatedAt: new Date() };
     const [saved] = await tx.insert(teams).values(values).onConflictDoUpdate({ target: teams.id, set: values }).returning();
     await tx.delete(teamMembers).where(eq(teamMembers.teamId, teamId)); await tx.delete(teamOfficials).where(eq(teamOfficials.teamId, teamId)); await tx.delete(teamTags).where(eq(teamTags.teamId, teamId));
@@ -50,7 +52,7 @@ libraryRoutes.post("/teams", async (c) => {
   return c.json(snakeCaseJSON({ updated_at: row?.updatedAt ?? new Date() }));
 });
 
-libraryRoutes.delete("/teams/:id", async (c) => softDelete(c, teams, c.req.param("id")));
+libraryRoutes.delete("/teams/:id", async (c) => softDelete(c, teams, c.req.param("id"), "/api/teams/:id"));
 
 const competitionInput = z.object({ id: z.uuid(), owner_id: z.string().optional(), name: z.string().min(1), level: z.string().nullable().optional() });
 libraryRoutes.get("/competitions", async (c) => listSimple(c, competitions));
@@ -59,9 +61,12 @@ libraryRoutes.post("/competitions", async (c) => {
   const p = parsed.data; const ownerId = c.get("auth").appUserId; const [existing] = await c.get("db").select({ ownerId: competitions.ownerId }).from(competitions).where(eq(competitions.id, p.id)).limit(1);
   if (existing && existing.ownerId !== ownerId) return c.json({ error: "forbidden" }, 403);
   const values = { id: p.id, ownerId, name: p.name, level: p.level ?? null, deletedAt: null, updatedAt: new Date() };
-  const [row] = await c.get("db").insert(competitions).values(values).onConflictDoUpdate({ target: competitions.id, set: values }).returning(); return c.json(snakeCaseJSON(row));
+  const row = await withMutation(c.get("db"), httpMutationContext(c, "/api/competitions"), async (tx) => {
+    const [saved] = await tx.insert(competitions).values(values).onConflictDoUpdate({ target: competitions.id, set: values }).returning();
+    return saved;
+  }); return c.json(snakeCaseJSON(row));
 });
-libraryRoutes.delete("/competitions/:id", async (c) => softDelete(c, competitions, c.req.param("id")));
+libraryRoutes.delete("/competitions/:id", async (c) => softDelete(c, competitions, c.req.param("id"), "/api/competitions/:id"));
 
 const coordinate = (minimum: number, maximum: number) => z.preprocess(
   (value) => typeof value === "string" && value.trim() !== "" ? Number(value) : value,
@@ -74,9 +79,12 @@ libraryRoutes.post("/venues", async (c) => {
   const p = parsed.data; const ownerId = c.get("auth").appUserId; const [existing] = await c.get("db").select({ ownerId: venues.ownerId }).from(venues).where(eq(venues.id, p.id)).limit(1);
   if (existing && existing.ownerId !== ownerId) return c.json({ error: "forbidden" }, 403);
   const values = { id: p.id, ownerId, name: p.name, city: p.city ?? null, country: p.country ?? null, latitude: p.latitude ?? null, longitude: p.longitude ?? null, deletedAt: null, updatedAt: new Date() };
-  const [row] = await c.get("db").insert(venues).values(values).onConflictDoUpdate({ target: venues.id, set: values }).returning(); return c.json(snakeCaseJSON(row));
+  const row = await withMutation(c.get("db"), httpMutationContext(c, "/api/venues"), async (tx) => {
+    const [saved] = await tx.insert(venues).values(values).onConflictDoUpdate({ target: venues.id, set: values }).returning();
+    return saved;
+  }); return c.json(snakeCaseJSON(row));
 });
-libraryRoutes.delete("/venues/:id", async (c) => softDelete(c, venues, c.req.param("id")));
+libraryRoutes.delete("/venues/:id", async (c) => softDelete(c, venues, c.req.param("id"), "/api/venues/:id"));
 
 type SimpleTable = typeof competitions | typeof venues;
 type APIContext = Context<{ Bindings: Env; Variables: Variables }>;
@@ -86,8 +94,8 @@ async function listSimple(c: APIContext, table: SimpleTable) {
   return c.json(snakeCaseJSON(await c.get("db").select().from(table).where(and(...filters)).orderBy(table.updatedAt)));
 }
 
-async function softDelete(c: APIContext, table: typeof teams | SimpleTable, rawId: string) {
+async function softDelete(c: APIContext, table: typeof teams | SimpleTable, rawId: string, routeTemplate: string) {
   const id = z.uuid().safeParse(rawId); if (!id.success) return c.json({ error: "invalid_id" }, 422);
-  const rows = await c.get("db").update(table).set({ deletedAt: new Date(), updatedAt: new Date() }).where(and(eq(table.id, id.data), eq(table.ownerId, c.get("auth").appUserId), isNull(table.deletedAt))).returning({ id: table.id });
+  const rows = await withMutation(c.get("db"), httpMutationContext(c, routeTemplate), (tx) => tx.update(table).set({ deletedAt: new Date(), updatedAt: new Date() }).where(and(eq(table.id, id.data), eq(table.ownerId, c.get("auth").appUserId), isNull(table.deletedAt))).returning({ id: table.id }));
   return rows.length ? c.body(null, 204) : c.json({ error: "not_found" }, 404);
 }

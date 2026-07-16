@@ -6,12 +6,14 @@
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
   "placement": { "mode": "smart" },
+  "version_metadata": { "binding": "CF_VERSION_METADATA" },
   "vars": {
     "REFWATCH_ENV": "development"
   },
   "env": {
     "staging": {
       "name": "refwatch-api-staging",
+      "version_metadata": { "binding": "CF_VERSION_METADATA" },
       "vars": {
         "REFWATCH_ENV": "staging",
         "ALLOW_UNMAPPED_CLERK_USERS": "false",
@@ -23,6 +25,102 @@
           "id": "80a6607d3cab47a68cdfef01ea4cbb19"
         }
       ]
+    },
+    "rehearsal": {
+      "name": "refwatch-api-ledger-rehearsal",
+      "version_metadata": { "binding": "CF_VERSION_METADATA" },
+      "vars": {
+        "REFWATCH_ENV": "rehearsal",
+        "ALLOW_UNMAPPED_CLERK_USERS": "false",
+        "EXPECTED_DATABASE_BRANCH_ID": "ng9tgmy4pyi5",
+        "EXPECTED_DATABASE_MARKER": "refwatch:ledger-rehearsal-20260715:ng9tgmy4pyi5",
+        "EXPECTED_DATABASE_ROLE_ID": "vwntz0ehq1yp",
+        "MUTATION_LEDGER_DLQ_NAME": "refwatch-mutation-ledger-rehearsal-dlq-20260715",
+        "MUTATION_LEDGER_ENCRYPTION_KEY_ID": "rehearsal-20260715-v2",
+        "NEW_USER_ONBOARDING_MODE": "disabled",
+        "WRITE_MODE": "enabled"
+      },
+      "hyperdrive": [
+        {
+          "binding": "HYPERDRIVE",
+          "id": "c374273a5bb040d4b4950c28c6012ec5"
+        }
+      ],
+      "d1_databases": [
+        {
+          "binding": "MUTATION_LEDGER",
+          "database_name": "refwatch-mutation-ledger-rehearsal-20260715",
+          "database_id": "d6fd2757-0cfa-4468-97bc-c543de824917",
+          "migrations_dir": "d1/migrations"
+        }
+      ],
+      "queues": {
+        "producers": [
+          {
+            "binding": "MUTATION_LEDGER_QUEUE",
+            "queue": "refwatch-mutation-ledger-rehearsal-20260715"
+          }
+        ],
+        "consumers": [
+          {
+            "queue": "refwatch-mutation-ledger-rehearsal-20260715",
+            "dead_letter_queue": "refwatch-mutation-ledger-rehearsal-dlq-20260715",
+            "max_retries": 5,
+            "max_batch_size": 10,
+            "max_batch_timeout": 5
+          },
+          {
+            "queue": "refwatch-mutation-ledger-rehearsal-dlq-20260715",
+            "max_retries": 3,
+            "max_batch_size": 10,
+            "max_batch_timeout": 5
+          }
+        ]
+      },
+      "triggers": {
+        "crons": ["*/1 * * * *"]
+      }
+    },
+    "production": {
+      "name": "refwatch-api",
+      "workers_dev": false,
+      "preview_urls": false,
+      "version_metadata": { "binding": "CF_VERSION_METADATA" },
+      "vars": {
+        "REFWATCH_ENV": "production",
+        "ALLOW_UNMAPPED_CLERK_USERS": "false",
+        "CLERK_INSTANCE_ID": "ins_3GWFGUd1rI6hx5lWlUxMYAkxdac",
+        "CLERK_ISSUER": "https://clerk.refwatch.ibby.ai",
+        "EXPECTED_DATABASE_BRANCH_ID": "w3g1f8vcbg34",
+        "EXPECTED_DATABASE_MARKER": "refwatch:production:w3g1f8vcbg34",
+        "EXPECTED_DATABASE_ROLE_ID": "vaqg84rqoedz",
+        "MUTATION_LEDGER_DLQ_NAME": "refwatch-mutation-ledger-dlq-production",
+        "MUTATION_LEDGER_ENCRYPTION_KEY_ID": "production-20260715-v1",
+        "NEW_USER_ONBOARDING_MODE": "disabled",
+        "WRITE_MODE": "disabled"
+      },
+      "hyperdrive": [
+        {
+          "binding": "HYPERDRIVE",
+          "id": "5345de83edfa40b790d5b26df32f56ab"
+        }
+      ],
+      "d1_databases": [
+        {
+          "binding": "MUTATION_LEDGER",
+          "database_name": "refwatch-mutation-ledger-production",
+          "database_id": "6d1a7bbb-ea9d-47b2-ae77-44f992b9e3d2",
+          "migrations_dir": "d1/migrations"
+        }
+      ],
+      "queues": {
+        "producers": [
+          {
+            "binding": "MUTATION_LEDGER_QUEUE",
+            "queue": "refwatch-mutation-ledger-production"
+          }
+        ]
+      }
     }
   }
 }

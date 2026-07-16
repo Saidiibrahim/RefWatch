@@ -1,4 +1,6 @@
 import {
+  bigint,
+  bigserial,
   boolean,
   check,
   date,
@@ -47,6 +49,59 @@ export const appUsers = pgTable("app_users", {
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
   ...timestamps,
 }, (table) => [uniqueIndex("app_users_clerk_user_id_uq").on(table.clerkUserId)]);
+
+export const identityReconciliationReceipts = pgTable("identity_reconciliation_receipts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  receiptDigest: text("receipt_digest").notNull(),
+  clerkInstanceId: text("clerk_instance_id").notNull(),
+  snapshotCapturedAt: timestamp("snapshot_captured_at", { withTimezone: true }).notNull(),
+  legacyMappingCount: integer("legacy_mapping_count").notNull(),
+  excludedAuthCount: integer("excluded_auth_count").notNull(),
+  mappingHash: text("mapping_hash").notNull(),
+  status: text("status").notNull(),
+  reviewedAt: timestamp("reviewed_at", { withTimezone: true }).notNull(),
+  activatedAt: timestamp("activated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex("identity_reconciliation_receipts_digest_uq").on(table.receiptDigest),
+  index("identity_reconciliation_receipts_instance_idx").on(table.clerkInstanceId),
+  check("identity_reconciliation_receipts_digest_check", sql`${table.receiptDigest} ~ '^[0-9a-f]{64}$'`),
+  check("identity_reconciliation_receipts_mapping_hash_check", sql`${table.mappingHash} ~ '^[0-9a-f]{64}$'`),
+  check("identity_reconciliation_receipts_mapping_count_check", sql`${table.legacyMappingCount} > 0`),
+  check("identity_reconciliation_receipts_excluded_count_check", sql`${table.excludedAuthCount} >= 0`),
+  check("identity_reconciliation_receipts_status_check", sql`${table.status} = 'verified'`),
+]);
+
+export const identityReconciliationActivations = pgTable("identity_reconciliation_activations", {
+  receiptDigest: text("receipt_digest").primaryKey().references(
+    () => identityReconciliationReceipts.receiptDigest,
+    { onDelete: "restrict" },
+  ),
+  clerkInstanceId: text("clerk_instance_id").notNull(),
+  activatedAt: timestamp("activated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const identityReconciliationLegacyMappings = pgTable("identity_reconciliation_legacy_mappings", {
+  clerkInstanceId: text("clerk_instance_id").notNull(),
+  clerkUserId: text("clerk_user_id").notNull(),
+  appUserId: uuid("app_user_id").notNull().references(() => appUsers.id, { onDelete: "restrict" }),
+  receiptDigest: text("receipt_digest").notNull().references(
+    () => identityReconciliationReceipts.receiptDigest,
+    { onDelete: "restrict" },
+  ),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  primaryKey({ columns: [table.clerkInstanceId, table.clerkUserId] }),
+  uniqueIndex("identity_reconciliation_legacy_instance_app_uq").on(table.clerkInstanceId, table.appUserId),
+  index("identity_reconciliation_legacy_receipt_idx").on(table.receiptDigest),
+]);
+
+export const clerkUserDeletionTombstones = pgTable("clerk_user_deletion_tombstones", {
+  clerkInstanceId: text("clerk_instance_id").notNull(),
+  clerkUserId: text("clerk_user_id").notNull(),
+  webhookEventId: text("webhook_event_id"),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }).notNull(),
+  receivedAt: timestamp("received_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [primaryKey({ columns: [table.clerkInstanceId, table.clerkUserId] })]);
 
 export const userDevices = pgTable("user_devices", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -323,3 +378,94 @@ export const aiUsageDaily = pgTable("ai_usage_daily", {
   inputTokens: integer("input_tokens").notNull().default(0), outputTokens: integer("output_tokens").notNull().default(0), responsesCount: integer("responses_count").notNull().default(0),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [primaryKey({ columns: [t.ownerId, t.onDate, t.model] })]);
+
+// Rollback ledger control-plane tables. Event rows are populated and protected by
+// database triggers in migration 0010; delivery state is deliberately separate so
+// the captured mutation envelope remains physically immutable.
+export const mutationLedgerEpochs = pgTable("mutation_ledger_epochs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  status: text("status").notNull().default("preparing"),
+  captureEnforced: boolean("capture_enforced").notNull().default(false),
+  baselineSnapshotId: text("baseline_snapshot_id").notNull(),
+  baselineSchemaHash: text("baseline_schema_hash").notNull(),
+  baselineDataHash: text("baseline_data_hash").notNull(),
+  openedAt: timestamp("opened_at", { withTimezone: true }),
+  frozenAt: timestamp("frozen_at", { withTimezone: true }),
+  frozenEventSequence: bigint("frozen_event_sequence", { mode: "number" }),
+  ...timestamps,
+}, (table) => [
+  check("mutation_ledger_epochs_status_check", sql`${table.status} in ('preparing', 'open', 'frozen', 'archived')`),
+  check("mutation_ledger_epochs_schema_hash_check", sql`${table.baselineSchemaHash} ~ '^[0-9a-f]{64}$'`),
+  check("mutation_ledger_epochs_data_hash_check", sql`${table.baselineDataHash} ~ '^[0-9a-f]{64}$'`),
+]);
+
+export const mutationEntityRevisions = pgTable("mutation_entity_revisions", {
+  tableName: text("table_name").notNull(),
+  entityKey: text("entity_key").notNull(),
+  revision: bigint("revision", { mode: "number" }).notNull().default(0),
+}, (table) => [primaryKey({ columns: [table.tableName, table.entityKey] })]);
+
+export const mutationOutboxEvents = pgTable("mutation_outbox_events", {
+  eventId: uuid("event_id").primaryKey().defaultRandom(),
+  eventSequence: bigserial("event_sequence", { mode: "number" }).notNull(),
+  epochId: uuid("epoch_id").notNull().references(() => mutationLedgerEpochs.id, { onDelete: "restrict" }),
+  mutationGroupId: uuid("mutation_group_id").notNull(),
+  groupOrdinal: integer("group_ordinal").notNull(),
+  tableName: text("table_name").notNull(),
+  entityKey: text("entity_key").notNull(),
+  entityRevision: bigint("entity_revision", { mode: "number" }).notNull(),
+  operation: text("operation").notNull(),
+  beforeJSON: jsonb("before_json"),
+  afterJSON: jsonb("after_json"),
+  sourceKind: text("source_kind").notNull(),
+  sourceEventId: text("source_event_id"),
+  requestId: text("request_id").notNull(),
+  idempotencyKey: text("idempotency_key"),
+  appUserId: uuid("app_user_id"),
+  method: text("method"),
+  path: text("path"),
+  actorId: text("actor_id"),
+  workerVersionId: text("worker_version_id").notNull(),
+  schemaVersion: integer("schema_version").notNull().default(1),
+  capturedAt: timestamp("captured_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex("mutation_outbox_events_sequence_uq").on(table.eventSequence),
+  uniqueIndex("mutation_outbox_events_group_ordinal_uq").on(table.mutationGroupId, table.groupOrdinal),
+  uniqueIndex("mutation_outbox_events_entity_revision_uq").on(table.tableName, table.entityKey, table.entityRevision),
+  index("mutation_outbox_events_epoch_sequence_idx").on(table.epochId, table.eventSequence),
+  check("mutation_outbox_events_operation_check", sql`${table.operation} in ('insert', 'update', 'delete')`),
+  check("mutation_outbox_events_ordinal_check", sql`${table.groupOrdinal} > 0`),
+  check("mutation_outbox_events_revision_check", sql`${table.entityRevision} > 0`),
+  check("mutation_outbox_events_schema_version_check", sql`${table.schemaVersion} = 1`),
+]);
+
+export const mutationOutboxDeliveries = pgTable("mutation_outbox_deliveries", {
+  eventId: uuid("event_id").primaryKey().references(() => mutationOutboxEvents.eventId, { onDelete: "restrict" }),
+  state: text("state").notNull().default("pending"),
+  attemptCount: integer("attempt_count").notNull().default(0),
+  leaseGeneration: bigint("lease_generation", { mode: "number" }).notNull().default(0),
+  leasedUntil: timestamp("leased_until", { withTimezone: true }),
+  nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }).notNull().defaultNow(),
+  lastError: text("last_error"),
+  encryptedEnvelope: text("encrypted_envelope"),
+  encryptionKeyId: text("encryption_key_id"),
+  encryptionNonce: text("encryption_nonce"),
+  contentDigest: text("content_digest"),
+  deliveredAt: timestamp("delivered_at", { withTimezone: true }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index("mutation_outbox_deliveries_dispatch_idx").on(table.state, table.nextAttemptAt),
+  check("mutation_outbox_deliveries_state_check", sql`${table.state} in ('pending', 'leased', 'delivered', 'quarantined')`),
+  check("mutation_outbox_deliveries_attempt_count_check", sql`${table.attemptCount} >= 0`),
+  check("mutation_outbox_deliveries_lease_generation_check", sql`${table.leaseGeneration} >= 0`),
+]);
+
+// Provider-specific runtime pin. Each deployed branch receives exactly one
+// reviewed marker after migrations; the Worker also verifies current_user's
+// PlanetScale branch suffix so a cloned/cross-wired database fails closed.
+export const runtimeDatabaseMarkers = pgTable("runtime_database_markers", {
+  marker: text("marker").primaryKey(),
+  branchId: text("branch_id").notNull(),
+  environment: text("environment").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});

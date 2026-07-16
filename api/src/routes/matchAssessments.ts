@@ -5,6 +5,8 @@ import { matchAssessments, matches } from "../db/schema";
 import type { Env, Variables } from "../types";
 import { parseISODate } from "../utils/dates";
 import { snakeCaseJSON } from "../utils/json";
+import { httpMutationContext } from "../services/mutationContext";
+import { withMutation } from "../services/mutationLedger";
 
 const input = z.object({ id: z.uuid(), match_id: z.uuid(), owner_id: z.string().optional(), rating: z.number().int().min(1).max(5).nullable().optional(), overall: z.string().nullable().optional(), went_well: z.string().nullable().optional(), to_improve: z.string().nullable().optional(), created_at: z.iso.datetime().optional() });
 export const matchAssessmentRoutes = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -25,17 +27,20 @@ matchAssessmentRoutes.post("/", async (c) => {
   const [ownedMatch] = await c.get("db").select({ id: matches.id }).from(matches).where(and(eq(matches.id, p.match_id), eq(matches.ownerId, ownerId))).limit(1);
   if (!ownedMatch) return c.json({ error: "match_not_found" }, 404);
   const values = { id: p.id, matchId: p.match_id, ownerId, rating: p.rating ?? null, overall: p.overall ?? null, wentWell: p.went_well ?? null, toImprove: p.to_improve ?? null, createdAt: p.created_at ? new Date(p.created_at) : new Date(), updatedAt: new Date(), deletedAt: null };
-  const [row] = await c.get("db").insert(matchAssessments).values(values).onConflictDoUpdate({
-    target: matchAssessments.id,
-    set: { matchId: values.matchId, rating: values.rating, overall: values.overall, wentWell: values.wentWell, toImprove: values.toImprove, updatedAt: values.updatedAt, deletedAt: null },
-    setWhere: eq(matchAssessments.ownerId, ownerId),
-  }).returning();
+  const row = await withMutation(c.get("db"), httpMutationContext(c, "/api/match-assessments"), async (tx) => {
+    const [saved] = await tx.insert(matchAssessments).values(values).onConflictDoUpdate({
+      target: matchAssessments.id,
+      set: { matchId: values.matchId, rating: values.rating, overall: values.overall, wentWell: values.wentWell, toImprove: values.toImprove, updatedAt: values.updatedAt, deletedAt: null },
+      setWhere: eq(matchAssessments.ownerId, ownerId),
+    }).returning();
+    return saved;
+  });
   if (!row) return c.json({ error: "forbidden" }, 403);
   return c.json(snakeCaseJSON(row));
 });
 
 matchAssessmentRoutes.delete("/:id", async (c) => {
   const id = z.uuid().safeParse(c.req.param("id")); if (!id.success) return c.json({ error: "invalid_id" }, 422);
-  const rows = await c.get("db").update(matchAssessments).set({ deletedAt: new Date(), updatedAt: new Date() }).where(and(eq(matchAssessments.id, id.data), eq(matchAssessments.ownerId, c.get("auth").appUserId), isNull(matchAssessments.deletedAt))).returning({ id: matchAssessments.id });
+  const rows = await withMutation(c.get("db"), httpMutationContext(c, "/api/match-assessments/:id"), (tx) => tx.update(matchAssessments).set({ deletedAt: new Date(), updatedAt: new Date() }).where(and(eq(matchAssessments.id, id.data), eq(matchAssessments.ownerId, c.get("auth").appUserId), isNull(matchAssessments.deletedAt))).returning({ id: matchAssessments.id }));
   return rows.length ? c.body(null, 204) : c.json({ error: "not_found" }, 404);
 });

@@ -43,6 +43,76 @@
       "when": 1783993345180,
       "tag": "0005_abnormal_tempest",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1784080259516,
+      "tag": "0006_nappy_blur",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1784081327876,
+      "tag": "0007_military_sumo",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1784082154236,
+      "tag": "0008_immutable_identity_registry",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1784082344411,
+      "tag": "0009_harden_identity_registry_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1784083481888,
+      "tag": "0010_mixed_nekra",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1784084111673,
+      "tag": "0011_ledger_epoch_archive_transition",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1784085218601,
+      "tag": "0012_protect_ledger_delivery_envelope",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1784085837456,
+      "tag": "0013_secure_ledger_capture_function",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1784088536173,
+      "tag": "0014_awesome_roughhouse",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1784091083000,
+      "tag": "0015_bound_ledger_capture_envelope",
+      "breakpoints": true
     }
   ]
 }

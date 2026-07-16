@@ -12,7 +12,7 @@ const teamA = "0190f8f4-5914-7b6c-9d6a-469a29f93201";
 const teamB = "0190f8f4-5914-7b6c-9d6a-469a29f93202";
 const matchId = "0190f8f4-5914-7b6c-9d6a-469a29f93301";
 const rejectedMatchId = "0190f8f4-5914-7b6c-9d6a-469a29f93302";
-const expectedDisposableBranchId = "q3h0se4bstwi";
+const expectedDisposableBranchId = "ng9tgmy4pyi5";
 const databaseURL = validatedIntegrationDatabaseURL();
 
 describe("matches against a real Postgres branch", () => {
