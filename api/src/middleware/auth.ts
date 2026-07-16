@@ -3,21 +3,16 @@ import { eq } from "drizzle-orm";
 import { createMiddleware } from "hono/factory";
 import { appUsers } from "../db/schema";
 import { connectDatabase } from "../db/client";
+import { provisionNewUserAfterReconciliation } from "../services/userOnboarding";
 import type { Env, Variables } from "../types";
-import { writesAreDisabled } from "./writeGate";
+import { workerVersionId } from "../services/workerVersion";
 
 export interface VerifiedSession {
   clerkUserId: string;
+  clerkInstanceId: string;
 }
 
 export type SessionVerifier = (request: Request, env: Env) => Promise<VerifiedSession | null>;
-
-export function allowsUnmappedClerkUsers(
-  env: Pick<Env, "ALLOW_UNMAPPED_CLERK_USERS" | "WRITE_MODE">,
-): boolean {
-  return !writesAreDisabled(env)
-    && env.ALLOW_UNMAPPED_CLERK_USERS?.trim().toLowerCase() === "true";
-}
 
 export const verifyClerkSession: SessionVerifier = async (request, env) => {
   const authorization = request.headers.get("authorization");
@@ -32,7 +27,14 @@ export const verifyClerkSession: SessionVerifier = async (request, env) => {
   });
   if (!state.isAuthenticated) return null;
   const auth = state.toAuth();
-  return auth.userId ? { clerkUserId: auth.userId } : null;
+  const expectedIssuer = env.CLERK_ISSUER?.trim().replace(/\/$/, "");
+  const actualIssuer = auth.sessionClaims?.iss?.replace(/\/$/, "");
+  const clerkInstanceId = env.CLERK_INSTANCE_ID?.trim();
+  const requiresExactProvenance = env.REFWATCH_ENV === "production"
+    || env.NEW_USER_ONBOARDING_MODE?.trim().toLowerCase() === "post_reconciliation";
+  if (!actualIssuer || (expectedIssuer && actualIssuer !== expectedIssuer)) return null;
+  if (requiresExactProvenance && (!expectedIssuer || !clerkInstanceId)) return null;
+  return auth.userId ? { clerkUserId: auth.userId, clerkInstanceId: clerkInstanceId ?? actualIssuer } : null;
 };
 
 export function clerkAuth(verifier: SessionVerifier = verifyClerkSession) {
@@ -45,6 +47,12 @@ export function clerkAuth(verifier: SessionVerifier = verifyClerkSession) {
       return c.json({ error: "unauthorized", message: "Invalid or expired session token" }, 401);
     }
     if (!session) return c.json({ error: "unauthorized", message: "Bearer session token required" }, 401);
+    const requiresExactProvenance = c.env.REFWATCH_ENV === "production"
+      || c.env.NEW_USER_ONBOARDING_MODE?.trim().toLowerCase() === "post_reconciliation";
+    if ((c.env.CLERK_INSTANCE_ID && session.clerkInstanceId !== c.env.CLERK_INSTANCE_ID)
+      || (requiresExactProvenance && !c.env.CLERK_INSTANCE_ID)) {
+      return c.json({ error: "unauthorized", message: "Session belongs to a different Clerk instance" }, 401);
+    }
 
     const connection = await connectDatabase(c.env);
     try {
@@ -54,19 +62,26 @@ export function clerkAuth(verifier: SessionVerifier = verifyClerkSession) {
       if (existing?.deletedAt) {
         return c.json({ error: "account_disabled", message: "This account mapping is deleted" }, 403);
       }
-      if (!existing && !allowsUnmappedClerkUsers(c.env)) {
-        return c.json({
-          error: "account_mapping_required",
-          message: "This Clerk account has not been linked to a RefWatch user",
-        }, 403);
-      }
-      const user = existing ?? (await connection.db.insert(appUsers).values({
+      let user = existing;
+      if (!user) {
+        const provisioned = await provisionNewUserAfterReconciliation(connection.db, c.env, {
+          clerkInstanceId: session.clerkInstanceId,
           clerkUserId: session.clerkUserId,
-        }).onConflictDoUpdate({
-          target: appUsers.clerkUserId,
-          set: { updatedAt: new Date() },
-        }).returning())[0];
-      if (!user) throw new Error("Unable to resolve app user");
+        }, {
+          sourceKind: "clerk_onboarding",
+          sourceEventId: `${session.clerkInstanceId}:${session.clerkUserId}:${c.env.IDENTITY_RECONCILIATION_RECEIPT ?? "unbound"}`,
+          requestId: crypto.randomUUID(),
+          workerVersionId: workerVersionId(c.env),
+          actorId: session.clerkUserId,
+        });
+        if (provisioned.kind !== "created" && provisioned.kind !== "existing") {
+          return c.json({
+            error: "account_mapping_required",
+            message: "This Clerk account has not been linked to a RefWatch user",
+          }, 403);
+        }
+        user = provisioned.user;
+      }
       if (user.deletedAt) return c.json({ error: "account_disabled" }, 403);
       c.set("db", connection.db);
       c.set("dbClient", connection.client);
