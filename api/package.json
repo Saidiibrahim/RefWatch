@@ -13,7 +13,9 @@
     "db:migrate": "drizzle-kit migrate",
     "dry-run": "wrangler deploy --dry-run",
     "cutover:validate": "node scripts/validate-cutover-bundle.mjs",
-    "rollback:validate": "node scripts/validate-rollback-packet.mjs"
+    "rollback:validate": "node scripts/validate-rollback-packet.mjs",
+    "mutation:coverage": "node scripts/validate-mutation-coverage.mjs",
+    "mutation:poison-rehearsal": "node scripts/create-ledger-poison-probe.mjs"
   },
   "dependencies": {
     "@clerk/backend": "^3.11.4",

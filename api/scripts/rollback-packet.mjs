@@ -7,8 +7,11 @@ const requiredThresholds = [
   "database_connection_utilization_percent",
 ];
 const requiredLedgerFields = [
-  "request_id", "idempotency_key", "app_user_id", "method", "path",
-  "entity_type", "entity_id", "operation", "committed_at_utc", "worker_version_id",
+  "schema_version", "event_id", "event_sequence", "epoch_id", "mutation_group_id",
+  "group_ordinal", "entity_type", "entity_id", "entity_revision", "operation",
+  "before", "after", "source_kind", "source_event_id", "request_id",
+  "idempotency_key", "app_user_id", "method", "path", "actor_id",
+  "worker_version_id", "captured_at_utc", "content_digest", "encryption_key_id",
 ];
 
 const utcInstantPattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/;

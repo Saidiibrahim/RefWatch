@@ -27,7 +27,13 @@ function validPacket() {
     write_ledger: {
       location: "restricted://refwatch/cutover/write-ledger.jsonl",
       schema_version: 1,
-      fields: ["request_id", "idempotency_key", "app_user_id", "method", "path", "entity_type", "entity_id", "operation", "committed_at_utc", "worker_version_id"],
+      fields: [
+        "schema_version", "event_id", "event_sequence", "epoch_id", "mutation_group_id",
+        "group_ordinal", "entity_type", "entity_id", "entity_revision", "operation",
+        "before", "after", "source_kind", "source_event_id", "request_id",
+        "idempotency_key", "app_user_id", "method", "path", "actor_id",
+        "worker_version_id", "captured_at_utc", "content_digest", "encryption_key_id",
+      ],
       provider_readback_at_utc: "2026-07-14T00:30:00Z",
       probe_receipt_id: "ledger-probe-1",
     },

@@ -1,4 +1,14 @@
+import { createHash } from "node:crypto";
+
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const clerkInstancePattern = /^ins_[A-Za-z0-9]+$/;
+const sha256Pattern = /^[0-9a-f]{64}$/;
+const sourceProjectRefPattern = /^[a-z]{20}$/;
+export const refWatchSupabaseProjectRef = "muwuzfbtmqwvwacqnofc";
+const sourceAuthUserKeys = ["id", "email", "encrypted_password", "password_hasher", "created_at", "updated_at", "email_confirmed_at", "last_sign_in_at", "banned_until", "deleted_at", "is_sso_user", "is_anonymous"];
+const sourceAuthIdentityKeys = ["id", "user_id", "provider", "provider_id", "email", "created_at", "updated_at", "last_sign_in_at"];
+const reviewedPasswordDigestCounts = { bcrypt_2a: 13, missing: 30 };
+const reviewedIdentityProviderCounts = { apple: 22, email: 13, google: 9 };
 
 export const sourceTables = [
   "ai_attachments", "ai_messages", "ai_threads", "ai_usage_daily", "coaches",
@@ -34,6 +44,18 @@ const ownerTables = [
 
 function requireCondition(condition, message, errors) {
   if (!condition) errors.push(message);
+}
+
+function requireExactKeys(value, expected, label, errors) {
+  const actual = value && typeof value === "object" && !Array.isArray(value)
+    ? Object.keys(value).sort()
+    : [];
+  const wanted = [...expected].sort();
+  requireCondition(
+    actual.length === wanted.length && actual.every((key, index) => key === wanted[index]),
+    `${label} keys must exactly match ${expected.length === 39 ? "the 39-table source contract" : "the reviewed field contract"}`,
+    errors,
+  );
 }
 
 function ids(rows) {
@@ -160,7 +182,7 @@ function validateReferences(tables, errors) {
   }
 }
 
-export function validateCutoverBundle(bundle) {
+export function validateCutoverBundle(bundle, verifiedEvidence = null) {
   const errors = [];
   const snapshot = bundle?.snapshot ?? {};
   const tables = bundle?.tables ?? {};
@@ -168,11 +190,88 @@ export function validateCutoverBundle(bundle) {
   const mappings = bundle?.clerk_mappings ?? [];
   const dispositions = bundle?.table_dispositions ?? {};
   const authOnly = bundle?.auth_only_users ?? [];
+  const productionClerkInstanceId = bundle?.production_clerk_instance_id;
+  const sourceAuthUsers = bundle?.source_auth_users ?? [];
+  const sourceAuthIdentities = bundle?.source_auth_identities ?? [];
+  const artifact = snapshot.artifact ?? {};
+  const quiescence = snapshot.quiescence ?? {};
+  const verifiedArtifact = verifiedEvidence?.artifact ?? {};
+  const verifiedProviderReceipt = verifiedEvidence?.providerReceipt ?? {};
+  const verifiedLedgerReceipt = verifiedEvidence?.ledgerReceipt ?? {};
+  const verifiedCreatorReceipt = verifiedEvidence?.creatorReceipt ?? {};
+  const releasePolicy = verifiedEvidence?.releasePolicy ?? {};
 
-  requireCondition(snapshot.source === "supabase-mcp", "snapshot.source must be supabase-mcp", errors);
+  requireCondition(snapshot.source === "supabase-secure-export", "snapshot.source must be supabase-secure-export", errors);
+  requireCondition(snapshot.status === "final", "snapshot.status must be final", errors);
+  requireCondition(snapshot.final === true, "snapshot.final must be true", errors);
+  requireCondition(snapshot.eligible_for_import === true, "snapshot must be eligible_for_import", errors);
+  requireCondition(snapshot.writes_quiesced === true, "snapshot must prove writes_quiesced", errors);
+  requireCondition(snapshot.final_export_complete === true, "snapshot must prove final_export_complete", errors);
   requireCondition(snapshot.transaction_isolation === "repeatable read", "snapshot must use repeatable read", errors);
   requireCondition(snapshot.read_only === true, "snapshot must be read only", errors);
   requireCondition(typeof snapshot.captured_at_utc === "string" && !Number.isNaN(Date.parse(snapshot.captured_at_utc)), "snapshot.captured_at_utc must be an ISO timestamp", errors);
+  requireCondition(typeof snapshot.completed_at_utc === "string" && !Number.isNaN(Date.parse(snapshot.completed_at_utc)), "snapshot.completed_at_utc must be an ISO timestamp", errors);
+  if (!Number.isNaN(Date.parse(snapshot.captured_at_utc)) && !Number.isNaN(Date.parse(snapshot.completed_at_utc))) {
+    requireCondition(Date.parse(snapshot.completed_at_utc) >= Date.parse(snapshot.captured_at_utc), "snapshot completion must not precede capture", errors);
+  }
+  requireCondition(sourceProjectRefPattern.test(snapshot.source_project_ref ?? "") && snapshot.source_project_ref === refWatchSupabaseProjectRef, "snapshot.source_project_ref must be the reviewed RefWatch Supabase project", errors);
+  for (const field of ["query_sha256", "generator_sha256", "schema_contract_sha256", "rls_contract_sha256", "server_data_sha256", "local_data_sha256"]) {
+    requireCondition(sha256Pattern.test(snapshot[field] ?? ""), `snapshot.${field} must be SHA-256`, errors);
+  }
+  const recomputedDataSha256 = computeCutoverDataSha256(tables);
+  requireCondition(snapshot.local_data_sha256 === recomputedDataSha256, "snapshot local data digest does not match exported rows", errors);
+  requireCondition(snapshot.server_data_sha256 === snapshot.local_data_sha256, "snapshot server/local data digests must match", errors);
+  requireCondition(uuidPattern.test(snapshot.export_id ?? ""), "snapshot.export_id is invalid", errors);
+  requireCondition(verifiedEvidence?.verified === true, "encrypted artifact and quiescence evidence must be independently verified", errors);
+  requireCondition(snapshot.query_sha256 === releasePolicy.querySha256, "snapshot query digest is not approved by the release packet", errors);
+  requireCondition(snapshot.generator_sha256 === releasePolicy.generatorSha256, "snapshot generator digest is not approved by the release packet", errors);
+  requireCondition(artifact.encrypted === true, "snapshot artifact must be encrypted", errors);
+  requireCondition(typeof artifact.retention_owner === "string" && artifact.retention_owner.trim().length > 0, "snapshot retention owner is required", errors);
+  requireCondition(typeof artifact.retention_event === "string" && artifact.retention_event.trim().length > 0, "snapshot retention event is required", errors);
+  requireCondition(artifact.deletion_verification_required === true, "snapshot deletion verification must be required", errors);
+  requireCondition(verifiedCreatorReceipt.sha256 === releasePolicy.creatorReceiptSha256, "artifact creator receipt digest is not approved by the release packet", errors);
+  requireCondition(typeof verifiedArtifact.cipher === "string" && verifiedArtifact.cipher.length > 0, "verified artifact cipher is required", errors);
+  requireCondition(sha256Pattern.test(verifiedArtifact.sha256 ?? ""), "verified artifact SHA-256 is required", errors);
+  requireCondition(Number.isInteger(verifiedArtifact.byteSize) && verifiedArtifact.byteSize > 0, "verified artifact byte size is invalid", errors);
+  requireCondition(verifiedArtifact.mode === "0600", "verified artifact mode must be 0600", errors);
+  requireCondition(verifiedArtifact.directoryMode === "0700", "verified artifact directory mode must be 0700", errors);
+  requireCondition(verifiedArtifact.noSymlink === true, "encrypted artifact path must be verified without symlinks", errors);
+  requireCondition(verifiedArtifact.ownerVerified === true, "encrypted artifact ownership must be verified", errors);
+  requireCondition(verifiedCreatorReceipt.data?.receipt_type === "encrypted-artifact-creation", "artifact creator receipt type is invalid", errors);
+  requireCondition(verifiedCreatorReceipt.data?.export_id === snapshot.export_id, "artifact creator receipt export ID does not match snapshot", errors);
+  requireCondition(verifiedCreatorReceipt.data?.source_project_ref === refWatchSupabaseProjectRef, "artifact creator receipt source project is invalid", errors);
+  requireCondition(verifiedCreatorReceipt.data?.query_sha256 === releasePolicy.querySha256 && verifiedCreatorReceipt.data?.generator_sha256 === releasePolicy.generatorSha256, "artifact creator receipt is not bound to the reviewed exporter", errors);
+  requireCondition(verifiedCreatorReceipt.data?.cipher === verifiedArtifact.cipher, "artifact creator receipt cipher does not match ciphertext", errors);
+  requireCondition(verifiedCreatorReceipt.data?.artifact_sha256 === verifiedArtifact.sha256 && verifiedCreatorReceipt.data?.byte_size === verifiedArtifact.byteSize, "artifact creator receipt does not match ciphertext digest/size", errors);
+  requireCondition(verifiedCreatorReceipt.data?.manifest_sha256 === verifiedEvidence?.manifestSha256, "artifact creator receipt does not match detached manifest", errors);
+  requireCondition(verifiedCreatorReceipt.data?.exclusive_create === true && verifiedCreatorReceipt.data?.fsync_file === true && verifiedCreatorReceipt.data?.fsync_directory === true && verifiedCreatorReceipt.data?.atomic_rename === true, "artifact creator receipt must prove exclusive create, fsync, and atomic rename", errors);
+  requireCondition(quiescence.write_mode_disabled === true, "snapshot quiescence must prove write mode disabled", errors);
+  requireCondition(quiescence.source_writes_stopped === true, "snapshot quiescence must prove source writes stopped", errors);
+  requireCondition(sha256Pattern.test(quiescence.provider_receipt_sha256 ?? ""), "snapshot quiescence provider receipt is required", errors);
+  requireCondition(sha256Pattern.test(quiescence.ledger_receipt_sha256 ?? ""), "snapshot quiescence ledger receipt is required", errors);
+  requireCondition(Number.isInteger(quiescence.ledger_watermark) && quiescence.ledger_watermark >= 0, "snapshot quiescence ledger watermark is invalid", errors);
+  requireCondition(uuidPattern.test(quiescence.write_guard_version_id ?? ""), "snapshot quiescence write guard version is invalid", errors);
+  requireCondition(!Number.isNaN(Date.parse(quiescence.required_through_utc ?? "")) && Date.parse(quiescence.required_through_utc) >= Date.parse(snapshot.completed_at_utc), "snapshot quiescence required-through time must cover export completion", errors);
+  requireCondition(quiescence.provider_receipt_sha256 === verifiedProviderReceipt.sha256, "provider receipt digest does not match verified file", errors);
+  requireCondition(quiescence.ledger_receipt_sha256 === verifiedLedgerReceipt.sha256, "ledger receipt digest does not match verified file", errors);
+  for (const receipt of [verifiedProviderReceipt.data, verifiedLedgerReceipt.data]) {
+    requireCondition(receipt?.source_project_ref === snapshot.source_project_ref, "quiescence receipt source project does not match snapshot", errors);
+    requireCondition(receipt?.export_id === snapshot.export_id, "quiescence receipt export ID does not match snapshot", errors);
+    requireCondition(receipt?.query_sha256 === snapshot.query_sha256, "quiescence receipt query digest does not match snapshot", errors);
+    requireCondition(receipt?.generator_sha256 === snapshot.generator_sha256, "quiescence receipt generator digest does not match snapshot", errors);
+    requireCondition(receipt?.write_guard_version_id === quiescence.write_guard_version_id, "quiescence receipt write guard does not match snapshot", errors);
+    requireCondition(receipt?.write_mode_disabled === true && receipt?.source_writes_stopped === true, "quiescence receipt must prove both write gates", errors);
+    requireCondition(Number.isInteger(receipt?.ledger_watermark) && receipt.ledger_watermark === quiescence.ledger_watermark, "quiescence receipt ledger watermark does not match snapshot", errors);
+    requireCondition(Date.parse(receipt?.quiescence_started_at_utc ?? "") <= Date.parse(snapshot.captured_at_utc), "quiescence must begin before snapshot capture", errors);
+    requireCondition(Date.parse(receipt?.quiescence_observed_through_utc ?? "") >= Date.parse(quiescence.required_through_utc), "quiescence receipt does not cover the required interval", errors);
+  }
+  requireCondition(clerkInstancePattern.test(productionClerkInstanceId ?? ""), "production_clerk_instance_id must identify the reviewed production Clerk instance", errors);
+  requireCondition(Array.isArray(sourceAuthUsers), "source_auth_users must be an encrypted array", errors);
+  requireCondition(Array.isArray(sourceAuthIdentities), "source_auth_identities must be an encrypted array", errors);
+
+  requireExactKeys(counts, sourceTables, "snapshot.public_table_counts", errors);
+  requireExactKeys(tables, sourceTables, "tables", errors);
+  requireExactKeys(dispositions, sourceTables, "table_dispositions", errors);
 
   for (const table of sourceTables) {
     requireCondition(Number.isInteger(counts[table]) && counts[table] >= 0, `missing count for public.${table}`, errors);
@@ -235,42 +334,105 @@ export function validateCutoverBundle(bundle) {
   }
   const authCount = snapshot.auth_user_count;
   requireCondition(Number.isInteger(authCount) && authCount === authIdSet.size && authCount >= userRows.length, "snapshot.auth_user_count/auth_user_ids is invalid", errors);
+  requireCondition(sourceAuthUsers.length === authCount, "source_auth_users must exactly match snapshot.auth_user_count", errors);
+  requireCondition(Number.isInteger(snapshot.auth_identity_count) && sourceAuthIdentities.length === snapshot.auth_identity_count, "source_auth_identities must exactly match snapshot.auth_identity_count", errors);
+  const sourceAuthUserById = new Map();
+  const actualPasswordDigestCounts = { bcrypt_2a: 0, missing: 0 };
+  for (const authUser of sourceAuthUsers) {
+    requireExactKeys(authUser, sourceAuthUserKeys, `source_auth_users.${authUser?.id ?? "<missing>"}`, errors);
+    const authUserId = String(authUser?.id ?? "").toLowerCase();
+    requireCondition(uuidPattern.test(authUserId) && authIdSet.has(authUserId), `source auth user ${authUserId || "<missing>"} is not in the final Auth ID set`, errors);
+    requireCondition(!sourceAuthUserById.has(authUserId), `duplicate source auth user ${authUserId}`, errors);
+    requireCondition(typeof authUser.email === "string" && authUser.email === authUser.email.trim().toLowerCase() && authUser.email.includes("@"), `source auth user ${authUserId} needs a normalized email`, errors);
+    if (authUser.encrypted_password == null || authUser.encrypted_password === "") {
+      requireCondition(authUser.password_hasher == null, `source auth user ${authUserId} without a digest must not declare a password hasher`, errors);
+      actualPasswordDigestCounts.missing += 1;
+    } else {
+      requireCondition(/^\$2a\$(?:0[4-9]|[12]\d|3[01])\$[./A-Za-z0-9]{53}$/.test(authUser.encrypted_password), `source auth user ${authUserId} has an unsupported password digest`, errors);
+      requireCondition(authUser.password_hasher === "bcrypt", `source auth user ${authUserId} password hasher must be bcrypt`, errors);
+      actualPasswordDigestCounts.bcrypt_2a += 1;
+    }
+    sourceAuthUserById.set(authUserId, authUser);
+  }
+  for (const authId of authIdSet) requireCondition(sourceAuthUserById.has(authId), `missing encrypted source auth user ${authId}`, errors);
+  const sourceIdentitiesByUser = new Map();
+  const sourceIdentityIds = new Set();
+  const actualIdentityProviderCounts = { apple: 0, email: 0, google: 0 };
+  for (const identity of sourceAuthIdentities) {
+    requireExactKeys(identity, sourceAuthIdentityKeys, `source_auth_identities.${identity?.id ?? "<missing>"}`, errors);
+    const identityId = String(identity?.id ?? "").toLowerCase();
+    const sourceUserId = String(identity?.user_id ?? "").toLowerCase();
+    requireCondition(uuidPattern.test(identityId) && !sourceIdentityIds.has(identityId), `source auth identity ${identityId || "<missing>"} is invalid or duplicated`, errors);
+    requireCondition(sourceAuthUserById.has(sourceUserId), `source auth identity ${identityId} references an unknown Auth user`, errors);
+    requireCondition(["apple", "email", "google"].includes(identity?.provider), `source auth identity ${identityId} has an unreviewed provider`, errors);
+    requireCondition(typeof identity?.provider_id === "string" && identity.provider_id.length > 0, `source auth identity ${identityId} needs provider_id`, errors);
+    const parentEmail = sourceAuthUserById.get(sourceUserId)?.email;
+    requireCondition(typeof identity?.email === "string" && identity.email === parentEmail, `source auth identity ${identityId} email must exactly match its Auth user`, errors);
+    if (Object.hasOwn(actualIdentityProviderCounts, identity?.provider)) actualIdentityProviderCounts[identity.provider] += 1;
+    sourceIdentityIds.add(identityId);
+    const identities = sourceIdentitiesByUser.get(sourceUserId) ?? [];
+    identities.push(identity);
+    sourceIdentitiesByUser.set(sourceUserId, identities);
+  }
+  for (const key of Object.keys(reviewedPasswordDigestCounts)) {
+    requireCondition(snapshot.auth_password_digest_counts?.[key] === actualPasswordDigestCounts[key], `snapshot Auth password ${key} count does not match encrypted source`, errors);
+    requireCondition(releasePolicy.authPasswordDigestCounts?.[key] === actualPasswordDigestCounts[key], `Auth password ${key} count is not approved by the release packet`, errors);
+    requireCondition(actualPasswordDigestCounts[key] === reviewedPasswordDigestCounts[key], `Auth password ${key} count drifted from the reviewed production contract`, errors);
+  }
+  for (const key of Object.keys(reviewedIdentityProviderCounts)) {
+    requireCondition(snapshot.auth_identity_provider_counts?.[key] === actualIdentityProviderCounts[key], `snapshot Auth identity ${key} count does not match encrypted source`, errors);
+    requireCondition(releasePolicy.authIdentityProviderCounts?.[key] === actualIdentityProviderCounts[key], `Auth identity ${key} count is not approved by the release packet`, errors);
+    requireCondition(actualIdentityProviderCounts[key] === reviewedIdentityProviderCounts[key], `Auth identity ${key} count drifted from the reviewed production contract`, errors);
+  }
+  for (const authId of authIdSet) requireCondition((sourceIdentitiesByUser.get(authId)?.length ?? 0) > 0, `source auth user ${authId} has no provider identity`, errors);
   for (const userId of userIds) requireCondition(authIdSet.has(userId), `public user ${userId} is absent from source auth IDs`, errors);
   const expectedAuthOnlyIds = new Set([...authIdSet].filter((id) => !userIds.has(id)));
+  requireCondition(expectedAuthOnlyIds.size === 1, "final source must contain exactly the one reviewed auth-only identity", errors);
   requireCondition(authOnly.length === expectedAuthOnlyIds.size, `auth-only cardinality mismatch: expected=${expectedAuthOnlyIds.size} actual=${authOnly.length}`, errors);
   const authIds = new Set();
-  const migratedAppIds = new Set(mappedAppIds);
-  const migratedClerkSubjects = new Set(clerkSubjects);
   for (const entry of authOnly) {
     requireCondition(uuidPattern.test(entry.auth_user_id ?? ""), "each auth-only disposition needs auth_user_id", errors);
-    requireCondition(["archive", "exclude", "migrate"].includes(entry.action), `invalid auth-only action for ${entry.auth_user_id ?? "<missing>"}`, errors);
+    requireCondition(entry.action === "exclude", `auth-only action for ${entry.auth_user_id ?? "<missing>"} must be exclude`, errors);
+    requireCondition(entry.normalized_email === "testing@refwatch.com", `auth-only disposition ${entry.auth_user_id ?? "<missing>"} must bind the approved normalized email`, errors);
+    requireCondition(entry.public_profile_present === false, `auth-only disposition ${entry.auth_user_id ?? "<missing>"} must prove no public profile`, errors);
+    requireCondition(entry.owned_row_count === 0, `auth-only disposition ${entry.auth_user_id ?? "<missing>"} must prove zero owned/referenced rows`, errors);
+    requireCondition(Number.isInteger(entry.provider_identity_count) && entry.provider_identity_count > 0, `auth-only disposition ${entry.auth_user_id ?? "<missing>"} must prove provider identity linkage`, errors);
+    requireCondition(sha256Pattern.test(entry.auth_user_safe_sha256 ?? ""), `auth-only disposition ${entry.auth_user_id ?? "<missing>"} needs a safe Auth-user digest`, errors);
+    requireCondition(sha256Pattern.test(entry.auth_identity_safe_sha256 ?? ""), `auth-only disposition ${entry.auth_user_id ?? "<missing>"} needs a safe Auth-identity digest`, errors);
     requireCondition(typeof entry.reason === "string" && entry.reason.trim().length > 0, `auth-only disposition ${entry.auth_user_id ?? "<missing>"} needs a reason`, errors);
     const normalizedAuthId = String(entry.auth_user_id).toLowerCase();
+    const encryptedAuthUser = sourceAuthUserById.get(normalizedAuthId);
+    const encryptedIdentities = sourceIdentitiesByUser.get(normalizedAuthId) ?? [];
+    requireCondition(entry.normalized_email === encryptedAuthUser?.email, `auth-only disposition ${entry.auth_user_id ?? "<missing>"} email does not match the encrypted Auth source`, errors);
+    requireCondition(entry.provider_identity_count === encryptedIdentities.length, `auth-only disposition ${entry.auth_user_id ?? "<missing>"} identity count does not match the encrypted Auth source`, errors);
+    const safeDigests = computeSourceAuthSafeDigests(encryptedAuthUser, encryptedIdentities);
+    requireCondition(entry.auth_user_safe_sha256 === safeDigests.authUserSha256, `auth-only disposition ${entry.auth_user_id ?? "<missing>"} Auth-user digest does not match`, errors);
+    requireCondition(entry.auth_identity_safe_sha256 === safeDigests.authIdentitiesSha256, `auth-only disposition ${entry.auth_user_id ?? "<missing>"} identity digest does not match`, errors);
     requireCondition(!authIds.has(normalizedAuthId), `duplicate auth-only disposition ${entry.auth_user_id}`, errors);
     requireCondition(expectedAuthOnlyIds.has(normalizedAuthId), `auth-only disposition references unexpected source identity ${entry.auth_user_id}`, errors);
     authIds.add(normalizedAuthId);
-    if (entry.action === "migrate") {
-      requireCondition(uuidPattern.test(entry.app_user_id ?? ""), `migrated auth-only ${entry.auth_user_id} needs reviewed app_user_id`, errors);
-      requireCondition(typeof entry.clerk_user_id === "string" && entry.clerk_user_id.length > 0, `migrated auth-only ${entry.auth_user_id} needs Clerk subject`, errors);
-      requireCondition(["new_empty_app_user", "merge_into_existing_app_user"].includes(entry.migration_contract), `migrated auth-only ${entry.auth_user_id} needs an explicit migration_contract`, errors);
-      const appId = String(entry.app_user_id ?? "").toLowerCase();
-      if (entry.migration_contract === "new_empty_app_user") {
-        requireCondition(!migratedAppIds.has(appId), `migrated auth-only app_user_id collision: ${appId}`, errors);
-        requireCondition(!migratedClerkSubjects.has(entry.clerk_user_id), `migrated auth-only Clerk subject collision: ${entry.clerk_user_id}`, errors);
-        requireCondition(entry.new_app_user?.id?.toLowerCase() === appId, `migrated auth-only ${entry.auth_user_id} needs matching new_app_user payload`, errors);
-        migratedAppIds.add(appId);
-        migratedClerkSubjects.add(entry.clerk_user_id);
-      } else if (entry.migration_contract === "merge_into_existing_app_user") {
-        const reviewed = mappings.find((mapping) => String(mapping.app_user_id).toLowerCase() === appId);
-        requireCondition(Boolean(reviewed), `merged auth-only ${entry.auth_user_id} references unknown existing app user`, errors);
-        requireCondition(reviewed?.clerk_user_id === entry.clerk_user_id, `merged auth-only ${entry.auth_user_id} must use the existing reviewed Clerk subject`, errors);
-        requireCondition(typeof entry.reviewed_merge_reason === "string" && entry.reviewed_merge_reason.trim().length > 0, `merged auth-only ${entry.auth_user_id} needs reviewed_merge_reason`, errors);
-      }
-    }
   }
   for (const expectedId of expectedAuthOnlyIds) requireCondition(authIds.has(expectedId), `missing auth-only disposition for source identity ${expectedId}`, errors);
 
   validateReferences(tables, errors);
+
+  const normalizedMappings = mappings.map((mapping) => ({
+    app_user_id: String(mapping.app_user_id ?? "").toLowerCase(),
+    clerk_user_id: String(mapping.clerk_user_id ?? ""),
+  })).sort((a, b) => a.app_user_id.localeCompare(b.app_user_id));
+  const excludedAuthIds = authOnly.filter((entry) => entry.action === "exclude")
+    .map((entry) => String(entry.auth_user_id ?? "").toLowerCase()).sort();
+  const mappingHash = sha256(JSON.stringify(normalizedMappings));
+  const identityReceiptDigest = sha256(JSON.stringify({
+    version: 1,
+    source: snapshot.source ?? null,
+    captured_at_utc: snapshot.captured_at_utc ?? null,
+    auth_user_ids: [...authIdSet].sort(),
+    clerk_instance_id: productionClerkInstanceId ?? null,
+    mapping_hash: mappingHash,
+    legacy_mapping_count: mappings.length,
+    excluded_auth_ids: excludedAuthIds,
+  }));
 
   return {
     ok: errors.length === 0,
@@ -282,7 +444,48 @@ export function validateCutoverBundle(bundle) {
       publicUsers: userRows.length,
       clerkMappings: mappings.length,
       authOnlyUsers: authOnly.length,
+      identityReconciliation: {
+        clerkInstanceId: productionClerkInstanceId ?? null,
+        receiptDigest: identityReceiptDigest,
+        mappingHash,
+        legacyMappingCount: mappings.length,
+        excludedAuthCount: excludedAuthIds.length,
+      },
       importOrder,
     },
+  };
+}
+
+function sha256(value) {
+  return createHash("sha256").update(value).digest("hex");
+}
+
+function canonicalJson(value) {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  if (value && typeof value === "object") {
+    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+export function computeCutoverDataSha256(tables) {
+  const tableDigests = sourceTables.map((table) => {
+    const rows = Array.isArray(tables?.[table]) ? tables[table].map(canonicalJson).sort() : [];
+    const framed = rows.map((row) => `${Buffer.byteLength(row, "utf8")}:${row}`).join("");
+    return [table, sha256(framed)];
+  });
+  return sha256(canonicalJson(Object.fromEntries(tableDigests)));
+}
+
+export function computeSourceAuthSafeDigests(authUser, identities) {
+  const safeAuthUser = authUser
+    ? Object.fromEntries(Object.entries(authUser).filter(([key]) => key !== "encrypted_password" && key !== "password_hasher"))
+    : null;
+  const sortedIdentities = Array.isArray(identities)
+    ? [...identities].sort((left, right) => String(left?.id ?? "").localeCompare(String(right?.id ?? "")))
+    : [];
+  return {
+    authUserSha256: sha256(canonicalJson(safeAuthUser)),
+    authIdentitiesSha256: sha256(canonicalJson(sortedIdentities)),
   };
 }

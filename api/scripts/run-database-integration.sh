@@ -2,7 +2,7 @@
 set -euo pipefail
 
 database="refwatch"
-branch="cutover-rehearsal-20260714"
+branch="ledger-rehearsal-20260715"
 organization="ibrahim-aka-ajax"
 
 for command_name in pscale jq node; do
@@ -25,7 +25,7 @@ trap cleanup_role EXIT INT TERM
 
 role_json=$(pscale role create "$database" "$branch" "$role_name" \
   --org "$organization" \
-  --inherited-roles pg_read_all_data,pg_write_all_data \
+  --inherited-roles pg_read_all_data,pg_write_all_data,postgres \
   --ttl 15m \
   --format json)
 role_id=$(jq -er '.id' <<< "$role_json")
