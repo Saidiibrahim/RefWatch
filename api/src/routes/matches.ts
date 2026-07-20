@@ -34,11 +34,11 @@ matchRoutes.get("/", async (c) => {
   const rows = await c.get("db").select().from(matches).where(and(...filters)).orderBy(matches.updatedAt);
   if (!rows.length) return c.json([]);
   const ids = rows.map((x) => x.id);
-  const [periodRows, eventRows, metricRows] = await Promise.all([
-    c.get("db").select().from(matchPeriods).where(inArray(matchPeriods.matchId, ids)),
-    c.get("db").select().from(matchEvents).where(inArray(matchEvents.matchId, ids)),
-    c.get("db").select().from(matchMetrics).where(and(inArray(matchMetrics.matchId, ids), eq(matchMetrics.ownerId, ownerId))),
-  ]);
+  const periodRows = await c.get("db").select().from(matchPeriods).where(inArray(matchPeriods.matchId, ids));
+  const eventRows = await c.get("db").select().from(matchEvents).where(inArray(matchEvents.matchId, ids));
+  const metricRows = await c.get("db").select().from(matchMetrics).where(and(
+    inArray(matchMetrics.matchId, ids), eq(matchMetrics.ownerId, ownerId),
+  ));
   return c.json(snakeCaseJSON(rows.map((match) => ({ match, periods: periodRows.filter((x) => x.matchId === match.id), events: eventRows.filter((x) => x.matchId === match.id), metrics: metricRows.find((x) => x.matchId === match.id) ?? null }))));
 });
 
@@ -143,16 +143,14 @@ export async function findInvalidEventReference(
   const normalizeUUID = (id: string) => id.toLowerCase();
   const teamIds = [...new Set(events.flatMap((event) => event.team_id ? [normalizeUUID(event.team_id)] : []))];
   const memberIds = [...new Set(events.flatMap((event) => event.team_member_id ? [normalizeUUID(event.team_member_id)] : []))];
-  const [ownedTeams, ownedMembers] = await Promise.all([
-    teamIds.length
-      ? db.select({ id: teams.id }).from(teams).where(and(inArray(teams.id, teamIds), eq(teams.ownerId, ownerId)))
-      : Promise.resolve([]),
-    memberIds.length
-      ? db.select({ id: teamMembers.id, teamId: teamMembers.teamId }).from(teamMembers)
-        .innerJoin(teams, eq(teamMembers.teamId, teams.id))
-        .where(and(inArray(teamMembers.id, memberIds), eq(teams.ownerId, ownerId)))
-      : Promise.resolve([]),
-  ]);
+  const ownedTeams = teamIds.length
+    ? await db.select({ id: teams.id }).from(teams).where(and(inArray(teams.id, teamIds), eq(teams.ownerId, ownerId)))
+    : [];
+  const ownedMembers = memberIds.length
+    ? await db.select({ id: teamMembers.id, teamId: teamMembers.teamId }).from(teamMembers)
+      .innerJoin(teams, eq(teamMembers.teamId, teams.id))
+      .where(and(inArray(teamMembers.id, memberIds), eq(teams.ownerId, ownerId)))
+    : [];
   const ownedTeamIds = new Set(ownedTeams.map((team) => normalizeUUID(team.id)));
   const ownedMemberTeams = new Map(ownedMembers.map((member) => [normalizeUUID(member.id), normalizeUUID(member.teamId)]));
   const participatingTeamIds = new Set(

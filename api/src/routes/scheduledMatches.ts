@@ -35,20 +35,22 @@ scheduledMatchRoutes.post("/", async (c) => {
   const p = parsed.data; const ownerId = c.get("auth").appUserId; const updatedAt = new Date();
   const invalidReference = await findForeignScheduleReference(c.get("db"), ownerId, p);
   if (invalidReference) return c.json({ error: "forbidden_reference", field: invalidReference }, 403);
-  const values = {
-    id: p.id, ownerId, homeTeamName: p.home_team_name, awayTeamName: p.away_team_name, kickoffAt: new Date(p.kickoff_at),
+  const updateValues = {
+    homeTeamName: p.home_team_name, awayTeamName: p.away_team_name, kickoffAt: new Date(p.kickoff_at),
     status: p.status, competitionId: p.competition_id ?? null, competitionName: p.competition_name ?? null,
     venueId: p.venue_id ?? null, venueName: p.venue_name ?? null, homeTeamId: p.home_team_id ?? null, awayTeamId: p.away_team_id ?? null,
     homeMatchSheet: p.home_match_sheet ?? null, awayMatchSheet: p.away_match_sheet ?? null, notes: p.notes ?? null,
     sourceDeviceId: p.source_device_id ?? null, deletedAt: null, updatedAt,
   };
-  const [existing] = await c.get("db").select({ ownerId: scheduledMatches.ownerId }).from(scheduledMatches).where(eq(scheduledMatches.id, p.id)).limit(1);
-  if (existing && existing.ownerId !== ownerId) return c.json({ error: "forbidden" }, 403);
   const row = await withMutation(c.get("db"), httpMutationContext(c, "/api/scheduled-matches"), async (tx) => {
-    const [saved] = await tx.insert(scheduledMatches).values(values).onConflictDoUpdate({ target: scheduledMatches.id, set: values }).returning();
+    const [saved] = await tx.insert(scheduledMatches).values({ id: p.id, ownerId, ...updateValues }).onConflictDoUpdate({
+      target: scheduledMatches.id,
+      set: updateValues,
+      setWhere: eq(scheduledMatches.ownerId, ownerId),
+    }).returning();
     return saved;
   });
-  return c.json(snakeCaseJSON(row), 200);
+  return row ? c.json(snakeCaseJSON(row), 200) : c.json({ error: "forbidden" }, 403);
 });
 
 async function findForeignScheduleReference(db: Variables["db"], ownerId: string, value: z.infer<typeof input>): Promise<string | null> {

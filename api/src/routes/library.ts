@@ -24,11 +24,12 @@ libraryRoutes.get("/teams", async (c) => {
   const teamRows = await c.get("db").select().from(teams).where(and(...filters)).orderBy(teams.updatedAt);
   if (!teamRows.length) return c.json([]);
   const ids = teamRows.map((row) => row.id);
-  const [members, officials, tags] = await Promise.all([
-    c.get("db").select().from(teamMembers).where(inArray(teamMembers.teamId, ids)),
-    c.get("db").select().from(teamOfficials).where(inArray(teamOfficials.teamId, ids)),
-    c.get("db").select().from(teamTags).where(inArray(teamTags.teamId, ids)),
-  ]);
+  // connectDatabase intentionally gives each request one pg Client. Keep its
+  // queries sequential; concurrent client.query calls are deprecated and will
+  // be removed in pg 9.
+  const members = await c.get("db").select().from(teamMembers).where(inArray(teamMembers.teamId, ids));
+  const officials = await c.get("db").select().from(teamOfficials).where(inArray(teamOfficials.teamId, ids));
+  const tags = await c.get("db").select().from(teamTags).where(inArray(teamTags.teamId, ids));
   return c.json(snakeCaseJSON(teamRows.map((team) => ({
     team, members: members.filter((x) => x.teamId === team.id), officials: officials.filter((x) => x.teamId === team.id), tags: tags.filter((x) => x.teamId === team.id),
   }))));
@@ -38,17 +39,21 @@ libraryRoutes.post("/teams", async (c) => {
   const parsed = teamInput.safeParse(await c.req.json().catch(() => null)); if (!parsed.success) return c.json({ error: "validation_error", details: parsed.error.flatten() }, 422);
   const p = parsed.data; const ownerId = c.get("auth").appUserId; const teamId = p.team.id;
   if ([...p.members, ...p.officials].some((x) => x.team_id !== teamId)) return c.json({ error: "nested_team_mismatch" }, 422);
-  const [existing] = await c.get("db").select({ ownerId: teams.ownerId }).from(teams).where(eq(teams.id, teamId)).limit(1);
-  if (existing && existing.ownerId !== ownerId) return c.json({ error: "forbidden" }, 403);
   const row = await withMutation(c.get("db"), httpMutationContext(c, "/api/teams"), async (tx) => {
-    const values = { id: teamId, ownerId, name: p.team.name, shortName: p.team.short_name ?? null, division: p.team.division ?? null, colorPrimary: p.team.color_primary ?? null, colorSecondary: p.team.color_secondary ?? null, referenceKey: p.team.reference_key ?? null, deletedAt: null, updatedAt: new Date() };
-    const [saved] = await tx.insert(teams).values(values).onConflictDoUpdate({ target: teams.id, set: values }).returning();
+    const updateValues = { name: p.team.name, shortName: p.team.short_name ?? null, division: p.team.division ?? null, colorPrimary: p.team.color_primary ?? null, colorSecondary: p.team.color_secondary ?? null, referenceKey: p.team.reference_key ?? null, deletedAt: null, updatedAt: new Date() };
+    const [saved] = await tx.insert(teams).values({ id: teamId, ownerId, ...updateValues }).onConflictDoUpdate({
+      target: teams.id,
+      set: updateValues,
+      setWhere: eq(teams.ownerId, ownerId),
+    }).returning();
+    if (!saved) return null;
     await tx.delete(teamMembers).where(eq(teamMembers.teamId, teamId)); await tx.delete(teamOfficials).where(eq(teamOfficials.teamId, teamId)); await tx.delete(teamTags).where(eq(teamTags.teamId, teamId));
     if (p.members.length) await tx.insert(teamMembers).values(p.members.map((x) => ({ id: x.id, teamId, displayName: x.display_name, jerseyNumber: x.jersey_number ?? null, role: x.role ?? null, position: x.position ?? null, notes: x.notes ?? null, createdAt: x.created_at ? new Date(x.created_at) : new Date() })));
     if (p.officials.length) await tx.insert(teamOfficials).values(p.officials.map((x) => ({ id: x.id, teamId, displayName: x.display_name, role: x.role, phone: x.phone ?? null, email: x.email ?? null, createdAt: x.created_at ? new Date(x.created_at) : new Date() })));
     if (p.tags.length) await tx.insert(teamTags).values([...new Set(p.tags)].map((value) => ({ teamId, value })));
     return saved;
   });
+  if (!row) return c.json({ error: "forbidden" }, 403);
   return c.json(snakeCaseJSON({ updated_at: row?.updatedAt ?? new Date() }));
 });
 
@@ -58,13 +63,17 @@ const competitionInput = z.object({ id: z.uuid(), owner_id: z.string().optional(
 libraryRoutes.get("/competitions", async (c) => listSimple(c, competitions));
 libraryRoutes.post("/competitions", async (c) => {
   const parsed = competitionInput.safeParse(await c.req.json().catch(() => null)); if (!parsed.success) return c.json({ error: "validation_error", details: parsed.error.flatten() }, 422);
-  const p = parsed.data; const ownerId = c.get("auth").appUserId; const [existing] = await c.get("db").select({ ownerId: competitions.ownerId }).from(competitions).where(eq(competitions.id, p.id)).limit(1);
-  if (existing && existing.ownerId !== ownerId) return c.json({ error: "forbidden" }, 403);
-  const values = { id: p.id, ownerId, name: p.name, level: p.level ?? null, deletedAt: null, updatedAt: new Date() };
+  const p = parsed.data; const ownerId = c.get("auth").appUserId;
+  const updateValues = { name: p.name, level: p.level ?? null, deletedAt: null, updatedAt: new Date() };
   const row = await withMutation(c.get("db"), httpMutationContext(c, "/api/competitions"), async (tx) => {
-    const [saved] = await tx.insert(competitions).values(values).onConflictDoUpdate({ target: competitions.id, set: values }).returning();
+    const [saved] = await tx.insert(competitions).values({ id: p.id, ownerId, ...updateValues }).onConflictDoUpdate({
+      target: competitions.id,
+      set: updateValues,
+      setWhere: eq(competitions.ownerId, ownerId),
+    }).returning();
     return saved;
-  }); return c.json(snakeCaseJSON(row));
+  });
+  return row ? c.json(snakeCaseJSON(row)) : c.json({ error: "forbidden" }, 403);
 });
 libraryRoutes.delete("/competitions/:id", async (c) => softDelete(c, competitions, c.req.param("id"), "/api/competitions/:id"));
 
@@ -76,13 +85,17 @@ const venueInput = z.object({ id: z.uuid(), owner_id: z.string().optional(), nam
 libraryRoutes.get("/venues", async (c) => listSimple(c, venues));
 libraryRoutes.post("/venues", async (c) => {
   const parsed = venueInput.safeParse(await c.req.json().catch(() => null)); if (!parsed.success) return c.json({ error: "validation_error", details: parsed.error.flatten() }, 422);
-  const p = parsed.data; const ownerId = c.get("auth").appUserId; const [existing] = await c.get("db").select({ ownerId: venues.ownerId }).from(venues).where(eq(venues.id, p.id)).limit(1);
-  if (existing && existing.ownerId !== ownerId) return c.json({ error: "forbidden" }, 403);
-  const values = { id: p.id, ownerId, name: p.name, city: p.city ?? null, country: p.country ?? null, latitude: p.latitude ?? null, longitude: p.longitude ?? null, deletedAt: null, updatedAt: new Date() };
+  const p = parsed.data; const ownerId = c.get("auth").appUserId;
+  const updateValues = { name: p.name, city: p.city ?? null, country: p.country ?? null, latitude: p.latitude ?? null, longitude: p.longitude ?? null, deletedAt: null, updatedAt: new Date() };
   const row = await withMutation(c.get("db"), httpMutationContext(c, "/api/venues"), async (tx) => {
-    const [saved] = await tx.insert(venues).values(values).onConflictDoUpdate({ target: venues.id, set: values }).returning();
+    const [saved] = await tx.insert(venues).values({ id: p.id, ownerId, ...updateValues }).onConflictDoUpdate({
+      target: venues.id,
+      set: updateValues,
+      setWhere: eq(venues.ownerId, ownerId),
+    }).returning();
     return saved;
-  }); return c.json(snakeCaseJSON(row));
+  });
+  return row ? c.json(snakeCaseJSON(row)) : c.json({ error: "forbidden" }, 403);
 });
 libraryRoutes.delete("/venues/:id", async (c) => softDelete(c, venues, c.req.param("id"), "/api/venues/:id"));
 

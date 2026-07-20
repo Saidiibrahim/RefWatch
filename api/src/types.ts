@@ -31,8 +31,8 @@ export interface Env {
   EXPECTED_DATABASE_MARKER?: string;
   EXPECTED_DATABASE_BRANCH_ID?: string;
   EXPECTED_DATABASE_ROLE_ID?: string;
-  /// Emergency rollback control. A version uploaded with `disabled` rejects all
-  /// API and webhook mutations while leaving health and authenticated reads available.
+  /// Emergency rollback control. Only the exact normalized value `enabled` permits
+  /// API and webhook mutations; missing or unknown values fail closed.
   WRITE_MODE?: string;
   /// Keep false through legacy identity reconciliation. Enable only after all existing
   /// Clerk subjects are mapped to their preserved app_users UUIDs. Deprecated: this
