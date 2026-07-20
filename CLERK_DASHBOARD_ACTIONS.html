@@ -85,6 +85,7 @@
           <li>Keep both production sign-up and sign-in unavailable until the later identity-import/cutover approval.</li>
           <li>Do not create test users, invitations, impersonation sessions, or manual identities.</li>
           <li>When Codex provides the exact provider handoff, enter separately custodied production Apple and Google OAuth credentials directly into Clerk. Do not print, rotate, revoke, export, or paste source credentials into chat.</li>
+          <li>For Google Cloud/API work, Codex must use the installed <code>gcloud</code> CLI; for Google Workspace operations it must use the installed <code>gws</code> CLI. This does not authorize the OAuth phase, and credentials must remain non-disclosing.</li>
           <li>Configure email/password without opening registration or authentication traffic.</li>
         </ol>
       </section>
@@ -96,7 +97,7 @@
           <li>In <strong>Webhooks</strong>, add exactly that URL plus <code>/webhooks/clerk</code>.</li>
           <li>Subscribe only to <code>user.created</code>, <code>user.updated</code>, and <code>user.deleted</code>.</li>
           <li>Reveal the endpoint signing secret only when Codex provides a secure, non-echoing installation prompt. Never paste it into chat or save it in this page.</li>
-          <li>Do not send a sample event until Codex confirms the non-mutating provenance/signature probe is ready; the Worker must return a write-disabled response and must not mutate identities.</li>
+          <li>Do not send a sample event until Codex confirms the non-mutating routing/guard probe is ready; the Worker must return a write-disabled response and must not mutate identities. That denial does not prove signature verification or production-instance provenance, which require a later separately reviewed test.</li>
         </ol>
       </section>
 

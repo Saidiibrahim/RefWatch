@@ -119,3 +119,33 @@ That later proof does not change this packet's production disposition. No
 production Worker, Hyperdrive, Queue, D1, DLQ, encryption key, ledger probe,
 guard version, populated rollback packet, or reverse-import procedure has been
 created or proved. Production rollback readiness therefore remains pending.
+
+## 2026-07-17 production-foundation and write-gate supersession
+
+The final paragraph above and the earlier statement that missing configuration
+preserves normal development behavior are historical. Production now has the
+unrouted write-disabled Worker, cache-disabled Hyperdrive, inactive Queue/DLQ/D1
+resources, and local encryption-key custody recorded in
+`2026-07-15-production-foundation-execution.md`; the coordinated current Worker
+and Clerk pins are in `2026-07-17-production-clerk-domain.md`. This still does
+not satisfy rollback readiness: organizational escrow, functional ledger
+activation/probe, provider-verified candidate/last-known-good/write-guard
+versions, populated packet, distributable recovery client, and reviewed
+recovery strategy remain.
+
+Current code permits API/webhook mutations only for the exact normalized
+`WRITE_MODE=enabled` value. Missing, blank, disabled, and unknown values fail
+closed. The default development, staging, and rehearsal configurations opt in
+explicitly; production remains explicitly disabled until a later exact
+write-enablement approval. The earlier sentence saying production must
+eventually set `WRITE_MODE=enabled` is not current authority.
+
+## 2026-07-17 ledger-key custody correction
+
+The local-custody statement in the supersession section above is itself
+superseded. The named Keychain record exists but its recovered payload is empty,
+and the production Worker secret value is non-readable. The approved Cloudflare
+Secrets Store preflight verified account/store/edit-permission metadata, then
+stopped before creation. Recoverable source custody, stored escrow, functional
+recovery proof, and production ledger activation/probe all remain incomplete.
+See `2026-07-17-production-ledger-key-escrow-audit.md`.

@@ -142,3 +142,29 @@ refresh still reported the Clerk provider and `clerk-auth-2` service as
 `complete` for `auth.refwatch.com`; it exposed no usable production secret
 values and did not advance DNS, certificates, native-app registration, or the
 webhook. No provider mutation occurred during this refresh.
+
+## 2026-07-17 supersession note
+
+The Worker/domain and approval-consumption statements above are retained as
+point-in-time evidence. They are not current instructions. Action 1's bounded
+safe foundation scope is applied and consumed; organizational escrow and a
+functional production ledger activation/probe are separate later gates, not
+unfinished Action 1 work. The historical Worker/issuer pins above were
+superseded by production Worker `e966d6df-b5ff-4288-832c-c8d91e00ce48` and
+issuer `https://clerk.refwatch.ibby.ai` after the separately authorized owned
+replacement-domain batch. See `2026-07-17-production-clerk-domain.md` and
+`2026-07-17-cutover-state-reconciliation.md`. Do not repeat the foundation or
+domain work from this historical artifact.
+
+## 2026-07-17 ledger-key custody correction
+
+The original statement that the generated key was stored in local Keychain is
+preserved as the execution-time record, but it is not current recovery proof.
+A non-disclosing audit found the exact Keychain record present under account
+`production-20260715-v1` and service `RefWatch mutation ledger production`, but
+its recovered payload is empty. The Worker secret value is non-readable, so it
+cannot reconstruct or prove equality with the original key. Cloudflare Secrets
+Store metadata/permission checks passed, but source validation failed closed
+and no secret was created. See
+`2026-07-17-production-ledger-key-escrow-audit.md`. Remediation, binding,
+deployment, rotation, and ledger activation remain separately gated.

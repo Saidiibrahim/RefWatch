@@ -2,7 +2,7 @@
 
 Cloudflare Worker API for the RefWatch iOS client. It authenticates Clerk session tokens, resolves each Clerk subject to an internal `app_users.id`, and is the only component allowed to access PlanetScale or OpenAI.
 
-This directory is the active target backend, but it is not yet production-cut-over. The production schema/5–54 seed, read-only runtime Hyperdrive, ledger resources, and unrouted write-disabled Worker foundation are deployed. Final secrets, Clerk setup, data/identity import, authenticated deployed tenant isolation, traffic, writes, and iOS end-to-end acceptance remain incomplete.
+This directory is the active target backend, but it is not yet production-cut-over. The production schema/5–54 seed, read-only runtime Hyperdrive, inactive ledger resources, production Clerk/OpenAI secret names, and unrouted write-disabled Worker foundation are deployed. Ledger-key recovery is blocked because the approved Keychain source yields no recovered key bytes and the installed Worker secret is non-readable. Source remediation, Secrets Store escrow, functional recovery, and production ledger activation/probe are separate gates. Webhook signing-secret custody, remaining Clerk setup, data/identity import, authenticated deployed tenant isolation, traffic, writes, and iOS end-to-end acceptance also remain incomplete and separately gated.
 
 ## Architecture
 
@@ -20,10 +20,16 @@ npm install
 cp .dev.vars.example .dev.vars
 npm run typecheck
 npm test
+npm run test:local:routes
 npm run dev
 ```
 
 The example file contains placeholders only. Never commit `.dev.vars`.
+`test:local:routes` starts a temporary loopback-only PostgreSQL cluster, applies
+the current migrations, runs the partial mounted-route/owner-isolation matrix,
+and removes the cluster. It is an optional local verification step that requires
+`initdb`, `pg_ctl`, `pg_isready`, and `createdb` on `PATH`; it uses no
+PlanetScale or provider credential.
 
 Run migrations with a direct migration-role connection string:
 
@@ -59,7 +65,14 @@ wrangler deploy --dry-run --env staging
 wrangler deploy --env staging
 ```
 
-Verify the selected Wrangler environment lists its intended `HYPERDRIVE`; never put a PlanetScale connection string in `wrangler.jsonc` or the iOS app. Staging currently uses development Clerk credentials and intentionally has no webhook signing secret. Configure a production webhook only after identity mapping/reconciliation, then subscribe to `user.created`, `user.updated`, and `user.deleted`.
+Verify the selected Wrangler environment lists its intended `HYPERDRIVE`; never put a PlanetScale connection string in `wrangler.jsonc` or the iOS app. Staging currently uses development Clerk credentials and intentionally has no webhook signing secret. Do not create the production webhook until its exact endpoint/secret/probe stage is approved. A write-disabled sample can prove only routing and guard denial because the gate runs before signature verification; accept lifecycle processing only after mapping/reconciliation and separate signature/provenance proof, with events limited to `user.created`, `user.updated`, and `user.deleted`.
+
+The top-level Wrangler target is the separate `refwatch-api-development` Worker.
+Generic `npm run deploy` and `npm run dry-run` therefore target development;
+production commands must always specify `--env production`. Only the exact
+normalized `WRITE_MODE=enabled` value permits API/webhook mutations. Missing,
+blank, disabled, or unknown values fail closed; production remains explicitly
+disabled until a later approval.
 
 ## Routes
 
@@ -79,11 +92,16 @@ Core source counts to reconcile are `matches=62`, `match_periods=119`, `match_ev
 
 Historical checkpoint verified after the API remediation review on 2026-07-14:
 
-- `npm run typecheck`
-- `npm test` (52 tests across 10 files; superseded by the current 78 tests
-  across 14 files on 2026-07-15)
+- `npm test` (52 tests across 10 files)
 - `wrangler deploy --dry-run --env staging`
 - staging deployment plus `/health` and Hyperdrive-backed `/health/ready`
+
+Current local checkpoint verified on 2026-07-17:
+
+- `npm run typecheck`
+- `npm test` (93 tests across 14 files)
+- `npm run test:local:routes` (4 partial mounted-route/owner-isolation cases on
+  a fresh loopback-only PostgreSQL cluster; not Clerk/PlanetScale/deployed proof)
 
 These checks do not satisfy the full migration acceptance criteria. Before production cutover:
 

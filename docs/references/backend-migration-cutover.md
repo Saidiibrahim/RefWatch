@@ -9,10 +9,11 @@ As of 2026-07-17, with provider and test evidence dated as identified in the act
 - Clerk + Cloudflare Workers/Hono + PlanetScale Postgres is the active target architecture.
 - The Worker workspace, Drizzle target schema, Clerk/identity implementation, and backend client/repository adapters exist in the repository.
 - Production foundation approval was exercised on 2026-07-15. PlanetScale `main` accepted all 16 migrations and reads back 35 public tables, exact 5/54 global catalog seed, 22 mutation-capture plus 6 guard triggers, zero app users, and zero mutation events. Production uses restricted roles and cache-disabled Hyperdrive.
-- Worker `refwatch-api` version `e966d6df-b5ff-4288-832c-c8d91e00ce48` is deployed with writes/onboarding disabled, workers.dev and preview URLs disabled by production configuration/control-plane, and no public route. It securely holds the production Clerk publishable/secret keys and `OPENAI_API_KEY`; its issuer/publishable-key pins now match verified `refwatch.ibby.ai`. Localhost production-config probes using the exact read-only runtime role prove database-pin readiness 200 and API/webhook write denial 503; Hyperdrive is separately control-plane verified. Organizational key escrow/ledger probe, remaining Clerk setup, final import, identities, traffic, and writes remain incomplete.
+- Worker `refwatch-api` version `e966d6df-b5ff-4288-832c-c8d91e00ce48` is deployed with writes/onboarding disabled, workers.dev and preview URLs disabled by production configuration/control-plane, and no public route. It securely holds the production Clerk publishable/secret keys and `OPENAI_API_KEY`; its issuer/publishable-key pins now match verified `refwatch.ibby.ai`. Localhost production-config probes using the exact read-only runtime role prove database-pin readiness 200 and API/webhook write denial 503; Hyperdrive is separately control-plane verified. Recoverable ledger-key custody is blocked at the source; source remediation, escrow storage, functional recovery, production ledger activation/probe, remaining Clerk setup, final import, identities, traffic, and writes remain incomplete.
+- Ledger-key escrow preflight is blocked. The production Worker ledger-secret name exists but its value is non-readable; the exact local Keychain record audited on 2026-07-17 has an empty payload. Cloudflare Secrets Store account/store/edit-permission metadata passed, but no secret was created. Source-custody remediation, stored escrow, functional recovery through a separately approved binding/procedure, and production ledger activation/probe are four distinct gates.
 - An isolated Worker/Hyperdrive/PlanetScale/Queue/D1/DLQ rehearsal proved transactional PlanetScale capture with asynchronous idempotent Queue-to-D1 materialization, encrypted replay into two disposable same-contract PostgreSQL targets with zero missing events, and generation-bound poison quarantine plus a retained DLQ receipt. Neither restore target was Supabase, and no production reverse-import procedure is proved. The rehearsal does not satisfy the production ledger or rollback gate.
 - Stripe Projects exposes production-capable Clerk resource `clerk-auth-2`; its live production instance now uses verified owned secondary domain `refwatch.ibby.ai`. Stripe Projects metadata may still show historical `production_domain: auth.refwatch.com`; live Clerk Backend API/CLI readback is authoritative, and the managed resource must not be recreated or removed merely to align that metadata. DNS, SSL, and email DNS are complete. Native iOS registration/configuration, Google OAuth, signed webhook, and account-to-internal-user mapping are not complete.
-- Root `MIGRATION_OPERATOR_ACTIONS.html` records the replacement-domain and Clerk-access actions complete; `CLERK_DASHBOARD_ACTIONS.html` separates later native-app/OAuth/webhook phases. Organizational key escrow and physical-device availability remain later gates. Neither page authorizes additional production mutation.
+- Root `MIGRATION_OPERATOR_ACTIONS.html` records the replacement-domain and Clerk-access actions complete and now exposes one immediate, non-secret ledger-key recovery-path decision. `CLERK_DASHBOARD_ACTIONS.html` separates later native-app/OAuth/webhook phases. Source remediation, escrow storage, functional recovery, ledger activation/probe, and physical-device availability remain separate gates. Neither page authorizes additional production mutation.
 - The active iOS composition builds and routes matches, schedules, journal, teams, competitions, venues, authenticated reference-catalog reads, assistant, and match-sheet parsing through backend adapters without Supabase config.
 - Reference-catalog schema/routes and the portable 2026 seed are ported; rehearsal provider readback confirmed 5 competitions and 54 teams.
 - The Supabase SDK/package dependency is removed. Simulator iOS/watch acceptance is recorded; physical-device acceptance remains pending because both connected targets were offline during the latest audit. Cleanup of legacy Supabase-named compatibility repositories/types/source paths is not complete.
@@ -34,8 +35,9 @@ At `2026-07-15T01:32:05Z`, the user approved both then-required decisions:
    during migration or rollback preservation.
 
 The later root-HTML Actions 1 and 2 were approved for bounded foundation work.
-Action 1's safe foundation scope is applied/consumed; organizational escrow and
-functional production ledger activation/probe remain separately gated. Action
+Action 1's safe foundation scope is applied/consumed. Recoverable source
+remediation, Secrets Store escrow, functional recovery, and functional
+production ledger activation/probe remain separately gated. Action
 2 did not mutate the old Clerk domain or DNS and its `auth.refwatch.com` scope
 is retired unexercised; the separately authorized `refwatch.ibby.ai` domain/key
 batch is applied/consumed. Neither authorizes identity/data/traffic cutover,
@@ -77,10 +79,32 @@ Treat those RLS findings as a live legacy security risk. Do not expose a direct 
 
 1. Preserve production resource `clerk-auth-2` and development-only `clerk-auth`. The invalid `auth.refwatch.com` records remain retired. Production now uses verified owned secondary domain `refwatch.ibby.ai`; its exact five DNS-only CNAMEs are applied and Clerk reports DNS, SSL, and email DNS complete with zero pending records.
 2. Worker `CLERK_ISSUER` and `CLERK_PUBLISHABLE_KEY` are coordinated with `https://clerk.refwatch.ibby.ai`. Install the same public host/key in iOS only after a local `Secrets.xcconfig` or release configuration exists. Register the iOS app only after the Apple App ID Prefix and signed Bundle ID are authoritatively resolved; the repository's unresolved `$(BUNDLE_ID_PREFIX).RefWatch` expression is not sufficient evidence.
-3. Put only the publishable key and Frontend API host in `RefWatchiOS/Config/Secrets.xcconfig`.
+3. Put only public app configuration in `RefWatchiOS/Config/Secrets.xcconfig`:
+   `BACKEND_API_BASE_URL`, the Clerk publishable key, and the Frontend API host.
+   Do not create or populate that local/release file until the native lane and
+   configuration destination are explicitly approved.
 4. Store `CLERK_SECRET_KEY` and `CLERK_PUBLISHABLE_KEY` in the Worker environment. `CLERK_JWT_KEY` is optional for networkless verification; Clerk secret-key verification works without it.
-5. Reconcile and import every Clerk-to-internal-user mapping before enabling `POST /webhooks/clerk` for `user.created`, `user.updated`, and `user.deleted`; store `CLERK_WEBHOOK_SIGNING_SECRET` with Wrangler. This ordering prevents a pre-mapping deletion event from being acknowledged without a target row.
-6. Prove invalid/missing bearer tokens and webhook signatures are rejected before enabling production traffic.
+5. Webhook endpoint creation, a write-disabled routing/guard probe, and later
+   signature/provenance plus lifecycle acceptance are separately approved
+   stages. After an
+   exact reachable HTTPS Worker endpoint is approved, create only the production
+   instance endpoint for `user.created`, `user.updated`, and `user.deleted`, and
+   stream `CLERK_WEBHOOK_SIGNING_SECRET` through a non-echoing Wrangler path.
+   Do not send a sample until the reviewed non-mutating probe is ready; with
+   `WRITE_MODE=disabled`, it must return the documented retryable denial and
+   mutate no identity. Because the write gate runs before the webhook handler,
+   that 503 proves routing and write denial only; it does not prove signature or
+   production-instance provenance.
+6. Reconcile and import every Clerk-to-internal-user mapping before accepting
+   lifecycle processing. This ordering prevents a pre-mapping deletion event
+   from being acknowledged without a target row. A later reviewed test must
+   separately prove invalid webhook signatures and the exact production-instance
+   signing-secret provenance before lifecycle acceptance. Prove invalid/missing
+   bearer tokens before enabling production traffic.
+7. For later approved Google OAuth/API work, use the installed `gcloud` CLI for
+   Google Cloud/API configuration and the installed `gws` CLI only for Google
+   Workspace operations. Keep credentials in their approved custody path and
+   never print, export, or paste them into chat or evidence.
 
 ## PlanetScale and Hyperdrive setup
 
@@ -125,6 +149,13 @@ wrangler secret put OPENAI_API_KEY --env staging
 Enter secret values only into the interactive prompt. Do not pass them as
 shell arguments, echo them, persist them in command history, or record them in
 evidence artifacts.
+
+Only the exact normalized `WRITE_MODE=enabled` value permits API/webhook
+mutations. Missing, blank, disabled, or unknown values fail closed. The default
+Wrangler target is the separate `refwatch-api-development` Worker; generic
+deploy/dry-run commands target development, while production commands must
+always specify `--env production`. Production remains explicitly disabled
+until the later write-enablement approval.
 
 Use `wrangler secret put DATABASE_URL` only for an explicitly approved direct-runtime fallback. Production should use Hyperdrive. Run `wrangler deploy --dry-run --env staging` before `wrangler deploy --env staging`; use a separate production environment when approved. Record version, bindings, `/health`, `/health/ready`, and authenticated route evidence. Staging connectivity evidence is recorded in `docs/exec-plans/active/backend-platform-migration/evidence/2026-07-14-staging-worker.md`.
 
@@ -414,9 +445,19 @@ in-flight requests, freeze/reconcile the ledger, then route to the recorded
 last-known-good version. Never improvise a version ID or treat an unavailable
 client build as rollback readiness. The transactional ledger is implemented
 and provider-proved on isolated resources. Production D1/Queue/DLQ resources
-now exist but are inactive; organizational key escrow/rotation and the
-functional production probe remain blockers. Before any production epoch opens, provision
+now exist but are inactive. Recoverable source custody is blocked by the empty
+Keychain payload; source remediation, Secrets Store escrow, functional recovery,
+and the production activation/probe remain separate blockers. Before any production epoch opens, provision
 an encrypted access-controlled baseline store, restrict operator/read access,
 record immutable artifact hashes, and define retention and verified deletion.
 Do not use a plaintext local baseline as production rollback evidence. Reconcile
 queued Clerk webhook retries before reopening writes.
+
+The current production ledger-key gate fails before escrow: the named Keychain
+record contains no recoverable payload, while the Worker secret value cannot be
+read through Wrangler or the dashboard. Do not upload an empty placeholder,
+retry from another source, bind a Secrets Store entry, deploy a recovery path,
+change the Worker secret/key ID, or rotate until a new exact remediation scope
+is reviewed and approved. A future stored Secrets Store entry proves storage
+metadata only; functional recovery requires a later non-disclosing binding/use
+receipt before any production ledger activation probe.

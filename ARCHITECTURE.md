@@ -23,7 +23,7 @@ Swift clients are untrusted API clients. They may hold public app configuration 
 
 ## Migration Status
 
-Clerk + Cloudflare Workers/Hono + Drizzle + PlanetScale Postgres is the active target architecture, not a completed production cutover. Staging Worker/Hyperdrive connectivity and disposable PlanetScale migration rehearsal have passed. Production deployment, identity and data migration/reconciliation, authenticated end-to-end proof, compatibility cleanup, and physical-device acceptance remain gated by the active backend migration plan and cutover runbook.
+Clerk + Cloudflare Workers/Hono + Drizzle + PlanetScale Postgres is the active target architecture, not a completed production cutover. Staging Worker/Hyperdrive connectivity and disposable rehearsal passed; the production schema/5–54 seed, restricted roles, cache-disabled Hyperdrive, inactive ledger resources, and unrouted write-disabled Worker foundation are also deployed. Identity and data migration/reconciliation, remaining Clerk setup, provider-routed authenticated proof, rollback completion, compatibility cleanup, traffic/writes, and physical-device acceptance remain separately gated by the active backend migration plan and cutover runbook.
 
 ## Where To Read
 - Canonical architecture index: `docs/design-docs/index.md`

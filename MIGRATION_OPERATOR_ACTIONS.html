@@ -106,14 +106,15 @@
       <p class="eyebrow">RefWatch · migration handoff</p>
       <h1>External actions needed from you</h1>
       <p class="lede">
-        This page is for access and operational tasks—not approvals. The two
-        production-foundation approvals are already recorded and the Clerk
-        production-domain lane is complete. The amber actions are needed later.
+        The production-foundation approvals are already recorded and the Clerk
+        production-domain lane is complete. The ledger-key escrow preflight
+        found an empty local recovery payload, so one new remediation decision
+        is required before later operational gates can proceed.
       </p>
     </header>
 
     <section class="summary" aria-label="Current action summary">
-      <div class="metric"><strong>0</strong><span>decisions needed now</span></div>
+      <div class="metric"><strong>1</strong><span>decision needed now</span></div>
       <div class="metric"><strong>3</strong><span>later operator gates</span></div>
       <div class="metric"><strong>0</strong><span>domain approvals pending</span></div>
     </section>
@@ -198,18 +199,18 @@ clk2._domainkey.refwatch.ibby.ai  → dkim2.5510u3rpvrex.clerk.services</pre>
       <section class="card" aria-labelledby="escrow-title">
         <div class="card-head">
           <div>
-            <h3>Before production writes</h3>
-            <h2 id="escrow-title">Choose the organizational recovery vault</h2>
-            <p>The production ledger key exists in Worker secret custody and the local login Keychain, but a shared organizational recovery copy is still required.</p>
+            <h3>Blocked before escrow</h3>
+            <h2 id="escrow-title">Repair the recoverable key source</h2>
+            <p>Cloudflare Secrets Store is selected and its account/store/edit permission passed. The expected local Keychain record exists, but its payload is empty; the Worker secret is non-readable and cannot reconstruct it.</p>
           </div>
-          <span class="tag later">Needed later</span>
+          <span class="tag hold">New approval required</span>
         </div>
 
-        <p>Select an access-controlled shared destination with at least one recovery operator besides the local machine—for example Cloudflare Secrets Store, an organizational KMS, or a shared 1Password vault. Do not paste the key into chat.</p>
+        <p>No Secrets Store secret was created. Do not paste a key into chat, retry the upload, repair Keychain, bind or deploy a recovery Worker, change the existing Worker secret, or rotate a key under the consumed escrow-copy approval.</p>
         <div class="actions">
           <button type="button" data-copy="escrow-response">Copy escrow response</button>
         </div>
-        <p class="response" id="escrow-response">ESCROW TARGET: [Cloudflare Secrets Store / organizational KMS / shared 1Password vault]. Recovery operator(s): [names or roles]. Codex may stream the existing production ledger key into this destination without displaying it and may run a non-disclosing recovery check.</p>
+        <p class="response" id="escrow-response">RECOVERY PATH: [I have the exact existing key in another approved custody source / authorize a read-only production ledger-state audit and a separately reviewed remediation proposal]. Do not include any key value. Cloudflare Secrets Store remains the selected escrow target; this response does not authorize rotation, binding, deploy, activation, or writes.</p>
       </section>
 
       <section class="card" aria-labelledby="devices-title">

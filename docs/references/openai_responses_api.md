@@ -100,4 +100,4 @@ When running `xcodebuild test`, use an available iOS simulator runtime for the R
 - Add tool/function calling once the assistant contract stabilizes.
 - Consider a Files API upload path only if image sizes or retention requirements outgrow the current data URL approach.
 
-_Last updated: 2026-07-14. Active backend routing and local match-sheet normalizer parity are implemented; authenticated deployed fixture proof and production provider deployment remain pending._
+_Last updated: 2026-07-17. Active backend routing and local match-sheet normalizer parity are implemented. The unrouted write-disabled production foundation exists; provider-routed authenticated assistant/match-sheet fixture proof remains pending and separately gated._

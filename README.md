@@ -79,15 +79,17 @@ A watchOS-first app designed for football/soccer referees to manage matches effi
 
 The watch-first match runtime and local SwiftData stores remain offline-first. When cloud sync is enabled, iOS obtains a Clerk session token and calls the Worker with `Authorization: Bearer <clerk-session-token>`. Only the Worker can access PlanetScale or OpenAI.
 
-> Migration status (2026-07-14): the active iOS composition builds and routes cloud-backed features, including reference-catalog reads, through Clerk and `BackendAPIClient`. Staging Worker/Hyperdrive readiness and disposable 5/54 catalog readback passed. Production provider deployment, Supabase data/account import, production application/readback of the bundled PlanetScale reference-catalog seed, full iOS test acceptance, and Supabase compatibility cleanup are not complete. Legacy Supabase-named repositories/types may remain compiled until the active exec plan closes; the Supabase SDK package is removed. See [Backend migration and cutover](docs/references/backend-migration-cutover.md).
+> Migration status (2026-07-17): the active iOS composition builds and routes cloud-backed features, including reference-catalog reads, through Clerk and `BackendAPIClient`. The production foundation now has all 16 migrations, the exact 5/54 catalog seed, restricted roles, cache-disabled Hyperdrive, inactive ledger resources, and an unrouted Worker with writes/onboarding disabled and verified `refwatch.ibby.ai` Clerk pins. This is not a production cutover. Ledger-key recovery is blocked because the named Keychain record yields no recovered key bytes and the installed Worker secret is non-readable; source remediation, Secrets Store escrow, functional recovery, and production ledger activation/probe are separate gates. Remaining Clerk native/OAuth/webhook setup, final identity/data import and reconciliation, provider-routed authenticated coverage, physical-device acceptance, compatibility cleanup, traffic, and writes also remain separately gated. Legacy Supabase-named repositories/types may remain compiled until rollback and reconciliation gates permit cleanup; the Supabase SDK package is removed. See [Backend migration and cutover](docs/references/backend-migration-cutover.md).
 
 ## Quick Start
 
 ## Post-clone setup
 
 - Run `./scripts/setup.sh` to generate `RefWatchiOS/Config/Config.xcconfig` with your Team ID, bundle prefix, app group, and URL scheme (local-only, gitignored).
-- Optional: copy `RefWatchiOS/Config/Secrets.example.xcconfig` to `RefWatchiOS/Config/Secrets.xcconfig` and add local app-facing values.
-- Configure the public Clerk key and Worker base URL in `Secrets.xcconfig` when exercising the migrating cloud path.
+- Production cloud configuration is approval-gated. Do not create or populate
+  `RefWatchiOS/Config/Secrets.xcconfig` for the migration until the authoritative
+  Apple identifiers, native registration, and configuration destination are
+  reviewed and approved. Follow the cutover runbook rather than this quick start.
 
 ### Prerequisites
 
@@ -140,11 +142,18 @@ The watch-first match runtime and local SwiftData stores remain offline-first. W
    2. Click '+' and select 'App Groups'
    3. Enter your App Group ID
 
-4. **Configure local app secrets** (required for cloud features)
+4. **Configure local app-facing cloud values** (approval-gated)
+
+   Do not execute this step for the production migration until the native and
+   configuration lane is explicitly approved. After that approval, create the
+   local/release file from the example as directed by the reviewed operator
+   procedure:
+
    ```bash
    cp RefWatchiOS/Config/Secrets.example.xcconfig RefWatchiOS/Config/Secrets.xcconfig
    ```
-   Edit `Secrets.xcconfig` with your local app-facing values if using cloud features.
+   Add only the approved public app-facing values. Do not infer a Bundle ID,
+   App ID Prefix, redirect URL, host, or key from this README.
 
    **Environment Variables Reference:**
 
@@ -165,14 +174,25 @@ The watch-first match runtime and local SwiftData stores remain offline-first. W
    npm test
    npm run dev
    ```
-   For deployment, provision Clerk, PlanetScale Postgres, and Cloudflare Hyperdrive first, configure the `HYPERDRIVE` binding, and store the following with `wrangler secret put`: `CLERK_SECRET_KEY`, `CLERK_PUBLISHABLE_KEY`, `CLERK_JWT_KEY`, `CLERK_WEBHOOK_SIGNING_SECRET`, and `OPENAI_API_KEY`. Use `DATABASE_URL` only for local runtime fallback; use a separate migration-role `DATABASE_URL` with Drizzle tooling.
+   The production foundation is already provisioned; do not recreate it or run
+   a production deploy from this quick start. Remaining production secret,
+   webhook, routing, and write steps require their exact approvals and the
+   non-echoing procedures in the cutover runbook. Use `DATABASE_URL` only for
+   local runtime fallback; use a separate migration-role `DATABASE_URL` with
+   Drizzle tooling.
 
-6. **Clerk native-app setup**
-   - Create or select the RefWatch Clerk application and enable the desired sign-in methods.
-   - Add the iOS bundle identifier/native application in Clerk.
-   - Put only the publishable key and Frontend API host in `Secrets.xcconfig`.
-   - Configure `webcredentials:<CLERK_FRONTEND_API_HOST>` in the iOS associated-domains capability.
-   - Create a Clerk webhook for the deployed `/webhooks/clerk` endpoint and keep its signing secret in Worker secrets.
+6. **Clerk native-app and webhook setup** (production approval-gated; do not
+   execute from this quick start)
+
+   - First obtain the authoritative Apple App ID Prefix, signed Bundle ID, and
+     reviewed native redirect URL; do not infer them from project expressions.
+   - Register the native app, configure production sign-in/OAuth methods, and
+     install the approved public host/key only in the separately authorized
+     native/OAuth phases.
+   - Create the lifecycle webhook only after its exact reachable Worker endpoint,
+     event allowlist, non-echoing secret path, and write-disabled probe are
+     separately reviewed and approved. Follow
+     `docs/references/backend-migration-cutover.md` for the staged procedure.
 
 7. **Build and run**
    ```bash

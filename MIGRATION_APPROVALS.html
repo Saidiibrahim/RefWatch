@@ -232,11 +232,15 @@
 
     <section class="boundary" aria-label="Approval scope boundary">
       <div class="allowed">
-        <strong>No approval requested now</strong>
+        <strong>No repeat foundation or domain approval requested</strong>
         Action 1's safe scope is applied. The old Action 2 remains historical
         evidence and cannot be exercised. The separately authorized
         <code>refwatch.ibby.ai</code> domain, five DNS-only CNAMEs, certificates,
         regenerated Worker publishable key, and issuer refresh are complete.
+        One current non-secret ledger-key recovery-path decision is listed in
+        <a href="MIGRATION_OPERATOR_ACTIONS.html">MIGRATION_OPERATOR_ACTIONS.html</a>;
+        it does not authorize rotation, binding, deployment, ledger activation,
+        or writes.
       </div>
       <div class="forbidden">
         <strong>Still forbidden</strong>
@@ -258,7 +262,8 @@
           <span class="tag">Approved · safe scope applied</span>
         </div>
         <p class="status">Archived audit summary: the consumed Action 1 approval covered migrations <code>0000</code>–<code>0015</code>, the exact 5-competition/54-team seed, restricted roles, Hyperdrive, Queue/DLQ/D1, local encryption-key custody, and an unrouted Worker with writes and onboarding disabled. The manifest-bound execution and sanitized readbacks are retained in the migration evidence. This page grants no authority to repeat that work.</p>
-        <p class="status">Applied: migrations 0000–0015, exact 5/54 seed, read-only runtime/verifier roles, Hyperdrive, Queue/DLQ/D1, local key custody, securely installed production Clerk/OpenAI keys, and unrouted write-disabled Worker <code>e966d6df-b5ff-4288-832c-c8d91e00ce48</code> with verified <code>refwatch.ibby.ai</code> issuer/publishable-key pins. Localhost production-config/runtime-role readiness and write-denial probes passed. No repeat approval is needed for the completed Action 1 infrastructure. Organizational escrow/recovery and a later functional production ledger probe/activation remain separately gated. Production cron and Queue consumers are absent.</p>
+        <p class="status">Historical execution status (custody clause superseded below): migrations 0000–0015, exact 5/54 seed, read-only runtime/verifier roles, Hyperdrive, Queue/DLQ/D1, local key custody, securely installed production Clerk/OpenAI keys, and unrouted write-disabled Worker <code>e966d6df-b5ff-4288-832c-c8d91e00ce48</code> with verified <code>refwatch.ibby.ai</code> issuer/publishable-key pins. Localhost production-config/runtime-role readiness and write-denial probes passed. No repeat approval is needed for the completed Action 1 infrastructure. Organizational escrow/recovery and a later functional production ledger probe/activation remain separately gated. Production cron and Queue consumers are absent.</p>
+        <p class="status">2026-07-17 custody correction: the historical local-custody statement above is not current recovery evidence. The named Keychain record exists but its payload audits empty; the Worker ledger-secret value is non-readable. No Secrets Store entry was created. This does not reopen or authorize repeating the consumed infrastructure scope; source remediation or rotation requires a new exact approval.</p>
       </section>
 
       <section class="card" aria-labelledby="clerk-title">
