@@ -6,6 +6,7 @@ import { connectDatabase } from "../db/client";
 import { provisionNewUserAfterReconciliation } from "../services/userOnboarding";
 import type { Env, Variables } from "../types";
 import { workerVersionId } from "../services/workerVersion";
+import { isExactProvenanceOnboardingMode } from "../services/identityProfiles";
 
 export interface VerifiedSession {
   clerkUserId: string;
@@ -31,7 +32,7 @@ export const verifyClerkSession: SessionVerifier = async (request, env) => {
   const actualIssuer = auth.sessionClaims?.iss?.replace(/\/$/, "");
   const clerkInstanceId = env.CLERK_INSTANCE_ID?.trim();
   const requiresExactProvenance = env.REFWATCH_ENV === "production"
-    || env.NEW_USER_ONBOARDING_MODE?.trim().toLowerCase() === "post_reconciliation";
+    || isExactProvenanceOnboardingMode(env.NEW_USER_ONBOARDING_MODE);
   if (!actualIssuer || (expectedIssuer && actualIssuer !== expectedIssuer)) return null;
   if (requiresExactProvenance && (!expectedIssuer || !clerkInstanceId)) return null;
   return auth.userId ? { clerkUserId: auth.userId, clerkInstanceId: clerkInstanceId ?? actualIssuer } : null;
@@ -42,13 +43,13 @@ export function clerkAuth(verifier: SessionVerifier = verifyClerkSession) {
     let session: VerifiedSession | null;
     try {
       session = await verifier(c.req.raw, c.env);
-    } catch (error) {
-      console.warn("Clerk session verification failed", error);
+    } catch {
+      console.warn("Clerk session verification failed");
       return c.json({ error: "unauthorized", message: "Invalid or expired session token" }, 401);
     }
     if (!session) return c.json({ error: "unauthorized", message: "Bearer session token required" }, 401);
     const requiresExactProvenance = c.env.REFWATCH_ENV === "production"
-      || c.env.NEW_USER_ONBOARDING_MODE?.trim().toLowerCase() === "post_reconciliation";
+      || isExactProvenanceOnboardingMode(c.env.NEW_USER_ONBOARDING_MODE);
     if ((c.env.CLERK_INSTANCE_ID && session.clerkInstanceId !== c.env.CLERK_INSTANCE_ID)
       || (requiresExactProvenance && !c.env.CLERK_INSTANCE_ID)) {
       return c.json({ error: "unauthorized", message: "Session belongs to a different Clerk instance" }, 401);

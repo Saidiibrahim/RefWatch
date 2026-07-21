@@ -20,6 +20,8 @@ export interface Env {
   DATABASE_URL?: string;
   HYPERDRIVE?: HyperdriveBinding;
   CF_VERSION_METADATA?: WorkerVersionMetadataBinding;
+  /// Server-only bounded cutover credential. Never ship this value in a client.
+  CUTOVER_ACCEPTANCE_TOKEN?: string;
   MUTATION_LEDGER?: D1Database;
   MUTATION_LEDGER_QUEUE?: Queue<{ eventId: string; leaseGeneration: number }>;
   MUTATION_LEDGER_ENCRYPTION_KEY?: string;
@@ -34,15 +36,14 @@ export interface Env {
   /// Emergency rollback control. Only the exact normalized value `enabled` permits
   /// API and webhook mutations; missing or unknown values fail closed.
   WRITE_MODE?: string;
-  /// Keep false through legacy identity reconciliation. Enable only after all existing
-  /// Clerk subjects are mapped to their preserved app_users UUIDs. Deprecated: this
-  /// flag never authorizes production user creation.
+  /// Deprecated compatibility flag. It never authorizes production user creation.
   ALLOW_UNMAPPED_CLERK_USERS?: string;
-  /// Exact post-cutover mode. New app-user creation remains closed for every other value.
+  /// Exact stateful or greenfield onboarding mode. Every other value fails closed.
   NEW_USER_ONBOARDING_MODE?: string;
-  /// SHA-256 receipt emitted by the reviewed final cutover bundle and inserted into
-  /// identity_reconciliation_receipts only after the legacy mapping import succeeds.
+  /// SHA-256 receipt selected by the exact reconciliation profile.
   IDENTITY_RECONCILIATION_RECEIPT?: string;
+  /// Non-secret SHA-256 pin for the greenfield authorization decision.
+  IDENTITY_RECONCILIATION_AUTHORIZATION_DIGEST?: string;
   /// Exact Clerk production instance bound to the reconciliation receipt.
   CLERK_INSTANCE_ID?: string;
   /// Exact verified JWT issuer for the selected Clerk instance, including scheme.

@@ -37,6 +37,7 @@ export const appUsers = pgTable("app_users", {
   email: text("email"),
   displayName: text("display_name"),
   avatarUrl: text("avatar_url"),
+  clerkProfileUpdatedAt: timestamp("clerk_profile_updated_at", { withTimezone: true }),
   emailVerified: boolean("email_verified"),
   lastSignInAt: timestamp("last_sign_in_at", { withTimezone: true }),
   rawAppMetadata: jsonb("raw_app_metadata"),
@@ -54,6 +55,11 @@ export const identityReconciliationReceipts = pgTable("identity_reconciliation_r
   id: uuid("id").primaryKey().defaultRandom(),
   receiptDigest: text("receipt_digest").notNull(),
   clerkInstanceId: text("clerk_instance_id").notNull(),
+  reconciliationProfile: text("reconciliation_profile").notNull().default("stateful_migration_v1"),
+  authorizationProfile: text("authorization_profile"),
+  authorizationDigest: text("authorization_digest"),
+  clerkIssuer: text("clerk_issuer"),
+  clerkDomain: text("clerk_domain"),
   snapshotCapturedAt: timestamp("snapshot_captured_at", { withTimezone: true }).notNull(),
   legacyMappingCount: integer("legacy_mapping_count").notNull(),
   excludedAuthCount: integer("excluded_auth_count").notNull(),
@@ -66,7 +72,33 @@ export const identityReconciliationReceipts = pgTable("identity_reconciliation_r
   index("identity_reconciliation_receipts_instance_idx").on(table.clerkInstanceId),
   check("identity_reconciliation_receipts_digest_check", sql`${table.receiptDigest} ~ '^[0-9a-f]{64}$'`),
   check("identity_reconciliation_receipts_mapping_hash_check", sql`${table.mappingHash} ~ '^[0-9a-f]{64}$'`),
-  check("identity_reconciliation_receipts_mapping_count_check", sql`${table.legacyMappingCount} > 0`),
+  check(
+    "identity_reconciliation_receipts_authorization_digest_check",
+    sql`${table.authorizationDigest} is null or ${table.authorizationDigest} ~ '^[0-9a-f]{64}$'`,
+  ),
+  check(
+    "identity_reconciliation_receipts_profile_check",
+    sql`(
+      ${table.reconciliationProfile} = 'stateful_migration_v1'
+      and ${table.legacyMappingCount} > 0
+      and ${table.excludedAuthCount} >= 0
+      and ${table.authorizationProfile} is null
+      and ${table.authorizationDigest} is null
+      and ${table.clerkIssuer} is null
+      and ${table.clerkDomain} is null
+    ) or (
+      ${table.reconciliationProfile} = 'greenfield_zero_legacy_v1'
+      and ${table.receiptDigest} = '27406b8d851d38a0e2bb79aa2176e45d2b085ba3c5e2c0b2a0e366cdaf0ddf18'
+      and ${table.clerkInstanceId} = 'ins_3GWFGUd1rI6hx5lWlUxMYAkxdac'
+      and ${table.authorizationProfile} = 'refwatch.greenfield-authorization.v1'
+      and ${table.authorizationDigest} = '17e08fcf1fc61580c15f8957fcba5fc2ceb339df8332d8a937e0aa201ef65b9b'
+      and ${table.clerkIssuer} = 'https://clerk.refwatch.ibby.ai'
+      and ${table.clerkDomain} = 'refwatch.ibby.ai'
+      and ${table.legacyMappingCount} = 0
+      and ${table.excludedAuthCount} = 0
+      and ${table.mappingHash} = '4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945'
+    )`,
+  ),
   check("identity_reconciliation_receipts_excluded_count_check", sql`${table.excludedAuthCount} >= 0`),
   check("identity_reconciliation_receipts_status_check", sql`${table.status} = 'verified'`),
 ]);
@@ -78,7 +110,9 @@ export const identityReconciliationActivations = pgTable("identity_reconciliatio
   ),
   clerkInstanceId: text("clerk_instance_id").notNull(),
   activatedAt: timestamp("activated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => [
+  uniqueIndex("identity_reconciliation_activations_instance_uq").on(table.clerkInstanceId),
+]);
 
 export const identityReconciliationLegacyMappings = pgTable("identity_reconciliation_legacy_mappings", {
   clerkInstanceId: text("clerk_instance_id").notNull(),
@@ -102,6 +136,25 @@ export const clerkUserDeletionTombstones = pgTable("clerk_user_deletion_tombston
   deletedAt: timestamp("deleted_at", { withTimezone: true }).notNull(),
   receivedAt: timestamp("received_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [primaryKey({ columns: [table.clerkInstanceId, table.clerkUserId] })]);
+
+export const clerkWebhookDeliveryReceipts = pgTable("clerk_webhook_delivery_receipts", {
+  clerkInstanceId: text("clerk_instance_id").notNull(),
+  webhookEventId: text("svix_id").notNull(),
+  eventType: text("event_type").notNull(),
+  clerkUserId: text("clerk_user_id").notNull(),
+  payloadHash: text("payload_hash").notNull(),
+  processedAt: timestamp("processed_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  primaryKey({ columns: [table.clerkInstanceId, table.webhookEventId] }),
+  check(
+    "clerk_webhook_delivery_receipts_event_type_check",
+    sql`${table.eventType} in ('user.created', 'user.updated', 'user.deleted')`,
+  ),
+  check(
+    "clerk_webhook_delivery_receipts_payload_hash_check",
+    sql`${table.payloadHash} ~ '^[0-9a-f]{64}$'`,
+  ),
+]);
 
 export const userDevices = pgTable("user_devices", {
   id: uuid("id").primaryKey().defaultRandom(),

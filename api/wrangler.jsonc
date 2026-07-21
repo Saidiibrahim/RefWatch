@@ -94,16 +94,18 @@
         "CLERK_ISSUER": "https://clerk.refwatch.ibby.ai",
         "EXPECTED_DATABASE_BRANCH_ID": "w3g1f8vcbg34",
         "EXPECTED_DATABASE_MARKER": "refwatch:production:w3g1f8vcbg34",
-        "EXPECTED_DATABASE_ROLE_ID": "vaqg84rqoedz",
+        "EXPECTED_DATABASE_ROLE_ID": "hvk7iheytj62",
         "MUTATION_LEDGER_DLQ_NAME": "refwatch-mutation-ledger-dlq-production",
         "MUTATION_LEDGER_ENCRYPTION_KEY_ID": "production-20260715-v1",
+        "IDENTITY_RECONCILIATION_AUTHORIZATION_DIGEST": "17e08fcf1fc61580c15f8957fcba5fc2ceb339df8332d8a937e0aa201ef65b9b",
+        "IDENTITY_RECONCILIATION_RECEIPT": "27406b8d851d38a0e2bb79aa2176e45d2b085ba3c5e2c0b2a0e366cdaf0ddf18",
         "NEW_USER_ONBOARDING_MODE": "disabled",
         "WRITE_MODE": "disabled"
       },
       "hyperdrive": [
         {
           "binding": "HYPERDRIVE",
-          "id": "5345de83edfa40b790d5b26df32f56ab"
+          "id": "920ca5b108034b2bb8700cf0201ac55f"
         }
       ],
       "d1_databases": [

@@ -1,0 +1,1 @@
+ALTER TABLE "app_users" ADD COLUMN "clerk_profile_updated_at" timestamp with time zone;

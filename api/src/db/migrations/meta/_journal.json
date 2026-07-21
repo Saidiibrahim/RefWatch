@@ -113,6 +113,20 @@
       "when": 1784091083000,
       "tag": "0015_bound_ledger_capture_envelope",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1784513382441,
+      "tag": "0016_careless_steel_serpent",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1784597422601,
+      "tag": "0017_ambiguous_hedge_knight",
+      "breakpoints": true
     }
   ]
 }
