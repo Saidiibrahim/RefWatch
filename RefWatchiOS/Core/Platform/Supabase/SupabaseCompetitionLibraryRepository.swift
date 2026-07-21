@@ -28,7 +28,7 @@ final class BackendCompetitionLibraryRepository: CompetitionLibraryStoring {
   private var pendingPushes: Set<UUID> = []
   private var pendingDeletions: Set<UUID>
   private var processingTask: Task<Void, Never>?
-  private var remoteCursor: Date?
+  private var remoteCursor: Date? = BackendQuery.initialCollectionSyncFloor
 
   var changesPublisher: AnyPublisher<[CompetitionRecord], Never> {
     self.store.changesPublisher
@@ -130,7 +130,7 @@ extension BackendCompetitionLibraryRepository {
     switch state {
     case .signedOut:
       self.ownerUUID = nil
-      self.remoteCursor = nil
+      self.remoteCursor = BackendQuery.initialCollectionSyncFloor
       self.processingTask?.cancel()
       self.processingTask = nil
       self.pendingPushes.removeAll()
@@ -150,7 +150,7 @@ extension BackendCompetitionLibraryRepository {
         return
       }
       self.ownerUUID = uuid
-      self.remoteCursor = nil
+      self.remoteCursor = BackendQuery.initialCollectionSyncFloor
       publishSyncStatus()
       self.scheduleInitialSync()
     }
@@ -328,7 +328,9 @@ extension BackendCompetitionLibraryRepository {
       "Competition pull requesting owner=\(ownerString, privacy: .public) cursor=\(cursorBefore, privacy: .public)")
 
     do {
-      let remoteCompetitions = try await api.fetchCompetitions(ownerId: ownerUUID, updatedAfter: self.remoteCursor)
+      let remoteCompetitions = try await api.fetchCompetitions(
+        ownerId: ownerUUID,
+        updatedAfter: BackendQuery.collectionPullCursor(from: self.remoteCursor))
       self.log.info(
         "Competition pull received count=\(remoteCompetitions.count) owner=\(ownerString, privacy: .public) cursor=\(cursorBefore, privacy: .public)")
 
@@ -352,7 +354,13 @@ extension BackendCompetitionLibraryRepository {
         }
 
         if remote.deletedAt != nil {
-          if let existing = existingById.removeValue(forKey: remote.id) {
+          if let existing = existingById[remote.id] {
+            guard BackendQuery.shouldApplyCollectionRow(
+              updatedAt: remote.updatedAt,
+              over: existing.remoteUpdatedAt,
+              localNeedsRemoteSync: existing.needsRemoteSync)
+            else { continue }
+            existingById.removeValue(forKey: remote.id)
             try self.store.delete(existing)
             self.pendingPushes.remove(remote.id)
             updatedCount += 1
@@ -362,10 +370,12 @@ extension BackendCompetitionLibraryRepository {
 
         if let existing = existingById[remote.id] {
           let localDirty = existing.needsRemoteSync
-          let localRemoteDate = existing.remoteUpdatedAt ?? .distantPast
-
-          if localDirty, remote.updatedAt <= localRemoteDate {
-            skippedDirtyConflict += 1
+          if !BackendQuery.shouldApplyCollectionRow(
+            updatedAt: remote.updatedAt,
+            over: existing.remoteUpdatedAt,
+            localNeedsRemoteSync: localDirty)
+          {
+            if localDirty { skippedDirtyConflict += 1 }
             continue
           }
 

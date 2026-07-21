@@ -33,7 +33,7 @@ final class BackendMatchHistoryRepository: MatchHistoryStoring, MatchHistorySync
   private var pendingPushes: Set<UUID> = []
   private var pushMetadata: [UUID: MatchSyncPushMetadata] = [:]
   private var pendingDeletions: Set<UUID> = []
-  private var remoteCursor: Date?
+  private var remoteCursor: Date? = BackendQuery.initialCollectionSyncFloor
 
   init(
     store: SwiftDataMatchHistoryStore,
@@ -155,7 +155,7 @@ extension BackendMatchHistoryRepository {
     switch state {
     case .signedOut:
       self.ownerUUID = nil
-      self.remoteCursor = nil
+      self.remoteCursor = BackendQuery.initialCollectionSyncFloor
       self.processingTask?.cancel(); self.processingTask = nil
       self.pullTask?.cancel(); self.pullTask = nil
       self.pendingPushes.removeAll()
@@ -175,6 +175,7 @@ extension BackendMatchHistoryRepository {
         return
       }
       self.ownerUUID = uuid
+      self.remoteCursor = BackendQuery.initialCollectionSyncFloor
       publishSyncStatus()
       self.scheduleInitialSync()
     }
@@ -397,7 +398,6 @@ extension BackendMatchHistoryRepository {
       }
       try self.store.context.save()
       NotificationCenter.default.post(name: .matchHistoryDidChange, object: nil)
-      self.remoteCursor = max(self.remoteCursor ?? result.updatedAt, result.updatedAt)
       self.clearPushMetadata(for: id)
     } catch {
       self.scheduleRetry(for: id)
@@ -413,7 +413,9 @@ extension BackendMatchHistoryRepository {
     #if DEBUG
     self.log.debug("Match history pull started for owner=\(ownerUUID.uuidString, privacy: .public)")
     #endif
-    let remoteBundles = try await api.fetchMatchBundles(ownerId: ownerUUID, updatedAfter: self.remoteCursor)
+    let remoteBundles = try await api.fetchMatchBundles(
+      ownerId: ownerUUID,
+      updatedAfter: BackendQuery.collectionPullCursor(from: self.remoteCursor))
     #if DEBUG
     self.log.debug("Fetched \(remoteBundles.count) remote bundles")
     #endif
@@ -425,7 +427,12 @@ extension BackendMatchHistoryRepository {
         continue
       }
       if bundle.match.deletedAt != nil {
-        if try store.fetchRecord(id: bundle.match.id) != nil {
+        if let existing = try store.fetchRecord(id: bundle.match.id),
+           BackendQuery.shouldApplyCollectionRow(
+             updatedAt: bundle.match.updatedAt,
+             over: existing.remoteUpdatedAt,
+             localNeedsRemoteSync: existing.needsRemoteSync)
+        {
           try store.delete(id: bundle.match.id)
           self.pendingPushes.remove(bundle.match.id)
           self.clearPushMetadata(for: bundle.match.id)
@@ -434,9 +441,11 @@ extension BackendMatchHistoryRepository {
         continue
       }
       if let record = try store.fetchRecord(id: bundle.match.id) {
-        let localDirty = record.needsRemoteSync
-        let localRemoteDate = record.remoteUpdatedAt ?? .distantPast
-        if localDirty, bundle.match.updatedAt <= localRemoteDate {
+        if !BackendQuery.shouldApplyCollectionRow(
+          updatedAt: bundle.match.updatedAt,
+          over: record.remoteUpdatedAt,
+          localNeedsRemoteSync: record.needsRemoteSync)
+        {
           continue
         }
         if let merged = try merge(remote: bundle, into: record) {
@@ -533,7 +542,10 @@ extension BackendMatchHistoryRepository {
     do {
       let records = try store.fetchAllRecords()
       self.pendingPushes = Set(records.filter(\.needsRemoteSync).map(\.id))
-      self.remoteCursor = records.compactMap(\.remoteUpdatedAt).max()
+      // Per-record acknowledgements do not prove that a complete remote
+      // collection page was consumed. Start every repository lifetime with a
+      // full pull; only a completed collection response may advance this cursor.
+      self.remoteCursor = BackendQuery.initialCollectionSyncFloor
       let validIds = self.pendingPushes
       let staleIds = Set(pushMetadata.keys).subtracting(validIds)
       for stale in staleIds {

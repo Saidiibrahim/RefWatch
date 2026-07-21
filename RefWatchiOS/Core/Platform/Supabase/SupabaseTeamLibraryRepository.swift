@@ -28,7 +28,7 @@ final class BackendTeamLibraryRepository: TeamLibraryStoring, TeamLibraryReferen
   private var pendingPushes: Set<UUID> = []
   private var pendingDeletions: Set<UUID>
   private var processingTask: Task<Void, Never>?
-  private var remoteCursor: Date?
+  private var remoteCursor: Date? = BackendQuery.initialCollectionSyncFloor
 
   var changesPublisher: AnyPublisher<[TeamRecord], Never> {
     self.store.changesPublisher
@@ -184,7 +184,7 @@ extension BackendTeamLibraryRepository {
     switch state {
     case .signedOut:
       self.ownerUUID = nil
-      self.remoteCursor = nil
+      self.remoteCursor = BackendQuery.initialCollectionSyncFloor
       self.processingTask?.cancel()
       self.processingTask = nil
       self.pendingPushes.removeAll()
@@ -203,6 +203,7 @@ extension BackendTeamLibraryRepository {
         return
       }
       self.ownerUUID = uuid
+      self.remoteCursor = BackendQuery.initialCollectionSyncFloor
       publishSyncStatus()
       self.scheduleInitialSync()
     }
@@ -336,7 +337,6 @@ extension BackendTeamLibraryRepository {
         remoteUpdatedAt: syncResult.updatedAt,
         synchronizedAt: self.dateProvider())
       try self.metadataPersistor.persistMetadataChanges(for: team)
-      self.remoteCursor = max(self.remoteCursor ?? syncResult.updatedAt, syncResult.updatedAt)
       self.store.publishChanges()
     } catch {
       self.pendingPushes.insert(teamId)
@@ -363,13 +363,20 @@ extension BackendTeamLibraryRepository {
   }
 
   private func pullRemoteUpdates(for ownerUUID: UUID) async throws {
-    let remoteTeams = try await api.fetchTeams(ownerId: ownerUUID, updatedAfter: self.remoteCursor)
+    let remoteTeams = try await api.fetchTeams(
+      ownerId: ownerUUID,
+      updatedAfter: BackendQuery.collectionPullCursor(from: self.remoteCursor))
     guard remoteTeams.isEmpty == false else { return }
     var didDelete = false
     for tombstone in remoteTeams
       where tombstone.team.deletedAt != nil && !self.pendingDeletions.contains(tombstone.team.id)
     {
       if let existing = try fetchTeam(with: tombstone.team.id) {
+        guard BackendQuery.shouldApplyCollectionRow(
+          updatedAt: tombstone.team.updatedAt,
+          over: existing.remoteUpdatedAt,
+          localNeedsRemoteSync: existing.needsRemoteSync)
+        else { continue }
         try self.store.deleteTeam(existing)
         self.pendingPushes.remove(tombstone.team.id)
         didDelete = true
@@ -414,8 +421,11 @@ extension BackendTeamLibraryRepository {
     for remote in remoteTeams {
       if let existing = try fetchTeam(with: remote.team.id) {
         let remoteUpdatedAt = remote.team.updatedAt
-        let currentRemote = existing.remoteUpdatedAt ?? .distantPast
-        if remoteUpdatedAt <= currentRemote, existing.needsRemoteSync == false {
+        if !BackendQuery.shouldApplyCollectionRow(
+          updatedAt: remoteUpdatedAt,
+          over: existing.remoteUpdatedAt,
+          localNeedsRemoteSync: existing.needsRemoteSync)
+        {
           continue
         }
         self.apply(remote: remote, to: existing, ownerUUID: ownerUUID)

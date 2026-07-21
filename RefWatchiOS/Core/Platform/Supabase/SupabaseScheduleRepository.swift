@@ -31,7 +31,7 @@ final class BackendScheduleRepository: ScheduleStoring {
   private var pullTask: Task<Void, Never>?
   private var pendingPushes: Set<UUID> = []
   private var pendingDeletions: Set<UUID>
-  private var remoteCursor: Date?
+  private var remoteCursor: Date? = BackendQuery.initialCollectionSyncFloor
 
   init(
     store: SwiftDataScheduleStore,
@@ -141,7 +141,7 @@ extension BackendScheduleRepository {
     switch state {
     case .signedOut:
       self.ownerUUID = nil
-      self.remoteCursor = nil
+      self.remoteCursor = BackendQuery.initialCollectionSyncFloor
       self.processingTask?.cancel()
       self.processingTask = nil
       self.pullTask?.cancel()
@@ -162,6 +162,7 @@ extension BackendScheduleRepository {
         return
       }
       self.ownerUUID = uuid
+      self.remoteCursor = BackendQuery.initialCollectionSyncFloor
       publishSyncStatus()
       self.scheduleInitialSync()
     }
@@ -295,7 +296,6 @@ extension BackendScheduleRepository {
         synchronizedAt: self.dateProvider())
       try self.store.context.save()
       self.metadataPersistor.publishSnapshot()
-      self.remoteCursor = max(self.remoteCursor ?? result.updatedAt, result.updatedAt)
     } catch {
       self.pendingPushes.insert(id)
       self.log.error(
@@ -320,11 +320,18 @@ extension BackendScheduleRepository {
   }
 
   private func pullRemoteUpdates(for ownerUUID: UUID) async throws {
-    let remote = try await api.fetchScheduledMatches(ownerId: ownerUUID, updatedAfter: self.remoteCursor)
+    let remote = try await api.fetchScheduledMatches(
+      ownerId: ownerUUID,
+      updatedAfter: BackendQuery.collectionPullCursor(from: self.remoteCursor))
     guard remote.isEmpty == false else { return }
     var didDelete = false
     for tombstone in remote where tombstone.deletedAt != nil && !self.pendingDeletions.contains(tombstone.id) {
-      if try self.store.record(id: tombstone.id) != nil {
+      if let existing = try self.store.record(id: tombstone.id),
+         BackendQuery.shouldApplyCollectionRow(
+           updatedAt: tombstone.updatedAt,
+           over: existing.remoteUpdatedAt,
+           localNeedsRemoteSync: existing.needsRemoteSync)
+      {
         try self.store.delete(id: tombstone.id)
         self.pendingPushes.remove(tombstone.id)
         didDelete = true
@@ -358,14 +365,16 @@ extension BackendScheduleRepository {
     var appliedMaxDate: Date?
     for remote in remoteMatches {
       if let record = try store.record(id: remote.id) {
-        if record.needsRemoteSync {
-          self.log.notice(
-            "Skipping remote schedule merge for dirty local record id=\(remote.id.uuidString, privacy: .public)")
-          continue
-        }
         let remoteUpdatedAt = remote.updatedAt
-        let currentRemote = record.remoteUpdatedAt ?? .distantPast
-        if remoteUpdatedAt <= currentRemote {
+        if !BackendQuery.shouldApplyCollectionRow(
+          updatedAt: remoteUpdatedAt,
+          over: record.remoteUpdatedAt,
+          localNeedsRemoteSync: record.needsRemoteSync)
+        {
+          if record.needsRemoteSync {
+            self.log.notice(
+              "Skipping remote schedule merge for dirty local record id=\(remote.id.uuidString, privacy: .public)")
+          }
           continue
         }
         self.apply(remote: remote, to: record, ownerUUID: ownerUUID)

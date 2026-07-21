@@ -28,7 +28,7 @@ final class BackendVenueLibraryRepository: VenueLibraryStoring {
   private var pendingPushes: Set<UUID> = []
   private var pendingDeletions: Set<UUID>
   private var processingTask: Task<Void, Never>?
-  private var remoteCursor: Date?
+  private var remoteCursor: Date? = BackendQuery.initialCollectionSyncFloor
 
   var changesPublisher: AnyPublisher<[VenueRecord], Never> {
     self.store.changesPublisher
@@ -130,7 +130,7 @@ extension BackendVenueLibraryRepository {
     switch state {
     case .signedOut:
       self.ownerUUID = nil
-      self.remoteCursor = nil
+      self.remoteCursor = BackendQuery.initialCollectionSyncFloor
       self.processingTask?.cancel()
       self.processingTask = nil
       self.pendingPushes.removeAll()
@@ -150,7 +150,7 @@ extension BackendVenueLibraryRepository {
         return
       }
       self.ownerUUID = uuid
-      self.remoteCursor = nil
+      self.remoteCursor = BackendQuery.initialCollectionSyncFloor
       publishSyncStatus()
       self.scheduleInitialSync()
     }
@@ -331,7 +331,9 @@ extension BackendVenueLibraryRepository {
       "Venue pull requesting owner=\(ownerString, privacy: .public) cursor=\(cursorBefore, privacy: .public)")
 
     do {
-      let remoteVenues = try await api.fetchVenues(ownerId: ownerUUID, updatedAfter: self.remoteCursor)
+      let remoteVenues = try await api.fetchVenues(
+        ownerId: ownerUUID,
+        updatedAfter: BackendQuery.collectionPullCursor(from: self.remoteCursor))
       self.log.info(
         "Venue pull received count=\(remoteVenues.count) owner=\(ownerString, privacy: .public) cursor=\(cursorBefore, privacy: .public)")
 
@@ -355,7 +357,13 @@ extension BackendVenueLibraryRepository {
         }
 
         if remote.deletedAt != nil {
-          if let existing = existingById.removeValue(forKey: remote.id) {
+          if let existing = existingById[remote.id] {
+            guard BackendQuery.shouldApplyCollectionRow(
+              updatedAt: remote.updatedAt,
+              over: existing.remoteUpdatedAt,
+              localNeedsRemoteSync: existing.needsRemoteSync)
+            else { continue }
+            existingById.removeValue(forKey: remote.id)
             try self.store.delete(existing)
             self.pendingPushes.remove(remote.id)
             updatedCount += 1
@@ -365,10 +373,12 @@ extension BackendVenueLibraryRepository {
 
         if let existing = existingById[remote.id] {
           let localDirty = existing.needsRemoteSync
-          let localRemoteDate = existing.remoteUpdatedAt ?? .distantPast
-
-          if localDirty, remote.updatedAt <= localRemoteDate {
-            skippedDirtyConflict += 1
+          if !BackendQuery.shouldApplyCollectionRow(
+            updatedAt: remote.updatedAt,
+            over: existing.remoteUpdatedAt,
+            localNeedsRemoteSync: localDirty)
+          {
+            if localDirty { skippedDirtyConflict += 1 }
             continue
           }
 
