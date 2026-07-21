@@ -34,9 +34,10 @@ const metadataOwnerId = crypto.randomUUID();
 const oversizedPageId = crypto.randomUUID();
 const expectedCaptureTriggers = [
   "ai_attachments", "ai_messages", "ai_threads", "ai_usage_daily", "app_users",
-  "clerk_user_deletion_tombstones", "competitions", "match_assessments", "match_events",
-  "match_metrics", "match_periods", "matches", "pages", "scheduled_matches", "team_members",
-  "team_officials", "team_tags", "teams", "user_devices", "venues", "workout_presets", "workout_sessions",
+  "clerk_user_deletion_tombstones", "clerk_webhook_delivery_receipts", "competitions",
+  "match_assessments", "match_events", "match_metrics", "match_periods", "matches", "pages",
+  "scheduled_matches", "team_members", "team_officials", "team_tags", "teams", "user_devices",
+  "venues", "workout_presets", "workout_sessions",
 ].map((table) => `${table}_mutation_capture`).sort();
 
 describe("database-enforced mutation ledger", () => {

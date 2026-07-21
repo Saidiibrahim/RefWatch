@@ -12,9 +12,10 @@ const schemaTables = new Set([...schemaSource.matchAll(/pgTable\("([a-z0-9_]+)"/
 const capturedTables = new Set([...migrationSource.matchAll(/CREATE TRIGGER [^\n]+_mutation_capture[^\n]+ ON ([a-z0-9_]+)/g)].map((match) => match[1]));
 const expectedCapturedTables = new Set([
   "ai_attachments", "ai_messages", "ai_threads", "ai_usage_daily", "app_users",
-  "clerk_user_deletion_tombstones", "competitions", "match_assessments", "match_events",
-  "match_metrics", "match_periods", "matches", "pages", "scheduled_matches", "team_members",
-  "team_officials", "team_tags", "teams", "user_devices", "venues", "workout_presets", "workout_sessions",
+  "clerk_user_deletion_tombstones", "clerk_webhook_delivery_receipts", "competitions",
+  "match_assessments", "match_events", "match_metrics", "match_periods", "matches", "pages",
+  "scheduled_matches", "team_members", "team_officials", "team_tags", "teams", "user_devices",
+  "venues", "workout_presets", "workout_sessions",
 ]);
 const excludedTables = new Set([
   "identity_reconciliation_receipts",
@@ -50,7 +51,6 @@ const includedWriters = new Set([
   "src/routes/matches.ts",
   "src/routes/scheduledMatches.ts",
   "src/services/userOnboarding.ts",
-  "src/webhooks/clerk.ts",
 ]);
 const controlPlaneWriters = new Set([
   "src/services/mutationLedger.ts",

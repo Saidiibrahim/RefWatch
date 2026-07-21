@@ -1,10 +1,11 @@
-import { and, eq, gt, inArray, isNull, lt } from "drizzle-orm";
+import { and, eq, gte, inArray, isNull, lt } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 import { competitions, idempotencyKeys, matchEvents, matchMetrics, matchPeriods, matches, scheduledMatches, teamMembers, teams, venues } from "../db/schema";
 import type { Env, Variables } from "../types";
 import { parseISODate } from "../utils/dates";
 import { snakeCaseJSON } from "../utils/json";
+import { lockAndVersionEntity } from "../services/entityMutationVersion";
 import { httpMutationContext } from "../services/mutationContext";
 import { withMutation } from "../services/mutationLedger";
 
@@ -30,7 +31,7 @@ matchRoutes.get("/", async (c) => {
   const ownerId = c.get("auth").appUserId; let after: Date | undefined;
   try { after = parseISODate(c.req.query("updatedAfter")); } catch { return c.json({ error: "invalid_updated_after" }, 422); }
   const filters = [eq(matches.ownerId, ownerId)];
-  if (after) filters.push(gt(matches.updatedAt, after)); else filters.push(isNull(matches.deletedAt));
+  if (after) filters.push(gte(matches.updatedAt, after)); else filters.push(isNull(matches.deletedAt));
   const rows = await c.get("db").select().from(matches).where(and(...filters)).orderBy(matches.updatedAt);
   if (!rows.length) return c.json([]);
   const ids = rows.map((x) => x.id);
@@ -60,6 +61,16 @@ matchRoutes.post("/ingest", async (c) => {
   if (invalidEventReference) return c.json({ error: "forbidden_reference", field: invalidEventReference }, 403);
 
   const result = await withMutation(c.get("db"), httpMutationContext(c, "/api/matches/ingest"), async (tx) => {
+    const version = await lockAndVersionEntity(tx, "match", matchId, async (id) => {
+      const [persisted] = await tx.select({
+        ownerId: matches.ownerId,
+        updatedAt: matches.updatedAt,
+      }).from(matches).where(eq(matches.id, id)).limit(1);
+      return persisted;
+    });
+    if (version.existing && version.existing.ownerId !== ownerId) {
+      return { kind: "forbidden" as const };
+    }
     if (key) {
       await tx.delete(idempotencyKeys).where(and(
         eq(idempotencyKeys.ownerId, ownerId), eq(idempotencyKeys.key, key), lt(idempotencyKeys.expiresAt, new Date()),
@@ -77,9 +88,9 @@ matchRoutes.post("/ingest", async (c) => {
         return { kind: "pending" as const };
       }
     }
-    const m = bundle.match; const updatedAt = new Date();
+    const m = bundle.match; const updatedAt = version.updatedAt;
     const values = {
-      id: m.id, ownerId, scheduledMatchId: m.scheduled_match_id ?? null, status: m.status,
+      id: version.id, ownerId, scheduledMatchId: m.scheduled_match_id ?? null, status: m.status,
       startedAt: new Date(m.started_at ?? m.completed_at), completedAt: new Date(m.completed_at), durationSeconds: m.duration_seconds ?? null,
       numberOfPeriods: m.number_of_periods, regulationMinutes: m.regulation_minutes ?? null, halfTimeMinutes: m.half_time_minutes ?? null,
       competitionId: m.competition_id ?? null, competitionName: m.competition_name ?? null, venueId: m.venue_id ?? null, venueName: m.venue_name ?? null,
@@ -113,7 +124,31 @@ matchRoutes.post("/ingest", async (c) => {
 
 matchRoutes.delete("/:id", async (c) => {
   const id = uuid.safeParse(c.req.param("id")); if (!id.success) return c.json({ error: "invalid_id" }, 422);
-  const result = await withMutation(c.get("db"), httpMutationContext(c, "/api/matches/:id"), (tx) => tx.update(matches).set({ deletedAt: new Date(), updatedAt: new Date() }).where(and(eq(matches.id, id.data), eq(matches.ownerId, c.get("auth").appUserId), isNull(matches.deletedAt))).returning({ id: matches.id }));
+  const result = await withMutation(c.get("db"), httpMutationContext(c, "/api/matches/:id"), async (tx) => {
+    const version = await lockAndVersionEntity(tx, "match", id.data, async (normalizedId) => {
+      const [existing] = await tx.select({
+        ownerId: matches.ownerId,
+        updatedAt: matches.updatedAt,
+        deletedAt: matches.deletedAt,
+      }).from(matches).where(eq(matches.id, normalizedId)).limit(1);
+      return existing;
+    });
+    if (
+      !version.existing
+      || version.existing.ownerId !== c.get("auth").appUserId
+      || version.existing.deletedAt
+    ) {
+      return [];
+    }
+    return tx.update(matches).set({
+      deletedAt: version.updatedAt,
+      updatedAt: version.updatedAt,
+    }).where(and(
+      eq(matches.id, version.id),
+      eq(matches.ownerId, c.get("auth").appUserId),
+      isNull(matches.deletedAt),
+    )).returning({ id: matches.id });
+  });
   return result.length ? c.body(null, 204) : c.json({ error: "not_found" }, 404);
 });
 
@@ -128,7 +163,11 @@ async function findForeignReference(db: Variables["db"], ownerId: string, match:
   ];
   for (const [field, id, table] of checks) {
     if (!id) continue;
-    const row = await db.select({ id: table.id }).from(table).where(and(eq(table.id, id), eq(table.ownerId, ownerId))).limit(1);
+    const row = await db.select({ id: table.id }).from(table).where(and(
+      eq(table.id, id),
+      eq(table.ownerId, ownerId),
+      isNull(table.deletedAt),
+    )).limit(1);
     if (!row.length) return field;
   }
   return null;
@@ -144,12 +183,20 @@ export async function findInvalidEventReference(
   const teamIds = [...new Set(events.flatMap((event) => event.team_id ? [normalizeUUID(event.team_id)] : []))];
   const memberIds = [...new Set(events.flatMap((event) => event.team_member_id ? [normalizeUUID(event.team_member_id)] : []))];
   const ownedTeams = teamIds.length
-    ? await db.select({ id: teams.id }).from(teams).where(and(inArray(teams.id, teamIds), eq(teams.ownerId, ownerId)))
+    ? await db.select({ id: teams.id }).from(teams).where(and(
+      inArray(teams.id, teamIds),
+      eq(teams.ownerId, ownerId),
+      isNull(teams.deletedAt),
+    ))
     : [];
   const ownedMembers = memberIds.length
     ? await db.select({ id: teamMembers.id, teamId: teamMembers.teamId }).from(teamMembers)
       .innerJoin(teams, eq(teamMembers.teamId, teams.id))
-      .where(and(inArray(teamMembers.id, memberIds), eq(teams.ownerId, ownerId)))
+      .where(and(
+        inArray(teamMembers.id, memberIds),
+        eq(teams.ownerId, ownerId),
+        isNull(teams.deletedAt),
+      ))
     : [];
   const ownedTeamIds = new Set(ownedTeams.map((team) => normalizeUUID(team.id)));
   const ownedMemberTeams = new Map(ownedMembers.map((member) => [normalizeUUID(member.id), normalizeUUID(member.teamId)]));
