@@ -95,3 +95,42 @@ ledger/mapping, add traffic, or enable onboarding/writes.
   acknowledged, the one recovery-path decision is aligned across operator
   pages, and successful payload inspection is distinguished from the failed
   source precondition. No escrow write or other provider mutation occurred.
+
+## 2026-07-20 Greenfield supersession
+
+This section is append-only. The 2026-07-17 body above remains point-in-time
+truth for the stateful migration plan and operations completed on that date.
+The later operator decision in
+`2026-07-20-greenfield-cutover-authorization.md` supersedes its approval and
+preservation gates for the active launch:
+
+- RefWatch is a greenfield production launch with no real production users,
+  active writers, or irreplaceable data.
+- The historical 43 Supabase Auth users, 42 public profiles, 1,106 application
+  rows, `testing@refwatch.com`, and existing target test state are disposable.
+- No final Supabase export, auth-only exclusion confirmation, 42-user
+  UUID-to-Clerk mapping, identity import, application-row import, or
+  source/target row reconciliation is required.
+- The target clean-state claim means zero `app_users`, zero legacy mappings, and
+  zero user-owned application rows. It does not mean absent schema/control rows
+  or absent deterministic global reference data. The complete required seed
+  must come from reviewed repository sources and be evidenced separately.
+- Ledger escrow, recovery proof, and production activation are deferred and
+  non-blocking. The failed 2026-07-17 escrow audit remains unchanged. Existing
+  ledger resources may remain inert or be reviewed for later cleanup; launch
+  requires no active capture-enforced epoch, cron, or Queue consumer.
+- Stop/guard/reset/reseed/recreate is the accepted initial recovery model.
+- All previously gated provider/cutover operations are authorized in their
+  ordered phases. Authorization is not execution, and each transition still
+  requires sanitized evidence plus no-findings confirmation from both mandatory
+  review roles.
+- Secret values remain non-disclosing. Commits and publishing remain outside
+  scope. The completed `refwatch.ibby.ai` domain/DNS/certificate/key lane must
+  not be repeated without a diagnosed requirement.
+
+Accordingly, the “Remaining approval matrix” above is historical and has zero
+pending approval decisions for the active greenfield launch. Its operational
+prerequisites and security boundaries still apply where they protect the
+ordered cutover. Physical iPhone 15 Pro Max and Apple Watch Series 9 (45mm)
+availability may still block physical acceptance and final traffic cutover, but
+does not block other safe preparation.

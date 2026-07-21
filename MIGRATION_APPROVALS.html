@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
-  <title>RefWatch production-foundation approvals</title>
+  <title>RefWatch greenfield production authorization</title>
   <style>
     :root {
       --bg: #f8fafc;
@@ -217,42 +217,55 @@
 <body>
   <main>
     <header>
-      <p class="eyebrow">RefWatch · operator approval gate</p>
-      <h1>Production foundation approvals</h1>
+      <p class="eyebrow">RefWatch · operator authorization record</p>
+      <h1>Greenfield production authorization</h1>
       <p class="lede">
-        The isolated rehearsal approval is fully consumed. Both bounded
-        production-foundation actions were approved on 2026-07-15. Action 1
-        remains applied. Action 2's original <code>auth.refwatch.com</code>
-        scope is retired unexercised; the separately authorized owned
-        replacement-domain batch completed on 2026-07-17. No domain approval
-        remains actionable. Neither batch cuts over users, data, writes, or
-        traffic.
+        The earlier rehearsal, foundation, and replacement-domain approvals are
+        retained below as historical records. On 2026-07-20, the operator
+        authorized the full clean greenfield production cutover. There are zero
+        pending approval decisions. Authorization does not claim that any
+        remaining provider, acceptance, traffic, or retirement step is complete.
       </p>
     </header>
 
     <section class="boundary" aria-label="Approval scope boundary">
       <div class="allowed">
-        <strong>No repeat foundation or domain approval requested</strong>
-        Action 1's safe scope is applied. The old Action 2 remains historical
-        evidence and cannot be exercised. The separately authorized
-        <code>refwatch.ibby.ai</code> domain, five DNS-only CNAMEs, certificates,
-        regenerated Worker publishable key, and issuer refresh are complete.
-        One current non-secret ledger-key recovery-path decision is listed in
-        <a href="MIGRATION_OPERATOR_ACTIONS.html">MIGRATION_OPERATOR_ACTIONS.html</a>;
-        it does not authorize rotation, binding, deployment, ledger activation,
-        or writes.
+        <strong>0 pending approval decisions</strong>
+        The 2026-07-20 override authorizes all in-scope greenfield provider and
+        cutover operations. The completed <code>refwatch.ibby.ai</code> domain,
+        five DNS-only CNAMEs, certificates, Worker publishable key, and issuer
+        coordination should not be repeated merely to reproduce evidence.
       </div>
       <div class="forbidden">
-        <strong>Still forbidden</strong>
-        Creating or modifying user identities; stopping Supabase writes; final
-        row export/import; activating mappings; public API/DNS traffic cutover;
-        enabling production writes; deleting or archiving Supabase; changing
-        production user/application data. Action 1's exact 5-competition and
-        54-team global reference seed is the sole data exception.
+        <strong>Standing scope and security boundaries</strong>
+        Secrets remain non-disclosing. Production ledger activation is deferred
+        and non-blocking. Existing legacy identities and application rows are
+        disposable and are not migration inputs. Ordered prerequisites,
+        mandatory reviews, and sanitized evidence still apply. Repository
+        commits and publishing remain outside scope.
       </div>
     </section>
 
     <div class="stack">
+      <section class="card" aria-labelledby="override-title">
+        <div class="card-head">
+          <div>
+            <h2 id="override-title">2026-07-20 — greenfield cutover override</h2>
+            <p>Current authorization; execution and acceptance evidence remain in progress</p>
+          </div>
+          <span class="tag">Authorized · not completion</span>
+        </div>
+        <ul>
+          <li>All Supabase identities, profiles, and application rows are disposable; no legacy identity or data migration is required.</li>
+          <li>The clean target requires exactly zero legacy mappings. New Clerk subjects receive server-generated internal UUIDs through the reviewed, fail-closed greenfield bootstrap.</li>
+          <li>Mutation-ledger escrow, recovery proof, and activation are deferred. Initial launch requires zero preparing, open, or capture-enforced epochs and zero Queue, cron, or D1 consumers.</li>
+          <li>Stopping writes, resetting and reseeding PlanetScale, recreating test identities, provider configuration, Worker deployment/routing, webhook tests, onboarding/write enablement, traffic cutover, and legacy retirement are authorized in the reviewed sequence.</li>
+          <li>Destructive reset, deterministic reseed, test-identity recreation, and rerunning the launch are accepted initial recovery actions.</li>
+          <li>Secrets must never be printed, passed as command arguments, recorded in evidence, placed in iOS configuration, or pasted into chat.</li>
+          <li>This override does not authorize repository commits or publishing.</li>
+        </ul>
+      </section>
+
       <section class="card" aria-labelledby="foundation-title">
         <div class="card-head">
           <div>
@@ -262,20 +275,20 @@
           <span class="tag">Approved · safe scope applied</span>
         </div>
         <p class="status">Archived audit summary: the consumed Action 1 approval covered migrations <code>0000</code>–<code>0015</code>, the exact 5-competition/54-team seed, restricted roles, Hyperdrive, Queue/DLQ/D1, local encryption-key custody, and an unrouted Worker with writes and onboarding disabled. The manifest-bound execution and sanitized readbacks are retained in the migration evidence. This page grants no authority to repeat that work.</p>
-        <p class="status">Historical execution status (custody clause superseded below): migrations 0000–0015, exact 5/54 seed, read-only runtime/verifier roles, Hyperdrive, Queue/DLQ/D1, local key custody, securely installed production Clerk/OpenAI keys, and unrouted write-disabled Worker <code>e966d6df-b5ff-4288-832c-c8d91e00ce48</code> with verified <code>refwatch.ibby.ai</code> issuer/publishable-key pins. Localhost production-config/runtime-role readiness and write-denial probes passed. No repeat approval is needed for the completed Action 1 infrastructure. Organizational escrow/recovery and a later functional production ledger probe/activation remain separately gated. Production cron and Queue consumers are absent.</p>
-        <p class="status">2026-07-17 custody correction: the historical local-custody statement above is not current recovery evidence. The named Keychain record exists but its payload audits empty; the Worker ledger-secret value is non-readable. No Secrets Store entry was created. This does not reopen or authorize repeating the consumed infrastructure scope; source remediation or rotation requires a new exact approval.</p>
+        <p class="status">Historical execution status (custody clause superseded below): migrations 0000–0015, exact 5/54 seed, read-only runtime/verifier roles, Hyperdrive, Queue/DLQ/D1, local key custody, securely installed production Clerk/OpenAI keys, and unrouted write-disabled Worker <code>e966d6df-b5ff-4288-832c-c8d91e00ce48</code> with verified <code>refwatch.ibby.ai</code> issuer/publishable-key pins. Localhost production-config/runtime-role readiness and write-denial probes passed. Production cron and Queue consumers were absent.</p>
+        <p class="status">2026-07-17 custody correction: the historical local-custody statement above is not current recovery evidence. The named Keychain record exists but its payload audits empty; the Worker ledger-secret value is non-readable. No Secrets Store entry was created. The 2026-07-20 override leaves recovery, escrow, and activation deferred and non-blocking; it does not direct key rotation or production ledger activation.</p>
       </section>
 
       <section class="card" aria-labelledby="clerk-title">
         <div class="card-head">
           <div>
             <h2 id="clerk-title">Action 2 — Clerk production edge</h2>
-            <p>Domain and signed delivery setup, with identity mutation forbidden</p>
+            <p>Historical domain and signed-delivery scope</p>
           </div>
           <span class="tag">Historical scope retired · replacement complete</span>
         </div>
-        <p class="status">Archived audit summary: the 2026-07-15 approval covered a proposed <code>auth.refwatch.com</code> domain phase plus later native-app, authentication-strategy, and signed-webhook setup while identity mutation, data migration, traffic cutover, and production writes remained forbidden. The domain phase was never exercised and cannot be reused because the operator does not own <code>refwatch.com</code>.</p>
-        <p class="status">Historical scope retired unexercised: do not apply the old <code>auth.refwatch.com</code> CNAMEs. Separately authorized replacement work completed on 2026-07-17 for owned secondary domain <code>refwatch.ibby.ai</code>: exact five DNS-only CNAMEs, DNS/SSL/email-DNS verification, regenerated Worker publishable key, and issuer refresh. Native iOS registration/configuration, Google OAuth, lifecycle webhook, identities, application data, traffic, onboarding, ledger activation, and writes remain pending and separately gated.</p>
+        <p class="status">Archived audit summary: the 2026-07-15 approval covered a proposed <code>auth.refwatch.com</code> domain phase plus later native-app, authentication-strategy, and signed-webhook setup while identity mutation, data migration, traffic cutover, and production writes were outside that historical scope. The domain phase was never exercised and cannot be reused because the operator does not own <code>refwatch.com</code>.</p>
+        <p class="status">Historical scope retired unexercised: the old <code>auth.refwatch.com</code> CNAMEs are not valid RefWatch configuration. Separately authorized replacement work completed on 2026-07-17 for owned secondary domain <code>refwatch.ibby.ai</code>: exact five DNS-only CNAMEs, DNS/SSL/email-DNS verification, regenerated Worker publishable key, and issuer refresh. The 2026-07-20 override now authorizes the remaining native, OAuth, webhook, clean-identity, traffic, onboarding, write, and legacy-retirement work in the reviewed sequence; production ledger activation remains deferred.</p>
       </section>
 
       <section class="card" aria-labelledby="both-title">
@@ -291,7 +304,7 @@
     </div>
 
     <footer>
-      <p>The previous rehearsal approval is consumed, Action 1 remains applied, and the separately authorized replacement-domain batch is consumed. Action 2 is retained only as historical approval text; its old domain scope is retired unexercised. Current operator tasks are tracked in <a href="MIGRATION_OPERATOR_ACTIONS.html">MIGRATION_OPERATOR_ACTIONS.html</a>, with remaining manual Clerk guidance in <a href="CLERK_DASHBOARD_ACTIONS.html">CLERK_DASHBOARD_ACTIONS.html</a>. Native/OAuth/webhook work and the final identity/data/traffic/write cutover remain separately gated.</p>
+      <p>Last synchronized 2026-07-20. Earlier approvals remain historical; the greenfield override is the current authorization and leaves zero pending approval decisions. Execution status is tracked in <a href="MIGRATION_OPERATOR_ACTIONS.html">MIGRATION_OPERATOR_ACTIONS.html</a>, with Clerk prerequisites in <a href="CLERK_DASHBOARD_ACTIONS.html">CLERK_DASHBOARD_ACTIONS.html</a>. Authorization is not completion, and provider mutations must follow the reviewed cutover order.</p>
     </footer>
   </main>
 </body>

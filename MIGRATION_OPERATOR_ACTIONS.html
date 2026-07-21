@@ -103,20 +103,20 @@
 <body>
   <main>
     <header>
-      <p class="eyebrow">RefWatch · migration handoff</p>
-      <h1>External actions needed from you</h1>
+      <p class="eyebrow">RefWatch · greenfield cutover</p>
+      <h1>Operator status and external prerequisites</h1>
       <p class="lede">
-        The production-foundation approvals are already recorded and the Clerk
-        production-domain lane is complete. The ledger-key escrow preflight
-        found an empty local recovery payload, so one new remediation decision
-        is required before later operational gates can proceed.
+        The operator authorized the full greenfield production cutover on
+        2026-07-20. There are no pending approval decisions. Authorization does
+        not mean a step is complete: Codex must still satisfy the ordered
+        prerequisites, run the required reviews, and record sanitized evidence.
       </p>
     </header>
 
     <section class="summary" aria-label="Current action summary">
-      <div class="metric"><strong>1</strong><span>decision needed now</span></div>
-      <div class="metric"><strong>3</strong><span>later operator gates</span></div>
-      <div class="metric"><strong>0</strong><span>domain approvals pending</span></div>
+      <div class="metric"><strong>0</strong><span>approval decisions pending</span></div>
+      <div class="metric"><strong>1</strong><span>physical-device prerequisite</span></div>
+      <div class="metric"><strong>1</strong><span>completed domain lane</span></div>
     </section>
 
     <div class="stack">
@@ -130,7 +130,7 @@
           <span class="tag done">Complete</span>
         </div>
 
-        <p>The prior <code>auth.refwatch.com</code> decision and records remain retired unexercised. The live domain, five DNS-only CNAMEs, certificates, regenerated Worker publishable key, and issuer refresh are complete. The Worker remains unrouted, onboarding-disabled, and write-disabled.</p>
+        <p>The prior <code>auth.refwatch.com</code> decision and records remain retired unexercised. The live domain, five DNS-only CNAMEs, certificates, regenerated Worker publishable key, and issuer refresh are complete. The 2026-07-17 unrouted/write-disabled receipt is historical; the 2026-07-20 baseline and production-preparation reviews are complete. Re-read provider state immediately before mutation, and keep the deployed path disabled until the reviewed promotion phase.</p>
         <ol>
           <li>Clerk reports DNS, SSL, and email DNS complete with zero pending records.</li>
           <li>Cloudflare records are DNS-only under <code>refwatch.ibby.ai</code>.</li>
@@ -159,8 +159,9 @@
         </ol>
 
         <p class="note success">
-          CLI authentication is complete. Do not create or import users manually;
-          identity mutation and remaining provider setup stay separately gated.
+          CLI authentication is complete. The 2026-07-20 override authorizes the
+          remaining provider work, including clean test identities, when each
+          ordered prerequisite is ready. Credentials remain non-disclosing.
         </p>
 
         <div class="actions">
@@ -173,18 +174,18 @@
         <div class="card-head">
           <div>
             <h3>Clerk configuration</h3>
-            <h2 id="clerk-checklist-title">Remaining Clerk work after domain completion</h2>
-            <p>These steps are shown for visibility. You do not need to perform them unless Codex asks you to take over manually.</p>
+            <h2 id="clerk-checklist-title">Authorized work after domain completion</h2>
+            <p>These steps are authorized but not yet recorded as complete. Codex owns their execution; operator action is needed only if a provider requires an interactive credential or physical confirmation.</p>
           </div>
-          <span class="tag later">Remaining phases gated</span>
+          <span class="tag later">Ordered prerequisites</span>
         </div>
 
         <ul class="checklist">
           <li><label><input type="checkbox" checked disabled><span>Production domain and all five DNS-only Clerk CNAMEs verified.</span></label></li>
           <li><label><input type="checkbox" checked disabled><span>Clerk DNS, SSL, and email DNS complete with zero pending records.</span></label></li>
-          <li><label><input type="checkbox" data-state="native"><span>Register the verified native iOS Bundle ID and Apple App ID Prefix against the production instance; do not reuse an inferred identifier.</span></label></li>
-          <li><label><input type="checkbox" data-state="auth"><span>Configure email/password, Apple, and Google credentials while keeping both sign-up and sign-in unavailable until the identity-cutover approval.</span></label></li>
-          <li><label><input type="checkbox" data-state="webhook"><span>Create the reviewed signed lifecycle webhook only when Codex provides the exact reachable endpoint; subscribe only to <code>user.created</code>, <code>user.updated</code>, and <code>user.deleted</code>.</span></label></li>
+          <li><label><input type="checkbox" data-state="native"><span>Register Apple App ID Prefix <code>6NV7X5BLU7</code>, signed Bundle ID <code>com.IbrahimSaidi.RefWatch</code>, and redirect <code>com.IbrahimSaidi.RefWatch://callback</code> against the production instance.</span></label></li>
+          <li><label><input type="checkbox" data-state="auth"><span>Configure production Apple and Google OAuth after the authoritative native identifiers and provider credentials are resolved; keep public use closed until the reviewed acceptance sequence reaches that step.</span></label></li>
+          <li><label><input type="checkbox" data-state="webhook"><span>Use a preliminary write-disabled endpoint only if needed for reachability, create the reviewed signed lifecycle webhook with exactly <code>user.created</code>, <code>user.updated</code>, and <code>user.deleted</code>, install its secret non-echoingly, then create/read back the definitive immutable S/A/B/G/L versions.</span></label></li>
         </ul>
 
         <h3 style="margin-top:22px">Completed DNS-only CNAMEs</h3>
@@ -199,18 +200,15 @@ clk2._domainkey.refwatch.ibby.ai  → dkim2.5510u3rpvrex.clerk.services</pre>
       <section class="card" aria-labelledby="escrow-title">
         <div class="card-head">
           <div>
-            <h3>Blocked before escrow</h3>
-            <h2 id="escrow-title">Repair the recoverable key source</h2>
-            <p>Cloudflare Secrets Store is selected and its account/store/edit permission passed. The expected local Keychain record exists, but its payload is empty; the Worker secret is non-readable and cannot reconstruct it.</p>
+            <h3>Greenfield ledger decision · 2026-07-20</h3>
+            <h2 id="escrow-title">Ledger recovery and activation are deferred</h2>
+            <p>The 2026-07-17 audit remains the historical record that the local recovery payload was empty. Greenfield launch does not depend on recovering, escrowing, rotating, or activating that historical key.</p>
           </div>
-          <span class="tag hold">New approval required</span>
+          <span class="tag done">Non-blocking</span>
         </div>
 
-        <p>No Secrets Store secret was created. Do not paste a key into chat, retry the upload, repair Keychain, bind or deploy a recovery Worker, change the existing Worker secret, or rotate a key under the consumed escrow-copy approval.</p>
-        <div class="actions">
-          <button type="button" data-copy="escrow-response">Copy escrow response</button>
-        </div>
-        <p class="response" id="escrow-response">RECOVERY PATH: [I have the exact existing key in another approved custody source / authorize a read-only production ledger-state audit and a separately reviewed remediation proposal]. Do not include any key value. Cloudflare Secrets Store remains the selected escrow target; this response does not authorize rotation, binding, deploy, activation, or writes.</p>
+        <p>No operator decision or recovery action is pending. Keep ledger capture inactive with zero preparing, open, or capture-enforced epochs and zero Queue, cron, or D1 consumers. Existing ledger resources may remain detached or be removed during reviewed cleanup if that simplifies the production configuration. Never disclose a key value.</p>
+        <p class="response" id="escrow-response">LEDGER DECISION RECORDED — escrow, recovery proof, and activation are deferred and non-blocking for the greenfield launch. Destructive reset, reseed, and test-identity recreation are the accepted initial recovery path.</p>
       </section>
 
       <section class="card" aria-labelledby="devices-title">
@@ -218,7 +216,7 @@ clk2._domainkey.refwatch.ibby.ai  → dkim2.5510u3rpvrex.clerk.services</pre>
           <div>
             <h3>Final acceptance</h3>
             <h2 id="devices-title">Bring the physical devices online</h2>
-            <p>Needed after the authenticated production route and migrated identities/data are ready.</p>
+            <p>Needed after the authenticated production route and clean greenfield identity/data path are ready. Device availability is an external acceptance prerequisite, not an approval decision.</p>
           </div>
           <span class="tag later">Needed later</span>
         </div>
@@ -235,23 +233,24 @@ clk2._domainkey.refwatch.ibby.ai  → dkim2.5510u3rpvrex.clerk.services</pre>
         <div class="card-head">
           <div>
             <h3>Boundary</h3>
-            <h2 id="forbidden-title">Do not perform these actions yet</h2>
+            <h2 id="forbidden-title">Standing security and scope boundaries</h2>
           </div>
-          <span class="tag hold">Hold</span>
+          <span class="tag later">Always applies</span>
         </div>
 
         <p class="note danger">
-          Do not enable Clerk sign-up or sign-in; create/import/update/merge/delete
-          Clerk users; stop or delete Supabase; export/import final rows; activate
-          mappings; add public API traffic; enable production writes; activate the
-          production mutation ledger; or rotate/revoke source OAuth credentials.
-          Those remain under later cutover gates and approvals.
+          Never print or persist secret values in evidence, chat, shell arguments,
+          or iOS configuration. Do not activate the production mutation ledger.
+          Do not repeat the completed domain/DNS/key lane without a diagnosed
+          requirement. Do not commit or publish repository changes. Authorized
+          provider mutations must follow the reviewed cutover order; authorization
+          alone is not evidence that a step passed.
         </p>
       </section>
     </div>
 
     <footer>
-      Last synchronized 2026-07-17. Approval history remains in
+      Last synchronized 2026-07-20. Authorization history remains in
       <a href="MIGRATION_APPROVALS.html">MIGRATION_APPROVALS.html</a>.
       This page stores checklist ticks only in this browser's local storage.
       <p class="status" id="copy-status" role="status" aria-live="polite"></p>

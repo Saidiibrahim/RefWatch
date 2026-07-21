@@ -44,15 +44,15 @@
 <body>
   <main>
     <header>
-      <p class="eyebrow">RefWatch · Clerk production handoff</p>
+      <p class="eyebrow">RefWatch · Clerk greenfield cutover</p>
       <h1>Clerk dashboard instructions</h1>
-      <p class="lede">The production domain is complete. This page now lists only the remaining native-app, OAuth, and webhook phases, and never asks you to paste credentials into chat.</p>
+      <p class="lede">The production domain is complete, and the full greenfield cutover was authorized on 2026-07-20. There are zero pending approval decisions. The remaining native-app, OAuth, and webhook phases are ordered prerequisites, not completed work.</p>
     </header>
 
     <section class="summary" aria-label="Clerk handoff status">
-      <div class="metric"><strong>0</strong><span>safe Clerk mutations now</span></div>
-      <div class="metric"><strong>0</strong><span>domain decisions needed</span></div>
-      <div class="metric"><strong>3</strong><span>manual phases later</span></div>
+      <div class="metric"><strong>0</strong><span>approval decisions pending</span></div>
+      <div class="metric"><strong>3</strong><span>authorized ordered phases</span></div>
+      <div class="metric"><strong>1</strong><span>completed domain lane</span></div>
     </section>
 
     <div class="stack">
@@ -69,46 +69,46 @@
       </section>
 
       <section class="card" aria-labelledby="native-title">
-        <div class="card-head"><div><h3>Later phase 1</h3><h2 id="native-title">Register the native iOS application</h2></div><span class="tag hold">Wait for Codex go-ahead</span></div>
+        <div class="card-head"><div><h3>Authorized phase 1</h3><h2 id="native-title">Register the native iOS application</h2></div><span class="tag">Identifiers verified</span></div>
         <ol>
           <li>In Clerk, select the RefWatch application and switch to production instance <code>ins_3GWFGUd1rI6hx5lWlUxMYAkxdac</code>.</li>
-          <li>The replacement domain, certificates, and new publishable key are ready. Open <strong>Native applications</strong> only after Codex confirms the authoritative Apple identifiers and exact redirect URL.</li>
-          <li>Retrieve the actual <strong>App ID Prefix</strong> from the Apple Developer portal and the signed production <strong>Bundle ID</strong> from Xcode/Apple identifiers.</li>
-          <li>Add those exact identifiers. The repository currently expresses the bundle as <code>$(BUNDLE_ID_PREFIX).RefWatch</code> and does not prove a resolved production value, so do not enter <code>com.IbrahimSaidi.RefWatch</code> merely because it appeared in an earlier draft.</li>
-          <li>Do not add a redirect URL until Codex supplies the reviewed exact URL. Clerk normally uses <code>{bundleIdentifier}://callback</code>, but the final value must match the signed app.</li>
+          <li>The authoritative Apple App ID Prefix is <code>6NV7X5BLU7</code>, the signed production Bundle ID is <code>com.IbrahimSaidi.RefWatch</code>, and the native redirect URL is <code>com.IbrahimSaidi.RefWatch://callback</code>.</li>
+          <li>Register those exact values under <strong>Native applications</strong>; do not substitute an inferred prefix, bundle, or redirect.</li>
+          <li>Record a sanitized Clerk readback of the registered identifiers. The release <code>Secrets.xcconfig</code> remains absent until the approved public iOS values are installed at the reviewed destination.</li>
         </ol>
       </section>
 
       <section class="card" aria-labelledby="oauth-title">
-        <div class="card-head"><div><h3>Later phase 2</h3><h2 id="oauth-title">Configure authentication strategies</h2></div><span class="tag hold">Keep unavailable</span></div>
+        <div class="card-head"><div><h3>Authorized phase 2</h3><h2 id="oauth-title">Configure authentication strategies</h2></div><span class="tag">After native identifiers</span></div>
         <ol>
-          <li>Keep both production sign-up and sign-in unavailable until the later identity-import/cutover approval.</li>
-          <li>Do not create test users, invitations, impersonation sessions, or manual identities.</li>
-          <li>When Codex provides the exact provider handoff, enter separately custodied production Apple and Google OAuth credentials directly into Clerk. Do not print, rotate, revoke, export, or paste source credentials into chat.</li>
-          <li>For Google Cloud/API work, Codex must use the installed <code>gcloud</code> CLI; for Google Workspace operations it must use the installed <code>gws</code> CLI. This does not authorize the OAuth phase, and credentials must remain non-disclosing.</li>
-          <li>Configure email/password without opening registration or authentication traffic.</li>
+          <li>Keep public production use closed until the authenticated acceptance sequence reaches the reviewed enablement step.</li>
+          <li>Clean test users, invitations, and sessions may be created when needed for bounded acceptance; legacy Supabase identities must not be imported.</li>
+          <li>Enter separately custodied production Apple and Google OAuth credentials directly into Clerk through a non-disclosing path. Do not print, rotate, revoke, export, or paste source credentials into chat.</li>
+          <li>For Google Cloud/API work, Codex uses the installed <code>gcloud</code> CLI; for Google Workspace operations it uses the installed <code>gws</code> CLI.</li>
+          <li>Configure only the reviewed production strategies, then record sanitized configuration evidence without exposing credentials.</li>
         </ol>
       </section>
 
       <section class="card" aria-labelledby="webhook-title">
-        <div class="card-head"><div><h3>Later phase 3</h3><h2 id="webhook-title">Create the signed lifecycle webhook</h2></div><span class="tag hold">Endpoint not routable yet</span></div>
+        <div class="card-head"><div><h3>Authorized phase 3</h3><h2 id="webhook-title">Create the signed lifecycle webhook</h2></div><span class="tag">Before final immutable versions</span></div>
         <ol>
-          <li>Wait until Codex supplies the exact public HTTPS Worker URL and confirms <code>WRITE_MODE=disabled</code>.</li>
+          <li>If endpoint discovery requires it, use only a preliminary write-disabled deployment to prove the exact public HTTPS URL; it is not final Worker A.</li>
           <li>In <strong>Webhooks</strong>, add exactly that URL plus <code>/webhooks/clerk</code>.</li>
           <li>Subscribe only to <code>user.created</code>, <code>user.updated</code>, and <code>user.deleted</code>.</li>
           <li>Reveal the endpoint signing secret only when Codex provides a secure, non-echoing installation prompt. Never paste it into chat or save it in this page.</li>
-          <li>Do not send a sample event until Codex confirms the non-mutating routing/guard probe is ready; the Worker must return a write-disabled response and must not mutate identities. That denial does not prove signature verification or production-instance provenance, which require a later separately reviewed test.</li>
+          <li>Install only newly required or changed secrets through non-echoing input, then create and read back the definitive immutable secret source, A, B, G, and L versions while unchanged bindings are inherited. Do not request or reinstall the inaccessible historical ledger-key value. The sanitized lineage receipt records only allowed secret names, provider-history-bounded/operator-confirmed provenance, and zero intervening secret mutation; it never records or directly compares values.</li>
+          <li>First prove retryable denial and zero mutation on write-disabled A. While B is held at zero percent, use the manually signed override-plus-cutover-token harness for bounded signature/lifecycle proof. After B is promoted to 100 percent, obtain a separate real Clerk-provider lifecycle receipt without override or cutover-token headers before removing bounded Access.</li>
         </ol>
       </section>
 
       <section class="card" aria-labelledby="boundary-title">
-        <div class="card-head"><div><h3>Boundary</h3><h2 id="boundary-title">Do not do these yet</h2></div><span class="tag hold">Forbidden</span></div>
-        <p class="note danger">Do not make further Clerk domain/DNS/certificate/Worker-key changes, install unreviewed iOS keys, enable sign-up/sign-in, create/import/update/merge/delete users, create invitations, send webhook examples, change Supabase, import rows, activate mappings, route public traffic, activate the production ledger, or enable writes without the next exact approval/handoff.</p>
+        <div class="card-head"><div><h3>Boundary</h3><h2 id="boundary-title">Standing cutover safeguards</h2></div><span class="tag hold">Always applies</span></div>
+        <p class="note danger">Authorization is not completion. Preserve the completed domain/DNS/certificate/key lane unless a diagnosed defect requires a change. Never disclose Clerk, OAuth, webhook, database, or OpenAI secrets; never place administrative credentials in iOS configuration. Do not import legacy identities, activate the production mutation ledger, skip the write-disabled webhook denial probe, or enable public writes before the required bootstrap and acceptance state. Do not commit or publish repository changes.</p>
       </section>
     </div>
 
     <footer>
-      <p>Return to <a href="MIGRATION_OPERATOR_ACTIONS.html">MIGRATION_OPERATOR_ACTIONS.html</a> for all operator gates or <a href="MIGRATION_APPROVALS.html">MIGRATION_APPROVALS.html</a> for historical approvals.</p>
+      <p>Last synchronized 2026-07-20. Return to <a href="MIGRATION_OPERATOR_ACTIONS.html">MIGRATION_OPERATOR_ACTIONS.html</a> for operator prerequisites or <a href="MIGRATION_APPROVALS.html">MIGRATION_APPROVALS.html</a> for the authorization record.</p>
       <p>Official Clerk references: <a href="https://clerk.com/docs/guides/development/deployment/changing-domains" target="_blank" rel="noreferrer">change production domain</a>, <a href="https://clerk.com/docs/guides/development/deployment/production" target="_blank" rel="noreferrer">production deployment</a>, <a href="https://clerk.com/docs/ios/getting-started/quickstart" target="_blank" rel="noreferrer">iOS native setup</a>, and <a href="https://clerk.com/docs/guides/development/webhooks/overview" target="_blank" rel="noreferrer">webhooks</a>.</p>
       <p id="copy-status" role="status" aria-live="polite"></p>
     </footer>

@@ -12,9 +12,52 @@ phase: Phase 2 - iOS
 - [x] Move active match, schedule, journal/assessment, team, competition, venue, assistant, and parser adapters to Worker routes.
 - [x] Move active reference-team and competition catalog reads behind an authenticated backend service; feature views no longer query Supabase directly.
 - [x] Remove the Supabase SDK/package dependency from the compiled app targets and package lock.
-- [x] Apply/read back the bundled reference-catalog seed in production PlanetScale after the production decision and migration gates are satisfied. The approved production-foundation apply installed only migration `0002`'s deterministic global catalog data, and sanitized production readback proves exactly 5 competitions and 54 teams with zero application users.
-- [ ] Separately gated — retire legacy Supabase-named repository/type/source-path compatibility debt only after rollback and reconciliation gates explicitly permit cleanup.
-- [x] Preserve SwiftData/offline identity behavior and user-switch/logout cleanup in implementation and automated regression coverage. Unresolved Clerk startup no longer emits a false logout; the backend identity mapping persists for offline launches, revalidates online, and clears on invalidation. The async invalidation regression is covered and the iOS unit target passes 89/89.
-- [ ] Separately gated — prove offline backlog, logout, and user-switch behavior on the physical iPhone target only during the approved production-acceptance phase.
-- [x] Add targeted auth/client/repository tests and run the available simulator Apple verification. Targeted tests cover startup auth resolution, transport/token-unavailable offline identity fallback, server auth rejection, and persisted-cache invalidation. Generic build/build-for-testing pass, the iOS unit target passes 89/89 on iPhone 15 Pro Max/iOS 17.0.1, and the full UI target passes with 19 passed, 0 failed, and 2 bounded skips on iPhone 15 Pro Max/iOS 18.5. On a Series 9 (45mm)/watchOS 11.5 simulator, all 11 watch UI cases pass and the unit target executes 111 cases with 107 passed, 0 failed, and 4 explicit simulator-host skips. The earlier built-plist proof remains `0.8.2 (1)`; beta 2 release preparation adds a generic iOS Release build with embedded watch/widget plist verification at `0.9.0 (2)` under Xcode 27.0 beta build `27A5209h`.
-- [ ] Separately gated — complete physical iPhone 15 Pro Max and Apple Watch Series 9 acceptance after authenticated production routes and migrated identities/data are ready; both devices were offline during the latest audit.
+- [x] Apply/read back the bundled reference-catalog seed in production
+  PlanetScale. The historical foundation installed migration `0002`'s five
+  competitions and 54 teams with zero application users. The greenfield
+  baseline must inventory the complete deterministic seed from reviewed
+  repository sources separately from zero `app_users` and user-owned rows.
+- [ ] Retire legacy Supabase-named repository/type/source-path compatibility
+  debt after accepted traffic, without breaking the persisted SwiftData schema.
+- [x] Preserve SwiftData/offline identity behavior and user-switch/logout cleanup
+  in implementation and automated regression coverage. Unresolved Clerk startup
+  no longer emits a false logout; the backend identity mapping persists for
+  offline launches, revalidates online, and clears on invalidation. The async
+  invalidation regression is covered and the fresh full iOS target passes
+  94/94 on iPhone 15 Pro Max/iOS 17.0.1.
+- [x] Make collection synchronization tombstone- and late-commit-safe for teams,
+  competitions, venues, schedules, and matches. Only completed pulls advance
+  cursors; first/relaunch pulls start at the epoch; later pulls overlap by 15
+  minutes; inclusive server replay applies only strictly newer rows and never
+  overwrites dirty local state. Five focused cursor/replay tests pass on the
+  iPhone 15 Pro Max/iOS 18.5 simulator.
+- [ ] Prove production sign-in, clean-account creation, offline backlog, logout,
+  user switching, and match lifecycle on the physical iPhone target during the
+  writable production-acceptance phase.
+- [x] Add targeted auth/client/repository tests and run the available simulator
+  Apple verification. The current full `RefWatchiOSTests` run passes 76 XCTest
+  plus 18 Swift Testing cases (94/94) on iPhone 15 Pro Max/iOS 17.0.1; the
+  affected cursor suite passes 5/5 on iOS 18.5. A broad Xcode 27 beta/iOS 18.5
+  run repeatably aborts with an allocator double-free in 15 unrelated legacy
+  cases, classified as a bounded tool/runtime incompatibility rather than a
+  product pass or failure. The current generic Release simulator build
+  succeeds, but reads back `CFBundleIdentifier=.RefWatch`, no team, localhost,
+  a test Clerk key, `clerk.localhost`, and no callback URL scheme; it is not
+  production configuration acceptance. Historical receipts remain available
+  for the prior 89/89 iOS target, 19-pass/2-skip iOS UI target, 11/11 watch UI
+  target, 107 pass/4 simulator-host-skip watch unit target, and `0.9.0 (2)`
+  embedded watch/widget plists.
+- [x] Resolve the production native identity from installed Apple signing
+  metadata: Team/App ID Prefix `6NV7X5BLU7`, Bundle ID
+  `com.IbrahimSaidi.RefWatch`, application identifier
+  `6NV7X5BLU7.com.IbrahimSaidi.RefWatch`, and Clerk callback
+  `com.IbrahimSaidi.RefWatch://callback`.
+- [ ] Align the non-secret Release/ClerkKit configuration with that production
+  identity, register/verify the native callback, and verify the embedded
+  Release plist plus actual Apple/Google callbacks. The current Release
+  readback remains `.RefWatch`, no team, localhost, a test Clerk placeholder,
+  `clerk.localhost`, and no callback URL scheme.
+- [ ] Complete physical iPhone 15 Pro Max and Apple Watch Series 9 acceptance
+  after the clean Clerk/Worker/PlanetScale path is writable and accepted by the
+  automated matrix. No migrated legacy identities/data are required. No
+  physical iPhone or Apple Watch was connected during the fresh baseline.

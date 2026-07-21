@@ -23,7 +23,103 @@ Swift clients are untrusted API clients. They may hold public app configuration 
 
 ## Migration Status
 
-Clerk + Cloudflare Workers/Hono + Drizzle + PlanetScale Postgres is the active target architecture, not a completed production cutover. Staging Worker/Hyperdrive connectivity and disposable rehearsal passed; the production schema/5–54 seed, restricted roles, cache-disabled Hyperdrive, inactive ledger resources, and unrouted write-disabled Worker foundation are also deployed. Identity and data migration/reconciliation, remaining Clerk setup, provider-routed authenticated proof, rollback completion, compatibility cleanup, traffic/writes, and physical-device acceptance remain separately gated by the active backend migration plan and cutover runbook.
+Clerk + Cloudflare Workers/Hono + Drizzle + PlanetScale Postgres is the active
+target architecture, not a claim of completed production cutover. The authorized
+2026-07-20 launch is greenfield: historical Supabase identities/application rows
+are disposable, no UUID/subject mapping or data import is required, and new Clerk
+subjects receive server-generated internal UUIDs through the fail-closed
+`greenfield_zero_legacy_v1` bootstrap. Production is bound to Clerk instance
+`ins_3GWFGUd1rI6hx5lWlUxMYAkxdac`, domain `refwatch.ibby.ai`, and issuer
+`https://clerk.refwatch.ibby.ai`.
+
+Migration `0016` implements the database contract for exact zero-legacy
+receipts, immutable activation and webhook-delivery receipts, serialized
+bootstrap, and preserved stateful-migration tooling. The lifecycle handler
+requires the signed raw Clerk instance to match configuration, its type and
+subject to match the verified SDK projection, and its timestamp to be positive
+safe-integer milliseconds before transactional idempotent create/update/delete
+processing. The 2026-07-20 production preparation applied that migration and
+provisioned a separate least-privilege read/write-data role/Hyperdrive pair;
+the local production candidate binds it with writes/onboarding disabled while
+the deployed Worker remains unchanged. This is not identity activation,
+deployed provider acceptance, or traffic cutover.
+
+Migration `0017` is the additive beta.3 source migration for Clerk profile
+event ordering. It adds a nullable provider-event watermark so delayed or
+equal-time lifecycle deliveries cannot overwrite newer profile state, while an
+auth-created row can still accept its first webhook. It is not applied to
+production by this source release and must precede any deployment of code that
+reads or writes `clerk_profile_updated_at`.
+
+The active launch contract models Cloudflare's immutable configuration
+honestly: disabled candidate A and accepted candidate B are distinct Worker
+versions with the same script ETag and stable readable/non-secret binding
+contract hash. The packet carries exact, sanitized, digest-checked
+`wrangler versions view --json` receipts for A and B; the validator recomputes
+their stable hashes and enforces the approved production binding and
+secret-name allowlist without reading secret values. A and B must derive from
+an exact digest-checked `worker.secret_lineage`: non-echoing Wrangler stdin
+updates only newly required/changed secrets, final source S preserves unchanged
+bindings, and operator-confirmed sequential S→A→B uploads are bounded by the
+provider version history. Sanitized A/B readbacks expose exactly six allowed
+secret names/types. S is bounded by its exact ID/time, the required-name
+operator confirmation, documented Wrangler preservation, and provider history,
+with zero intervening versions/secret mutations/upload overrides and
+`secret_values_recorded=false`. Cloudflare does not expose cryptographic
+parent links or value equality; direct comparison is deliberately impossible,
+and the deferred ledger key is not recovered or rotated. Only the readable values of
+`WRITE_MODE` and `NEW_USER_ONBOARDING_MODE` may differ.
+The provider sequence must publicly route A=100%/B=0%. B must receive no ordinary
+traffic before promotion and is reachable for bounded automation only through the Cloudflare
+version-override header, a Cloudflare Access service-token policy on
+`api.refwatch.ibby.ai/api/*` whose exact `service_auth` receipt has one service
+token and zero bypass, and the Worker-only
+`CUTOVER_ACCEPTANCE_TOKEN` header gate. Workers.dev and preview URLs remain
+disabled. Emergency guard G and last-known-good L are distinct versions, each
+temporarily deployed at 100%, with canonical provider readback digests and
+timestamps bracketing the probe inside the rollback window. Both complete by
+validation time, use the initial A route with unique deployment/probe/provider
+receipts, and satisfy G-after < L-before before final A proof.
+The bounded webhook lifecycle is manually signed and reaches B through the
+exact override/token headers with both present; it records
+`manual_signed_harness` and valid/invalid signature outcomes, not provider
+delivery. After bounded
+automation passes, B is promoted to 100% with no competing version while
+`/api/*` Access remains active. The real Clerk endpoint must then prove exactly
+the three configured subscriptions without override/cutover-token headers,
+including signature, create/update/delete, retry/delete-wins, and cleanup to
+zero test identity/application rows. Only afterward may Access be removed and
+its provider receipt precede deployment history and device/release acceptance.
+Those devices exercise promoted B, production acceptance follows their
+receipts, and final closeout re-proves inactive ledger capture and zero
+consumers.
+
+Validator diagnostics never echo rejected binding values. Cloudflare Access
+application, policy, and service-token IDs are retained only in sanitized
+32-hex or canonical-UUID provider-ID shapes.
+
+User-owned collection synchronization is tombstone-based and replay-safe. The
+Worker derives ownership, returns an inclusive `updated_at >= updatedAfter`
+window, and serializes each namespaced entity mutation so its version is
+strictly greater than the persisted version. The iOS repositories advance
+high-water cursors only from completed pulls, start first/relaunch
+reconciliation at the Unix epoch, overlap later pulls by 15 minutes, and apply
+only strictly newer remote state without overwriting dirty local rows. The
+overlap is a bounded contract for request-scoped database-only writes; a future
+longer-running writer requires a server-issued monotonic cursor/revision.
+
+Clean target state means zero `app_users`, zero legacy mappings, and zero
+user-owned rows before bootstrap; it does not mean deleting schema/control rows
+or deterministic global reference data reviewed from repository sources. Ledger
+escrow/recovery/activation is deferred: the active launch path requires zero
+preparing, open, or capture-enforced epochs and zero Queue, cron, or D1
+consumers, although inactive resources may remain. Initial recovery is
+intentionally destructive: stop traffic/writes, route to a write-disabled
+Worker, restore Worker/client versions, reset/reseed PlanetScale, recreate test
+identities, and rerun the launch.
+Provider cutover operations are authorized but remain incomplete until their
+sanitized evidence and acceptance checks pass. Secrets stay server-side and
+non-disclosing; commits and publishing remain outside this work.
 
 ## Where To Read
 - Canonical architecture index: `docs/design-docs/index.md`
