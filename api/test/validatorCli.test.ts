@@ -78,7 +78,7 @@ describe("packet validator CLIs", () => {
 
     expect(result.status).toBe(1);
     expect(result.stdout).toBe("");
-    expect(result.stderr).toContain("- schema_version must be 2");
+    expect(result.stderr).toContain("- schema_version must be 3");
     expect(result.stderr).not.toContain("GREENFIELD_OWNER_MARKER");
     expect(result.stderr).not.toContain("GREENFIELD_INSTANCE_MARKER");
     expect(result.stderr).not.toContain("GREENFIELD_WORKER_MARKER");
@@ -89,8 +89,8 @@ describe("packet validator CLIs", () => {
     const packetPath = temporaryPacket(
       "greenfield-binding-marker.json",
       JSON.stringify({
-        schema_version: 2,
-        launch_profile: "greenfield_launch_v2",
+        schema_version: 3,
+        launch_profile: "greenfield_launch_v3",
         worker: {
           versions: {
             candidate_sanitized_readback: {

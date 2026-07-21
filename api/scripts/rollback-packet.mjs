@@ -16,11 +16,13 @@ const requiredLedgerFields = [
   "idempotency_key", "app_user_id", "method", "path", "actor_id",
   "worker_version_id", "captured_at_utc", "content_digest", "encryption_key_id",
 ];
-const rollbackProfiles = new Set([
+const activeRollbackProfiles = new Set([
   "stateful_migration_v1",
   "greenfield_destructive_v1",
-  "greenfield_destructive_v2",
+  "greenfield_destructive_v3",
 ]);
+const historicalGreenfieldRollbackProfile = "greenfield_destructive_v2";
+const activeGreenfieldRollbackProfile = "greenfield_destructive_v3";
 const requiredGreenfieldRecoverySteps = [
   "stop_production_traffic_and_writes",
   "route_to_write_guard_worker",
@@ -50,6 +52,12 @@ const v2TopLevelKeys = [
   "versions",
   "greenfield_recovery",
   "client_recovery_release",
+];
+const v3TopLevelKeys = [
+  ...v2TopLevelKeys,
+  "edge_binding",
+  "conflicting_zone_route_count",
+  "manual_dns_origin_present",
 ];
 const v2VersionKeys = [
   "worker_name",
@@ -94,6 +102,13 @@ const v2ProbeKeys = [
   "clerk_instance_id",
   "database_branch_id",
 ];
+const v3ProbeKeys = v2ProbeKeys.filter(
+  (key) => !["route_id", "hostname", "route_pattern"].includes(key),
+).concat([
+  "edge_binding",
+  "conflicting_zone_route_count",
+  "manual_dns_origin_present",
+]);
 const v2ClientKeys = [
   "marketing_version",
   "build",
@@ -104,6 +119,17 @@ const productionClerkInstanceId = "ins_3GWFGUd1rI6hx5lWlUxMYAkxdac";
 const productionDatabaseBranchId = "w3g1f8vcbg34";
 const productionHostname = "api.refwatch.ibby.ai";
 const productionRoutePattern = "api.refwatch.ibby.ai/*";
+const productionWorkerName = "refwatch-api";
+const cloudflareProviderIdPattern =
+  /^(?:[0-9a-f]{32}|[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i;
+const customDomainEdgeBindingKeys = [
+  "kind",
+  "hostname",
+  "provider_id",
+  "worker_name",
+  "tls_status",
+  "dns_management",
+];
 
 const utcInstantPattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/;
 
@@ -135,6 +161,52 @@ function hasExactKeys(value, expectedKeys) {
     && actual.every((key, index) => key === expected[index]);
 }
 
+function validateCustomDomainEdgeBinding(value, label, errors) {
+  requireCondition(
+    hasExactKeys(value, customDomainEdgeBindingKeys),
+    `${label} keys must exactly match the Cloudflare Custom Domain binding contract`,
+    errors,
+  );
+  requireCondition(
+    value?.kind === "custom_domain",
+    `${label}.kind must be custom_domain`,
+    errors,
+  );
+  requireCondition(
+    value?.hostname === productionHostname,
+    `${label}.hostname must be ${productionHostname}`,
+    errors,
+  );
+  requireCondition(
+    cloudflareProviderIdPattern.test(value?.provider_id ?? ""),
+    `${label}.provider_id must be a Cloudflare provider identifier`,
+    errors,
+  );
+  requireCondition(
+    value?.worker_name === productionWorkerName,
+    `${label}.worker_name must be ${productionWorkerName}`,
+    errors,
+  );
+  requireCondition(
+    value?.tls_status === "active",
+    `${label}.tls_status must be active`,
+    errors,
+  );
+  requireCondition(
+    value?.dns_management === "cloudflare_worker_custom_domain",
+    `${label}.dns_management must be cloudflare_worker_custom_domain`,
+    errors,
+  );
+}
+
+function sameCanonicalValue(left, right) {
+  try {
+    return canonicalSanitizedJSON(left) === canonicalSanitizedJSON(right);
+  } catch {
+    return false;
+  }
+}
+
 function canonicalSanitizedJSON(value) {
   if (value === null || typeof value === "boolean" || typeof value === "string") {
     return JSON.stringify(value);
@@ -163,10 +235,18 @@ function computeReceiptSha256(value, digestField) {
   return createHash("sha256").update(canonicalSanitizedJSON(payload)).digest("hex");
 }
 
-function validateV2FallbackProbe(probe, label, expectedVersionId, providerReadbackAtUTC, errors) {
+function validateGreenfieldFallbackProbe(
+  probe,
+  label,
+  expectedVersionId,
+  providerReadbackAtUTC,
+  contractVersion,
+  errors,
+) {
+  const isV3 = contractVersion === 3;
   requireCondition(
-    hasExactKeys(probe, v2ProbeKeys),
-    `${label} keys must exactly match the greenfield v2 fallback probe contract`,
+    hasExactKeys(probe, isV3 ? v3ProbeKeys : v2ProbeKeys),
+    `${label} keys must exactly match the greenfield v${contractVersion} fallback probe contract`,
     errors,
   );
   requireCondition(probe?.status === "passed", `${label}.status must be passed`, errors);
@@ -223,9 +303,18 @@ function validateV2FallbackProbe(probe, label, expectedVersionId, providerReadba
       receipt_id: probe?.deployment_provider_receipt_id,
       deployment_id: probe?.deployment_id,
       worker_version_id: probe?.worker_version_id,
-      route_id: probe?.route_id,
-      hostname: probe?.hostname,
-      route_pattern: probe?.route_pattern,
+      ...(isV3
+        ? {
+            edge_binding: probe?.edge_binding,
+            conflicting_zone_route_count:
+              probe?.conflicting_zone_route_count,
+            manual_dns_origin_present: probe?.manual_dns_origin_present,
+          }
+        : {
+            route_id: probe?.route_id,
+            hostname: probe?.hostname,
+            route_pattern: probe?.route_pattern,
+          }),
       traffic_percentage: probe?.traffic_percentage,
       competing_version_count: probe?.competing_version_count,
       observed_before_at_utc: probe?.deployment_observed_before_at_utc,
@@ -252,16 +341,30 @@ function validateV2FallbackProbe(probe, label, expectedVersionId, providerReadba
     `${label}.deployment_observed_after_at_utc must be a strict UTC instant`,
     errors,
   );
-  requireCondition(
-    typeof probe?.route_id === "string" && probe.route_id.trim().length > 0,
-    `${label}.route_id is required`,
-    errors,
-  );
-  requireCondition(
-    probe?.hostname === productionHostname && probe?.route_pattern === productionRoutePattern,
-    `${label} must use the exact production route`,
-    errors,
-  );
+  if (isV3) {
+    validateCustomDomainEdgeBinding(probe?.edge_binding, `${label}.edge_binding`, errors);
+    requireCondition(
+      probe?.conflicting_zone_route_count === 0,
+      `${label}.conflicting_zone_route_count must be zero`,
+      errors,
+    );
+    requireCondition(
+      probe?.manual_dns_origin_present === false,
+      `${label}.manual_dns_origin_present must be false`,
+      errors,
+    );
+  } else {
+    requireCondition(
+      typeof probe?.route_id === "string" && probe.route_id.trim().length > 0,
+      `${label}.route_id is required`,
+      errors,
+    );
+    requireCondition(
+      probe?.hostname === productionHostname && probe?.route_pattern === productionRoutePattern,
+      `${label} must use the exact production route`,
+      errors,
+    );
+  }
   requireCondition(
     probe?.traffic_percentage === 100 && probe?.competing_version_count === 0,
     `${label} must prove the exact fallback version at 100 percent with no competitor`,
@@ -329,7 +432,7 @@ function validateV2FallbackProbe(probe, label, expectedVersionId, providerReadba
   }
 }
 
-export function validateRollbackPacket(packet, options = {}) {
+function validateRollbackPacketContract(packet, options, contractVersion) {
   const errors = [];
   const now = options.now instanceof Date ? options.now : new Date();
   const hasExplicitRollbackProfile = hasOwn(packet, "rollback_profile");
@@ -340,39 +443,75 @@ export function validateRollbackPacket(packet, options = {}) {
   const thresholds = packet?.trigger_thresholds ?? {};
   const versions = packet?.versions ?? {};
   const client = packet?.client_recovery_release ?? {};
+  const isHistoricalV2 =
+    contractVersion === 2
+    && rollbackProfile === historicalGreenfieldRollbackProfile;
+  const isActiveV3 =
+    contractVersion === 3
+    && rollbackProfile === activeGreenfieldRollbackProfile;
+  const isBoundedGreenfield = isHistoricalV2 || isActiveV3;
 
   requireCondition(packet?.schema_version === 1, "schema_version must be 1", errors);
-  requireCondition(
-    rollbackProfiles.has(rollbackProfile),
-    "rollback_profile must be stateful_migration_v1, greenfield_destructive_v1, or greenfield_destructive_v2",
-    errors,
-  );
-  if (rollbackProfile === "greenfield_destructive_v2") {
+  if (contractVersion === 2) {
     requireCondition(
-      hasExactKeys(packet, v2TopLevelKeys),
-      "greenfield_destructive_v2 top-level keys must exactly match the v2 rollback contract",
+      isHistoricalV2,
+      `historical rollback_profile must be ${historicalGreenfieldRollbackProfile}`,
+      errors,
+    );
+  } else {
+    requireCondition(
+      activeRollbackProfiles.has(rollbackProfile),
+      "rollback_profile must be stateful_migration_v1, greenfield_destructive_v1, or greenfield_destructive_v3",
+      errors,
+    );
+  }
+  if (isHistoricalV2 || isActiveV3) {
+    const profileLabel = isActiveV3
+      ? activeGreenfieldRollbackProfile
+      : historicalGreenfieldRollbackProfile;
+    const versionLabel = isActiveV3 ? "v3" : "v2";
+    requireCondition(
+      hasExactKeys(packet, isActiveV3 ? v3TopLevelKeys : v2TopLevelKeys),
+      `${profileLabel} top-level keys must exactly match the ${versionLabel} rollback contract`,
       errors,
     );
     requireCondition(
       hasExactKeys(window, ["start_at_utc", "end_at_utc"]),
-      "greenfield_destructive_v2 window keys must exactly match the v2 rollback contract",
+      `${profileLabel} window keys must exactly match the ${versionLabel} rollback contract`,
       errors,
     );
     requireCondition(
       hasExactKeys(thresholds, requiredThresholds),
-      "greenfield_destructive_v2 trigger_thresholds keys must exactly match the v2 rollback contract",
+      `${profileLabel} trigger_thresholds keys must exactly match the ${versionLabel} rollback contract`,
       errors,
     );
     requireCondition(
       hasExactKeys(versions, v2VersionKeys),
-      "greenfield_destructive_v2 versions keys must exactly match the v2 rollback contract",
+      `${profileLabel} versions keys must exactly match the ${versionLabel} rollback contract`,
       errors,
     );
     requireCondition(
       hasExactKeys(client, v2ClientKeys),
-      "greenfield_destructive_v2 client_recovery_release keys must exactly match the v2 rollback contract",
+      `${profileLabel} client_recovery_release keys must exactly match the ${versionLabel} rollback contract`,
       errors,
     );
+    if (isActiveV3) {
+      validateCustomDomainEdgeBinding(
+        packet?.edge_binding,
+        "edge_binding",
+        errors,
+      );
+      requireCondition(
+        packet?.conflicting_zone_route_count === 0,
+        "conflicting_zone_route_count must be zero",
+        errors,
+      );
+      requireCondition(
+        packet?.manual_dns_origin_present === false,
+        "manual_dns_origin_present must be false",
+        errors,
+      );
+    }
   }
   requireCondition(packet?.status === "approved", "status must be approved", errors);
   requireCondition(typeof packet?.owner === "string" && packet.owner.trim().length > 0, "owner is required", errors);
@@ -394,7 +533,7 @@ export function validateRollbackPacket(packet, options = {}) {
     requireCondition(typeof thresholds[name] === "number" && thresholds[name] <= 100, `trigger_thresholds.${name} must not exceed 100`, errors);
   }
   requireCondition(thresholds.owner_scope_violations === 0, "owner_scope_violations threshold must be zero", errors);
-  const requiredWorkerVersionIds = rollbackProfile === "greenfield_destructive_v2"
+  const requiredWorkerVersionIds = isBoundedGreenfield
     ? [
         "candidate_worker_version_id",
         "accepted_worker_version_id",
@@ -412,7 +551,7 @@ export function validateRollbackPacket(packet, options = {}) {
   const versionIds = new Set(requiredWorkerVersionIds.map((name) => versions[name]));
   requireCondition(
     versionIds.size === requiredWorkerVersionIds.length,
-    rollbackProfile === "greenfield_destructive_v2"
+    isBoundedGreenfield
       ? "candidate, accepted, last-known-good, and write-guard versions must be distinct"
       : "candidate, last-known-good, and write-guard versions must be distinct",
     errors,
@@ -431,7 +570,10 @@ export function validateRollbackPacket(packet, options = {}) {
     requireCondition(typeof ledger.probe_receipt_id === "string" && ledger.probe_receipt_id.trim().length > 0, "write_ledger.probe_receipt_id is required", errors);
   }
 
-  if (rollbackProfile === "greenfield_destructive_v1" || rollbackProfile === "greenfield_destructive_v2") {
+  if (
+    rollbackProfile === "greenfield_destructive_v1"
+    || isBoundedGreenfield
+  ) {
     const recovery = packet?.greenfield_recovery ?? {};
     const steps = Array.isArray(recovery.steps) ? recovery.steps : [];
     requireCondition(!hasOwn(packet, "write_ledger"), `${rollbackProfile} must not include write_ledger`, errors);
@@ -462,42 +604,59 @@ export function validateRollbackPacket(packet, options = {}) {
   }
 
   requireCondition(validUTCInstant(versions.provider_readback_at_utc), "versions.provider_readback_at_utc must be a strict UTC instant", errors);
-  if (rollbackProfile === "greenfield_destructive_v2") {
-    validateV2FallbackProbe(
+  if (isBoundedGreenfield) {
+    validateGreenfieldFallbackProbe(
       versions.write_guard_probe,
       "versions.write_guard_probe",
       versions.write_guard_worker_version_id,
       versions.provider_readback_at_utc,
+      contractVersion,
       errors,
     );
-    validateV2FallbackProbe(
+    validateGreenfieldFallbackProbe(
       versions.last_known_good_probe,
       "versions.last_known_good_probe",
       versions.last_known_good_worker_version_id,
       versions.provider_readback_at_utc,
+      contractVersion,
       errors,
     );
     requireCondition(
       versions.write_guard_probe?.receipt_id !== versions.last_known_good_probe?.receipt_id,
-      "greenfield v2 fallback probe receipt IDs must be distinct",
+      `greenfield v${contractVersion} fallback probe receipt IDs must be distinct`,
       errors,
     );
     requireCondition(
       versions.write_guard_probe?.deployment_id !== versions.last_known_good_probe?.deployment_id,
-      "greenfield v2 fallback probe deployment IDs must be distinct",
+      `greenfield v${contractVersion} fallback probe deployment IDs must be distinct`,
       errors,
     );
     requireCondition(
       versions.write_guard_probe?.deployment_provider_receipt_id
         !== versions.last_known_good_probe?.deployment_provider_receipt_id,
-      "greenfield v2 fallback provider receipt IDs must be distinct",
+      `greenfield v${contractVersion} fallback provider receipt IDs must be distinct`,
       errors,
     );
-    requireCondition(
-      versions.write_guard_probe?.route_id === versions.last_known_good_probe?.route_id,
-      "greenfield v2 fallback probes must use the same production route ID",
-      errors,
-    );
+    if (isActiveV3) {
+      requireCondition(
+        sameCanonicalValue(
+          versions.write_guard_probe?.edge_binding,
+          packet?.edge_binding,
+        )
+          && sameCanonicalValue(
+            versions.last_known_good_probe?.edge_binding,
+            packet?.edge_binding,
+          ),
+        "greenfield v3 rollback and fallback probes must use the same Custom Domain binding",
+        errors,
+      );
+    } else {
+      requireCondition(
+        versions.write_guard_probe?.route_id === versions.last_known_good_probe?.route_id,
+        "greenfield v2 fallback probes must use the same production route ID",
+        errors,
+      );
+    }
 
     const probeTimeline = [
       ["versions.write_guard_probe", versions.write_guard_probe],
@@ -570,7 +729,7 @@ export function validateRollbackPacket(packet, options = {}) {
       windowEndUTC: window.end_at_utc ?? null,
       workerName: versions.worker_name ?? null,
       recoveryMode: rollbackProfile === "greenfield_destructive_v1"
-        || rollbackProfile === "greenfield_destructive_v2"
+        || isBoundedGreenfield
         ? packet?.greenfield_recovery?.mode ?? null
         : rollbackProfile === "stateful_migration_v1"
           ? "stateful_ledger_recovery"
@@ -578,4 +737,15 @@ export function validateRollbackPacket(packet, options = {}) {
       clientRecovery: client.marketing_version && client.build ? `${client.marketing_version} (${client.build})` : null,
     },
   };
+}
+
+export function validateRollbackPacket(packet, options = {}) {
+  return validateRollbackPacketContract(packet, options, 3);
+}
+
+export function validateHistoricalGreenfieldRollbackPacketV2(
+  packet,
+  options = {},
+) {
+  return validateRollbackPacketContract(packet, options, 2);
 }

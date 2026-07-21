@@ -1,6 +1,22 @@
 import { describe, expect, it } from "vitest";
 import { computeSanitizedReceiptSha256 } from "../scripts/greenfield-launch-packet.mjs";
-import { validateRollbackPacket } from "../scripts/rollback-packet.mjs";
+import {
+  validateHistoricalGreenfieldRollbackPacketV2,
+  validateRollbackPacket,
+} from "../scripts/rollback-packet.mjs";
+
+const customDomainProviderId = "d".repeat(32);
+
+function customDomainEdgeBinding() {
+  return {
+    kind: "custom_domain",
+    hostname: "api.refwatch.ibby.ai",
+    provider_id: customDomainProviderId,
+    worker_name: "refwatch-api",
+    tls_status: "active",
+    dns_management: "cloudflare_worker_custom_domain",
+  };
+}
 
 const greenfieldRecoverySteps = [
   "stop_production_traffic_and_writes",
@@ -18,9 +34,18 @@ function sealFallbackProbe(probe: any): void {
       receipt_id: probe.deployment_provider_receipt_id,
       deployment_id: probe.deployment_id,
       worker_version_id: probe.worker_version_id,
-      route_id: probe.route_id,
-      hostname: probe.hostname,
-      route_pattern: probe.route_pattern,
+      ...(probe.edge_binding
+        ? {
+            edge_binding: probe.edge_binding,
+            conflicting_zone_route_count:
+              probe.conflicting_zone_route_count,
+            manual_dns_origin_present: probe.manual_dns_origin_present,
+          }
+        : {
+            route_id: probe.route_id,
+            hostname: probe.hostname,
+            route_pattern: probe.route_pattern,
+          }),
       traffic_percentage: probe.traffic_percentage,
       competing_version_count: probe.competing_version_count,
       observed_before_at_utc: probe.deployment_observed_before_at_utc,
@@ -97,7 +122,7 @@ function validGreenfieldPacket() {
   };
 }
 
-function validGreenfieldV2Packet() {
+function validHistoricalGreenfieldV2Packet() {
   const packet = validGreenfieldPacket();
   function fallbackProbe(
     receiptId: string,
@@ -177,6 +202,27 @@ function validGreenfieldV2Packet() {
   };
 }
 
+function validGreenfieldV3Packet() {
+  const packet = validHistoricalGreenfieldV2Packet() as any;
+  packet.rollback_profile = "greenfield_destructive_v3";
+  packet.edge_binding = customDomainEdgeBinding();
+  packet.conflicting_zone_route_count = 0;
+  packet.manual_dns_origin_present = false;
+  for (const probe of [
+    packet.versions.write_guard_probe,
+    packet.versions.last_known_good_probe,
+  ]) {
+    delete probe.route_id;
+    delete probe.hostname;
+    delete probe.route_pattern;
+    probe.edge_binding = customDomainEdgeBinding();
+    probe.conflicting_zone_route_count = 0;
+    probe.manual_dns_origin_present = false;
+    sealFallbackProbe(probe);
+  }
+  return packet;
+}
+
 describe("rollback packet validation", () => {
   it("accepts a complete approved stateful migration packet", () => {
     expect(validateRollbackPacket(validStatefulPacket(), { now: new Date("2026-07-14T00:45:00Z") })).toMatchObject({
@@ -205,15 +251,31 @@ describe("rollback packet validation", () => {
     });
   });
 
-  it("accepts greenfield_destructive_v2 with distinct disabled, accepted, guard, and last-known-good versions", () => {
-    expect(validateRollbackPacket(validGreenfieldV2Packet(), { now: new Date("2026-07-14T00:45:00Z") })).toMatchObject({
+  it("accepts greenfield_destructive_v3 with one exact Custom Domain binding", () => {
+    expect(validateRollbackPacket(validGreenfieldV3Packet(), { now: new Date("2026-07-14T00:45:00Z") })).toMatchObject({
       ok: true,
       errors: [],
       summary: {
-        rollbackProfile: "greenfield_destructive_v2",
+        rollbackProfile: "greenfield_destructive_v3",
         workerName: "refwatch-api",
         recoveryMode: "destructive_reset_reseed_recreate",
       },
+    });
+  });
+
+  it("accepts route-based v2 only through the explicit historical validator", () => {
+    const packet = validHistoricalGreenfieldV2Packet();
+    expect(validateRollbackPacket(packet, {
+      now: new Date("2026-07-14T00:45:00Z"),
+    }).errors).toContain(
+      "rollback_profile must be stateful_migration_v1, greenfield_destructive_v1, or greenfield_destructive_v3",
+    );
+    expect(validateHistoricalGreenfieldRollbackPacketV2(packet, {
+      now: new Date("2026-07-14T00:45:00Z"),
+    })).toMatchObject({
+      ok: true,
+      errors: [],
+      summary: { rollbackProfile: "greenfield_destructive_v2" },
     });
   });
 
@@ -275,7 +337,7 @@ describe("rollback packet validation", () => {
     const unknown = validStatefulPacket();
     unknown.rollback_profile = "greenfield";
     expect(validateRollbackPacket(unknown, { now: new Date("2026-07-14T00:45:00Z") }).errors).toContain(
-      "rollback_profile must be stateful_migration_v1, greenfield_destructive_v1, or greenfield_destructive_v2",
+      "rollback_profile must be stateful_migration_v1, greenfield_destructive_v1, or greenfield_destructive_v3",
     );
   });
 
@@ -305,12 +367,12 @@ describe("rollback packet validation", () => {
       "greenfield_destructive_v1 must not include write_ledger",
     );
 
-    const greenfieldV2 = {
-      ...validGreenfieldV2Packet(),
+    const greenfieldV3 = {
+      ...validGreenfieldV3Packet(),
       write_ledger: validStatefulPacket().write_ledger,
     };
-    expect(validateRollbackPacket(greenfieldV2, { now: new Date("2026-07-14T00:45:00Z") }).errors).toContain(
-      "greenfield_destructive_v2 must not include write_ledger",
+    expect(validateRollbackPacket(greenfieldV3, { now: new Date("2026-07-14T00:45:00Z") }).errors).toContain(
+      "greenfield_destructive_v3 must not include write_ledger",
     );
   });
 
@@ -321,16 +383,16 @@ describe("rollback packet validation", () => {
     ["accepted_worker_version_id", "last_known_good_worker_version_id"],
     ["accepted_worker_version_id", "write_guard_worker_version_id"],
     ["last_known_good_worker_version_id", "write_guard_worker_version_id"],
-  ] as const)("requires v2 %s and %s to be distinct", (left, right) => {
-    const packet = validGreenfieldV2Packet();
+  ] as const)("requires v3 %s and %s to be distinct", (left, right) => {
+    const packet = validGreenfieldV3Packet();
     packet.versions[right] = packet.versions[left];
     expect(validateRollbackPacket(packet, { now: new Date("2026-07-14T00:45:00Z") }).errors).toContain(
       "candidate, accepted, last-known-good, and write-guard versions must be distinct",
     );
   });
 
-  it("requires the v2 accepted version and both rollback probe receipts", () => {
-    const packet = validGreenfieldV2Packet();
+  it("requires the v3 accepted version and both rollback probe receipts", () => {
+    const packet = validGreenfieldV3Packet();
     packet.versions.accepted_worker_version_id = "";
     packet.versions.write_guard_probe.receipt_id = "";
     packet.versions.last_known_good_probe.receipt_id = "";
@@ -342,8 +404,8 @@ describe("rollback packet validation", () => {
     );
   });
 
-  it("enforces exact v2 top-level, window, threshold, version, and client keys", () => {
-    const packet = validGreenfieldV2Packet() as any;
+  it("enforces exact v3 top-level, window, threshold, version, and client keys", () => {
+    const packet = validGreenfieldV3Packet() as any;
     packet.unreviewed_secret = "must-not-be-accepted";
     packet.window.extra = true;
     packet.trigger_thresholds.extra = 1;
@@ -354,24 +416,24 @@ describe("rollback packet validation", () => {
       now: new Date("2026-07-14T00:45:00Z"),
     }).errors;
     expect(errors).toContain(
-      "greenfield_destructive_v2 top-level keys must exactly match the v2 rollback contract",
+      "greenfield_destructive_v3 top-level keys must exactly match the v3 rollback contract",
     );
     expect(errors).toContain(
-      "greenfield_destructive_v2 window keys must exactly match the v2 rollback contract",
+      "greenfield_destructive_v3 window keys must exactly match the v3 rollback contract",
     );
     expect(errors).toContain(
-      "greenfield_destructive_v2 trigger_thresholds keys must exactly match the v2 rollback contract",
+      "greenfield_destructive_v3 trigger_thresholds keys must exactly match the v3 rollback contract",
     );
     expect(errors).toContain(
-      "greenfield_destructive_v2 versions keys must exactly match the v2 rollback contract",
+      "greenfield_destructive_v3 versions keys must exactly match the v3 rollback contract",
     );
     expect(errors).toContain(
-      "greenfield_destructive_v2 client_recovery_release keys must exactly match the v2 rollback contract",
+      "greenfield_destructive_v3 client_recovery_release keys must exactly match the v3 rollback contract",
     );
   });
 
   it("requires operationally safe, provider-bound, distinct fallback probes", () => {
-    const packet = validGreenfieldV2Packet();
+    const packet = validGreenfieldV3Packet();
     const guard = packet.versions.write_guard_probe;
     guard.health_status = "failed";
     guard.write_mode = "enabled";
@@ -401,15 +463,15 @@ describe("rollback packet validation", () => {
       "versions.write_guard_probe.health_worker_version_id must report the fallback Worker version",
     );
     expect(errors).toContain(
-      "greenfield v2 fallback probe receipt IDs must be distinct",
+      "greenfield v3 fallback probe receipt IDs must be distinct",
     );
     expect(errors).toContain(
-      "greenfield v2 fallback probe deployment IDs must be distinct",
+      "greenfield v3 fallback probe deployment IDs must be distinct",
     );
   });
 
   it("requires completed in-window, ordered fallback deployment readbacks", () => {
-    const futurePacket = validGreenfieldV2Packet();
+    const futurePacket = validGreenfieldV3Packet();
     futurePacket.versions.last_known_good_probe.deployment_observed_after_at_utc =
       "2026-07-14T00:46:00Z";
     sealFallbackProbe(futurePacket.versions.last_known_good_probe);
@@ -421,7 +483,7 @@ describe("rollback packet validation", () => {
       "versions.last_known_good_probe provider-bracketed proof must complete by validation time",
     );
 
-    const outsideWindowPacket = validGreenfieldV2Packet();
+    const outsideWindowPacket = validGreenfieldV3Packet();
     outsideWindowPacket.window.start_at_utc = "2026-07-14T00:35:00Z";
     expect(
       validateRollbackPacket(outsideWindowPacket, {
@@ -431,7 +493,7 @@ describe("rollback packet validation", () => {
       "versions.write_guard_probe provider-bracketed proof must occur inside the rollback window",
     );
 
-    const overlappingPacket = validGreenfieldV2Packet();
+    const overlappingPacket = validGreenfieldV3Packet();
     overlappingPacket.versions.write_guard_probe
       .deployment_observed_after_at_utc = "2026-07-14T00:36:00Z";
     sealFallbackProbe(overlappingPacket.versions.write_guard_probe);
@@ -444,9 +506,9 @@ describe("rollback packet validation", () => {
     );
   });
 
-  it("requires fallback probes to share one route and distinct provider receipts", () => {
-    const packet = validGreenfieldV2Packet();
-    packet.versions.last_known_good_probe.route_id = "unrelated-route";
+  it("requires fallback probes to share one Custom Domain and distinct provider receipts", () => {
+    const packet = validGreenfieldV3Packet();
+    packet.versions.last_known_good_probe.edge_binding.provider_id = "e".repeat(32);
     packet.versions.last_known_good_probe.deployment_provider_receipt_id =
       packet.versions.write_guard_probe.deployment_provider_receipt_id;
     sealFallbackProbe(packet.versions.last_known_good_probe);
@@ -455,15 +517,47 @@ describe("rollback packet validation", () => {
       now: new Date("2026-07-14T00:45:00Z"),
     }).errors;
     expect(errors).toContain(
-      "greenfield v2 fallback probes must use the same production route ID",
+      "greenfield v3 rollback and fallback probes must use the same Custom Domain binding",
     );
     expect(errors).toContain(
-      "greenfield v2 fallback provider receipt IDs must be distinct",
+      "greenfield v3 fallback provider receipt IDs must be distinct",
+    );
+  });
+
+  it.each([
+    ["provider ID", "provider_id", "not-a-provider-id", "provider_id must be a Cloudflare provider identifier"],
+    ["hostname", "hostname", "wrong.example.invalid", "hostname must be api.refwatch.ibby.ai"],
+    ["kind", "kind", "zone_route", "kind must be custom_domain"],
+    ["TLS", "tls_status", "pending", "tls_status must be active"],
+    ["DNS management", "dns_management", "manual_dns", "dns_management must be cloudflare_worker_custom_domain"],
+    ["Worker identity", "worker_name", "other-worker", "worker_name must be refwatch-api"],
+  ])("rejects rollback Custom Domain %s drift", (_label, field, value, errorSuffix) => {
+    const packet = validGreenfieldV3Packet();
+    packet.edge_binding[field] = value;
+
+    expect(validateRollbackPacket(packet, {
+      now: new Date("2026-07-14T00:45:00Z"),
+    }).errors.some((error) => error.includes(errorSuffix))).toBe(true);
+  });
+
+  it("rejects conflicting zone routes and a manual DNS origin in fallback proofs", () => {
+    const packet = validGreenfieldV3Packet();
+    packet.versions.write_guard_probe.conflicting_zone_route_count = 1;
+    packet.versions.last_known_good_probe.manual_dns_origin_present = true;
+
+    const errors = validateRollbackPacket(packet, {
+      now: new Date("2026-07-14T00:45:00Z"),
+    }).errors;
+    expect(errors).toContain(
+      "versions.write_guard_probe.conflicting_zone_route_count must be zero",
+    );
+    expect(errors).toContain(
+      "versions.last_known_good_probe.manual_dns_origin_present must be false",
     );
   });
 
   it("rejects a future aggregate Worker-version readback", () => {
-    const packet = validGreenfieldV2Packet();
+    const packet = validGreenfieldV3Packet();
     packet.versions.provider_readback_at_utc = "2026-07-14T00:46:00Z";
     packet.versions.write_guard_probe.versions_provider_readback_at_utc =
       packet.versions.provider_readback_at_utc;
@@ -479,8 +573,8 @@ describe("rollback packet validation", () => {
     ).toContain("versions.provider_readback_at_utc must not be in the future");
   });
 
-  it("rejects impossible UTC calendar dates in active v2 packets", () => {
-    const packet = validGreenfieldV2Packet();
+  it("rejects impossible UTC calendar dates in active v3 packets", () => {
+    const packet = validGreenfieldV3Packet();
     packet.window.end_at_utc = "2026-02-30T01:00:00Z";
     packet.versions.write_guard_probe.observed_at_utc =
       "2026-02-30T00:35:00Z";

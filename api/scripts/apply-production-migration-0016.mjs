@@ -11,9 +11,19 @@ export const productionMigration0016Contract = Object.freeze({
   branchId: "w3g1f8vcbg34",
   runtimeMarker: "refwatch:production:w3g1f8vcbg34",
   stableOwner: "postgres",
+  journalPath: "api/src/db/migrations/meta/_journal.json",
+  journalSha256:
+    "6bee16ebf32328698e91690932ca6a159fdc26c67422897032d96bc8ac80304a",
   historySequence: Object.freeze({
     schema: "drizzle",
     name: "__drizzle_migrations_id_seq",
+    dataType: "integer",
+    startValue: 1,
+    minimumValue: 1,
+    maximumValue: 2_147_483_647,
+    incrementBy: 1,
+    cacheSize: 1,
+    cycle: false,
     previousLastValue: 16,
     previousIsCalled: true,
     targetRestartWith: 18,
@@ -94,6 +104,10 @@ export function validateProductionMigration0016Sources({
   ) {
     throw new Error("Production migration 0016 source contract is unreadable");
   }
+  const journalSha256 = sha256Hex(journalText);
+  if (journalSha256 !== productionMigration0016Contract.journalSha256) {
+    throw new Error("Production migration journal source digest does not match");
+  }
 
   let journal;
   try {
@@ -141,6 +155,7 @@ export function validateProductionMigration0016Sources({
   }
 
   return Object.freeze({
+    journalSha256,
     previousMigrationSha256: previousSha256,
     targetMigrationSha256: targetSha256,
     targetMigrationSql,

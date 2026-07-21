@@ -1,7 +1,8 @@
 export type RollbackProfile =
   | "stateful_migration_v1"
   | "greenfield_destructive_v1"
-  | "greenfield_destructive_v2";
+  | "greenfield_destructive_v2"
+  | "greenfield_destructive_v3";
 
 export type RollbackRecoveryMode =
   | "stateful_ledger_recovery"
@@ -21,3 +22,7 @@ export interface RollbackValidationResult {
 }
 
 export function validateRollbackPacket(packet: unknown, options?: { now?: Date }): RollbackValidationResult;
+export function validateHistoricalGreenfieldRollbackPacketV2(
+  packet: unknown,
+  options?: { now?: Date },
+): RollbackValidationResult;

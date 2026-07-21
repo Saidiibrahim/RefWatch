@@ -39,6 +39,7 @@ describe("production migration 0016 delivery helper", () => {
     const validated = await loadProductionMigration0016Contract();
 
     expect(validated).toMatchObject({
+      journalSha256: productionMigration0016Contract.journalSha256,
       previousMigrationSha256:
         productionMigration0016Contract.previous.fileSha256,
       targetMigrationSha256:
@@ -108,14 +109,14 @@ describe("production migration 0016 delivery helper", () => {
     expect(() => validateProductionMigration0016Sources({
       ...input,
       journalText: JSON.stringify(timestampDrift),
-    })).toThrow("Production migration 0016 journal entry does not match");
+    })).toThrow("Production migration journal source digest does not match");
 
     const successorDrift = JSON.parse(input.journalText);
     successorDrift.entries[17].when += 1;
     expect(() => validateProductionMigration0016Sources({
       ...input,
       journalText: JSON.stringify(successorDrift),
-    })).toThrow("Production migration 0017 journal entry does not match");
+    })).toThrow("Production migration journal source digest does not match");
 
     const laterMigration = JSON.parse(input.journalText);
     laterMigration.entries.push({
@@ -128,7 +129,7 @@ describe("production migration 0016 delivery helper", () => {
     expect(() => validateProductionMigration0016Sources({
       ...input,
       journalText: JSON.stringify(laterMigration),
-    })).toThrow("Production migration 0016 journal contract does not match");
+    })).toThrow("Production migration journal source digest does not match");
   });
 
   it("passes SQL only through stdin to fixed pscale production arguments", async () => {

@@ -7,6 +7,7 @@ export interface ProductionMigration0016Source {
 }
 
 export interface ValidatedProductionMigration0016Source {
+  journalSha256: string;
   previousMigrationSha256: string;
   targetMigrationSha256: string;
   targetMigrationSql: string;
@@ -20,9 +21,18 @@ export interface ProductionMigration0016Contract {
   branchId: string;
   runtimeMarker: string;
   stableOwner: string;
+  journalPath: string;
+  journalSha256: string;
   historySequence: {
     schema: string;
     name: string;
+    dataType: string;
+    startValue: number;
+    minimumValue: number;
+    maximumValue: number;
+    incrementBy: number;
+    cacheSize: number;
+    cycle: boolean;
     previousLastValue: number;
     previousIsCalled: boolean;
     targetRestartWith: number;

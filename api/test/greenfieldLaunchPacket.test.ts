@@ -11,10 +11,13 @@ import {
   greenfieldIdentityReceiptDigest,
   greenfieldLaunchProfile,
   greenfieldRollbackProfile,
+  historicalGreenfieldLaunchProfile,
+  historicalGreenfieldRollbackProfile,
   cleanTargetReadback,
   productionClerk,
   productionDatabase,
   productionWorker,
+  productionWorkerCustomDomain,
   reviewedDeterministicSeed,
   reviewedSchema,
   greenfieldCleanTargetTables,
@@ -26,7 +29,9 @@ import {
   expectedProductionWorkerBindings,
   sanitizeWorkerVersionReadback,
   validateGreenfieldLaunchPacket as validateGreenfieldLaunchPacketWithRuntimeClock,
+  validateHistoricalGreenfieldLaunchPacketV2,
 } from "../scripts/greenfield-launch-packet.mjs";
+import { productionRuntimeProvisioningTarget } from "../scripts/provision-production-runtime.mjs";
 
 const digestA = "a".repeat(64);
 const digestB = "b".repeat(64);
@@ -38,6 +43,18 @@ const lineageSourceWorkerVersion =
   "0190f8f4-5914-7b6c-9d6a-469a29f92f25";
 const candidateScriptEtag = "c".repeat(64);
 const deterministicValidationNow = new Date("2026-07-20T06:00:00Z");
+const customDomainProviderId = "d".repeat(32);
+
+function customDomainEdgeBinding(): any {
+  return {
+    kind: productionWorkerCustomDomain.kind,
+    hostname: productionWorkerCustomDomain.hostname,
+    provider_id: customDomainProviderId,
+    worker_name: productionWorkerCustomDomain.workerName,
+    tls_status: productionWorkerCustomDomain.tlsStatus,
+    dns_management: productionWorkerCustomDomain.dnsManagement,
+  };
+}
 
 function validateGreenfieldLaunchPacket(
   packet: unknown,
@@ -143,9 +160,9 @@ function fallbackProbe(
     deployment_provider_readback_sha256: "",
     deployment_observed_before_at_utc: deploymentObservedBeforeAtUTC,
     deployment_observed_after_at_utc: deploymentObservedAfterAtUTC,
-    route_id: "route-production-api",
-    hostname: productionWorker.hostname,
-    route_pattern: productionWorker.routePattern,
+    edge_binding: customDomainEdgeBinding(),
+    conflicting_zone_route_count: 0,
+    manual_dns_origin_present: false,
     traffic_percentage: 100,
     competing_version_count: 0,
     health_status: "passed",
@@ -166,9 +183,9 @@ function fallbackProbe(
       receipt_id: probe.deployment_provider_receipt_id,
       deployment_id: probe.deployment_id,
       worker_version_id: probe.worker_version_id,
-      route_id: probe.route_id,
-      hostname: probe.hostname,
-      route_pattern: probe.route_pattern,
+      edge_binding: probe.edge_binding,
+      conflicting_zone_route_count: probe.conflicting_zone_route_count,
+      manual_dns_origin_present: probe.manual_dns_origin_present,
       traffic_percentage: probe.traffic_percentage,
       competing_version_count: probe.competing_version_count,
       observed_before_at_utc: probe.deployment_observed_before_at_utc,
@@ -233,7 +250,7 @@ function validPacket(): any {
   const stableBindingSha256 =
     computeStableWorkerBindingSha256(candidateReadback);
   const packet: any = {
-    schema_version: 2,
+    schema_version: 3,
     launch_profile: greenfieldLaunchProfile,
     status: "accepted",
     authorization: {
@@ -317,7 +334,7 @@ function validPacket(): any {
         provider_query_sha256: reviewedSchema.providerQuerySha256,
         provider_readback: {
           observed_at_utc: "2026-07-20T03:05:00Z",
-          database_name: productionDatabase.database,
+          database_name: productionRuntimeProvisioningTarget.databaseName,
           database_branch_id: productionDatabase.branchId,
           runtime_marker: productionDatabase.runtimeMarker,
           migration_count: reviewedSchema.migrationCount,
@@ -397,7 +414,7 @@ function validPacket(): any {
       status: "inactive_with_optional_history",
       query_path: ledgerReadback.queryPath,
       query_sha256: ledgerReadback.querySha256,
-      database_name: productionDatabase.database,
+      database_name: productionRuntimeProvisioningTarget.databaseName,
       database_branch_id: productionDatabase.branchId,
       runtime_marker: productionDatabase.runtimeMarker,
       total_epoch_count: 2,
@@ -448,6 +465,9 @@ function validPacket(): any {
       packet: {
         schema_version: 1,
         rollback_profile: greenfieldRollbackProfile,
+        edge_binding: customDomainEdgeBinding(),
+        conflicting_zone_route_count: 0,
+        manual_dns_origin_present: false,
         status: "approved",
         owner: "cutover operator",
         approved_at_utc: "2026-07-20T03:55:00Z",
@@ -532,9 +552,9 @@ function validPacket(): any {
       initial_candidate: {
         worker_version_id: candidateVersion,
         deployment_id: "deployment-a100-b0",
-        route_id: "route-production-api",
-        hostname: productionWorker.hostname,
-        route_pattern: productionWorker.routePattern,
+        edge_binding: customDomainEdgeBinding(),
+        conflicting_zone_route_count: 0,
+        manual_dns_origin_present: false,
         route_status: "write_disabled_route",
         version_weights: [
           { worker_version_id: candidateVersion, traffic_percentage: 100 },
@@ -567,9 +587,9 @@ function validPacket(): any {
       bounded_acceptance_route: {
         worker_version_id: acceptedVersion,
         deployment_id: "deployment-a100-b0",
-        route_id: "route-production-api",
-        hostname: productionWorker.hostname,
-        route_pattern: productionWorker.routePattern,
+        edge_binding: customDomainEdgeBinding(),
+        conflicting_zone_route_count: 0,
+        manual_dns_origin_present: false,
         exposure_method: "version_override",
         override_header_name: "Cloudflare-Workers-Version-Overrides",
         override_header_value: `refwatch-api="${acceptedVersion}"`,
@@ -617,6 +637,9 @@ function validPacket(): any {
         observed_at_utc: "2026-07-20T04:42:15Z",
         worker_version_id: acceptedVersion,
         deployment_id: "deployment-b100",
+        edge_binding: customDomainEdgeBinding(),
+        conflicting_zone_route_count: 0,
+        manual_dns_origin_present: false,
         endpoint_path: "/webhooks/clerk",
         version_override_header_present: false,
         cutover_token_header_present: false,
@@ -642,9 +665,9 @@ function validPacket(): any {
       accepted_cutover: {
         routed_worker_version_id: acceptedVersion,
         deployment_id: "deployment-b100",
-        route_id: "route-production-api",
-        hostname: productionWorker.hostname,
-        route_pattern: productionWorker.routePattern,
+        edge_binding: customDomainEdgeBinding(),
+        conflicting_zone_route_count: 0,
+        manual_dns_origin_present: false,
         route_status: "production_active",
         version_weights: [
           { worker_version_id: acceptedVersion, traffic_percentage: 100 },
@@ -728,7 +751,8 @@ function validPacket(): any {
         packet.traffic_and_writes.accepted_cutover
           .deployment_history_observed_at_utc,
       worker_name: packet.worker.name,
-      route_id: packet.traffic_and_writes.accepted_cutover.route_id,
+      edge_binding:
+        packet.traffic_and_writes.accepted_cutover.edge_binding,
       initial_deployment_id:
         packet.traffic_and_writes.initial_candidate.deployment_id,
       promoted_deployment_id:
@@ -769,6 +793,79 @@ function validPacket(): any {
 
 function clonePacket(): any {
   return structuredClone(validPacket());
+}
+
+function historicalV2Packet(): any {
+  const packet = validPacket();
+  packet.schema_version = 2;
+  packet.launch_profile = historicalGreenfieldLaunchProfile;
+  packet.rollback.packet.rollback_profile = historicalGreenfieldRollbackProfile;
+  delete packet.rollback.packet.edge_binding;
+  delete packet.rollback.packet.conflicting_zone_route_count;
+  delete packet.rollback.packet.manual_dns_origin_present;
+
+  function replaceCustomDomainWithRoute(value: any): void {
+    delete value.edge_binding;
+    delete value.conflicting_zone_route_count;
+    delete value.manual_dns_origin_present;
+    value.route_id = "route-production-api";
+    value.hostname = productionWorker.hostname;
+    value.route_pattern = productionWorker.routePattern;
+  }
+
+  for (const probe of [
+    packet.rollback.packet.versions.write_guard_probe,
+    packet.rollback.packet.versions.last_known_good_probe,
+  ]) {
+    replaceCustomDomainWithRoute(probe);
+    probe.deployment_provider_readback_sha256 =
+      computeSanitizedReceiptSha256({
+        receipt_id: probe.deployment_provider_receipt_id,
+        deployment_id: probe.deployment_id,
+        worker_version_id: probe.worker_version_id,
+        route_id: probe.route_id,
+        hostname: probe.hostname,
+        route_pattern: probe.route_pattern,
+        traffic_percentage: probe.traffic_percentage,
+        competing_version_count: probe.competing_version_count,
+        observed_before_at_utc: probe.deployment_observed_before_at_utc,
+        observed_after_at_utc: probe.deployment_observed_after_at_utc,
+      });
+    sealInlineReceipt(probe, "receipt_sha256");
+  }
+  packet.rollback.packet_sha256 =
+    computeSanitizedReceiptSha256(packet.rollback.packet);
+
+  const initial = packet.traffic_and_writes.initial_candidate;
+  const bounded = packet.traffic_and_writes.bounded_acceptance_route;
+  const promoted = packet.traffic_and_writes.promoted_webhook_acceptance;
+  const accepted = packet.traffic_and_writes.accepted_cutover;
+  replaceCustomDomainWithRoute(initial);
+  replaceCustomDomainWithRoute(bounded);
+  delete promoted.edge_binding;
+  delete promoted.conflicting_zone_route_count;
+  delete promoted.manual_dns_origin_present;
+  replaceCustomDomainWithRoute(accepted);
+  sealInlineReceipt(initial, "provider_receipt_sha256");
+  sealInlineReceipt(bounded, "provider_receipt_sha256");
+  sealInlineReceipt(promoted, "receipt_sha256");
+  accepted.deployment_history_receipt_sha256 =
+    computeSanitizedReceiptSha256({
+      receipt_id: accepted.deployment_history_receipt_id,
+      observed_at_utc: accepted.deployment_history_observed_at_utc,
+      worker_name: packet.worker.name,
+      route_id: accepted.route_id,
+      initial_deployment_id: initial.deployment_id,
+      promoted_deployment_id: accepted.deployment_id,
+      candidate_worker_version_id: candidateVersion,
+      accepted_worker_version_id: acceptedVersion,
+      initial_candidate_percentage: 100,
+      initial_accepted_percentage: 0,
+      final_accepted_percentage: 100,
+      final_competing_version_count: 0,
+    });
+  sealInlineReceipt(accepted, "observation_receipt_sha256");
+  return packet;
 }
 
 describe("greenfield launch packet validation", () => {
@@ -909,6 +1006,22 @@ describe("greenfield launch packet validation", () => {
       return createHash("sha256").update(bytes).digest("hex");
     }
 
+    expect(Object.isFrozen(reviewedSchema)).toBe(true);
+    expect(reviewedSchema).toMatchObject({
+      migrationHead: "0017_ambiguous_hedge_knight",
+      migrationCount: 18,
+      repositorySnapshotPath:
+        "api/src/db/migrations/meta/0017_snapshot.json",
+      repositorySnapshotSha256:
+        "0830ddcdde5afd629479f595fe3cc5c3e500491e5042428e50abed3209b9efb2",
+      migrationHeadId: 18,
+      migrationHeadHash:
+        "14b9c6beb831b76dbefee22f8eb592bd8ea72974f33a0aaed5570550e78f07f9",
+      migrationHistoryMd5: "f2f3ddf416d58b2d9a60749e41af11f7",
+      publicColumnCount: 383,
+      publicColumnsMd5: "5fa4e25bcf19d7caf1f9adcfb4879344",
+      catalogContractMd5: "99dca5e8c11b8ec23debfb7c698a74d7",
+    });
     await expect(
       repositorySha256(reviewedSchema.repositorySnapshotPath),
     ).resolves.toBe(reviewedSchema.repositorySnapshotSha256);
@@ -933,7 +1046,7 @@ describe("greenfield launch packet validation", () => {
       ok: true,
       errors: [],
       summary: {
-        launchProfile: "greenfield_launch_v2",
+        launchProfile: "greenfield_launch_v3",
         authorizationDigest: greenfieldAuthorizationDigest,
         clerkInstanceId: productionClerk.instanceId,
         workerName: "refwatch-api",
@@ -949,6 +1062,63 @@ describe("greenfield launch packet validation", () => {
         readyForProductionTraffic: true,
       },
     });
+  });
+
+  it("accepts route-based v2 only through the explicit historical validator", () => {
+    const packet = historicalV2Packet();
+
+    expect(validateGreenfieldLaunchPacket(packet).errors).toContain(
+      "launch_profile must be greenfield_launch_v3",
+    );
+    expect(
+      validateHistoricalGreenfieldLaunchPacketV2(packet, {
+        now: deterministicValidationNow,
+      }),
+    ).toMatchObject({
+      ok: true,
+      errors: [],
+      summary: { launchProfile: "greenfield_launch_v2" },
+    });
+  });
+
+  it.each([
+    ["provider ID", "provider_id", "not-a-provider-id", "provider_id must be a Cloudflare provider identifier"],
+    ["hostname", "hostname", "wrong.example.invalid", "hostname must be api.refwatch.ibby.ai"],
+    ["kind", "kind", "zone_route", "kind must be custom_domain"],
+    ["TLS", "tls_status", "pending", "tls_status must be active"],
+    ["DNS management", "dns_management", "manual_dns", "dns_management must be cloudflare_worker_custom_domain"],
+    ["Worker identity", "worker_name", "other-worker", "worker_name must be refwatch-api"],
+  ])("rejects Custom Domain %s drift", (_label, field, value, errorSuffix) => {
+    const packet = validPacket();
+    packet.traffic_and_writes.initial_candidate.edge_binding[field] = value;
+    sealInlineReceipt(
+      packet.traffic_and_writes.initial_candidate,
+      "provider_receipt_sha256",
+    );
+
+    expect(
+      validateGreenfieldLaunchPacket(packet).errors.some((error) =>
+        error.includes(errorSuffix)),
+    ).toBe(true);
+  });
+
+  it("rejects a conflicting zone route, a manual DNS origin, and binding drift between stages", () => {
+    const packet = validPacket();
+    packet.traffic_and_writes.initial_candidate.conflicting_zone_route_count = 1;
+    packet.traffic_and_writes.initial_candidate.manual_dns_origin_present = true;
+    packet.traffic_and_writes.bounded_acceptance_route.edge_binding.provider_id =
+      "e".repeat(32);
+
+    const errors = validateGreenfieldLaunchPacket(packet).errors;
+    expect(errors).toContain(
+      "traffic_and_writes.initial_candidate.conflicting_zone_route_count must be zero",
+    );
+    expect(errors).toContain(
+      "traffic_and_writes.initial_candidate.manual_dns_origin_present must be false",
+    );
+    expect(errors).toContain(
+      "bounded acceptance must use the reviewed Custom Domain binding",
+    );
   });
 
   it("rejects a final production observation after the validation clock", () => {
@@ -1264,10 +1434,10 @@ describe("greenfield launch packet validation", () => {
     );
   });
 
-  it("binds both rollback probes to the reviewed initial route ID", () => {
+  it("binds both rollback probes to the reviewed Custom Domain", () => {
     const packet = validPacket();
-    packet.rollback.packet.versions.write_guard_probe.route_id =
-      "unrelated-production-route";
+    packet.rollback.packet.versions.write_guard_probe.edge_binding.provider_id =
+      "e".repeat(32);
     sealInlineReceipt(
       packet.rollback.packet.versions.write_guard_probe,
       "receipt_sha256",
@@ -1276,7 +1446,7 @@ describe("greenfield launch packet validation", () => {
       computeSanitizedReceiptSha256(packet.rollback.packet);
 
     expect(validateGreenfieldLaunchPacket(packet).errors).toContain(
-      "rollback fallback probes must use the reviewed initial production route ID",
+      "rollback packet and fallback probes must use the reviewed Custom Domain binding",
     );
   });
 
@@ -1289,7 +1459,7 @@ describe("greenfield launch packet validation", () => {
     packet.launch_profile = launchProfile;
 
     expect(validateGreenfieldLaunchPacket(packet).errors).toContain(
-      "launch_profile must be greenfield_launch_v2",
+      "launch_profile must be greenfield_launch_v3",
     );
   });
 
@@ -1431,6 +1601,27 @@ describe("greenfield launch packet validation", () => {
     );
   });
 
+  it("separates the logical PlanetScale resource from the physical SQL catalog", () => {
+    const packet = validPacket();
+    expect(packet.database.target.database).toBe(productionDatabase.database);
+    expect(packet.database.schema.provider_readback.database_name).toBe(
+      productionRuntimeProvisioningTarget.databaseName,
+    );
+    expect(packet.ledger.database_name).toBe(
+      productionRuntimeProvisioningTarget.databaseName,
+    );
+
+    packet.database.schema.provider_readback.database_name =
+      productionDatabase.database;
+    packet.ledger.database_name = productionDatabase.database;
+
+    const errors = validateGreenfieldLaunchPacket(packet).errors;
+    expect(errors).toContain(
+      "database.schema provider readback must identify database postgres",
+    );
+    expect(errors).toContain("ledger.database_name must be postgres");
+  });
+
   it("requires provider schema and deterministic seed readbacks to match reviewed sources", () => {
     const packet = clonePacket();
     packet.database.schema.status = "candidate";
@@ -1444,13 +1635,13 @@ describe("greenfield launch packet validation", () => {
     const errors = validateGreenfieldLaunchPacket(packet).errors;
     expect(errors).toContain("database.schema.status must be reviewed");
     expect(errors).toContain(
-      "database.schema provider migration_head_hash must match migration 0016",
+      "database.schema provider migration_head_hash must match migration 0017_ambiguous_hedge_knight",
     );
     expect(errors).toContain(
-      "database.schema.migration_head must be 0016_careless_steel_serpent",
+      "database.schema.migration_head must be 0017_ambiguous_hedge_knight",
     );
     expect(errors).toContain(
-      "database.schema.migration_count must be 17",
+      "database.schema.migration_count must be 18",
     );
     expect(errors).toContain(
       "database.deterministic_seed.repository_migration_path must identify migration 0002",
@@ -1502,7 +1693,9 @@ describe("greenfield launch packet validation", () => {
       expect(errors).toContain(
         "database.schema.provider_receipt_sha256 must match the canonical sanitized receipt payload",
       );
-      expect(packet.database.schema.provider_readback.migration_count).toBe(17);
+      expect(packet.database.schema.provider_readback.migration_count).toBe(
+        reviewedSchema.migrationCount,
+      );
       expect(packet.database.schema.provider_readback.public_table_count).toBe(36);
     }
   });
@@ -1932,7 +2125,7 @@ describe("greenfield launch packet validation", () => {
 
     const errors = validateGreenfieldLaunchPacket(packet).errors;
     expect(errors).toContain(
-      "rollback.packet.rollback_profile must be greenfield_destructive_v2",
+      "rollback.packet.rollback_profile must be greenfield_destructive_v3",
     );
     expect(errors).toContain("rollback.validation_status must be passed");
     expect(errors).toContain("rollback.packet_sha256 must be SHA-256");
@@ -2199,7 +2392,7 @@ describe("greenfield launch packet validation", () => {
   it("requires exact final B=100 deployment history and no alternate exposure", () => {
     const packet = validPacket();
     const accepted = packet.traffic_and_writes.accepted_cutover;
-    accepted.hostname = "wrong.example.invalid";
+    accepted.edge_binding.hostname = "wrong.example.invalid";
     accepted.version_weights = [
       { worker_version_id: acceptedVersion, traffic_percentage: 1 },
       { worker_version_id: candidateVersion, traffic_percentage: 99 },
@@ -2212,7 +2405,7 @@ describe("greenfield launch packet validation", () => {
 
     const errors = validateGreenfieldLaunchPacket(packet).errors;
     expect(errors).toContain(
-      "accepted traffic must use api.refwatch.ibby.ai/*",
+      "traffic_and_writes.accepted_cutover.edge_binding.hostname must be api.refwatch.ibby.ai",
     );
     expect(errors).toContain(
       "accepted deployment must route only Worker B at 100 percent",
