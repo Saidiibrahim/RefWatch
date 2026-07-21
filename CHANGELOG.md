@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0-beta.4] - 2026-07-21
+
+### Added
+- Fail-closed production helpers and isolated database coverage for zero-legacy identity activation and migration `0017` delivery.
+- Source-only Clerk webhook, immutable Worker-lineage, provider-guard, and same-process cutover preparation tooling.
+- Active v3 launch and destructive-recovery contracts bound to the exact Cloudflare Custom Domain.
+
+### Changed
+- Production schema convergence evidence now records migration `0017` applied, independently read back, and review-closed.
+- Launch and rollback validation reject historical route-shaped v2 packets for active closeout and require zero conflicting zone routes and no manual DNS origin.
+- Migration architecture, operator runbooks, execution plans, and evidence indexes now match the v3 source contract.
+
+### Release status
+- This remains a source-only engineering checkpoint prerelease. The production cutover command stays fail-closed pending trusted provider audit reading, live output fixtures, bounded continuation wiring, and final v3 review closure; no Clerk endpoint, S/A/B/G Worker version, deployment, routing, write/onboarding enablement, traffic promotion, or ledger activation is claimed.
+
 ## [0.9.0-beta.3] - 2026-07-21
 
 ### Added
