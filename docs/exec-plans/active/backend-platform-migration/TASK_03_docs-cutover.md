@@ -44,8 +44,9 @@ phase: Phase 3 - Cutover and Evidence
   testing; post-device production acceptance; unique receipt kinds/IDs; and
   final inactive-ledger/zero-consumer readback. Current verification is 108/108
   focused across 3 files (including six promoted-webhook adversarial tests),
-  268/268 unit in 19 files, 22/22 database in 3 files, and 19/19 mounted routes
-  in 1 file; typecheck and exact 83-file redacted Gitleaks pass. Generated
+  268/268 unit in 19 files, 23/23 database in 3 files, and 19/19 mounted routes
+  in 1 file; typecheck and grouped plus complete-range redacted Gitleaks pass.
+  The exact 83-file scan remains historical remediated-v2 evidence. Generated
   Wrangler types are part of the batch, both mandatory reviewers returned
   final `NO FINDINGS`, and
   no provider deployment or route mutation is claimed.

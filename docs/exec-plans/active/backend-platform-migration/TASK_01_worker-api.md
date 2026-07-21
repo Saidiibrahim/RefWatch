@@ -117,7 +117,7 @@ phase: Phase 1 - Backend
 - [x] Prove normal local transactions and fetch handling commit with zero
   ledger epochs/outbox/deliveries and no key, D1, Queue, cron, or consumer
   dependency; separately preserve strict capture in an isolated archived epoch.
-  The 18 pre-helper cases within the fresh 22-case hermetic database suite
+  The 18 pre-helper cases within the then-current beta.2 22-case hermetic database suite
   prove the inactive and isolated strict paths plus greenfield readback
   anchors, while the mounted fetch harness supplies none of those ledger
   runtime dependencies. Production capture was not activated.

@@ -333,7 +333,7 @@ code-risk remediation, the current focused greenfield/rollback/CLI suite passes
 108/108 across 3 files. The full unit suite passes 268/268 across 19 files;
 typecheck, Node syntax, Wrangler generated-types check, 23/23 database cases,
 19/19 mounted-route cases, and mutation coverage (36/23/13 tables plus 5/2
-writers) pass. The production dry-run passes at 1534.42 KiB, gzip 276.99 KiB.
+writers) pass. The production dry-run passes at 1534.77 KiB, gzip 277.07 KiB.
 The focused Swift
 collection-cursor suite passes 5/5 on the iPhone 15 Pro Max/iOS 18.5 simulator.
 The fresh full iOS target passes 76 XCTest plus 18 Swift Testing cases (94/94)
