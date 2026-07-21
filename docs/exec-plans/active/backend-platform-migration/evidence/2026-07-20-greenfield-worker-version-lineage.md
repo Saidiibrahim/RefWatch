@@ -177,16 +177,17 @@ The launch rollback section carries the exact standalone
 window, thresholds, G/L probes, distributable client contract, and destructive
 recovery sequence. Launch validation calls the standalone rollback validator;
 it does not duplicate or weaken that contract. G and L each require an exact
-provider deployment receipt with a canonical readback digest and before/after
-timestamps bracketing the operational probe, plus a temporary 100% deployment
-with no competitor, health/readiness reporting the probed version, disabled
-API/webhook denial with zero mutations, and restoration of A=100%/B=0%
-afterward. Both bracketed probes must lie strictly inside the rollback window
-and complete by validation time; G's after-readback must be strictly earlier
-than L's before-readback. G/L use the same exact production route and distinct
-deployment IDs, probe receipt IDs, and provider receipt IDs. Launch validation
-also binds their shared route ID to the initial A route and waits for each
-after-readback. Receipt kinds and IDs must be unique. The stateful profile and
+provider deployment receipt with a canonical readback digest before and after
+the operational probe while that same fallback remains at 100% with no
+competitor. Health/readiness must report the probed version, and disabled API/
+webhook denial must preserve zero mutations. Only after each fallback's after-
+readback may A=100%/B=0% be restored and recorded in a separate proof. Both
+bracketed probes must lie strictly inside the rollback window and complete by
+validation time; G's after-readback must be strictly earlier than L's before-
+readback. G/L use the same exact production route and distinct deployment IDs,
+probe receipt IDs, and provider receipt IDs. Launch validation also binds their
+shared route ID to the initial A route and waits for each same-deployment after-
+readback and separate restoration. Receipt kinds and IDs must be unique. The stateful profile and
 `greenfield_destructive_v1` remain accepted for historical compatibility.
 
 ## Intended deployment chronology
@@ -202,14 +203,15 @@ after-readback. Receipt kinds and IDs must be unique. The stateful profile and
    exact ID/time, required-name operator confirmation, documented preservation,
    and provider history; no secret value enters arguments, evidence, or iOS.
 3. Pin pairwise-distinct G/L and the exact S/A/B/G/L chronology.
-4. Temporarily deploy G at 100% with no competitor. Canonical provider
-   deployment readbacks/digests and timestamps must bracket its exact-version
-   health/readiness and retryable-denial/no-mutation probe; then restore
-   A=100%/B=0% and wait for the after-readback. The proof must be inside the
-   rollback window and complete by validation time.
-5. Repeat the exact bracketed temporary 100% probe for L, restore A=100%/B=0%,
-   and wait for its after-readback. Use the same route, distinct deployment/
-   probe/provider receipt IDs, and require G-after strictly before L-before.
+4. Temporarily deploy G at 100% with no competitor. Capture canonical G-before,
+   run its exact-version health/readiness and retryable-denial/no-mutation
+   probe, then capture G-after while that same deployment remains active. Only
+   then restore A=100%/B=0% and capture a separate restoration proof. The proof
+   must be inside the rollback window and complete by validation time.
+5. After G restoration, repeat the exact sequence for L: L=100%, L-before,
+   probe, L-after, then a separate A=100%/B=0% restoration proof. Use the same
+   route, distinct deployment/probe/provider receipt IDs, and require G-after
+   strictly before L-before.
 6. Publicly route A=100%/B=0%; prove exact A health/readiness, auth rejection,
    retryable API/webhook denial, zero mutation, and disabled
    Workers.dev/preview exposure.
@@ -271,3 +273,27 @@ Closed on 2026-07-20 after every finding was applied:
 The closure covers the local immutable-version/rollback/acceptance contract
 only. It does not claim a provider deployment, route mutation, production
 identity activation, authenticated acceptance, or physical-device result.
+
+## 2026-07-21 preparation continuation
+
+The database/identity prerequisites have since closed at active migration
+`0017`/18 with 36 tables and 383 columns. The separate preparation artifact
+`2026-07-21-production-greenfield-worker-lineage-preparation.md` records a new
+read-only Cloudflare preflight and the pending fail-closed one-shot helper. At
+that checkpoint, L remains
+`e966d6df-b5ff-4288-832c-c8d91e00ce48`; no production S/A/B/G version has been
+created, and no provider mutation or current Clerk-user-count claim is made.
+The operational-order wording above is clarified so each G/L after-readback
+unambiguously hashes the same 100% fallback deployment as its before-readback;
+the A restoration is a later, separate proof.
+
+## 2026-07-21 v3 supersession
+
+The later source-only continuation supersedes active closeout with
+`greenfield_launch_v3` and `greenfield_destructive_v3`. Production uses the
+exact `api.refwatch.ibby.ai` Cloudflare Custom Domain, so v3 binds that edge
+resource through A, bounded B, B100, G/L fallback, and rollback proof while
+requiring zero conflicting zone routes and no manual DNS origin. The v2
+contract and its review closure above remain truthful historical evidence, but
+v2 is no longer accepted for active launch closeout. The v3 continuation has
+its own review and execution gates and claims no provider mutation.

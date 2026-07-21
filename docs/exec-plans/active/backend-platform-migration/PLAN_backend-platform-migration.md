@@ -35,7 +35,7 @@ the active launch:
 - A database-enforced `greenfield_zero_legacy_v1` receipt must bind the exact
   authorization digest and production Clerk provenance before genuinely new
   Clerk subjects may receive server-generated internal UUIDs.
-- Ledger escrow, recovery, and production activation are deferred and
+- Ledger escrow, recovery, and mutation-ledger production activation are deferred and
   non-blocking. Launch requires zero preparing, open, or capture-enforced
   production epochs and zero Queue, cron, or D1 consumers; the existence of
   frozen/archived history or provisioned inactive resources is not evidence of
@@ -99,9 +99,13 @@ the active launch:
   their later execution.
 - [x] Production greenfield target preparation — provider execution completed
   under the reviewed helpers while writes/onboarding stayed disabled.
-  Production now reads back migration `0016`/17, the exact reviewed 36-table
-  catalog with Postgres ownership, zero rows in all 27 target categories, the
-  unchanged 5/54 deterministic seed, and no active ledger. Durable
+  At preparation closure, production read back migration `0016`/17, the exact
+  reviewed 36-table catalog with Postgres ownership, the unchanged 5/54
+  deterministic seed, and no active ledger. The later production-0017
+  convergence item supersedes that historical schema-head state. Its pre-
+  activation preparation snapshot had zero rows in
+  all 27 target categories; current post-activation state is exactly one
+  receipt, one activation, and zero rows in the other 25 categories. Durable
   read/write-data role `hvk7iheytj62` and paired TLS-required/cache-disabled
   Hyperdrive `920ca5b108034b2bb8700cf0201ac55f` were created, and
   `api/wrangler.jsonc` binds both together for the next candidate. Typecheck,
@@ -109,6 +113,94 @@ the active launch:
   the currently deployed Worker remains unchanged on the old read-only path.
   Every review finding was applied and both mandatory final reviewers returned
   `NO FINDINGS`.
+- [x] Production zero-legacy identity activation — the fail-closed one-shot
+  helper, digest-checked 0016 source contract, all-table lock boundary,
+  validate-before-commit protocol, canonical receipt, and isolated physical
+  `postgres` rehearsal are implemented locally on 2026-07-21. Focused
+  remediation tests pass 19/19 across 2 files (13 activation-helper plus 6
+  shared migration-0016 contract cases), and its dedicated database suite
+  passes 9/9; its historical activation-closure checkpoint is 281/281 for the
+  full API suite, 23/23 plus 9/9 for the database aggregate, and 19/19 mounted
+  routes, with typecheck/coverage/dry-run/source checks passing. Both
+  initial mandatory reviewers returned `NO FINDINGS` before the first provider
+  attempt. That attempt failed closed with zero receipt/activation rows because
+  the helper accepted only the apply-time representation of a sequence whose
+  next ID was correctly 18. The remediated helper pins the full sequence
+  catalog, accepts only exact `(18,false)` or `(17,true)`, binds the observed
+  state, and never mutates the sequence; the shared migration apply contract
+  remains strict. Both mandatory remediation reviewers returned final
+  `NO FINDINGS`. Fresh PlanetScale and separate official exact-instance Clerk
+  zero-user gates then preceded successful activation and idempotent retry.
+  Primary readback proves exactly one immutable receipt/activation, UUID
+  `428de9fc-1e6d-44a5-85a6-cbc0d15b7008`, all database timestamps
+  `2026-07-21T03:38:21.452Z`, zero other target rows, exact 5/54 seed, unchanged
+  sequence next ID 18, and inactive ledger. Every post-execution finding was
+  applied and both final reviewers returned exact `NO FINDINGS`.
+  Worker deployment, writes/onboarding, traffic, and mutation-ledger capture
+  remain unchanged.
+- [x] Production migration `0017` convergence — the gated one-shot admin
+  helper, exact 0016/0017 source and catalog pins, full `(id, hash, created_at)`
+  history digest, exact history-table/PK/default/serial/`OWNED BY` contract,
+  all-table lock boundary, validate-before-commit receipt, idempotent retry,
+  invalid sequence-pair/control-drift rejection, concurrent-writer exclusion,
+  and isolated physical `postgres` rehearsal are implemented locally. Unit
+  tests pass 14/14; the
+  dedicated database suite passes 11/11; full API tests pass 296/296; aggregate
+  database tests pass 23/23 plus 9/9 plus 11/11; routes pass 19/19; and
+  typecheck/coverage/dry-run/source checks pass. The active launch validator is
+  repinned to exact 0017/18 rows/383 columns and physical `postgres`, while the
+  activation helper retains frozen `reviewedSchema0016`. Mandatory
+  pre-execution code/docs reviews and the supplemental SQL review returned exact
+  `NO FINDINGS`. The reviewed fixed stdin-only admin command then applied
+  `0017`; first-apply receipt SHA-256 is
+  `d7a7dabb6a919459132d3820bc9728fd15226ee6880926f535899a733a1407be`,
+  and the exact `idempotent_retry` SHA-256 is
+  `aaac7e2585a3184ed7cc871b16a9109636db049de7cd6daf3850405a75b38a14`.
+  Independent primary reads now prove 18/head-18 history, 36 tables, 383
+  columns and all pinned digests; full-history SHA-256
+  `4df5affeb9a55d1dd00437eb952f13f00afbb1f730bb368e3b2310d16edfa695`;
+  exact Drizzle catalog and sequence `(19,false)`; exact nullable `timestamptz`
+  target column; unchanged identity UUID/timestamps; exact 5/54 seed; zero
+  other target rows; and inactive ledger. Both mandatory post-execution
+  reviewers (`/root/activation_preexec_code_review` and
+  `/root/activation_preexec_docs_review`) returned final exact `NO FINDINGS`.
+  This closes migration-0017 convergence and removes that prerequisite for
+  Worker upload. No Worker upload, deployment, route, write/onboarding, traffic,
+  Clerk, or mutation-ledger state changed; every later launch gate remains open
+  on its own terms.
+- [ ] Production Clerk/Worker same-process cutover helper — preparation is recorded in
+  `evidence/2026-07-21-production-greenfield-worker-lineage-preparation.md`.
+  Local Clerk preparation, Worker lineage, and outer broker implementations are
+  present. Their current local checkpoint passes 455/455 full unit cases across
+  25 files, 43/43 database cases (23 current-
+  schema + 9 exact-0016 activation + 11 migration-0017), 19/19 mounted routes,
+  typecheck, all three source checks, production dry-run, Wrangler generated-
+  types check, mutation coverage, a fully redacted changed-file credential scan
+  with `.projects` excluded and uninspected, and `git diff --check`. The earlier
+  131/131 focused and 427/427 unit checkpoint remains historical. The source-only
+  commands are
+  `clerk:webhook:production:check`, `worker:lineage:production:check`, and
+  `cutover:production:check`. Standalone Clerk/lineage execution is disabled;
+  for this Clerk/Worker lane only `cutover:production` supplies explicit
+  `--execute`, guarded by
+  `REFWATCH_ALLOW_PRODUCTION_GREENFIELD_CUTOVER=1`. Its current CLI fails closed
+  before provider work until the reviewed live provider-guard and bounded
+  acceptance/route continuation callbacks are wired in the same process.
+  The broker must create or accept only the exact disabled lifecycle endpoint,
+  keep its signing secret and the generated acceptance token memory-only through
+  the post-lineage review checkpoint and continuation, and wipe both on every
+  exit path. The leased lineage executor must keep secret bytes on Wrangler
+  stdin, use exact direct-name targeting for secret writes and config-driven
+  production-environment targeting for uploads, require exactly five new
+  versions (one intermediate secret-source version, S, A, B, and G) with zero
+  unexpected versions, reject source/provider/concurrent-actor drift, and emit
+  only sanitized receipts. Read-only preflight still finds deployment
+  `89cff719-0e19-4648-ab09-63a37d806c95` at 100% L
+  `e966d6df-b5ff-4288-832c-c8d91e00ce48` on the old read-only path, with no
+  live Clerk lifecycle endpoint, S/A/B/G version, route, or traffic mutation
+  claimed. No provider mutation occurred in this implementation batch;
+  production execution is forbidden until the continuation callbacks are
+  complete and both reviewers return final exact `NO FINDINGS`.
 - [ ] Clerk production setup — partial and fully authorized: production
   instance `ins_3GWFGUd1rI6hx5lWlUxMYAkxdac` uses verified domain
   `refwatch.ibby.ai`, with issuer `https://clerk.refwatch.ibby.ai`. DNS, SSL,
@@ -124,12 +216,19 @@ the active launch:
   inactive-ledger transaction proof are implemented locally. The explicit
   historical `greenfield_launch_v1` validator and
   `greenfield_destructive_v1` rollback profile were implemented and reviewed.
-  The active v2 immutable-version correction is implemented locally; both
-  mandatory reviewers returned final `NO FINDINGS`. Typecheck, 108/108 focused launch/rollback/CLI cases
-  across 3 files (including promoted-webhook adversarial tests), 268/268
-  unit tests across 19 files including runtime-gate/public-route coverage,
-  23/23 hermetic database cases across 3 files, 19/19 mounted routes in 1 file,
-  36/23/13 mutation coverage, Drizzle
+  The historical v2 immutable-version correction is implemented locally; both
+  mandatory reviewers returned final `NO FINDINGS`. Typecheck, 108/108 focused
+  launch/rollback/CLI cases across 3 files (including promoted-webhook
+  adversarial tests), plus 19/19 focused remediation cases across 2 files (13
+  activation-helper plus 6 shared migration-0016 contract cases), the
+  historical activation checkpoint of 281/281 unit tests across 20 files and
+  9/9 isolated exact-0016 activation cases, 23/23 current-schema database cases,
+  and 19/19 mounted routes in 1 file pass. The historical migration-0017
+  convergence checkpoint extends the unit corpus to 296/296 across 21 files
+  and adds 11/11 isolated physical-`postgres` migration cases. Its production
+  apply/retry, independent primary readback, and mandatory post-execution
+  reviews are complete with final exact `NO FINDINGS`; this prerequisite no
+  longer blocks Worker upload. The 36/23/13 mutation coverage and Drizzle
   convergence, and the production Wrangler dry-run pass.
   Production migration `0016` and the dedicated durable read/write-data
   role/Hyperdrive pair are now prepared; the dry-run declares that new pair,
@@ -173,12 +272,14 @@ the active launch:
   route/cursor/inactive-ledger proof and fresh production read-only provider
   baseline are also recorded. Executed migration/runtime preparation and exact
   post-preparation receipts are recorded and both mandatory reviewers returned
-  `NO FINDINGS`. Active v2 documentation now records packet-carried sanitized
+  `NO FINDINGS`. Historical v2 documentation records packet-carried sanitized
   readbacks, bracketed fallback probes before final A proof, the protected A/B
   lane, bounded manually signed webhook versus promoted provider delivery,
   exact nested rollback, post-provider Access removal, promotion-before-device
-  chronology, receipt uniqueness, and final ledger readback; both current v2
-  mandatory reviewers returned final `NO FINDINGS`. Remaining work is provider/deployed receipts,
+  chronology, receipt uniqueness, and final ledger readback; both v2 mandatory
+  reviewers returned final `NO FINDINGS`. Active v3 documentation supersedes
+  route-shaped closeout with the exact Custom Domain contract and has its own
+  review gate. Remaining work is provider/deployed receipts,
   physical acceptance against promoted B, observed traffic, and post-acceptance
   compatibility/Supabase cleanup.
 
@@ -232,11 +333,15 @@ override above.
   deletion, parser, streaming, event-reference, emergency-write, onboarding,
   rollback-ledger, encrypted Auth-source, greenfield-promotion, collection
   versioning, and cursor risks. Its pre-greenfield checkpoint passed typecheck
-  and 93 tests across 14 files; the current remediated-v2 aggregate passes
-  108/108 focused launch/rollback/CLI cases across 3 files and 268/268 unit tests
-  across 19 files, including runtime-gate/public-route coverage. Fresh
-  verification also passes 23/23 hermetic database cases across 3 files,
-  19/19 mounted-route cases in 1 file and typecheck. The local matrix covers all requested route families with
+  and 93 tests across 14 files. The historical activation-closure aggregate
+  passes 108/108 focused launch/rollback/CLI cases across 3 files plus 19/19
+  focused remediation cases across 2 files (13 activation-helper plus 6 shared
+  migration-0016 contract cases), 281/281 unit tests across 20 files including
+  runtime-gate/public-route coverage, and 9/9 isolated exact-0016 activation
+  cases. The historical migration-0017 convergence checkpoint extends the unit
+  corpus to 296/296 across 21 files and adds 11/11 isolated physical-`postgres`
+  migration cases. Fresh verification also passes 23/23 current-schema
+  database cases, 19/19 mounted-route cases in 1 file, and typecheck. The local matrix covers all requested route families with
   strict upstream stubs and no provider calls. The 19/19 real-Postgres provider
   result is preserved as
   2026-07-15 historical evidence and was not rerun after the later route
@@ -338,8 +443,8 @@ override above.
   inactive-ledger, acceptance, physical-device, traffic, and destructive
   recovery evidence without weakening future live-migration tooling.
   Date/Author: 2026-07-20 / Codex
-- Superseding decision: Use `greenfield_launch_v2` and
-  `greenfield_destructive_v2` for the active greenfield closeout while
+- Historical superseding decision: Use `greenfield_launch_v2` and
+  `greenfield_destructive_v2` for the then-active greenfield closeout while
   retaining v1/stateful compatibility as historical tooling.
   Rationale: Cloudflare bindings are immutable per Worker version; v1
   incorrectly required one version ID to be both write-disabled and
@@ -355,6 +460,16 @@ override above.
   acceptance. The exact nested rollback and final inactive-ledger readback are
   required.
   Date/Author: 2026-07-20 / Codex
+- Superseding decision: Use `greenfield_launch_v3` and
+  `greenfield_destructive_v3` for active closeout; retain v2 only as historical
+  validation.
+  Rationale: Production is attached through a Cloudflare Custom Domain rather
+  than a zone route. V3 binds that exact edge resource through A, bounded B,
+  B100, G/L fallback, and rollback proof, requires zero conflicting zone
+  routes and no manual DNS origin, and rejects the route-shaped v2 profile for
+  active launch validation. This source-only continuation remains fail-closed
+  until its mandatory reviews close and trusted provider wiring is complete.
+  Date/Author: 2026-07-21 / Codex
 - Superseded decision: Use `auth.refwatch.com` as the Clerk production domain.
   Rationale: The user initially approved the recommendation, then confirmed they do not own `refwatch.com`; no old-domain DNS scope was exercised. The separately authorized owned replacement `refwatch.ibby.ai` completed on 2026-07-17.
   Date/Author: 2026-07-15 / User
@@ -428,8 +543,9 @@ override above.
   greenfield bootstrap. The authorization-bound zero-legacy identity
   implementation now passes its complete local database and code-risk review
   batch. The historical v1 greenfield launch/destructive rollback validators
-  passed both mandatory reviews; the active immutable-version v2 correction is
-  implemented with both mandatory reviewers at final `NO FINDINGS`. Its remediated local contract
+  passed both mandatory reviews; the historical immutable-version v2 correction
+  is implemented with both mandatory reviewers at final `NO FINDINGS`. The
+  active v3 local contract
   requires exact sanitized A/B provider receipts and allowlisted bindings,
   bracketed G/L deployment probes before A=100%/B=0% disabled proof, exact
   protected bounded B access, manually signed bounded webhook lifecycle, exact
@@ -471,6 +587,30 @@ findings remain preserved as historical/future tooling.
   pending approvals, exact count/resource taxonomy, per-provider evidence, and
   separately reviewed write/device/traffic phases. The execution plan applies
   every finding; both reviewers returned no findings before implementation.
+- 2026-07-21 production identity-activation planning audits: the code-risk role
+  identified the logical PlanetScale `refwatch` versus physical PostgreSQL
+  `postgres` split, the exact 0016 fixture, 36-table plus history locks, lock
+  inversion risk, idempotent pair rules, and validate-before-commit provider
+  protocol. The docs/evidence role required an append-only beta.3 boundary
+  clarification, exact pre/post control counts, separate fresh Clerk proof,
+  actual-date labeling, and explicit separation from mutation-ledger
+  activation. All planning findings are applied. The later mandatory code-risk
+  reviewer `/root/activation_preexec_code_review` required a complete
+  migration-journal digest; that disposition and the independent SQL/transport
+  audit remediations are applied, and its final re-review returned
+  `NO FINDINGS`. Mandatory docs/evidence reviewer
+  `/root/activation_preexec_docs_review` then required current top-level
+  verification totals and exact review-state synchronization; every finding
+  was applied, and its final re-review returned `NO FINDINGS`. Those closures
+  are retained as historical pre-attempt receipts. The first production attempt
+  then failed closed on a one-representation history-sequence check, with zero
+  receipt/activation rows committed. Both reviews were reopened for the
+  semantic-next-ID remediation: exact catalog pins, only `(18,false)` or
+  `(17,true)`, receipt-bound observed/derived state, no sequence mutation, and
+  synchronized append-only evidence. Code/operational reviewer
+  `/root/activation_preexec_code_review` and docs/evidence reviewer
+  `/root/activation_preexec_docs_review` both returned final exact
+  `NO FINDINGS` after every remediation finding was applied.
 - 2026-07-20 authorization/docs/operator batch review: the code-risk role found
   two inline `DATABASE_URL` examples that could place a production DSN in shell
   history. Both now require non-echoing provider/secret-manager injection and
@@ -647,9 +787,12 @@ findings remain preserved as historical/future tooling.
   a nullable Clerk profile-event watermark, webhook processing advances only
   on a strictly newer provider timestamp, auth-created rows accept their first
   profile, and stale/equal/reversed-concurrent regressions are covered. Applied
-  migration `0016` was not rewritten; production still requires a separately
-  reviewed `0017` apply before this Worker code may deploy.
-- 2026-07-20 active v2 review remediation: code-risk findings were applied to
+  migration `0016` was not rewritten. The separately reviewed production
+  `0017` apply/retry, independent readback, and mandatory post-execution reviews
+  are now complete with final exact `NO FINDINGS`. This database prerequisite
+  no longer blocks Worker upload, but every later deployment/acceptance gate
+  still applies.
+- 2026-07-20 then-active v2 review remediation: code-risk findings were applied to
   the local launch/rollback contract and are reflected in the current docs:
   provider-derived sanitized A/B receipts with stable-hash recomputation and
   exact binding allowlists, public A=100%/B=0% proof, protected override-only B

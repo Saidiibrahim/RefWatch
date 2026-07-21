@@ -355,6 +355,16 @@ The independent docs/evidence review found five consistency issues:
 All five findings were applied. Final reviewer
 `/root/validator_docs_consistency_review` returned `NO FINDINGS`.
 
+## 2026-07-21 append-only v3 supersession
+
+The active successor is now `greenfield_launch_v3` plus
+`greenfield_destructive_v3`, recorded in the worker-lineage and production
+preparation evidence. V3 retains the distinct A/B/G/L version contract but
+binds the exact Cloudflare Custom Domain, zero conflicting zone routes, and no
+manual DNS origin through launch and rollback proof. V2 remains historical
+validation only. This source-only supersession does not rewrite the earlier
+review closure or claim provider execution.
+
 ## Remaining boundary
 
 This artifact proves the local packet contracts and their code-risk closure
@@ -374,10 +384,11 @@ to be both write-disabled and write-enabled. Do not use
 `greenfield_launch_v1` or `greenfield_destructive_v1` for the production
 greenfield closeout.
 
-The active successor is `greenfield_launch_v2` plus
+The successor at that checkpoint was `greenfield_launch_v2` plus
 `greenfield_destructive_v2`, recorded in
 `2026-07-20-greenfield-worker-version-lineage.md`. It requires distinct
 disabled and accepted candidates with equal script ETags and stable-binding
 hashes, an unexposed accepted version before bounded acceptance, distinct
 write-guard/LKG versions, and both fallback probes. This note does not rewrite
-the earlier v1 review or claim any provider deployment.
+the earlier v1 review or claim any provider deployment. It is now historical
+and superseded by the v3 note above.

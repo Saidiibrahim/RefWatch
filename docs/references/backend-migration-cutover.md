@@ -16,10 +16,17 @@ dated as identified in the active plan:
 - The fresh 2026-07-20 baseline first proved 16 migrations through `0015`, 35
   public tables, the exact reviewed 5-competition/54-team seed, and zero rows
   in all 26 then-existing application/identity/control categories. The later
-  preparation batch atomically applied `0016`; exact checked-in readbacks now
-  prove 17 migration rows, the reviewed 36-table catalog, zero rows in all 27
-  target categories, Postgres ownership, the unchanged 5/54 seed, and no
-  active ledger. No reset or reseed was needed. "Clean target" never means
+  preparation batch atomically applied `0016`; at that historical checkpoint,
+  exact checked-in readbacks proved 17 migration rows, the reviewed 36-table
+  catalog, Postgres ownership, the unchanged 5/54 seed, and no active ledger.
+  Production migration `0017` was subsequently applied and retried
+  idempotently. Current primary readbacks prove 18 history rows/head ID 18,
+  36 public tables/383 columns and every reviewed catalog digest, full-history
+  SHA-256 `4df5affeb9a55d1dd00437eb952f13f00afbb1f730bb368e3b2310d16edfa695`,
+  exact migration controls, and sequence `(19,false)`. Current identity state
+  is one receipt, one activation with unchanged UUID/timestamps, and zero rows
+  in the other 25 target categories; the 5/54 seed and inactive ledger remain
+  unchanged. No reset or reseed was needed. "Clean target" never means
   deleting deterministic global reference data reviewed from repository
   sources.
 - The fresh Cloudflare readback records Worker `refwatch-api` deployment
@@ -50,9 +57,17 @@ dated as identified in the active plan:
   artifact.
 - The active iOS composition builds and routes matches, schedules, journal, teams, competitions, venues, authenticated reference-catalog reads, assistant, and match-sheet parsing through backend adapters without Supabase config.
 - The latest remediated-v2 focused greenfield/rollback/CLI verification passes
-  108/108 across 3 files. Fresh final verification passes typecheck, 268/268
-  unit cases across 19 files, 23/23 hermetic database cases, and 19/19
-  mounted-route cases. The fresh full iOS
+  108/108 across 3 files. The activation-closure checkpoint adds 19/19 focused
+  remediation cases across 2 files (13 activation-helper plus 6 shared
+  migration-0016 contract cases), 281/281 unit cases across 20 files, and 9/9
+  isolated exact-0016 activation cases. The historical migration-0017 convergence
+  checkpoint extends that historical corpus to the separately recorded
+  296/296 unit result across 21 files and 11/11 isolated physical-`postgres`
+  migration cases. Its production apply/retry and independent primary readback
+  and both mandatory post-execution reviews are complete with final exact
+  `NO FINDINGS`; migration-0017 no longer blocks Worker upload. Typecheck, 23/23
+  current-schema database cases, and 19/19
+  mounted-route cases pass. The fresh full iOS
   target passes 94/94 on
   iPhone 15 Pro Max/iOS 17.0.1, and the focused collection-cursor suite passes
   5/5 on iOS 18.5. A broad Xcode 27/iOS 18.5 run has a bounded allocator
@@ -215,8 +230,10 @@ not a new approval gate.
 
 ## PlanetScale and Hyperdrive setup
 
-1. Use PlanetScale Postgres database `refwatch`, production/default branch
-   `main` (`w3g1f8vcbg34`). The fresh baseline found no disposable target rows,
+1. Use logical PlanetScale database resource `refwatch`, production/default
+   branch `main` (`w3g1f8vcbg34`). Authoritative SQL `current_database()` and
+   the prepared Hyperdrive target are the physical PostgreSQL catalog
+   `postgres`. The fresh baseline found no disposable target rows,
    the exact reviewed 5/54 seed, and no active ledger. The reviewed helper has
    now applied `0016` without reset/reseed, and the exact post-preparation
    readbacks preserve those facts. Continue to record `app_users`, user-owned,
@@ -250,7 +267,7 @@ not a new approval gate.
 
    The helper applied and verified migration `0016` on 2026-07-20. Do not rerun
    it merely for evidence; its exact-head precondition now fails closed because
-   production is already at `0016`.
+   production has advanced through reviewed migration `0017`.
 4. The reproducible pre-preparation baseline query is
    `api/scripts/production-greenfield-baseline-readback-0015.sql`, SHA-256
    `5cce6740a72f7336767215c8673f1ee760a1025db239db2f0edddc23ef41dd05`.
@@ -266,12 +283,53 @@ not a new approval gate.
    reference-data branch historically read back 5/54/30/3/20 rows across its
    reference tables. Those live counts are not automatically the greenfield
    deterministic seed; only reviewed repository sources are seed authority.
-   The current production greenfield target is 17 migrations through
-   `0016_careless_steel_serpent`. The beta.3 source adds migration `0017` for
-   Clerk profile-event ordering, but it does not alter or repin the applied
-   `0016` receipt. Before deploying that source, apply and read back the exact
-   reviewed `0017` migration and repin the launch validator to the resulting
-   schema/history contract. After applying the production target, use the exact checked-in
+   The immutable activation receipt records 17 migrations through
+   `0016_careless_steel_serpent`. The active launch target is 18 migrations
+   through `0017_ambiguous_hedge_knight`, which adds Clerk profile-event
+   ordering without altering the applied `0016` receipt. Mandatory pre-
+   execution code/docs reviews and the supplemental SQL review returned exact
+   `NO FINDINGS`; the separately gated helper then executed only:
+
+   ```sh
+   cd api
+   npm run db:migrate:production:0017:check
+   REFWATCH_ALLOW_PRODUCTION_MIGRATION_0017=1 \
+     npm run db:migrate:production:0017
+   ```
+
+   The helper uses the fixed admin `pscale shell` command with SQL on stdin,
+   stable role/physical database `postgres`, all-table locks, exact source and
+   live-state pre/postconditions, and Node validation before commit. Its
+   migration-history contract binds every `(id, hash, created_at)` tuple with a
+   SHA-256 and separately pins the history table's exact columns/nullability,
+   `id` default, primary key, serial-sequence lookup, owners, and sequence
+   `OWNED BY` dependency. It rejects both invalid next-ID pairs, any control-
+   catalog drift, and concurrent application writes across the locked bootstrap
+   window. A protocol failure before the commit request is explicitly rolled
+   back only when the helper can prove commit was not sent and stdin remains
+   writable. Timeout/transport failure or a missing `COMMITTED` sentinel after
+   the commit request is an ambiguous state, never success; resolve it through
+   exact primary readback and the exact idempotent retry. Record the sanitized
+   first-apply and retry receipts, exact 18-row/383-column readback, and both
+   post-execution review closures before any Worker upload.
+   The production execution used that exact fixed child command with SQL on
+   stdin. The first apply canonical SHA-256 is
+   `d7a7dabb6a919459132d3820bc9728fd15226ee6880926f535899a733a1407be`;
+   the exact `idempotent_retry` SHA-256 is
+   `aaac7e2585a3184ed7cc871b16a9109636db049de7cd6daf3850405a75b38a14`.
+   Primary schema readback at `2026-07-21T04:49:05.169Z` proved exact
+   18/head-18 history, 36 tables/383 columns, and all pinned digests. Ledger
+   readback at `2026-07-21T04:49:12.975Z` remained inactive. Control readback at
+   `2026-07-21T04:49:49.613Z` proved full-history SHA-256
+   `4df5affeb9a55d1dd00437eb952f13f00afbb1f730bb368e3b2310d16edfa695`,
+   exact Drizzle catalog, sequence `(19,false)`, exact nullable `timestamptz`
+   target column, unchanged identity UUID/timestamps, 5/54 seed, and zero other
+   target rows. Both mandatory post-execution reviewers returned final exact
+   `NO FINDINGS`, closing migration-0017 convergence and removing this database
+   prerequisite for Worker upload. No Worker version has yet been uploaded,
+   deployed, or routed; writes/onboarding, traffic, Clerk configuration, and
+   ledger state otherwise remain unchanged, and later gates still apply.
+   After applying the production target, use the exact checked-in
    `greenfield-schema-readback.sql`, `greenfield-clean-target-readback.sql`, and
    `greenfield-ledger-readback.sql` queries described below rather than
    hand-authored count or schema claims.
@@ -364,15 +422,18 @@ deployed Worker remains unchanged. Declared inert resources are not the same as
 the mounted local harness that supplies no ledger key, Queue, D1, cron, or
 consumer.
 
-Fresh control-plane readback additionally records current deployment
+Read-only control-plane preflight through `2026-07-21T05:21:57.843Z` records
+current deployment
 `89cff719-0e19-4648-ab09-63a37d806c95` at 100% version
 `e966d6df-b5ff-4288-832c-c8d91e00ce48`. It has the old read-only Hyperdrive,
 disabled modes, correct Clerk pins, and no route/custom domain/workers.dev/
 preview/cron/Queue consumer. Its secret-name inventory does not include
-`CLERK_WEBHOOK_SIGNING_SECRET`, and its variables predate the greenfield
-identity receipt. `api.refwatch.ibby.ai` is currently unused and is the
-recommended exact custom hostname for the next reviewed write-disabled
-candidate; no route was created by the baseline.
+`CLERK_WEBHOOK_SIGNING_SECRET` or `CUTOVER_ACCEPTANCE_TOKEN`, and its variables
+predate the greenfield identity receipt. No version newer than this last-known-
+good L was observed, so production S/A/B/G do not yet exist.
+`api.refwatch.ibby.ai` is currently unused and is the recommended exact custom
+hostname for the next reviewed write-disabled candidate; no route was created
+by the preflight.
 
 ## Greenfield target and identity bootstrap
 
@@ -388,9 +449,12 @@ candidate; no route was created by the baseline.
    reviewed repository migration `0002`. This completed without reset/reseed
    because the target was already clean and the seed already matched.
 3. After preparation, capture the pinned schema, seed, clean-target, inactive-
-   ledger, and Clerk readbacks. The schema must be migration `0016`/17 with the
-   full reviewed catalog; the clean target must contain zero application/
-   identity/control rows and zero Clerk users; and the ledger must have zero
+   ledger, and Clerk readbacks. The historical pre-activation preparation schema
+   was migration `0016`/17; the active target is now exact migration `0017`/18
+   with 36 tables and 383 columns. The historical clean target contained zero
+   application/identity/control rows; the current post-activation target has
+   exactly one immutable receipt and activation while the other 25 categories
+   remain zero. The ledger must have zero
    preparing/open/capture-enforced epochs, zero cron schedules and Queue
    consumers, and zero D1 ledger rows. These post-preparation receipts, not the
    initial inventory, enter the launch packet. Database portions and an
@@ -400,39 +464,117 @@ candidate; no route was created by the baseline.
 4. Create, activate transactionally, and read back the
    `greenfield_zero_legacy_v1` receipt for exactly zero mappings, the canonical
    empty mapping hash, the 2026-07-20 authorization digest, and exact production
-   Clerk instance. Activation must follow the clean-target and Clerk readbacks.
-5. Create `/webhooks/clerk` for only `user.created`, `user.updated`, and
-   `user.deleted`; put only newly required/changed values—at least its signing
-   secret and `CUTOVER_ACCEPTANCE_TOKEN`—with non-echoing
-   `wrangler versions secret put` on stdin. Never request or reinstall the
-   inaccessible ledger-key value. Final source S preserves unchanged existing
-   bindings; sanitized A/B readbacks must each contain exactly the six allowed
-   secret names/types. S is bounded by exact ID/time, required-name operator
-   confirmation, documented preservation, and provider history. Then upload A
-   followed sequentially by B. Carry the
-   digest-checked `worker.secret_lineage` and provider-history receipt. Require
-   zero unexpected versions, secret mutations, or upload overrides and
-   `secret_values_recorded=false`. This is provider-history-bounded,
-   operator-confirmed sequencing under documented preservation behavior, not a
-   provider-observed parent link or direct secret-value comparison.
-6. Temporarily deploy G at 100% with no competitor. Its canonical provider
-   deployment readback digest and before/after timestamps must bracket the
-   operational probe; prove exact G health/readiness, disabled retryable denial,
-   and zero mutations. Restore A=100%/B=0% and capture the after-readback.
-   Repeat the same bracketed 100% probe/restoration contract for L. Launch
-   validation waits for both after-readbacks. Both proofs must lie inside the
-   rollback window and complete by validation time; require G-after < L-before,
-   the same production route, and distinct deployment/probe/provider receipt
-   IDs. The launch packet binds that route ID to the initial A route.
+   Clerk instance. First run
+   `npm run identity:activate:production:check`; this is source-only and
+   non-mutating. Immediately before execution, separately reverify the exact
+   Clerk instance has zero users through official tooling and refresh the
+   PlanetScale schema/seed/clean/ledger readbacks. After both mandatory
+   pre-execution reviewers return `NO FINDINGS`, set
+   `REFWATCH_ALLOW_PRODUCTION_GREENFIELD_IDENTITY_ACTIVATION=1` for
+   `npm run identity:activate:production` in the same process. It uses only the
+   fixed admin `pscale shell`
+   command, stdin SQL, the stable `postgres` role, all-table locks, and a
+   validate-before-commit protocol. Its catalog-pinned history sequence must be
+   exact `(18,false)` or `(17,true)`, each deriving next ID `18`; it records the
+   observed state and never advances or repairs the sequence. The shared 0016
+   apply helper remains strict `(18,false)`. Record the activation helper's
+   single sanitized canonical JSON receipt and SHA-256. Retry must preserve
+   UUID/timestamps. The helper does not verify Clerk users or activate the
+   mutation ledger. The first 2026-07-21 attempt failed closed with zero
+   receipt/activation rows under the original one-representation check. Both
+   remediation reviewers returned final `NO FINDINGS`. New PlanetScale plus
+   exact-instance Clerk gates then preceded successful activation and
+   idempotent retry. Primary readback proves one immutable receipt/activation,
+   UUID `428de9fc-1e6d-44a5-85a6-cbc0d15b7008`, all database timestamps
+   `2026-07-21T03:38:21.452Z`, zero other target rows, exact 5/54 seed, and
+   inactive ledger. No new approval was needed; every post-execution finding
+   was applied and both final reviewers returned exact `NO FINDINGS`.
+5. Prepare the exact disabled `/webhooks/clerk` endpoint and Worker S/A/B/G/L
+   lineage only through the reviewed same-process broker. The endpoint UID is
+   `refwatch-production-clerk-lifecycle-v1`, its URL is
+   `https://api.refwatch.ibby.ai/webhooks/clerk`, and its only subscriptions are
+   `user.created`, `user.updated`, and `user.deleted`; custom headers and
+   transformations must be absent. The Clerk helper binds separate official-
+   tooling zero-user readbacks for exact production instance
+   `ins_3GWFGUd1rI6hx5lWlUxMYAkxdac`. Run all three source-only checks:
+
+   ```sh
+   cd api
+   npm run clerk:webhook:production:check
+   npm run worker:lineage:production:check
+   npm run cutover:production:check
+   ```
+
+   The current local checkpoint is 455/455 full unit cases across 25 files,
+   43/43 database cases (23 current-schema + 9 exact-0016
+   activation + 11 migration-0017), 19/19 mounted routes, typecheck, all three
+   source checks, production dry-run, Wrangler generated-types check, mutation-
+   coverage check, a fully redacted changed-file credential scan excluding and
+   not inspecting `.projects`, and `git diff --check`. The earlier 131/131
+   focused and 427/427 unit checkpoint remains historical. Rerun affected
+   checks after any source or documentation change.
+
+   Standalone execution of either nested helper is disabled. For this Clerk/
+   Worker lane, the sole package command with explicit `--execute` is
+   `REFWATCH_ALLOW_PRODUCTION_GREENFIELD_CUTOVER=1 npm run cutover:production`.
+   At this preparation checkpoint it still fails closed before provider work
+   because the reviewed provider-guard and bounded acceptance/route
+   continuation callbacks are not yet wired. Do not run it until that same-
+   process continuation and both mandatory reviews close with final exact
+   `NO FINDINGS`.
+
+   The broker must retain the Clerk signing secret and generated acceptance
+   token only in memory from endpoint preparation through lineage, the
+   sanitized post-lineage review checkpoint, fresh provider guards, and bounded
+   continuation. Secret values must never enter argv, environment variables,
+   files, receipts, or evidence and must be wiped on every exit path. A process
+   loss after lineage is non-resumable because the token is not provider-
+   readable; recovery requires a separately reviewed re-lineage with a new
+   token.
+
+   Direct reads/secret writes use `--name refwatch-api` without `--env`; secret
+   bytes use only Wrangler stdin. Config-driven uploads use `--env production`
+   without `--name`, `--env-file /dev/null`, `--strict`, and both explicit
+   no-provision/no-auto-create flags. Put only the two newly required names,
+   `CLERK_WEBHOOK_SIGNING_SECRET` and `CUTOVER_ACCEPTANCE_TOKEN`. Never request
+   or reinstall the inaccessible ledger-key value. Final source S preserves the
+   four existing secret bindings; sanitized A/B readbacks must each contain
+   exactly the six allowed secret names/types. Execute only the exact
+   intermediate-secret-source→S→A→B→G creation sequence while reading
+   unchanged L. Each of the first two secret mutations must produce its own
+   exact one-version delta; the three config-driven uploads then create A, B,
+   and G. Require exactly five new versions total and zero unexpected versions
+   while leaving the 100% L deployment untouched.
+   Carry its canonical digest-checked `worker.secret_lineage` and provider-
+   history receipt. Require no unexpected secret mutation, upload override,
+   deployment change, or source drift and
+   `secret_values_recorded=false`. This is provider-history-bounded sequencing,
+   not a provider-observed parent link or direct secret-value comparison. No
+   Clerk endpoint or S/A/B/G Worker version exists merely because this local
+   implementation is present; record only live sanitized provider receipts.
+6. Later, temporarily deploy G at 100% with no competitor. Read back that same
+   G deployment as G-before, run the exact-version health/readiness and disabled
+   retryable-denial/no-mutation probe, then read back the same still-active G
+   deployment as G-after. Only after G-after is captured may A=100%/B=0% be
+   restored and recorded in a separate restoration proof. Repeat that exact
+   order for L only after G restoration: L=100%, same-deployment L-before,
+   probe, same-deployment L-after, then a separate A restoration. Launch
+   validation waits for both after-readbacks and both restorations. Both proofs
+   must lie inside the rollback window and complete by validation time; require
+   G-after < L-before, the same production route, and distinct deployment/probe/
+   provider receipt IDs. The launch packet binds that route ID to the initial A
+   route. Neither fallback after-readback may describe the restored A
+   deployment.
 7. Collect the final public A=100%/B=0% proof at
    `api.refwatch.ibby.ai/*`, with A set to `WRITE_MODE=disabled` and
    `NEW_USER_ONBOARDING_MODE=disabled`. Prove `/health` and `/health/ready`
    report exact A, missing/invalid bearer rejection, retryable 503 API/webhook
    denial, and zero identity/application mutations. Keep Workers.dev and
    preview URLs disabled.
-8. Validate the exact nested standalone `greenfield_destructive_v2` packet,
-   digest, window, thresholds, G/L probes, distributable client, and destructive
-   reset/reseed/recreate procedure.
+8. Validate the exact nested standalone `greenfield_destructive_v3` packet,
+   digest, Custom Domain binding, zero conflicting zone routes, absent manual
+   DNS origin, window, thresholds, G/L probes, distributable client, and
+   destructive reset/reseed/recreate procedure.
 9. While ordinary deployment remains A=100%/B=0%, create an exact
    Cloudflare Access `service_auth` policy receipt for
    `api.refwatch.ibby.ai/api/*` with exactly one service token and zero bypass
@@ -468,7 +610,7 @@ candidate; no route was created by the baseline.
 13. Only after device/release acceptance, record production acceptance,
     complete the monitored observation, and capture a final production
     readback proving no active ledger epoch and zero Queue, cron, D1, or other
-    consumers. Add every bound receipt and pass `greenfield_launch_v2`
+    consumers. Add every bound receipt and pass `greenfield_launch_v3`
     validation.
 
 `ALLOW_UNMAPPED_CLERK_USERS` remains deprecated and cannot authorize creation
@@ -483,8 +625,10 @@ Create the sanitized packet outside the repository or under the gitignored
 npm run launch:validate -- ../.cutover/greenfield-launch-packet.json
 ```
 
-The packet must explicitly use `greenfield_launch_v2`; an omitted or unknown
-profile and mixed legacy/stateful claims fail closed. It pins:
+The packet must explicitly use `greenfield_launch_v3`; an omitted, unknown, or
+historical-v2 profile and mixed legacy/stateful claims fail closed. It binds
+the exact Cloudflare Custom Domain, zero conflicting zone routes, and no manual
+DNS origin. It also pins:
 
 - the canonical authorization-payload digest
   `17e08fcf1fc61580c15f8957fcba5fc2ceb339df8332d8a937e0aa201ef65b9b`
@@ -509,12 +653,12 @@ Use these exact sanitized read-only query artifacts:
   SHA-256
   `0c952e3a585bde1aad3313b5e11de572e5c2408cc30988eaae729bc5e39a0d6b`.
 
-The schema receipt must prove migration head
-`0016_careless_steel_serpent`, count/head ID 17, migration-history MD5
-`73ad9d2a055b09e83324a50f74ed94dd`, and the reviewed full catalog: 36
-tables/table properties, 382 columns, 106 constraints, 77 indexes, 32 triggers,
+The active schema receipt must prove migration head
+`0017_ambiguous_hedge_knight`, count/head ID 18, migration-history MD5
+`f2f3ddf416d58b2d9a60749e41af11f7`, and the reviewed full catalog: 36
+tables/table properties, 383 columns, 106 constraints, 77 indexes, 32 triggers,
 10 functions, and 27 enum labels with their exact digests recorded in
-`docs/exec-plans/active/backend-platform-migration/evidence/2026-07-20-greenfield-launch-validator.md`.
+`docs/exec-plans/active/backend-platform-migration/evidence/2026-07-21-production-migration-0017.md`.
 The clean receipt must
 prove the exact reviewed 5-competition/54-team seed and zero rows across every
 listed application/identity/control table before bootstrap. The ledger receipt
@@ -556,7 +700,7 @@ The separate `worker.secret_lineage` receipt must use
 method `wrangler_versions_secret_put_stdin_then_sequential_uploads`. It binds
 non-echoing stdin puts for only newly required/changed values to final source
 version S, which preserves unchanged bindings, then operator-confirmed
-sequential S→A and A→B uploads with exact IDs/timestamps. The v2 packet carries
+sequential S→A and A→B uploads with exact IDs/timestamps. The active v3 packet carries
 no sanitized binding readback for S; sanitized A/B readbacks must expose exactly
 the six reviewed production secret names/types, while S is bounded by exact
 ID/time, required-name operator confirmation, documented preservation, and
@@ -581,11 +725,13 @@ and zero bypass, and the Worker-only cutover-token gate. The bounded
 cutover-token headers, records `manual_signed_harness`, both exact header names
 and presence flags, and valid/invalid signature outcomes; it is not provider
 delivery. Access application/policy/service-token IDs must be sanitized
-Cloudflare provider IDs (32 hexadecimal characters or canonical UUIDs). G/L probes require
-canonical provider deployment-readback digests and timestamps bracketing each
-probe strictly inside the rollback window, complete by validation time, and
-obey G-after < L-before. They use the same route, unique deployment/probe/
-provider receipts, and the launch packet binds their route to initial A.
+Cloudflare provider IDs (32 hexadecimal characters or canonical UUIDs). G/L
+probes require canonical readbacks of the same unchanged 100% fallback
+deployment immediately before and after each probe, followed by a separate
+A=100%/B=0% restoration proof. They must remain strictly inside the rollback
+window, complete by validation time, and obey G-after < L-before. They use the
+same route, unique deployment/probe/provider receipts, and the launch packet
+binds their route to initial A.
 Promotion requires B=100% and no competitor.
 While Access remains active, `traffic_and_writes.promoted_webhook_acceptance`
 must then prove real Clerk delivery without override/token headers, exactly
@@ -596,8 +742,9 @@ Workers.dev/preview exposure is allowed. Production acceptance follows devices,
 and the final ledger/consumer readback follows observation.
 
 Its rollback section must bind a separately validated
-`greenfield_destructive_v2` packet and exact digest for Worker `refwatch-api`,
-including its unexpired window, thresholds, bracketed guard/LKG probes,
+`greenfield_destructive_v3` packet and exact digest for Worker `refwatch-api`,
+including its Custom Domain binding, zero conflicting zone routes, absent
+manual DNS origin, unexpired window, thresholds, bracketed guard/LKG probes,
 distributable recovery client, and approved stop/guard/Worker-client rollback/
 PlanetScale reset/reseed/test-user recreation/acceptance-rerun sequence. Launch
 validation calls the standalone rollback validator. Ledger escrow/recovery/
@@ -775,35 +922,56 @@ satisfy any current production authenticated or user-flow gate below.
    Postgres-owned production helper; stop traffic/writes and reset disposable
    target state if needed; then reseed the reviewed deterministic 5/54
    reference catalog.
-   Stop here for beta.3 source: do not deploy the Worker or continue activation
-   until the exact reviewed production `0017` apply/readback is recorded and
-   the launch validator's schema/history pins are updated. The existing
-   production receipt remains the immutable `0016` receipt.
+   Beta.3 clarification recorded 2026-07-21: the authorization-bound
+   zero-legacy receipt activation may execute against the exact reviewed
+   production `0016`/17-row contract before `0017`. Do not deploy the beta.3
+   Worker source until the exact reviewed production `0017` apply/readback is
+   recorded and the launch validator's schema/history pins are updated. The
+   production preparation receipt remains the immutable `0016` receipt.
+   The source-0017 helper/validator batch is implemented and digest-pinned.
+   Mandatory pre-execution reviews closed with exact `NO FINDINGS`, production
+   0017 apply/retry and independent primary readback are complete, and the
+   launch validator matches the resulting exact catalog. Both mandatory post-
+   execution reviewers returned final exact `NO FINDINGS`; migration-0017 no
+   longer blocks Worker upload, while every later Worker/Clerk/acceptance gate
+   remains independently open.
 3. Capture the pinned post-preparation schema, seed, clean-target, inactive-
    ledger, and Clerk receipts. Require zero target application/control rows and
    Clerk users, zero preparing/open/capture-enforced epochs, and zero
    Queue/cron/D1 consumers.
 4. Create, transactionally activate, and observe the exact
-   `greenfield_zero_legacy_v1` receipt after the clean-target/Clerk readbacks.
-5. Create the exact Clerk webhook and install its signing secret plus
-   `CUTOVER_ACCEPTANCE_TOKEN` as only newly required/changed values via
-   non-echoing Wrangler stdin. Let source S preserve unchanged existing
-   bindings—including the inaccessible ledger-key binding without requesting
-   its value—then upload A and B sequentially. Retain the provider-history-
-   bounded/operator-confirmed `worker.secret_lineage`; sanitized A/B readbacks
-   must expose exactly the six allowed secret names/types without values. Bound
-   S by exact ID/time, required-name operator confirmation, documented
-   preservation, and provider history.
-6. Temporarily deploy G=100% with no competitor; bracket its probe with
-   canonical provider deployment readbacks/digests/timestamps, prove exact
-   version plus disabled denial/no-mutation, and restore A=100%/B=0%. Repeat for
-   L and wait for both after-readbacks. Keep both inside the rollback window and
+   `greenfield_zero_legacy_v1` receipt after fresh clean-target and separate
+   official exact-instance Clerk zero-user readbacks. Use only the reviewed
+   one-shot helper and record its sanitized receipt/activation UUID, immutable
+   timestamps, counts, and canonical digest. The resulting current control
+   state is exactly one receipt plus one activation; the other 25 clean-target
+   categories remain zero. Mutation-ledger activation stays forbidden.
+5. Use only the same-process production cutover broker to create or accept the
+   one exact disabled Clerk lifecycle endpoint, carry its signing secret in
+   memory, generate the memory-only `CUTOVER_ACCEPTANCE_TOKEN`, and install both
+   values via non-echoing Wrangler stdin. Standalone Clerk or lineage execution
+   is forbidden. Create exactly the intermediate secret-source version, final
+   S, A, B, and G in that order while reading unchanged L. Let S preserve
+   unchanged existing bindings—including the inaccessible ledger-key binding
+   without requesting its value. Retain the provider-history-bounded/operator-
+   confirmed `worker.secret_lineage`; sanitized A/B readbacks must expose
+   exactly the six allowed secret names/types without values. Bound the full
+   intermediate→S→A→B→G sequence and unchanged L read by exact IDs/times,
+   required-name operator confirmation, documented preservation, and provider
+   history. Pause on the sanitized post-lineage checkpoint for both mandatory
+   `NO FINDINGS` reviews, then recheck source and exact provider guards in the
+   same process before bounded continuation.
+6. Temporarily deploy G=100% with no competitor; capture same-deployment
+   G-before, run the exact-version disabled-denial/no-mutation probe, capture
+   same-deployment G-after, and only then restore A=100%/B=0% with a separate
+   proof. Repeat that exact order for L after G restoration. Wait for both after-
+   readbacks and both restorations. Keep both inside the rollback window and
    complete by validation time; require G-after < L-before, the same initial
    route, and unique deployment/probe/provider receipts.
 7. Collect the final public A=100%/B=0% proof: exact A health/readiness, bearer
    rejection, retryable API/webhook denial, zero mutations, and no
    Workers.dev/preview exposure.
-8. Validate the exact nested `greenfield_destructive_v2` packet and digest with
+8. Validate the exact nested `greenfield_destructive_v3` packet and digest with
    `npm run rollback:validate -- ../.cutover/rollback-packet.json`, including
    window, thresholds, G/L probes, client, and destructive instructions.
 9. Keep A=100%/B=0% for ordinary traffic. Record an exact Access `service_auth`
@@ -1026,15 +1194,17 @@ recovery strategy only when a future launch elects to preserve state.
 ### Rollback packet profiles
 
 The rollback validator accepts explicit `stateful_migration_v1`,
-`greenfield_destructive_v1`, and `greenfield_destructive_v2` profiles. An older
+`greenfield_destructive_v1`, `greenfield_destructive_v2`, and
+`greenfield_destructive_v3` profiles. An older
 packet that omits `rollback_profile` is interpreted as
 `stateful_migration_v1` for historical compatibility; an explicitly unknown
 profile fails. Every profile requires exact Worker name `refwatch-api`,
 environment `production`, strict unexpired UTC bounds, a proved write guard,
 and an already distributable recovery client. Stateful and greenfield v1 retain
-their three-version compatibility contract. Active greenfield v2 requires
-distinct disabled-candidate, accepted-candidate, guard, and LKG IDs plus both
-guard and LKG probe receipts.
+their three-version compatibility contract, and v2 remains historical-only.
+Active greenfield v3 requires distinct disabled-candidate, accepted-candidate,
+guard, and LKG IDs, the exact Custom Domain binding, zero conflicting zone
+routes, no manual DNS origin, and both guard and LKG probe receipts.
 
 Populate the gitignored `.cutover/rollback-packet.json` and run
 `npm run rollback:validate -- ../.cutover/rollback-packet.json` from `api/`.
@@ -1042,8 +1212,9 @@ The stateful profile additionally requires a restricted external write-ledger
 location/schema/probe receipt. Its external-ledger requirements do not gate the
 greenfield launch recovery profiles. Both greenfield profiles require the exact
 destructive reset/reseed/recreate sequence and require ledger
-escrow/recovery/activation plus Supabase reverse import to be false. Only v2 is
-valid for the active production greenfield closeout. The local validator checks
+escrow/recovery/activation plus Supabase reverse import to be false. Only v3 is
+valid for the active production greenfield closeout; v2 is historical-only.
+The local validator checks
 packet structure, chronology, and bounds; it does not prove provider existence.
 Owner-scope violations always trigger rollback at the first occurrence.
 

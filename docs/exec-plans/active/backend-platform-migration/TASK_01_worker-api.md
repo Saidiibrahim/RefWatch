@@ -15,11 +15,16 @@ phase: Phase 1 - Backend
   reference-catalog, stateful and greenfield cutover-validator,
   candidate-snapshot, onboarding, rollback, mutation-group ordering,
   envelope-bound, key-rotation, and mutation-ledger tests. The pre-greenfield
-  checkpoint passed 93 tests across fourteen files; the current aggregate is
-  268/268 unit tests across 19 files, including runtime-gate and public-route
-  coverage, plus 108/108 focused launch/rollback/CLI cases across 3 files. Fresh
-  hermetic verification is 23/23 database cases across 3 files and 19/19
-  mounted-route cases in 1 file. The earlier 19/19 real-Postgres
+  checkpoint passed 93 tests across fourteen files. The historical activation-
+  closure aggregate is 281/281 unit tests across 20 files, including runtime-
+  gate, public-route, and activation-helper coverage, plus 108/108 focused
+  launch/rollback/CLI cases across 3 files and 19/19 focused remediation cases
+  across 2 files (13 activation-helper plus 6 shared migration-0016 contract
+  cases). The historical migration-0017 convergence checkpoint extends that unit
+  corpus to 296/296 across 21 files and adds 11/11 isolated physical-`postgres`
+  migration cases. Fresh hermetic verification also includes 23/23 current-
+  schema cases across 3 files, the historical 9/9 exact-0016 activation cases,
+  and 19/19 mounted-route cases in 1 file. The earlier 19/19 real-Postgres
   provider result from 2026-07-15
   remains historical evidence and was not rerun after these route changes.
 - [x] Implement and prove the explicit `greenfield_zero_legacy_v1` bootstrap:
@@ -29,10 +34,15 @@ phase: Phase 1 - Backend
   positive-mapping path and keep `ALLOW_UNMAPPED_CLERK_USERS` inert. The
   identity batch initially passed typecheck, 129/129 unit tests, 17/17
   hermetic database cases, 4/4 mounted-route cases, 36/23/13 mutation coverage,
-  Drizzle convergence, and the production Wrangler dry-run. The current
-  aggregate after the v2 lineage remediation is 268/268 unit tests across 19
-  files, 23/23 hermetic database cases across 3 files, and 19/19 mounted-route
-  cases in 1 file.
+  Drizzle convergence, and the production Wrangler dry-run. The activation-
+  closure aggregate is the historical 281/281 unit tests across 20 files,
+  23/23 current-schema database cases plus 9/9 isolated exact-0016 activation
+  cases, and 19/19 mounted-route cases in 1 file. The migration-0017
+  convergence checkpoint extends the unit corpus to 296/296 across 21 files
+  and adds its separate 11/11 physical-`postgres` rehearsal. Production apply/
+  retry, independent primary readback, and both mandatory post-execution reviews
+  are complete with final exact `NO FINDINGS`; migration-0017 no longer blocks
+  Worker upload.
   Both activation and lifecycle delivery are immutable/idempotent under
   the reviewed lock order; the signed raw Clerk instance must match
   configuration, type/subject must match the verified projection, and timestamp
@@ -43,8 +53,10 @@ phase: Phase 1 - Backend
   their first lifecycle profile; strictly newer deliveries advance the
   watermark, while stale/equal-time and reversed-concurrent updates cannot
   regress profile state. The 23/23 hermetic database suite covers these cases.
-  `0017` remains a source migration and must be applied before deploying this
-  code to production.
+  Production `0017` is now applied and independently read back. Both mandatory
+  post-execution reviews returned final exact `NO FINDINGS`; migration-0017
+  convergence no longer blocks Worker upload. The separate Clerk/Worker
+  lineage, continuation, and acceptance gates remain open.
 - [x] Complete the 19-case hermetic mounted-route matrix for matches and their
   children, assessments, teams, competitions, venues, schedules, greenfield
   onboarding, owner/spoof isolation, idempotency/concurrency, tombstones,
@@ -89,7 +101,7 @@ phase: Phase 1 - Backend
   database suite, typecheck, Node syntax checks, and both mandatory re-reviews
   pass; the focused/full/database shorthand is 69/193/18. This is a local
   validation contract, not provider execution or production activation.
-- [x] Supersede the active closeout contract with `greenfield_launch_v2` and
+- [x] Record the historical v2 closeout contract with `greenfield_launch_v2` and
   `greenfield_destructive_v2`: distinct disabled/accepted candidates plus
   guard/LKG; packet-carried digest-checked sanitized A/B provider readbacks;
   validator-recomputed equal script/stable-binding lineage and exact approved
@@ -108,7 +120,8 @@ phase: Phase 1 - Backend
   inactive-ledger/zero-consumer readback. Receipt kinds/IDs are unique and
   Workers.dev/preview exposure is rejected. Focused verification is 108/108
   across 3 files, including six promoted-webhook adversarial tests; full unit
-  verification is 268/268 across 19 files; typecheck, 23/23 database,
+  verification at that v2 checkpoint was 268/268 across 19 files; typecheck,
+  23/23 database,
   19/19 mounted-route, and grouped fully redacted Gitleaks checks pass. The
   earlier exact 83-file scan remains historical remediated-v2 evidence.
   Generated Wrangler types are part of this batch. Both mandatory final
@@ -127,15 +140,102 @@ phase: Phase 1 - Backend
   disposable database paths prove migration success/rollback, and the final
   code-risk reviewer returned `NO FINDINGS`. No provider execution is claimed.
 - [x] Execute the reviewed migration/runtime preparation while `WRITE_MODE`
-  remains disabled. Provider execution is complete: production is at exact
-  migration `0016`/17, the 36-table catalog and zero-row 27-category target
-  read back correctly, durable role `hvk7iheytj62` and Hyperdrive
+  remains disabled. At preparation closure, production was at exact migration
+  `0016`/17; the 36-table catalog and zero-row 27-category target read back
+  correctly, durable role `hvk7iheytj62` and Hyperdrive
   `920ca5b108034b2bb8700cf0201ac55f` are provisioned, and the candidate binding
   plus expected role were updated together. Typecheck, 223 unit, 22 database,
   19 mounted-route, and production dry-run checks pass. Both mandatory
   preparation reviewers returned `NO FINDINGS` after their findings were
-  applied. Before webhook reachability testing, the next batch must deploy the
+  applied. The later production-0017 convergence item supersedes this
+  historical schema-head state. Before webhook reachability testing, the next batch must deploy the
   write-disabled candidate and pin distinct write-guard and last-known-good
   versions. The later write-enabled accepted version remains gated by
   activation and bounded acceptance. Preserve the current read-only
   role/Hyperdrive and old Worker version as the emergency write-denial path.
+- [x] Implement the fail-closed one-shot production zero-legacy activation
+  helper, exact source/digest checks, 37-relation lock boundary, pre-commit Node
+  validation, canonical sanitized receipt, and isolated exact-0016 physical
+  `postgres` database suite. Focused remediation tests pass 19/19 across 2 files
+  (13 activation-helper plus 6 shared migration-0016 contract cases); the dedicated
+  database suite passes 9/9, including both exact next-18 sequence
+  representations, rejection of conflicting pairs/catalog drift without row or
+  sequence mutation, first/retry/conflict/dirty-state/ledger/concurrency,
+  hostile search-path, and disabled-trigger paths. This checkbox is local
+  implementation only.
+- [x] Both initial mandatory reviews closed before the first production
+  attempt. That attempt failed closed and committed zero receipt/activation
+  rows under the original one-representation sequence check. Both reopened
+  remediation reviewers returned final `NO FINDINGS`. Fresh exact production
+  PlanetScale and separate official Clerk zero-user readbacks then gated a
+  successful activation and idempotent retry. Primary readback proves one exact
+  immutable receipt/activation, the same UUID/timestamps, zero other target
+  rows, exact seed/schema, and inactive ledger. Every mandatory post-execution
+  finding was applied and both final reviewers returned exact `NO FINDINGS`.
+  That batch did not deploy source `0017`, enable writes or onboarding, route
+  traffic, or activate the mutation ledger.
+- [x] Apply and read back additive production migration `0017` through only
+  the reviewed gated admin helper before uploading any beta.3 Worker version.
+  Local implementation is complete: source/contract pins, all-table locks,
+  full `(id, hash, created_at)` history digest, exact history-table/primary-key/
+  default/serial/`OWNED BY` control contract, activation/clean/seed/ledger
+  preconditions, validate-before-commit, canonical receipt, idempotent retry,
+  invalid sequence-pair and control-drift rejection, locked concurrent-writer
+  proof, 14/14 unit cases, and 11/11 isolated physical-`postgres` cases. Timeout,
+  transport, or missing post-commit sentinel remains an ambiguous failure that
+  requires exact primary readback plus the idempotent retry. Mandatory pre-
+  execution code/docs reviews and the supplemental SQL review returned exact
+  `NO FINDINGS`. The reviewed fixed stdin-only command applied `0017`; the
+  first/retry canonical receipt SHA-256 values are
+  `d7a7dabb6a919459132d3820bc9728fd15226ee6880926f535899a733a1407be` and
+  `aaac7e2585a3184ed7cc871b16a9109636db049de7cd6daf3850405a75b38a14`.
+  Independent primary readback proves exact 18-row/383-column 0017, all pinned
+  history/catalog controls, sequence `(19,false)`, the nullable `timestamptz`
+  target column, unchanged identity UUID/timestamps, exact 5/54 seed, zero
+  other target rows, and inactive ledger. The launch validator targets this
+  exact current catalog while activation remains pinned to historical 0016.
+  Both mandatory post-execution reviewers returned final exact `NO FINDINGS`,
+  closing migration-0017 convergence and unblocking Worker upload from this
+  prerequisite. No Worker upload/deployment, routing, writes/onboarding,
+  traffic, Clerk, or mutation-ledger state changed; later Worker lineage and
+  acceptance gates remain incomplete.
+- [ ] Complete and review the fail-closed same-process production Clerk/Worker
+  cutover implementation across
+  `scripts/prepare-production-clerk-webhook.mjs`,
+  `scripts/prepare-production-greenfield-worker-lineage.mjs`, and
+  `scripts/execute-production-greenfield-cutover.mjs`. Local implementations
+  are present, and their current checkpoint passes 455/455 full unit tests
+  across 25 files, all 43 database cases (23 current-schema + 9
+  exact-0016 activation + 11 migration-0017), 19/19 mounted routes, typecheck,
+  all three source checks, production dry-run, Wrangler generated-types check,
+  mutation coverage, a fully redacted changed-file credential scan with
+  `.projects` excluded and uninspected, and `git diff --check`. The earlier
+  131/131 focused and 427/427 full-unit checkpoint remains historical. Final
+  review closure, the trusted audit reader/live fixtures, and bounded
+  continuation wiring remain open. Keep
+  `clerk:webhook:production:check`, `worker:lineage:production:check`, and
+  `cutover:production:check` source-only and non-mutating. Standalone execution
+  of the Clerk and lineage helpers must fail closed. For this Clerk/Worker lane,
+  only the outer `cutover:production` package script may supply explicit
+  `--execute`, with
+  `REFWATCH_ALLOW_PRODUCTION_GREENFIELD_CUTOVER=1`; it must remain unusable
+  until reviewed provider-guard and bounded continuation callbacks are wired.
+- [ ] Close the active `greenfield_launch_v3` / `greenfield_destructive_v3`
+  continuation review. The source binds the exact Cloudflare Custom Domain,
+  zero conflicting zone routes, and no manual DNS origin while preserving v2
+  only as historical validation. Do not execute until both mandatory reviews,
+  every remediation, and final review closure are recorded.
+  Prepare only the exact disabled Clerk lifecycle endpoint and keep its signing
+  secret plus the generated acceptance token memory-only through lineage,
+  post-lineage review quorum, fresh provider guards, and continuation. Install
+  only those two newly required Worker secret names with bytes on Wrangler
+  stdin and one exact version delta per mutation; preserve the four existing
+  bindings without reading their values; create exactly the intermediate
+  secret-source version, final S, A, B, and G in order while reading unchanged
+  L.
+  Enforce exactly five new versions total, zero unexpected versions, exact
+  command targeting, unchanged 100% L deployment, pairwise-distinct IDs, exact
+  A/B script/stable-binding lineage, generic non-echoing failures, and canonical
+  sanitized receipts. The local checks pass; no production execution may occur
+  until the reviewed continuation is wired and both mandatory reviewers return
+  final exact `NO FINDINGS`.

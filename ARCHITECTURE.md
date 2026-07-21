@@ -41,15 +41,41 @@ safe-integer milliseconds before transactional idempotent create/update/delete
 processing. The 2026-07-20 production preparation applied that migration and
 provisioned a separate least-privilege read/write-data role/Hyperdrive pair;
 the local production candidate binds it with writes/onboarding disabled while
-the deployed Worker remains unchanged. This is not identity activation,
-deployed provider acceptance, or traffic cutover.
+the deployed Worker remains unchanged. A separate one-shot admin helper now
+implements the fail-closed production zero-legacy activation transaction. It
+distinguishes logical PlanetScale database `refwatch` from physical PostgreSQL
+catalog `postgres`, locks the exact 0016 catalog plus migration history, and
+withholds commit until Node validates the sanitized immutable receipt. The
+history sequence is catalog-pinned and must be one of the two exact states
+whose next ID is `18`; the activation path never advances or repairs it. Its
+local isolated rehearsal is complete. A first production attempt failed closed
+without an identity row because the original helper accepted only one of those
+equivalent sequence states. Both remediated mandatory reviews closed with
+`NO FINDINGS`; fresh database and separate Clerk readbacks then gated a
+successful activation plus idempotent retry. Independent primary readback now
+proves one immutable receipt and activation while application data remains
+zero.
+This is not deployed provider acceptance or traffic cutover, and it never
+activates the mutation ledger.
 
 Migration `0017` is the additive beta.3 source migration for Clerk profile
 event ordering. It adds a nullable provider-event watermark so delayed or
 equal-time lifecycle deliveries cannot overwrite newer profile state, while an
-auth-created row can still accept its first webhook. It is not applied to
-production by this source release and must precede any deployment of code that
-reads or writes `clerk_profile_updated_at`.
+auth-created row can still accept its first webhook. The fail-closed one-shot
+admin helper and physical-`postgres` rehearsal passed mandatory pre-execution
+code/docs reviews and the supplemental SQL review with exact `NO FINDINGS`,
+then applied migration `0017` through the fixed stdin-only PlanetScale admin
+shell. Primary readback now proves exact `0017`/18 rows, 36 tables, 383 columns,
+the full pinned catalog/history contract, sequence `(19,false)`, and the
+nullable `timestamptz` watermark while preserving the immutable activation
+pair, 5/54 seed, zero other target rows, and inactive ledger.
+`reviewedSchema0016` still preserves the immutable activation receipt; the
+active launch contract remains pinned to current `0017`. Both mandatory post-
+execution reviewers returned final exact `NO FINDINGS`, closing migration-0017
+convergence and removing this database prerequisite for Worker upload. No
+Worker version has yet been uploaded/deployed/routed, and writes, onboarding,
+traffic, Clerk configuration, and mutation-ledger state remain unchanged; all
+later launch gates still apply.
 
 The active launch contract models Cloudflare's immutable configuration
 honestly: disabled candidate A and accepted candidate B are distinct Worker

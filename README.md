@@ -93,8 +93,10 @@ The watch-first match runtime and local SwiftData stores remain offline-first. W
 > exact schema/clean-seed/inactive-ledger readbacks and both mutation modes
 > disabled; both mandatory preparation reviewers returned `NO FINDINGS`.
 > Distinct disabled/accepted Worker candidates plus guard/LKG deployment and
-> later acceptance remain open. The active v2 packet carries exact,
-> digest-checked sanitized A/B `wrangler versions view --json` receipts and
+> later acceptance remain open. The active v3 packet carries exact,
+> digest-checked sanitized A/B `wrangler versions view --json` receipts, binds
+> the exact Custom Domain with zero conflicting zone routes and no manual DNS
+> origin, and
 > recomputes their equal code/stable-binding lineage against the approved
 > production binding and secret-name allowlist. Its non-disclosing
 > `worker.secret_lineage` binds stdin installation of only newly required/
@@ -128,12 +130,12 @@ The watch-first match runtime and local SwiftData stores remain offline-first. W
 > precede physical devices exercising B. Production acceptance follows
 > device/release evidence and ends with an
 > inactive-ledger/zero-consumer readback.
-> Current beta.3 preparation proof is 108/108 focused, 268/268 unit, 23/23
-> database, and 19/19 mounted-route tests; typecheck, Node syntax, Wrangler
-> types, production dry-run, mutation coverage, focused iOS cursor tests, and
-> unsigned Release/Debug builds pass. Migration `0017` adds a Clerk profile
-> event-time watermark locally and remains unapplied in production; `.projects`
-> remains excluded wholesale from source control.
+> Current local cutover-preparation proof is 455/455 unit, 43/43 database, and
+> 19/19 mounted-route tests; typecheck, the three source-only provider checks,
+> production dry-run, and mutation coverage pass. Production migration `0017`
+> is applied and independently read back. The v3 Clerk/Worker continuation is
+> still source-only and fail-closed pending final review closure and live
+> provider wiring; `.projects` remains excluded wholesale from source control.
 > Ledger escrow, recovery, and activation
 > are deferred; launch evidence requires zero preparing, open, or
 > capture-enforced epochs and zero Queue, cron, or D1 consumers, not absence of
