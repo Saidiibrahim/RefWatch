@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0-beta.3] - 2026-07-21
+
+### Added
+- A greenfield zero-legacy identity bootstrap with immutable activation and Clerk webhook delivery receipts.
+- Production migration, readback, runtime-provisioning, and immutable Worker-version launch validation tooling.
+- Replay-safe collection synchronization with tombstone reconciliation and monotonic server mutation versions.
+
+### Changed
+- The production candidate now uses the least-privilege runtime Hyperdrive while writes and new-user onboarding remain disabled.
+- Delayed Clerk profile webhooks no longer overwrite newer profile state.
+- Greenfield cutover governance now requires bounded candidate acceptance, rollback proof, real Clerk lifecycle delivery, and physical-device acceptance before production closeout.
+
+### Release status
+- This remains an engineering checkpoint prerelease. Provider deployment, traffic promotion, write/onboarding activation, real Clerk delivery acceptance, and physical-device sign-off remain gated.
+
 ## [0.9.0-beta.2] - 2026-07-17
 
 ### Added
