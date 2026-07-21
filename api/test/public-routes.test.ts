@@ -6,7 +6,11 @@ describe("public routes", () => {
   it("exposes health without authentication or database access", async () => {
     const response = await app.request("/health", {}, { REFWATCH_ENV: "test" } as Env);
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({ status: "ok", environment: "test" });
+    await expect(response.json()).resolves.toEqual({
+      status: "ok",
+      environment: "test",
+      worker_version_id: "unknown",
+    });
   });
 
   it("fails readiness without exposing database errors when no binding exists", async () => {

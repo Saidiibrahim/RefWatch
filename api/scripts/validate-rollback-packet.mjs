@@ -7,7 +7,14 @@ if (!path) {
   process.exit(2);
 }
 
-const packet = JSON.parse(await readFile(path, "utf8"));
+let packet;
+try {
+  packet = JSON.parse(await readFile(path, "utf8"));
+} catch {
+  console.error("Rollback packet must be a readable JSON file");
+  process.exit(2);
+}
+
 const result = validateRollbackPacket(packet);
 if (!result.ok) {
   for (const error of result.errors) console.error(`- ${error}`);

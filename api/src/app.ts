@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { logger } from "hono/logger";
 import { connectDatabase } from "./db/client";
 import { clerkAuth, type SessionVerifier } from "./middleware/auth";
+import { cutoverVersionOverrideGate } from "./middleware/cutoverVersionOverrideGate";
 import { writeGate } from "./middleware/writeGate";
 import { assistantRoutes } from "./routes/assistant";
 import { libraryRoutes } from "./routes/library";
@@ -22,7 +23,12 @@ export function createApp(options: AppOptions = {}) {
   const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
   app.use("*", logger());
-  app.get("/health", (c) => c.json({ status: "ok", environment: c.env.REFWATCH_ENV ?? "unknown" }));
+  app.use("*", cutoverVersionOverrideGate());
+  app.get("/health", (c) => c.json({
+    status: "ok",
+    environment: c.env.REFWATCH_ENV ?? "unknown",
+    worker_version_id: c.env.CF_VERSION_METADATA?.id ?? "unknown",
+  }));
   app.get("/health/ready", async (c) => {
     let connection: Awaited<ReturnType<typeof connectDatabase>> | undefined;
     try {
@@ -33,6 +39,7 @@ export function createApp(options: AppOptions = {}) {
         status: "ready",
         database: "reachable",
         database_identity: pinned ? "verified" : "not_required",
+        worker_version_id: c.env.CF_VERSION_METADATA?.id ?? "unknown",
       });
     } catch {
       console.warn("Database readiness check failed");
